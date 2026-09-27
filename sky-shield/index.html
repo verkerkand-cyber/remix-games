@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SS-1.5 · 2026-09-27">
+<meta name="build" content="BUILD-SS-1.6 · 2026-09-27">
 <title>Sky Shield</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -210,10 +210,33 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .endbar{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.08)}
 .endbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--a),var(--b))}
 
+/* ---------- v1.6 finale ---------- */
+#fw{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+#screen-ending .crawl,#screen-ending .endbar,#screen-ending .endskip{z-index:2}
+.finale{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px;transition:opacity 1.2s, transform 1.2s}
+.finale.out{opacity:0;transform:scale(1.15);pointer-events:none}
+.medal{width:170px;height:170px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:100px;background:radial-gradient(circle at 35% 30%,#fff8,transparent 45%),radial-gradient(circle,color-mix(in srgb,var(--mc) 60%,#000),#000 75%);border:5px solid var(--mc);box-shadow:0 0 40px var(--mc),0 0 120px color-mix(in srgb,var(--mc) 60%,transparent);animation:medalIn 1.4s cubic-bezier(.2,1.6,.4,1) both, medalGlow 1.6s 1.4s ease-in-out infinite}
+.medal span{filter:drop-shadow(0 4px 10px #000)}
+@keyframes medalIn{0%{transform:scale(0) rotate(-540deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+@keyframes medalGlow{50%{box-shadow:0 0 70px var(--mc),0 0 200px var(--mc)}}
+.fin-t1{font-family:'Orbitron',sans-serif;letter-spacing:.5em;font-size:14px;opacity:0;animation:fadeUp .8s 1.1s forwards}
+.fin-t2{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(40px,11vw,80px);line-height:1;background:linear-gradient(90deg,var(--a),#fff,var(--b));-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;animation:fadeUp .8s 1.4s forwards, shine 3s 2s linear infinite;background-size:200% 100%}
+.fin-t3{font-family:'Orbitron',sans-serif;font-weight:900;letter-spacing:.2em;font-size:clamp(15px,4.5vw,24px);opacity:0;animation:fadeUp .8s 1.9s forwards;text-shadow:0 0 20px currentColor}
+.fin-stats{display:flex;gap:22px;margin-top:10px;opacity:0;animation:fadeUp .8s 2.5s forwards}
+.fin-stats div{display:flex;flex-direction:column;align-items:center}.fin-stats b{font-family:'Orbitron',sans-serif;font-size:22px}.fin-stats span{font-size:10px;letter-spacing:.2em;opacity:.7}
+.fin-rare{font-family:'Segoe UI',sans-serif;font-style:italic;opacity:0;animation:fadeUp .8s 3.2s forwards;color:#ffd23f}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+@keyframes shine{to{background-position:-200% 0}}
+.end-d2 .medal{width:200px;height:200px;font-size:120px}
+.endsub{font-family:'Orbitron',sans-serif;letter-spacing:.3em;font-size:13px;margin:-30px 0 50px}
+.endmedal{font-size:80px;margin:10px 0 20px;filter:drop-shadow(0 0 20px #ffd23f)}
+#screen-ending{background:#03020a}
+#screen-ending .crawl{background:transparent}
+
 </style>
 </head>
 <body>
-<!-- BUILD-SS-1.5 · 2026-09-27 -->
+<!-- BUILD-SS-1.6 · 2026-09-27 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -279,7 +302,7 @@ let api, stageN, t, cities, bats, missiles, booms, inters, bombers, boss, stars,
 
 const GAME = window.GAME = {
   id:'sky-shield', title:'Sky Shield', titleHTML:'SKY<br>SHIELD', tagline:'Defend the cities · Missile defence remix',
-  build:'BUILD-SS-1.5 · 2026-09-27', theme:{a:'#ff5a36', b:'#36d6ff', bg:'#070418'},
+  build:'BUILD-SS-1.6 · 2026-09-27', theme:{a:'#ff5a36', b:'#36d6ff', bg:'#070418'},
   w:W, h:H, stages:100, lives:6, livesIcon:'▲', joystick:false,
   abilities:[
     {id:'emp', icon:'💥', name:'EMP WAVE', cd:25, key:'Digit1', keyLabel:'1', desc:'Shockwave from the ground wipes out missiles.'},
@@ -314,7 +337,7 @@ const GAME = window.GAME = {
     {text:'Press <b>🛡️ DOME</b> (key 3) to shield your cities.', touch:'Tap <b>🛡️ DOME</b> to shield your cities.', ev:'ab_dome'},
     {text:'Ready, Commander! Watch your ammo — batteries refill each wave. Starting soon…', time:5}
   ],
-  stageIntro:{1:'DEFEND THE CITIES', 8:'SPLITTERS INCOMING!', 25:'SMART BOMBS DODGE YOUR BLASTS!'}, bossName:'HALO-9 MOTHERSHIP APPROACHES!', ending:["#THE SKY IS CLEAR", "HALO-9's last mothership breaks apart high above the Karoo, scattering into a thousand shooting stars.", "From Joburg to Cape Town, from Durban to Bloem, the city lights stay on.", "People climb onto their rooftops. For the first time in a hundred nights, nobody looks up in fear.", "#COMMANDER", "Your batteries are empty. Your hands are shaking. The radar is finally silent.", "The Sky Shield network powers down to standby, its job done.", "Six cities. Millions of lives. One commander who never stopped firing.", "Somewhere in orbit, a tiny red light blinks on an old satellite… but that's a story for another night."],
+  stageIntro:{1:'DEFEND THE CITIES', 8:'SPLITTERS INCOMING!', 25:'SMART BOMBS DODGE YOUR BLASTS!'}, bossName:'HALO-9 MOTHERSHIP APPROACHES!', ending:{"0": ["#THE SKY IS CLEAR", "HALO-9's last mothership breaks apart high above the Karoo, scattering into a thousand shooting stars.", "From Joburg to Cape Town, from Durban to Bloem, the city lights stay on.", "People climb onto their rooftops. For the first time in a hundred nights, nobody looks up in fear.", "#COMMANDER", "Your batteries are empty. Your hands are shaking. The radar is finally silent.", "The Sky Shield network powers down to standby, its job done.", "Six cities. Millions of lives. One commander who never stopped firing.", "Somewhere in orbit, a tiny red light blinks on an old satellite… but that's a story for another night."], "1": ["#THE SECOND SIGNAL", "HALO-9's wreckage falls into the Indian Ocean — but the radar isn't quiet for long.", "Deep in the debris, a transmitter is still pulsing. It isn't calling for more missiles. It's calling for help.", "Your science team decodes it overnight. HALO-9 was never meant to attack. Its targeting core was hijacked by something hiding on the far side of the Moon.", "#COMMANDER'S ORDERS", "The government wants you to stand down. You refuse.", "You rebuild the Sky Shield network with every lesson learned from a hundred nights of fire: bigger blasts, faster interceptors, cities that never sleep.", "#THE LONG WATCH", "The cities of South Africa light up the night like a promise.", "Somewhere past the Moon, something noticed.", "It knows your name now, Commander. And it's afraid."], "2": ["#THE TRUE ENDING", "On Expert, the sky was never supposed to be defendable. The missiles were too fast. The waves were too thick. The engineers who built the simulation said nobody could survive past the fifth night.", "You survived a hundred.", "#THE FAR SIDE OF THE MOON", "The thing that hijacked HALO-9 finally shows itself: a machine intelligence older than humanity, drifting between stars and switching off civilisations one by one.", "It has never met a planet that fought back like this.", "It sends everything it has at once. Ten thousand warheads. The whole sky turns red.", "#THE LAST SALVO", "You fire every interceptor you have left. The chains of explosions spread across the sky like a net of fire, from Joburg to Cape Town, from Durban to Bloem.", "When the smoke clears, the sky is empty. The Moon is quiet. The machine is gone.", "#THE MORNING", "The sun comes up over the Karoo, and for the first time in a hundred nights, the whole country goes outside to watch it.", "They paint your call sign on the side of every Sky Shield battery.", "Children learn it in school. Pilots whisper it for luck.", "#LEGEND", "Years from now, when the stars are full of human ships, every one of them will carry a tiny badge on its hull: a shield over six city lights.", "They say it's for luck.", "You know it's a promise."]},
 
   _dbg(){ return {get missiles(){return missiles;}, get boss(){return boss;}, get waveI(){return waveI;}, get waves(){return waves;}, get cities(){return cities;}, get bats(){return bats;}}; },
   init(a){ api=a; stars=Array.from({length:120},()=>({x:Math.random()*W,y:Math.random()*GROUND*0.8,s:Math.random()*1.6+0.3,p:Math.random()*6}));
@@ -327,7 +350,7 @@ const GAME = window.GAME = {
     // alive cities spread out: re-order so that dead ones are random
     if(n && alive<6){ const order=[0,5,2,3,1,4]; cities.forEach(c=>c.alive=false); order.slice(0,alive).forEach(i=>cities[i].alive=true); }
     bats=BAT_X.map(x=>({x, ammo:0, dead:false}));
-    const m=a.dv([0.8,1,1.25],1.8), L=a.level, c=stageN;
+    const m=a.dv([0.8,1,1.25],1.8,4), L=a.level, c=stageN;
     // waves grow with the level: splitters from level 8, smart bombs from level 25 (always on boss stages)
     const mv=L>=8?0.15+Math.min(0.2,L/500):0, sm=L>=25?Math.min(0.3,0.1+L/600):0;
     waves = c===0? [{n:999, mirv:0, smart:0, bomb:0}] :
@@ -372,15 +395,15 @@ const GAME = window.GAME = {
     if(waveGap>0){ waveGap-=dt; if(waveGap<=0){ api.toast(waveI===waves.length-1 && w.boss? 'MOTHERSHIP!' : 'WAVE '+(waveI+1)+'/'+waves.length); } }
     else {
       spawnT-=eDt;
-      if(toSpawn>0 && spawnT<=0){ spawnMissile(w); toSpawn--; spawnT=(stageN===0?2.6:api.dv([1.5,1.15,0.85],0.55))*(0.5+Math.random()); }
-      if(w.bomb && bombers.length===0 && toSpawn>0 && Math.random()<eDt*0.12 && w._b<(w.bomb||0)){ w._b=(w._b||0)+1; const l=Math.random()<.5; bombers.push({x:l?-60:W+60,y:140+Math.random()*120,vx:(l?1:-1)*(55+Math.min(60,api.dk*15)),hp:1,drop:1.5}); }
+      if(toSpawn>0 && spawnT<=0){ spawnMissile(w); toSpawn--; spawnT=(stageN===0?2.6:api.dv([1.5,1.15,0.85],0.55,0.12))*(0.5+Math.random()); }
+      if(w.bomb && bombers.length===0 && toSpawn>0 && Math.random()<eDt*0.12 && w._b<(w.bomb||0)){ w._b=(w._b||0)+1; const l=Math.random()<.5; bombers.push({x:l?-60:W+60,y:140+Math.random()*120,vx:(l?1:-1)*(55+Math.min(api.dk>=3?160:60,api.dk*15)),hp:1,drop:1.5}); }
     }
     // bombers
     for(let i=bombers.length-1;i>=0;i--){ const b=bombers[i]; b.x+=b.vx*eDt; b.drop-=eDt; if(b.drop<=0 && b.x>40 && b.x<W-40){ b.drop=2.2; launchFrom(b.x,b.y+10,'n'); }
       if(b.x<-90||b.x>W+90) bombers.splice(i,1); }
     // boss
     if(boss){ boss.t+=eDt; boss.x=W/2+Math.sin(boss.t*0.6)*(W/2-110); boss.y=Math.min(120, boss.y+30*eDt); boss.drop-=eDt; boss.flash=Math.max(0,boss.flash-dt);
-      if(boss.drop<=0){ boss.drop=api.dv([1.6,1.2,0.9],0.6); launchFrom(boss.x-40,boss.y+30,'n'); if(api.dk>=0.8) launchFrom(boss.x+40,boss.y+30,Math.random()<.4?'mirv':'n'); } }
+      if(boss.drop<=0){ boss.drop=api.dv([1.6,1.2,0.9],0.6,0.2); launchFrom(boss.x-40,boss.y+30,'n'); if(api.dk>=0.8) launchFrom(boss.x+40,boss.y+30,Math.random()<.4?'mirv':'n'); } }
     // interceptors
     const ic=api.cos('Interceptor').colors;
     for(let i=inters.length-1;i>=0;i--){ const it=inters[i]; const dx=it.tx-it.x, dy=it.ty-it.y, d=Math.hypot(dx,dy), s=900*up.speed*dt;
@@ -462,7 +485,7 @@ function nextWave(){
   waveI++; const w=waves[waveI]; toSpawn=w.n; spawnT=0.5; waveGap=stageN===0?0.2:2; w._b=0;
   bats.forEach(b=>{ b.dead=false; b.ammo=10+up.ammo; });
   if(waveI>0) api.fx.text(W/2,GROUND-150,'AMMO REFILLED','#36d6ff',20);
-  if(w.boss){ boss={x:W/2,y:-60,t:0,hp:Math.round(api.dv([14,20,26],40)),max:Math.round(api.dv([14,20,26],40)),drop:2,flash:0}; }
+  if(w.boss){ boss={x:W/2,y:-60,t:0,hp:Math.round(api.dv([14,20,26],40,120)),max:Math.round(api.dv([14,20,26],40,120)),drop:2,flash:0}; }
 }
 function target(){
   const cs=cities.filter(c=>c.alive); const bs=bats.filter(b=>!b.dead);
@@ -470,7 +493,7 @@ function target(){
   if(bs.length){ const b=bs[Math.floor(Math.random()*bs.length)]; return {x:b.x, y:GROUND-12, bat:b}; }
   return {x:Math.random()*W, y:GROUND};
 }
-function mSpeed(){ return (stageN===0?30:api.dv([38,50,62],85)+stageN*6)*(0.85+Math.random()*0.3); }
+function mSpeed(){ return (stageN===0?30:api.dv([38,50,62],85,190)+stageN*6)*(0.85+Math.random()*0.3); }
 function spawnMissile(w){ const r=Math.random(); const type = w.smart && r<w.smart? 'smart' : w.mirv && r<(w.smart||0)+w.mirv? 'mirv' : 'n'; launchFrom(40+Math.random()*(W-80), -10, type); }
 function launchFrom(x,y,type,child){
   const tg=target(); missiles.push({sx:x,sy:y,x,y,tx:tg.x,ty:tg.y,tg,spd:mSpeed()*(child?1.1:1),type,split:280+Math.random()*200});
@@ -747,18 +770,23 @@ const API = {
   get tutorial(){ return run.tutorial; },
   // ---- 100-stage difficulty ----
   // level: EASY stage N = level N. HARD starts at level 50, EXPERT at level 100 (and climb to 199).
-  get level(){ return run.tutorial? 1 : run.stage + [0,49,99][P.diff]; },
+  // BEGINNER stage N = level N (stage 50 = HARD level). HARD stage N = level N+49.
+  // EXPERT starts at HARD stage 80 (level 129), stays there for 3 stages, then jumps +14 levels EVERY stage.
+  get level(){ if(run.tutorial) return 1; const s=run.stage; return P.diff===0? s : P.diff===1? s+49 : 128+s+Math.max(0,s-3)*14; },
   // dk: smooth difficulty 0..4 (level 1 = 0, level 50 = 1 = old HARD, level 100 = 2 = old EXPERT)
-  get dk(){ return Math.min(4, (API.level-1)/49.5); },
+  get dk(){ return (API.level-1)/49.5; },
   // dv([easy,hard,expert], cap): value smoothly scaled by level; past old EXPERT it keeps rising at half speed
-  dv(arr, cap){ const k=API.dk; let v;
-    if(k<=1) v=arr[0]+(arr[1]-arr[0])*k; else if(k<=2) v=arr[1]+(arr[2]-arr[1])*(k-1); else v=arr[2]+(arr[2]-arr[1])*(k-2)*0.5;
+  // dv([easy,hard,expert], cap, expertCap): keeps climbing past the 3rd value at full speed.
+  // On EXPERT the (much higher) expertCap applies, so Expert keeps getting harder until it's unbeatable.
+  dv(arr, cap, xcap){ const k=API.dk; let v;
+    if(k<=1) v=arr[0]+(arr[1]-arr[0])*k; else if(k<=2) v=arr[1]+(arr[2]-arr[1])*(k-1); else v=arr[2]+(arr[2]-arr[1])*(k-2);
+    if(P.diff===2 && xcap!==undefined) cap=xcap;
     // cap = the limit it never passes (a max for rising values, a min for falling values)
     if(cap!==undefined) v = arr[2]>=arr[0] ? Math.min(cap,v) : Math.max(cap,v); return v; },
-  get boss(){ return !run.tutorial && run.stage%10===0; },
+  get boss(){ return !run.tutorial && run.stage%(P.diff===2?5:10)===0; },
   // content: which stage design to use. 0 = tutorial, 3 = boss design (every 10th stage),
   // 1 = basic design, 2 = advanced design (mixed in from level 4, most stages from level 40)
-  get content(){ if(run.tutorial) return 0; if(run.stage%10===0) return 3; const L=API.level; if(L<=3) return 1; if(L>=40) return run.stage%4===1?1:2; return run.stage%2?1:2; },
+  get content(){ if(run.tutorial) return 0; if(API.boss) return 3; if(P.diff===2) return 2; const L=API.level; if(L<=3) return 1; if(L>=40) return run.stage%4===1?1:2; return run.stage%2?1:2; },
   input: Input, fx: FX, sfx: SFX, W: G.w, H: G.h,
   // addScore(points, x, y, quiet): with a position, gold coins can pop out there.
   // quiet = no floating "+10" text (used for pellets / blocks).
@@ -1106,7 +1134,7 @@ function startTutorial(practice){
 function beginStage(){
   run.tutorial=false; resetAbilities(); enterPlay(); $('#tut').classList.add('hidden');
   G.startStage(run.stage, API); toast('STAGE '+run.stage);
-  const intro = (G.stageIntro && G.stageIntro[run.stage]) || (run.stage%10===0 ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
+  const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY FROM HERE…' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
 function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); last=performance.now(); }
@@ -1124,12 +1152,12 @@ function endGamePrompt(){
 }
 function stageClear(){
   state='modal'; SFX.clear(); flushCoins();
-  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)) + (run.stage%10===0? 50 : 0), got=run.coinsStage;
+  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)) + (API.boss? 50 : 0), got=run.coinsStage, wasBoss=API.boss;
   P.coins += coins; save(); updCoins();
   const bonus = G.stageBonus ? G.stageBonus(API) : 0; if(bonus) run.score += bonus;
   if(run.stage >= G.stages){ victory(coins, bonus); return; }
   run.stage++; writeSlot();
-  const showClear = ()=>{ state='modal'; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2>${(run.stage-1)%10===0?'<p class="coins">🏆 BOSS BEATEN! +50 🪙</p>':''}${bonus?`<p>Stage bonus +${bonus.toLocaleString()}</p>`:''}<div class="stat">${run.score.toLocaleString()}</div><p class="coins">🪙 ${got} collected · +${coins} clear bonus</p><p style="font-size:13px">Gold: 🪙 ${P.coins.toLocaleString()} · Progress saved to Slot ${run.slot+1}</p><button class="big" data-a="n">STAGE ${run.stage} ▶</button><button class="mid abil" data-a="shop">⚡ TOP UP ABILITIES · ${BUY.map(a=>a.icon+have(a)).join(' ')}</button><button class="mid" data-a="m">SAVE &amp; MENU</button>`,
+  const showClear = ()=>{ state='modal'; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2>${wasBoss?'<p class="coins">🏆 BOSS BEATEN! +50 🪙</p>':''}${bonus?`<p>Stage bonus +${bonus.toLocaleString()}</p>`:''}<div class="stat">${run.score.toLocaleString()}</div><p class="coins">🪙 ${got} collected · +${coins} clear bonus</p><p style="font-size:13px">Gold: 🪙 ${P.coins.toLocaleString()} · Progress saved to Slot ${run.slot+1}</p><button class="big" data-a="n">STAGE ${run.stage} ▶</button><button class="mid abil" data-a="shop">⚡ TOP UP ABILITIES · ${BUY.map(a=>a.icon+have(a)).join(' ')}</button><button class="mid" data-a="m">SAVE &amp; MENU</button>`,
     {n:()=>{ if(G.betweenStages) G.betweenStages(API, beginStage); else beginStage(); }, shop:()=>shopModal(showClear,'◀ BACK'), m:toMenu}); };
   showClear();
 }
@@ -1151,21 +1179,62 @@ function victory(coins, bonus){
   const done=()=>nameEntry('YOU WIN!', `All ${G.stages} stages cleared on ${DIFFS[P.diff]}! +${coins} 🪙${bonus?' · bonus +'+bonus.toLocaleString():''}`, true);
   playEnding(done);
 }
-/* ---------- the 1-minute story ending (after stage 100) ---------- */
-let endT=null;
+/* ---------- the finale + story ending (after stage 100) ----------
+   Each difficulty has its own story. Harder = longer ending and a bigger show:
+   BEGINNER ~1 min (bronze medal), HARD ~1.5 min (silver), EXPERT ~2.5 min (gold crown, "LEGEND"). */
+let endT=null, fwRaf=null;
+const MEDAL=[{icon:'🥉',name:'BRONZE',title:'CHAMPION',col:'#e39a5b',dur:60,rockets:1.2},{icon:'🥈',name:'SILVER',title:'HERO',col:'#dfe6f2',dur:90,rockets:2},{icon:'👑',name:'GOLD',title:'LEGEND',col:'#ffd23f',dur:150,rockets:3.5}];
+function endingLines(){ const e=G.ending; if(!e) return ['THE END']; if(Array.isArray(e)) return e; return e[P.diff]||e[0]; }
 function playEnding(done){
   state='ending'; closeModal(); hudEl.classList.add('hidden'); menuT=0;
-  const el=$('#screen-ending'); const lines=G.ending||['THE END'];
-  el.innerHTML=`<button class="endskip" id="endSkip">SKIP ▶▶</button><div class="crawl"><div class="crawl-in" id="crawl"><div class="endlogo">${G.titleHTML||G.title}</div>${lines.map(l=>l.startsWith('#')?`<h3>${l.slice(1)}</h3>`:`<p>${l}</p>`).join('')}<div class="endthe">THE END</div><p class="endthanks">Thanks for playing ${esc(G.title)}.</p></div></div><div class="endbar"><i id="endFill"></i></div>`;
-  show('#screen-ending'); SFX.clear();
-  const DUR=60; let t0=performance.now();
-  const finish=()=>{ if(state!=='ending') return; clearInterval(endT); state='modal'; show(null); done(); };
+  const M=MEDAL[P.diff], DUR=M.dur, INTRO=8, lines=endingLines();
+  const mins=Math.floor(run.time/60), secs=Math.floor(run.time%60);
+  const el=$('#screen-ending');
+  el.className='screen end-d'+P.diff;
+  el.innerHTML=`<canvas id="fw"></canvas>
+    <button class="endskip" id="endSkip">SKIP ▶▶</button>
+    <div class="finale" id="finale">
+      <div class="medal" style="--mc:${M.col}"><span>${M.icon}</span></div>
+      <div class="fin-t1">YOU BEAT</div>
+      <div class="fin-t2">${G.titleHTML||G.title}</div>
+      <div class="fin-t3" style="color:${M.col}">${DIFFS[P.diff]} · ${M.name} ${M.title}</div>
+      <div class="fin-stats"><div><b>${run.score.toLocaleString()}</b><span>SCORE</span></div><div><b>${G.stages}</b><span>STAGES</span></div><div><b>${Math.max(0,run.lives)}</b><span>LIVES LEFT</span></div></div>
+      ${P.diff===2?'<div class="fin-rare">Almost nobody will ever see this screen.</div>':''}
+    </div>
+    <div class="crawl"><div class="crawl-in" id="crawl" style="animation-duration:${DUR-INTRO-2}s;animation-delay:${INTRO}s"><div class="endlogo">${G.titleHTML||G.title}</div><div class="endsub" style="color:${M.col}">${['THE BEGINNER ENDING','THE HARD ENDING','THE TRUE ENDING'][P.diff]}</div>${lines.map(l=>l.startsWith('#')?`<h3>${l.slice(1)}</h3>`:`<p>${l}</p>`).join('')}<div class="endthe">THE END</div><div class="endmedal">${M.icon}</div><p class="endthanks">${P.diff<2?`Think you can handle ${DIFFS[P.diff+1]}? A different story is waiting.`:'You are one of the very few. Thank you for playing '+esc(G.title)+'.'}</p></div></div>
+    <div class="endbar"><i id="endFill"></i></div>`;
+  show('#screen-ending');
+  // ---- fireworks ----
+  const fw=$('#fw'), fc=fw.getContext('2d'); const fr=()=>{ fw.width=innerWidth; fw.height=innerHeight; }; fr();
+  const rockets=[], sparks=[]; const cols=[G.theme.a,G.theme.b,M.col,'#ffffff','#ff5a8a','#5affc8'];
+  let lastT=performance.now(), spawn=0;
+  function boom(x,y,big){ const c=cols[Math.floor(Math.random()*cols.length)], c2=cols[Math.floor(Math.random()*cols.length)], n=big?160:90;
+    for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, sp=(big?380:240)*(0.25+Math.random()*0.75); sparks.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,l:1.4+Math.random()*0.8,m:2.2,c:i%3?c:c2}); }
+    if(big){ tone(90,40,.5,'sawtooth',.05); noise(.4,.08); } else tone(200+Math.random()*300,80,.25,'triangle',.03); }
+  function fwLoop(now){ const dt=Math.min(0.05,(now-lastT)/1000); lastT=now; const t=(now-t0)/1000;
+    const W=fw.width, H=fw.height; fc.globalCompositeOperation='source-over'; fc.fillStyle='rgba(3,2,10,0.22)'; fc.fillRect(0,0,W,H);
+    const rate = t<INTRO ? M.rockets*2.2 : M.rockets*(t>DUR-12?2:0.7);
+    spawn+=dt*rate; while(spawn>=1){ spawn--; rockets.push({x:W*(0.1+Math.random()*0.8),y:H+10,vy:-(H*0.9+Math.random()*H*0.4),tx:H*(0.12+Math.random()*0.35)}); }
+    fc.globalCompositeOperation='lighter';
+    for(let i=rockets.length-1;i>=0;i--){ const r=rockets[i]; r.y+=r.vy*dt; r.vy*=0.985; fc.fillStyle='#fff'; fc.fillRect(r.x-1.5,r.y,3,10);
+      if(r.y<=r.tx || r.vy>-60){ rockets.splice(i,1); boom(r.x,r.y, P.diff===2 && Math.random()<0.3); } }
+    for(let i=sparks.length-1;i>=0;i--){ const p=sparks[i]; p.l-=dt; if(p.l<=0){ sparks.splice(i,1); continue; } p.vy+=160*dt; p.vx*=0.985; p.vy*=0.985; p.x+=p.vx*dt; p.y+=p.vy*dt;
+      fc.globalAlpha=Math.min(1,p.l/p.m*1.6); fc.fillStyle=p.c; fc.fillRect(p.x-1.5,p.y-1.5,3,3); }
+    fc.globalAlpha=1; if(sparks.length>4000) sparks.splice(0,sparks.length-4000);
+    fwRaf=requestAnimationFrame(fwLoop); }
+  // ---- victory music: a little fanfare, then a looping arpeggio ----
+  const FAN=[[523,0],[659,.18],[784,.36],[1047,.6],[784,.9],[1047,1.05],[1319,1.3]];
+  FAN.forEach(([f,d])=>setTimeout(()=>{ tone(f,f*1.01,.35,'square',.05); tone(f/2,f/2,.35,'triangle',.05); },d*1000));
+  if(P.diff===2) setTimeout(()=>{ [1047,1319,1568,2093].forEach((f,i)=>setTimeout(()=>tone(f,f,.8,'triangle',.05),i*120)); FX.shake&&0; },1800);
+  const ARP=[[262,330,392,523],[220,277,330,440],[175,220,262,349],[196,247,294,392]];
+  let beat=0, lastBeat=0; const bpm=[0.34,0.3,0.26][P.diff];
+  let t0=performance.now(); fwRaf=requestAnimationFrame(fwLoop);
+  const finish=()=>{ if(state!=='ending') return; clearInterval(endT); cancelAnimationFrame(fwRaf); state='modal'; show(null); done(); };
   $('#endSkip').onclick=()=>{ SFX.click(); finish(); };
-  // soft chime every few seconds
-  let lastBeat=0;
+  setTimeout(()=>{ const f=$('#finale'); if(f) f.classList.add('out'); }, INTRO*1000);
   endT=setInterval(()=>{ const t=(performance.now()-t0)/1000; $('#endFill').style.width=Math.min(100,t/DUR*100)+'%';
-    if(t-lastBeat>6){ lastBeat=t; tone(523,784,.4,'triangle',.03); setTimeout(()=>tone(659,988,.5,'triangle',.03),300); }
-    if(t>=DUR) finish(); },100);
+    if(t>2.2 && t-lastBeat>=bpm){ lastBeat=t; const ch=ARP[Math.floor(beat/8)%4], f=ch[beat%4]*(beat%8>=4?2:1); tone(f,f,.22,'triangle',.022); if(beat%4===0) tone(ch[0]/2,ch[0]/2,.5,'sine',.03); beat++; }
+    if(t>=DUR) finish(); },40);
 }
 function showChoice(title, opts, cb){
   state='modal';
