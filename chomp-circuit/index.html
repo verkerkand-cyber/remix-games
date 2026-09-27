@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CC-1.6 · 2026-09-27">
+<meta name="build" content="BUILD-CC-1.7 · 2026-09-27">
 <title>Chomp Circuit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -233,10 +233,16 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 #screen-ending{background:#03020a}
 #screen-ending .crawl{background:transparent}
 
+/* ---------- finish / claim form ---------- */
+.claimcode{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:.2em;padding:10px;border-radius:12px;border:2px dashed #ffd23f;background:rgba(255,210,74,.08)}
+.claimcode b{font-size:30px;letter-spacing:.25em;color:#ffd23f}
+.clok{display:flex;gap:8px;align-items:flex-start;text-align:left;font-family:'Segoe UI',sans-serif;font-size:13px;opacity:.85}
+.clok input{width:18px;height:18px;flex:none;margin-top:1px}
+
 </style>
 </head>
 <body>
-<!-- BUILD-CC-1.6 · 2026-09-27 -->
+<!-- BUILD-CC-1.7 · 2026-09-27 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -371,7 +377,7 @@ function resetPositions(){
 
 const GAME = window.GAME = {
   id:'chomp-circuit', title:'Chomp Circuit', titleHTML:'CHOMP<br>CIRCUIT', tagline:'Neon maze chase · Remix of a classic',
-  build:'BUILD-CC-1.6 · 2026-09-27', theme:{a:'#ffe14a', b:'#20e3ff', bg:'#05040f'},
+  build:'BUILD-CC-1.7 · 2026-09-27', theme:{a:'#ffe14a', b:'#20e3ff', bg:'#05040f'},
   w:C*TS, h:R*TS+OY+8, stages:100, lives:3, livesIcon:'●', joystick:true,
   abilities:[
     {id:'dash', icon:'⚡', name:'DASH', cd:5, key:'Digit1', keyLabel:'1', desc:'Speed burst to escape or chase.'},
@@ -584,6 +590,11 @@ const $ = s => document.querySelector(s);
 const DIFFS = ['EASY','HARD','EXPERT'];
 const KEY = 'rmx_' + G.id + '_v1';
 const SUPPORT = G.support || 'appstreamsupportav@gmail.com';
+/* ---------- finish alerts (only when a player clears ALL stages of a difficulty) ----------
+   FIN.sb / FIN.key = Supabase project URL + public "anon" key. The table only accepts new rows,
+   nobody can read it from the game, so cell numbers stay private. FIN.topic = ntfy.sh channel
+   for Andrew's phone alert (no personal data is ever sent there). Leave a value empty to switch that part off. */
+const FIN = {sb:'https://uuyaoffzgjxxwxlzhwur.supabase.co', key:'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9', topic:'remix-arcade-a059c55346e0'};
 const root = document.documentElement.style;
 root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.setProperty('--bg', G.theme.bg);
 
@@ -822,6 +833,7 @@ const API = {
   badge(i, txt){ abBadge[i]=txt; },
   setActive(i, on){ abActive[i]=on; },
   resetCooldown(i){ abLock[i]=0; },
+  useAb(i){ useAbility(i); },
   // big always-visible counter in the top bar (e.g. Sky Shield ammo). level: '', 'low' or 'empty'
   counter(label, value, level){ setCounter(label, value, level); },
   choice(title, opts, cb){ showChoice(title, opts, cb); },
@@ -1129,7 +1141,7 @@ function dblCollect(){ if(sPend<=0) return; P.coins+=sPend; sMsg(`Collected ${sP
 /* ---------- game flow ---------- */
 function writeSlot(){ P.slots[run.slot] = {stage:run.stage, score:run.score, lives:run.lives, diff:P.diff, t:Date.now(), extra:run.extra}; save(); }
 function newGame(i){
-  run.slot=i; run.stage=1; run.score=0; run.lives=G.lives; run.extra={}; writeSlot();
+  run.slot=i; run.stage=1; run.score=0; run.lives=G.lives; run.extra={started:Date.now()}; writeSlot();
   starterKit();
   if(!P.tutDone) startTutorial(false); else beginStage();
 }
@@ -1142,6 +1154,7 @@ function startTutorial(practice){
   enterPlay(); G.startStage(0, API); tutShow(); toast('TUTORIAL');
 }
 function beginStage(){
+  run.stageT0=performance.now();
   run.tutorial=false; resetAbilities(); enterPlay(); $('#tut').classList.add('hidden');
   G.startStage(run.stage, API); toast('STAGE '+run.stage);
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY FROM HERE…' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
@@ -1161,6 +1174,7 @@ function endGamePrompt(){
   modal(`<h2>END GAME?</h2><p>Your game is saved in <b>Slot ${run.slot+1}</b> at the start of Stage ${run.stage}. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
 }
 function stageClear(){
+  if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
   state='modal'; SFX.clear(); flushCoins();
   const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)) + (API.boss? 50 : 0), got=run.coinsStage, wasBoss=API.boss;
   P.coins += coins; save(); updCoins();
@@ -1186,8 +1200,60 @@ function gameOver(){
   nameEntry('GAME OVER', `🪙 ${got} collected this stage · +${coins} score bonus`, false);
 }
 function victory(coins, bonus){
-  const done=()=>nameEntry('YOU WIN!', `All ${G.stages} stages cleared on ${DIFFS[P.diff]}! +${coins} 🪙${bonus?' · bonus +'+bonus.toLocaleString():''}`, true);
+  const code=claimCode(), fin=finishRecord(code);
+  sendFinish(fin);
+  const done=()=>claimForm(fin, ()=>nameEntry('YOU WIN!', `All ${G.stages} stages cleared on ${DIFFS[P.diff]}! +${coins} 🪙${bonus?' · bonus +'+bonus.toLocaleString():''}`, true));
   playEnding(done);
+}
+function claimCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c=''; const r=new Uint32Array(6); (crypto.getRandomValues? crypto.getRandomValues(r) : r.forEach((_,i)=>r[i]=Math.random()*1e9)); r.forEach(v=>c+=A[v%A.length]); return c; }
+function finishRecord(code){
+  const times=(run.extra.times||[]).filter(x=>typeof x==='number'), total=Math.round(times.reduce((a,b)=>a+b,0));
+  const fastest=times.length? Math.min(...times) : null, missing=G.stages-times.length;
+  return {kind:'finish', game:G.id, difficulty:DIFFS[P.diff], code, score:run.score, lives:Math.max(0,run.lives), total_secs:total, fastest_stage_secs:fastest,
+    stages_timed:times.length, times, build:G.build.split(' ')[0], ua:navigator.userAgent.slice(0,200),
+    // quick cheat check: a real 100-stage run takes a long time; very short stages or missing timings are suspicious
+    suspicious: missing>5 || (fastest!==null && fastest<6) || total < G.stages*15};
+}
+function postRow(row){
+  if(!FIN.sb || FIN.sb.startsWith('__') || !FIN.key || FIN.key.startsWith('__')) return Promise.resolve(false);
+  return fetch(FIN.sb.replace(/\/$/,'')+'/rest/v1/finishers',{method:'POST',headers:{'apikey':FIN.key,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(row)})
+    .then(r=>r.ok, ()=>false);
+}
+function queueRow(row){ P.pending=(P.pending||[]); P.pending.push(row); save(); }
+function flushPending(){ const q=(P.pending||[]).slice(); if(!q.length) return; P.pending=[]; save(); q.forEach(row=>postRow(row).then(ok=>{ if(!ok) queueRow(row); })); }
+function sendFinish(fin){
+  postRow(fin).then(ok=>{ if(!ok) queueRow(fin); });
+  if(FIN.topic && !FIN.topic.startsWith('__')){
+    const pr=['3','4','5'][P.diff], tag=['bronze','silver','gold'][P.diff];
+    const hrs=Math.floor(fin.total_secs/3600), mins=Math.floor(fin.total_secs%3600/60);
+    fetch('https://ntfy.sh/'+FIN.topic,{method:'POST',headers:{'Title':`${DIFFS[P.diff]} FINISHED - ${G.title}`,'Priority':pr,'Tags':(P.diff===2?'rotating_light,crown':'tada')+','+tag},
+      body:`Someone beat all ${G.stages} stages of ${G.title} on ${DIFFS[P.diff]}!\nClaim code: ${fin.code}\nScore: ${fin.score.toLocaleString()} | Run time: ${hrs}h ${mins}m${fin.suspicious?'\nWARNING: run looks suspicious (very fast or missing stage times)':''}\nTheir name and cell number (if they left it) are in Supabase.`}).catch(()=>{});
+  }
+}
+function claimForm(fin, next){
+  state='modal';
+  const exp=P.diff===2;
+  modal(`<h2>${exp?'👑 LEGEND!':'🎉 YOU DID IT!'}</h2>
+    <p>You finished <b>all ${G.stages} stages</b> of ${esc(G.title)} on <b>${DIFFS[P.diff]}</b>.${exp?' Almost nobody will ever do this.':''}</p>
+    <div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div>
+    <p style="font-size:13px">Leave your name and cell number and we'll send you a congratulations message on WhatsApp.${exp?' Keep your claim code — for the Expert challenge we may ask you for a screen recording of your final stages.':''}</p>
+    <input id="clName" maxlength="40" placeholder="YOUR NAME" autocomplete="name" style="text-transform:none">
+    <input id="clPhone" type="tel" maxlength="20" placeholder="CELL NUMBER e.g. 082 123 4567" autocomplete="tel" style="text-transform:none">
+    <label class="clok"><input type="checkbox" id="clOk"> I agree to be contacted on WhatsApp about this.</label>
+    <div class="slot-msg" id="clMsg"></div>
+    <button class="big" id="clSend">SEND</button><button class="mid" data-a="skip">NO THANKS</button>`, {skip:next});
+  ['#clName','#clPhone'].forEach(id=>$(id).addEventListener('keydown',e=>e.stopPropagation()));
+  $('#clSend').onclick=()=>{
+    const name=$('#clName').value.trim(), phone=$('#clPhone').value.replace(/[^0-9+]/g,'');
+    const msg=t=>{ $('#clMsg').textContent=t; $('#clMsg').className='slot-msg lose'; };
+    if(name.length<2) return msg('Please enter your name');
+    if(phone.replace(/\D/g,'').length<9) return msg('Please enter a valid cell number');
+    if(!$('#clOk').checked) return msg('Please tick the box so we may contact you');
+    SFX.pickup(); const row={kind:'contact', game:G.id, difficulty:DIFFS[P.diff], code:fin.code, name, phone, score:fin.score};
+    $('#clSend').disabled=true; $('#clSend').textContent='SENDING…';
+    postRow(row).then(ok=>{ if(!ok) queueRow(row);
+      modal(`<h2>THANK YOU!</h2><p>Got it, ${esc(name)}. Watch your WhatsApp.</p><div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div><p style="font-size:12px;opacity:.7">Screenshot this screen to keep your code.</p><button class="big" data-a="n">CONTINUE</button>`, {n:next}); });
+  };
 }
 /* ---------- the finale + story ending (after stage 100) ----------
    Each difficulty has its own story. Harder = longer ending and a bigger show:
@@ -1287,8 +1353,9 @@ $('#mTitle').innerHTML = G.titleHTML || G.title;
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
+setTimeout(flushPending, 3000);
 requestAnimationFrame(frame);
-window.__rmx = {P, run, API, get state(){return state;}, stageClear:()=>stageClear(), toMenu, newGame, useAbility, inGameShop, playEnding, continueSlot, beginStage, get coinsFly(){return coinsFly;}, get layout(){return {scale,offX,offY};}};
+
 })();
 
 </script>
