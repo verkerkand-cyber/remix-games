@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-ST-1.0 · 2026-09-28">
+<meta name="build" content="BUILD-ST-1.1 · 2026-09-28">
 <title>Snack Stack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -257,7 +257,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-ST-1.0 · 2026-09-28 -->
+<!-- BUILD-ST-1.1 · 2026-09-28 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -316,12 +316,14 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 /* SNACK STACK — South African snack tile-match remix (#21) */
 (function(){
 const W=600, H=900;
-const TW=72, TH=84;                       // tile size
+const TW=84, TH=98;                       // tile size (v1.1: bigger)
+const TS=0.8;                             // tray tiles scale
 const TRAY_Y=18, TRAY_H=92, SLOTS=7;      // the tray at the top
 const BY=150;                             // board top
 const SNACKS=['BUNNY CHOW','KOEKSISTER','BILTONG','BOEREWORS','VETKOEK','MELKTERT','RUSK','SAMOOSA','MEALIE','SOSATIE','NAARTJIE','ROOIBOS','LAMB CHOP','MALVA','DROËWORS','CHAKALAKA'];
 let api, stageN, t, tiles, tray, flying, clearing, hist, timeLeft, timeMax, done, hintT, hintIds, seed, lost, shakeT, lastTap, icons={};
 
+const GXW=12;                             // board width in half-tiles (7 tiles across)
 function rng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let x=Math.imul(s^s>>>15,1|s); x=x+Math.imul(x^x>>>7,61|x)^x; return ((x^x>>>14)>>>0)/4294967296; }; }
 
 /* ---------- snack art (drawn in code, cached per tile skin) ---------- */
@@ -400,9 +402,10 @@ function tileIcon(k, skin){
   // tile body
   c.fillStyle=col[2]||'#9b6b3a'; rr(c,2,6,TW-4,TH-6,11); c.fill();
   const g=c.createLinearGradient(0,0,0,TH); g.addColorStop(0,col[0]); g.addColorStop(1,col[1]); c.fillStyle=g; rr(c,2,1,TW-4,TH-8,11); c.fill();
-  c.strokeStyle='rgba(0,0,0,0.18)'; c.lineWidth=1.5; rr(c,2,1,TW-4,TH-8,11); c.stroke();
-  c.save(); c.translate(TW/2,TH/2-8); drawSnack(c,k,1.05); c.restore();
-  c.fillStyle='rgba(40,20,5,0.75)'; c.font='bold 8px Arial, sans-serif'; c.textAlign='center'; c.fillText(SNACKS[k],TW/2,TH-13);
+  const gl=c.createLinearGradient(0,1,0,TH*0.5); gl.addColorStop(0,'rgba(255,255,255,0.85)'); gl.addColorStop(1,'rgba(255,255,255,0)'); c.fillStyle=gl; rr(c,5,4,TW-10,TH*0.42,9); c.fill();
+  c.strokeStyle=col[2]||'#b68a55'; c.lineWidth=2.5; rr(c,2.5,1.5,TW-5,TH-9,11); c.stroke();
+  c.save(); c.translate(TW/2,TH/2-9); c.filter='saturate(1.35) brightness(1.08)'; drawSnack(c,k,1.25); c.restore();
+  c.fillStyle='rgba(40,20,5,0.9)'; c.font='bold 10px Arial, sans-serif'; c.textAlign='center'; c.fillText(SNACKS[k],TW/2,TH-14);
   icons[key]=cv; return cv;
 }
 function rr(c,x,y,w,h,r){ c.beginPath(); if(c.roundRect) c.roundRect(x,y,w,h,r); else c.rect(x,y,w,h); }
@@ -415,8 +418,8 @@ function makeStage(n,a){
   target -= target%3;
   const types = n===0? 4 : Math.min(16, 5 + Math.floor(L/12) + (boss?1:0));
   const layers = n===0? 2 : Math.min(6, 2 + Math.floor(L/25) + (boss?1:0));
-  // candidate positions per layer on a half-tile grid (gx 0..14, gy 0..16), mirrored left/right
-  const GX=14, GY=16, cells=[];
+  // candidate positions per layer on a half-tile grid (gx 0..12, gy 0..16), mirrored left/right
+  const GX=GXW, GY=16, cells=[];
   for(let l=0;l<layers;l++){ const off=l%2;
     for(let gy=off; gy<=GY-2; gy+=2) for(let gx=off; gx<=GX/2; gx+=2) cells.push({gx,gy,l}); }
   const has=new Set(); const key=(gx,gy,l)=>gx+','+gy+','+l;
@@ -451,12 +454,12 @@ function makeStage(n,a){
 function overlaps(a,b){ return Math.abs(a.gx-b.gx)<2 && Math.abs(a.gy-b.gy)<2; }
 function isFreeAmong(tl, aliveSet){ for(const id of aliveSet){ const o=tiles[id]; if(o.l>tl.l && overlaps(o,tl)) return false; } return true; }
 function isFree(tl){ for(const o of tiles){ if(!o.gone && o.l>tl.l && overlaps(o,tl)) return false; } return true; }
-function tilePos(tl){ const bw=(14+2)*TW/2; const bx=(W-bw)/2; return {x:bx+tl.gx*TW/2 - tl.l*4, y:BY+tl.gy*TH/2*0.86 - tl.l*6}; }
-function slotPos(i){ const sw=(W-40)/SLOTS; return {x:20+i*sw+(sw-TW*0.92)/2, y:TRAY_Y+8}; }
+function tilePos(tl){ const bw=(GXW+2)*TW/2; const bx=(W-bw)/2+6; return {x:bx+tl.gx*TW/2 - tl.l*3, y:BY+tl.gy*TH/2*0.86 - tl.l*6}; }
+function slotPos(i){ const sw=(W-40)/SLOTS; return {x:20+i*sw+(sw-TW*TS)/2, y:TRAY_Y+8}; }
 
 const GAME = window.GAME = {
   id:'snack-stack', title:'Snack Stack', titleHTML:'SNACK<br>STACK', tagline:'Match 3 · Mzansi snack attack',
-  build:'BUILD-ST-1.0 · 2026-09-28', theme:{a:'#ffb000', b:'#1fc36b', bg:'#0b1a12'},
+  build:'BUILD-ST-1.1 · 2026-09-28', theme:{a:'#ffb000', b:'#1fc36b', bg:'#0b1a12'},
   w:W, h:H, stages:100, lives:3, livesIcon:'♥', joystick:false, coinPts:60,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows the best snack to tap next.'},
@@ -465,7 +468,7 @@ const GAME = window.GAME = {
     {id:'magnet', icon:'🧲', name:'MAGNET', cd:30, key:'Digit4', keyLabel:'4', desc:'Pulls out snacks to finish a set of 3 — even buried ones.'}
   ],
   shop:[
-    {id:'k_cream', cat:'Tiles', name:'Kitchen Cream', cost:0, colors:['#fffaf0','#f1e3c6','#b68a55'], desc:'Classic cream tiles.'},
+    {id:'k_cream', cat:'Tiles', name:'Kitchen Cream', cost:0, colors:['#ffffff','#fff0cc','#d9953a'], desc:'Classic cream tiles.'},
     {id:'k_kraft', cat:'Tiles', name:'Kraft Paper', cost:150, colors:['#e9d3ab','#d2b07a','#8e6433'], desc:'Brown-paper spaza style.'},
     {id:'k_mint', cat:'Tiles', name:'Mint Tin', cost:220, colors:['#e6fff3','#b8f0d4','#3b9a6c'], desc:'Cool mint enamel.'},
     {id:'k_gold', cat:'Tiles', name:'Gold Leaf', cost:350, colors:['#fff6cf','#f3d36b','#a37a12'], desc:'Fancy gold tiles.'},
@@ -534,7 +537,7 @@ const GAME = window.GAME = {
     c.save(); c.globalAlpha=0.07; c.strokeStyle='#fff'; for(let y=150;y<H;y+=36) for(let x=(y/36%2)*18;x<W;x+=36){ c.beginPath(); c.arc(x,y,5,0,Math.PI*2); c.stroke(); } c.restore();
     // tray
     c.fillStyle='rgba(70,35,10,0.85)'; rr(c,10,TRAY_Y,W-20,TRAY_H,18); c.fill(); c.strokeStyle='#ffb000'; c.lineWidth=3; c.stroke();
-    for(let i=0;i<SLOTS;i++){ const p=slotPos(i); c.fillStyle= i>=SLOTS-2 && tray.length>=5 ? 'rgba(255,60,60,0.25)' : 'rgba(0,0,0,0.3)'; rr(c,p.x,p.y,TW*0.92,TH*0.92,10); c.fill(); }
+    for(let i=0;i<SLOTS;i++){ const p=slotPos(i); c.fillStyle= i>=SLOTS-2 && tray.length>=5 ? 'rgba(255,60,60,0.25)' : 'rgba(0,0,0,0.3)'; rr(c,p.x,p.y,TW*TS,TH*TS,10); c.fill(); }
     // timer bar
     if(timeMax>0){ const f=timeLeft/timeMax; c.fillStyle='rgba(255,255,255,0.1)'; c.fillRect(20,TRAY_Y+TRAY_H+10,W-40,8); c.fillStyle=f<0.2?'#ff3b3b':f<0.4?'#ffe14a':'#1fc36b'; c.fillRect(20,TRAY_Y+TRAY_H+10,(W-40)*f,8); }
     // board tiles (bottom layer first, then by row)
@@ -546,14 +549,14 @@ const GAME = window.GAME = {
       if(tl.hidden && !free){ c.fillStyle='#7a4a22'; rr(c,2,1,TW-4,TH-8,11); c.fill(); c.strokeStyle='#ffb000'; c.lineWidth=2; c.stroke(); c.fillStyle='#ffe0a0'; c.font='bold 28px Orbitron, sans-serif'; c.textAlign='center'; c.fillText('?',TW/2,TH/2+6); }
       else { c.drawImage(tileIcon(tl.k,skin),0,0,TW,TH); }
       if(tl.ice>0){ c.fillStyle='rgba(180,235,255,0.55)'; rr(c,2,1,TW-4,TH-8,11); c.fill(); c.strokeStyle='#e8fbff'; c.lineWidth=2; c.beginPath(); c.moveTo(10,12); c.lineTo(24,30); c.lineTo(18,44); c.moveTo(48,10); c.lineTo(40,34); c.stroke(); c.font='16px sans-serif'; c.fillText('🧊',TW-18,18); }
-      if(!free){ c.fillStyle='rgba(0,0,0,0.45)'; rr(c,2,1,TW-4,TH-8,11); c.fill(); }
+      if(!free){ c.fillStyle='rgba(0,0,0,0.34)'; rr(c,2,1,TW-4,TH-8,11); c.fill(); }
       if(hintT>0 && hintIds.includes(tl.id)){ c.strokeStyle='#fff45a'; c.lineWidth=4; c.globalAlpha=0.6+0.4*Math.sin(t*10); rr(c,0,-1,TW,TH-4,12); c.stroke(); c.globalAlpha=1; }
       c.restore(); }
     // tray contents
     tray.forEach((it,i)=>{ const p=slotPos(i); const f=flying.find(f=>f.id===it.id);
       let x=p.x, y=p.y; if(f){ const e=1-Math.pow(1-Math.min(1,f.t),3); x=f.sx+(p.x-f.sx)*e; y=f.sy+(p.y-f.sy)*e - Math.sin(e*Math.PI)*60; }
-      c.drawImage(tileIcon(it.k,skin),x,y,TW*0.92,TH*0.92); });
-    clearing.forEach(cl=>{ const s=1+cl.t*0.6; c.save(); c.globalAlpha=1-cl.t; c.translate(cl.x+TW*0.46,cl.y+TH*0.46); c.scale(s,s); c.drawImage(tileIcon(cl.k,skin),-TW*0.46,-TH*0.46,TW*0.92,TH*0.92); c.restore(); });
+      c.drawImage(tileIcon(it.k,skin),x,y,TW*TS,TH*TS); });
+    clearing.forEach(cl=>{ const s=1+cl.t*0.6; c.save(); c.globalAlpha=1-cl.t; c.translate(cl.x+TW*TS/2,cl.y+TH*TS/2); c.scale(s,s); c.drawImage(tileIcon(cl.k,skin),-TW*TS/2,-TH*TS/2,TW*TS,TH*TS); c.restore(); });
     if(lost){ c.fillStyle='rgba(0,0,0,0.5)'; c.fillRect(0,0,W,H); }
   },
   attract(c,tt){
