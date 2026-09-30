@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BB-0.1 · 2026-09-30">
+<meta name="build" content="BUILD-BB-1.0 · 2026-09-30">
 <title>Brick Blitz</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -257,7 +257,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BB-0.1 · 2026-09-30 -->
+<!-- BUILD-BB-1.0 · 2026-09-30 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -321,6 +321,7 @@ const PY=H-80, PH=16, BR=9;
 let idle=0, api, t, bricks, balls, pad, lasers, drops, done, lost, held, stageT, eff, sd, rows, descend, descY, trail;
 
 function rng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let x=Math.imul(s^s>>>15,1|s); x=x+Math.imul(x^x>>>7,61|x)^x; return ((x^x>>>14)>>>0)/4294967296; }; }
+const ROWCOL=['#ff3b5c','#ff9a2e','#ffe14a','#3bff7a','#29f3ff','#c45cff'];
 const HPCOL=['#29f3ff','#ff3df0','#ffe14a','#ff7a2e','#7dff5a'];
 
 /* ---------- stage builder ---------- */
@@ -341,12 +342,14 @@ function makeStage(n,a){
     if(!on) continue;
     let hp = 1 + Math.floor(R()*maxHp); if(r<2 && maxHp>1) hp=Math.max(hp,maxHp-1);
     const steel = R()<steelP && r>0;
-    bricks.push({x:BX+c*(BW+GAP), y:BTOP+r*(BH+GAP), hp: steel? 99 : hp, max:hp, steel, hit:0});
+    bricks.push({x:BX+c*(BW+GAP), y:BTOP+r*(BH+GAP), w:BW, h:BH, row:r, hp: steel? 99 : hp, max:hp, steel, hit:0});
   }
+  // BOSS: a big armoured core that slides side to side below the wall
+  if(boss){ const hp=Math.round(Math.min(90, 14+L*0.35)); bricks.push({x:W/2-90, y:BTOP+rows*(BH+GAP)+24, w:180, h:40, hp, max:hp, steel:false, hit:0, boss:true, dir:1, spd:a.dv([60,110,170],220,420)}); }
   // never a stage that is only steel
   if(!bricks.some(b=>!b.steel)) bricks.forEach(b=>{ b.steel=false; b.hp=1; });
   // harder levels: the wall creeps down (reach the paddle = lose a life)
-  descend = n===0? 0 : L<35? 0 : a.dv([0,2.2,4.5],6,14);
+  descend = n===0? 0 : L<35? 0 : a.dv([0,1.6,3.2],4.5,14);
   descY=0;
 }
 function ballSpeed(){ return (api.content===0? 380 : api.dv([420,560,690],820,1180)) * (eff.slow>0?0.6:1) * (1+Math.min(0.35, stageT/120)); }
@@ -356,9 +359,9 @@ function launch(b){ if(!b.stuck) return; const a=(-Math.PI/2)+(Math.random()-.5)
 function live(){ return bricks.filter(b=>!b.steel && b.hp>0).length; }
 
 const GAME = window.GAME = {
-  id:'brick-blitz', title:'Brick Blitz', titleHTML:'BRICK<br>BLITZ', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-BB-0.1 · 2026-09-30', theme:{a:'#29f3ff', b:'#ff3df0', bg:'#070418'},
-  w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'⚪', joystick:false, coinPts:40,
+  id:'brick-blitz', title:'Brick Blitz', titleHTML:'BRICK<br>BLITZ', tagline:'Smash the neon wall',
+  build:'BUILD-BB-1.0 · 2026-09-30', theme:{a:'#29f3ff', b:'#ff3df0', bg:'#070418'},
+  w:W, h:H, stages:100, lives:3, livesIcon:'⚪', joystick:false, coinPts:40,
   abilities:[
     {id:'multi', icon:'🔮', name:'MULTI', cd:12, key:'Digit1', keyLabel:'1', desc:'Splits every ball into three.'},
     {id:'laser', icon:'🔫', name:'LASER', cd:20, key:'Digit2', keyLabel:'2', desc:'Your paddle fires lasers for 6 seconds.'},
@@ -387,16 +390,16 @@ const GAME = window.GAME = {
     {text:'Tap <b>🔮 MULTI</b> (key 1) for three balls!', ev:'ab_multi'},
     {text:'Break every brick to finish the stage!', time:6}
   ],
-  stageIntro:{1:'SMASH THE WALL', 3:'TOUGHER BRICKS'},
+  stageIntro:{1:'SMASH THE WALL', 3:'TOUGHER BRICKS', 20:'STEEL BRICKS — GO AROUND THEM', 35:'THE WALL IS MOVING!'},
   bossName:'MEGA WALL!',
-  ending:{"0":["#LIGHTS ON","The last brick shatters and the whole city flickers back to life."],"1":["#POWER SURGE","The grid roars back brighter than ever."],"2":["#LEGEND","Nobody was meant to break this wall. You did."]},
-  _dbg(){ return {get bricks(){return bricks;}, get balls(){return balls;}, get pad(){return pad;}, clearAll:()=>{ bricks.forEach(b=>{ if(!b.steel) b.hp=0; }); }}; },
+  ending:{"0":["#LIGHTS ON","The last brick shatters, and for a second the whole city is silent.","Then, block by block, the lights flicker back on: the street lamps, the shop signs, the big neon sign on top of the stadium.","People step out onto their balconies and cheer.","#THE PADDLE","Nobody knows who broke the wall.","But the next morning a small glowing paddle is hanging above the door of the power station.","Somebody left a note under it: THANKS, WHOEVER YOU ARE."],"1":["#THE DEEPER WALL","Behind the neon wall was a second wall, made of steel and older than the city itself.","Someone built it to lock the city's power away. Someone who didn't want the lights to ever come back.","#THE CORE","You found the core that fed it: a red, humming block that fought back every time you hit it.","A hundred stages. A hundred walls. And every one moved faster than the last.","#POWER SURGE","When the core finally cracked, the power didn't just come back. It surged.","Every light in the city blazed twice as bright. You could see it from space.","The power company still doesn't know how the bill got paid.","It didn't. You just broke the meter too."],"2":["#THE IMPOSSIBLE WALL","Expert was never meant to be finished.","The wall fell faster than anyone could react. Steel everywhere. A paddle barely wider than the ball.","Scientists ran the numbers. They said it couldn't be done.","You did it a hundred times in a row.","#THE LAST CORE","At the very end, the wall stopped falling. It started to talk.","It said it had been built to test the one person who could keep up with it. It had waited a very long time.","Then it opened, brick by brick, like a door.","#THE OTHER SIDE","Behind it was every arcade that ever closed. Every machine that ever got unplugged. All of them dark.","One by one, as you walked past, they switched back on.","The high score tables all showed the same name. Yours.","#LEGEND","Somewhere, right now, a kid is putting their last coin into a machine with your name at the top.","They'll never beat it.","But they'll try. And that's the whole point."]},
+  _dbg(){ return {get bricks(){return bricks;}, get balls(){return balls;}, get pad(){return pad;}, restart:()=>GAME.startStage(GAME._n, api), get lost(){return lost;}, clearAll:()=>{ bricks.forEach(b=>{ if(!b.steel) b.hp=0; }); }}; },
   init(a){ api=a; },
   startStage(n,a){
     api=a; this._n=n; t=0; stageT=0; idle=0; done=false; lost=false; lasers=[]; drops=[]; trail=[]; eff={laser:0,wide:0,slow:0}; sd=0;
     makeStage(n,a); pad={x:W/2, tx:W/2}; balls=[newBall()]; held=false;
   },
-  respawn(){ lost=false; balls=[newBall()]; lasers=[]; trail=[]; if(descY>0) descY=Math.max(0,descY-120); },
+  respawn(){ lost=false; balls=[newBall()]; lasers=[]; trail=[]; if(descY>0) descY=Math.max(0,descY-200); },
   stageBonus(){ return Math.max(0, Math.round((90-stageT)*20)); },
   useAbility(id){
     if(done||lost) return false;
@@ -420,10 +423,11 @@ const GAME = window.GAME = {
     const pw=padW(); pad.tx=Math.max(pw/2+6,Math.min(W-pw/2-6,pad.tx)); pad.x+= (pad.tx-pad.x)*Math.min(1,dt*22);
     // lasers
     if(eff.laser>0){ sd-=dt; if(sd<=0){ sd=0.22; lasers.push({x:pad.x-pw/2+8,y:PY-6},{x:pad.x+pw/2-8,y:PY-6}); api.sfx.shoot(); } }
-    lasers.forEach(l=>{ l.y-=900*dt; for(const b of bricks){ if(b.hp>0 && l.x>b.x && l.x<b.x+BW && l.y>b.y+descY && l.y<b.y+descY+BH){ l.y=-99; hitBrick(b); break; } } });
+    lasers.forEach(l=>{ l.y-=900*dt; for(const b of bricks){ if(b.hp>0 && l.x>b.x && l.x<b.x+b.w && l.y>b.y+descY && l.y<b.y+descY+b.h){ l.y=-99; hitBrick(b); break; } } });
     lasers=lasers.filter(l=>l.y>0);
     // wall creeping down
     if(descend>0){ descY+=descend*dt; const low=Math.max(...bricks.filter(b=>b.hp>0).map(b=>b.y+BH), 0)+descY; if(low>PY-30){ lose('THE WALL REACHED YOU!'); return; } }
+    bricks.forEach(b=>{ if(b.boss && b.hp>0){ b.x+=b.dir*b.spd*dt; if(b.x<8){ b.x=8; b.dir=1; } if(b.x+b.w>W-8){ b.x=W-8-b.w; b.dir=-1; } } });
     // balls (sub-stepped so fast balls never skip through bricks)
     const target=ballSpeed(); idle+=dt;
     // anti-stall: if nothing has been hit for a while, nudge the ball's angle so it can't loop forever
@@ -453,12 +457,13 @@ const GAME = window.GAME = {
     if(descend>0){ c.fillStyle='rgba(255,59,59,0.35)'; c.fillRect(0,PY-30,W,2); }
     // bricks
     for(const b of bricks){ if(b.hp<=0) continue; const y=b.y+descY;
-      if(b.steel){ const sg=c.createLinearGradient(0,y,0,y+BH); sg.addColorStop(0,'#c9d3e0'); sg.addColorStop(1,'#56606e'); c.fillStyle=sg; c.fillRect(b.x,y,BW,BH); c.strokeStyle='#eef4ff'; c.lineWidth=1; c.strokeRect(b.x+.5,y+.5,BW-1,BH-1); continue; }
-      const col=HPCOL[Math.min(4,b.hp-1)];
+      if(b.steel){ const sg=c.createLinearGradient(0,y,0,y+b.h); sg.addColorStop(0,'#c9d3e0'); sg.addColorStop(1,'#56606e'); c.fillStyle=sg; c.fillRect(b.x,y,b.w,b.h); c.strokeStyle='#eef4ff'; c.lineWidth=1; c.strokeRect(b.x+.5,y+.5,b.w-1,b.h-1); continue; }
+      if(b.boss){ c.save(); c.shadowColor='#ff3b3b'; c.shadowBlur=24+10*Math.sin(t*6); const gb=c.createLinearGradient(0,y,0,y+b.h); gb.addColorStop(0,'#ff9a9a'); gb.addColorStop(1,'#6a0010'); c.fillStyle=gb; rr(c,b.x,y,b.w,b.h,10); c.fill(); c.restore(); c.fillStyle='#fff'; c.font='bold 14px Orbitron, sans-serif'; c.textAlign='center'; c.fillText('CORE '+b.hp,b.x+b.w/2,y+b.h/2+5); c.fillStyle='rgba(0,0,0,.5)'; c.fillRect(b.x+10,y+b.h-8,b.w-20,4); c.fillStyle='#7dff5a'; c.fillRect(b.x+10,y+b.h-8,(b.w-20)*b.hp/b.max,4); continue; }
+      const col= b.hp===1? ROWCOL[(b.row||0)%ROWCOL.length] : HPCOL[Math.min(4,b.hp-1)];
       c.save(); c.shadowColor=col; c.shadowBlur=10+(b.hit>0?16:0);
       const bg2=c.createLinearGradient(0,y,0,y+BH); bg2.addColorStop(0,'#ffffff'); bg2.addColorStop(0.25,col); bg2.addColorStop(1,shade(col)); c.fillStyle=bg2;
-      c.fillRect(b.x,y,BW,BH); c.restore();
-      if(b.hp>1){ c.fillStyle='rgba(0,0,0,0.45)'; c.font='bold 12px Orbitron, sans-serif'; c.textAlign='center'; c.fillText(b.hp,b.x+BW/2,y+BH/2+5); }
+      c.fillRect(b.x,y,b.w,b.h); c.restore();
+      if(b.hp>1){ c.fillStyle='rgba(0,0,0,0.45)'; c.font='bold 12px Orbitron, sans-serif'; c.textAlign='center'; c.fillText(b.hp,b.x+b.w/2,y+b.h/2+5); }
       if(b.hit>0) b.hit-=0.016;
     }
     // lasers
@@ -486,7 +491,8 @@ function shade(hex){ const n=parseInt(hex.slice(1),16); const f=v=>Math.round(v*
 function hitBrick(b){
   if(b.steel){ b.hit=0.3; api.sfx.bump(); return; }
   b.hp--; b.hit=0.3; idle=0; const y=b.y+descY;
-  if(b.hp<=0){ api.addScore(10*b.max*(1+api.dk*0.5), b.x+BW/2, y+BH/2); api.fx.burst(b.x+BW/2,y+BH/2,HPCOL[Math.min(4,b.max-1)],14,220,.5,3); api.sfx.small(); api.event('brick'); }
+  if(b.hp<=0 && b.boss){ api.fx.flash('#ff3b3b',.4); api.fx.shake(12); api.sfx.boom(); api.addCoins(10); }
+  if(b.hp<=0){ api.addScore(10*b.max*(1+api.dk*0.5), b.x+b.w/2, y+b.h/2); api.fx.burst(b.x+b.w/2,y+b.h/2,HPCOL[Math.min(4,b.max-1)],14,220,.5,3); api.sfx.small(); api.event('brick'); }
   else api.sfx.blip();
 }
 function moveBall(b, dt, pw){
@@ -501,15 +507,15 @@ function moveBall(b, dt, pw){
   if(b.y>H+20){ b.dead=true; return; }
   // bricks
   for(const k of bricks){ if(k.hp<=0) continue; const y=k.y+descY;
-    const cx=Math.max(k.x,Math.min(b.x,k.x+BW)), cy=Math.max(y,Math.min(b.y,y+BH)), dx=b.x-cx, dy=b.y-cy;
+    const cx=Math.max(k.x,Math.min(b.x,k.x+k.w)), cy=Math.max(y,Math.min(b.y,y+k.h)), dx=b.x-cx, dy=b.y-cy;
     if(dx*dx+dy*dy<=BR*BR){
-      const ox=Math.min(b.x+BR-k.x, k.x+BW-(b.x-BR)), oy=Math.min(b.y+BR-y, y+BH-(b.y-BR));
-      if(ox<oy){ b.vx = b.x<k.x+BW/2? -Math.abs(b.vx) : Math.abs(b.vx); } else { b.vy = b.y<y+BH/2? -Math.abs(b.vy) : Math.abs(b.vy); }
+      const ox=Math.min(b.x+BR-k.x, k.x+k.w-(b.x-BR)), oy=Math.min(b.y+BR-y, y+k.h-(b.y-BR));
+      if(ox<oy){ b.vx = b.x<k.x+k.w/2? -Math.abs(b.vx) : Math.abs(b.vx); } else { b.vy = b.y<y+k.h/2? -Math.abs(b.vy) : Math.abs(b.vy); }
       hitBrick(k); break;
     }
   }
 }
-function lose(msg){ if(lost||done) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>{ api.loseLife(); },900); }
+function lose(msg){ if(lost||done) return; GAME._loses=(GAME._loses||[]); GAME._loses.push(msg); lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>{ api.loseLife(); },900); }
 })();
 
 </script>
