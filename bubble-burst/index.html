@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BU-0.1 · 2026-09-30">
+<meta name="build" content="BUILD-BU-1.0 · 2026-09-30">
 <title>Bubble Burst</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -257,7 +257,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BU-0.1 · 2026-09-30 -->
+<!-- BUILD-BU-1.0 · 2026-09-30 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -317,8 +317,9 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 (function(){
 const W=600, H=900;
 const R=26, COLS=11, LX=(W-COLS*2*R)/2, TOP=40, RH=R*Math.sqrt(3);
-const SX=W/2, SY=H-95, DANGER=H-190, SPEED=1500;
-const PAL=[['#ff3b5c','#8a0020'],['#2ec4ff','#004a8a'],['#ffe14a','#8a6a00'],['#3bff7a','#00662a'],['#c45cff','#4a0a8a'],['#ff9a2e','#8a3a00'],['#f0f0ff','#6a6a90']];
+const SX=W/2, SY=H-95, DANGER=H-155, SPEED=1500;
+const PAL=[['#ff3b5c','#8a0020'],['#2ec4ff','#004a8a'],['#ffe14a','#8a6a00'],['#3bff7a','#00662a'],['#c45cff','#4a0a8a'],['#ff9a2e','#8a3a00'],['#f0f0ff','#6a6a90'],['#aab0bb','#3a3f48']];
+const STONE=7;
 let api, t, grid, maxRow, cur, nxt, shot, aim, aiming, done, lost, shots, dropEvery, drops, ceil, falling, pops, nC, next, bombNext, rainbowNext, guideShots, timeLeft, timeMax;
 
 function rng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let x=Math.imul(s^s>>>15,1|s); x=x+Math.imul(x^x>>>7,61|x)^x; return ((x^x>>>14)>>>0)/4294967296; }; }
@@ -331,25 +332,30 @@ function nbrs(r,c){ const o=r%2; return [[r,c-1],[r,c+1],[r-1,c-1+o],[r-1,c+o],[
 /* ---------- stage builder ---------- */
 function makeStage(n,a){
   const Rn=rng(n===0?7:n*9173+a.diff*271+3);
-  nC = n===0? 3 : Math.min(7, Math.round(a.dv([4,5,5.5],7,7)));
-  const rows = n===0? 4 : Math.min(12, Math.round(a.dv([5,8,9.5],11,13)) + (a.boss?2:0));
-  dropEvery = n===0? 99 : Math.max(1, Math.round(a.dv([10,8,6],4,2)));
-  timeMax = (n===0 || a.level<20)? 0 : Math.round(a.dv([150,90,60],45,20)); timeLeft=timeMax;
+  nC = n===0? 3 : Math.min(7, Math.round(a.dv([4,5,5.5],6,7)) + (a.boss && a.diff===2?1:0));
+  const rows = n===0? 4 : Math.min(13, Math.round(a.dv([5,8,9],9,13)) + (a.boss && a.diff===2?2:0));
+  dropEvery = n===0? 99 : Math.max(1, Math.round(a.dv([11,9,7],6,2)));
+
   grid=[]; for(let r=0;r<20;r++){ grid.push(new Array(cols(r)).fill(-1)); }
   for(let r=0;r<rows;r++) for(let c=0;c<cols(r);c++){
     // clumps: often copy a neighbour above/left so there are groups to aim for
     const nb=nbrs(r,c).filter(([a2,b2])=>a2<r || (a2===r && b2<c)).map(([a2,b2])=>get(a2,b2)).filter(v=>v>=0);
     grid[r][c] = (nb.length && Rn()<(n===0?0.55:a.dv([0.5,0.38,0.28],0.2,0.1)))? nb[Math.floor(Rn()*nb.length)] : Math.floor(Rn()*nC);
+    if(grid[r][c]===STONE) grid[r][c]=Math.floor(Rn()*nC);
+    // stone bubbles (from level 30): can't be matched, only dropped or bombed
+    if(r>=3 && n>0 && a.level>=30 && Rn()<(a.diff===2? Math.min(0.25,(a.level-80)/400) : Math.min(0.08,(a.level-25)/500))+(a.boss?0.03:0)) grid[r][c]=STONE;
   }
+  // timer (from level 20): seconds per bubble on the board — tight on Hard, brutal on Expert
+  { let nb=0; grid.forEach(row=>row.forEach(v=>{ if(v>=0) nb++; })); timeMax = (n===0 || a.level<20)? 0 : Math.round(nb*a.dv([2.2,1.4,0.9],0.9,0.25)+20); timeLeft=timeMax; }
 }
-function boardColours(){ const s=new Set(); grid.forEach(row=>row.forEach(v=>{ if(v>=0) s.add(v); })); return [...s]; }
+function boardColours(){ const s=new Set(); grid.forEach(row=>row.forEach(v=>{ if(v>=0 && v!==STONE) s.add(v); })); return [...s]; }
 function pick(){ const s=boardColours(); return s.length? s[Math.floor(Math.random()*s.length)] : 0; }
-function count(){ let n=0; grid.forEach(row=>row.forEach(v=>{ if(v>=0) n++; })); return n; }
+function count(){ let n=0; grid.forEach(row=>row.forEach(v=>{ if(v>=0 && v!==STONE) n++; })); return n; }
 
 const GAME = window.GAME = {
-  id:'bubble-burst', title:'Bubble Burst', titleHTML:'BUBBLE<br>BURST', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-BU-0.1 · 2026-09-30', theme:{a:'#2ec4ff', b:'#ff3b5c', bg:'#0a0c2a'},
-  w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'🫧', joystick:false, coinPts:40,
+  id:'bubble-burst', title:'Bubble Burst', titleHTML:'BUBBLE<br>BURST', tagline:'Pop them in threes',
+  build:'BUILD-BU-1.0 · 2026-09-30', theme:{a:'#2ec4ff', b:'#ff3b5c', bg:'#0a0c2a'},
+  w:W, h:H, stages:100, lives:3, livesIcon:'🫧', joystick:false, coinPts:40,
   abilities:[
     {id:'aim', icon:'🎯', name:'AIM', cd:10, key:'Digit1', keyLabel:'1', desc:'Long aim line with bounces for your next 3 shots.'},
     {id:'bomb', icon:'💣', name:'BOMB', cd:20, key:'Digit2', keyLabel:'2', desc:'Your next shot explodes and pops everything around it.'},
@@ -370,17 +376,17 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ff3b5c,#ffe14a)'}
   ],
   story:`<h3>THE BUBBLE CEILING</h3><p>A bubble machine at the fair has gone haywire. The sky is filling with bubbles and the ceiling is coming down!</p><p>Pop them in threes before they squash the fairground.</p>`,
-  howto:`<h3>GOAL</h3><p>Pop every bubble on the board.</p><h3>HOW TO PLAY</h3><ul><li>Drag to aim, let go to shoot (or ◀ ▶ and SPACE).</li><li>Join <b>3 or more</b> of the same colour to pop them.</li><li>Bubbles left hanging with nothing holding them <b>drop</b> for bonus points.</li><li>Shots bounce off the side walls.</li><li>Every few shots the <b>ceiling drops</b>. If a bubble crosses the red line, you lose a life.</li></ul><h3>ABILITIES</h3><ul><li>🎯 <b>AIM</b> <span class="key">1</span> — long aim line for 3 shots</li><li>💣 <b>BOMB</b> <span class="key">2</span> — next shot explodes</li><li>🌈 <b>RAINBOW</b> <span class="key">3</span> — next shot matches any colour</li><li>🔄 <b>SWAP</b> <span class="key">4</span> — free swap with the next bubble</li></ul>`,
+  howto:`<h3>GOAL</h3><p>Pop every bubble on the board.</p><h3>HOW TO PLAY</h3><ul><li>Drag to aim, let go to shoot (or ◀ ▶ and SPACE).</li><li>Join <b>3 or more</b> of the same colour to pop them.</li><li>Bubbles left hanging with nothing holding them <b>drop</b> for bonus points.</li><li>Shots bounce off the side walls.</li><li>🪨 <b>Stone bubbles</b> can't be matched — cut them loose so they drop, or bomb them.</li><li>Every few shots the <b>ceiling drops</b>. If a bubble crosses the red line, you lose a life.</li></ul><h3>ABILITIES</h3><ul><li>🎯 <b>AIM</b> <span class="key">1</span> — long aim line for 3 shots</li><li>💣 <b>BOMB</b> <span class="key">2</span> — next shot explodes</li><li>🌈 <b>RAINBOW</b> <span class="key">3</span> — next shot matches any colour</li><li>🔄 <b>SWAP</b> <span class="key">4</span> — free swap with the next bubble</li></ul>`,
   tutorial:[
     {text:'Drag to aim, then let go to shoot.', ev:'shoot'},
     {text:'Join <b>3 of the same colour</b> to pop them!', ev:'pop'},
     {text:'Tap <b>🔄 SWAP</b> (key 4) to swap bubbles. It\'s free!', ev:'ab_swap'},
     {text:'Pop every bubble to finish the stage!', time:6}
   ],
-  stageIntro:{1:'POP THEM ALL', 3:'THE CEILING IS FALLING'},
+  stageIntro:{1:'POP THEM ALL', 3:'THE CEILING IS FALLING', 20:'BEAT THE CLOCK!', 30:'STONE BUBBLES — DROP THEM!'},
   bossName:'BUBBLE STORM!',
-  ending:{"0":["#FAIR DAY","The last bubble pops and the fairground cheers."],"1":["#MACHINE FIXED","You found the switch and the bubble machine finally stops."],"2":["#LEGEND","Nobody was meant to beat this. You did."]},
-  _dbg(){ return {get grid(){return grid;}, get cur(){return cur;}, get shot(){return shot;}, cx, cy, fire:(ang)=>{ aim=ang; fire(); }, bestAim:()=>{ let best=-Math.PI/2, bs=-1; for(let a=-Math.PI+0.13;a<-0.12;a+=0.01){ const pts=trace(a,2400), e=pts[pts.length-1]; let cell=null, bd=1e9; for(let r=0;r<20;r++) for(let k=0;k<cols(r);k++){ if(grid[r][k]>=0) continue; if(!(r===0||nbrs(r,k).some(([x,y])=>grid[x][y]>=0))) continue; const d=Math.hypot(cx(r,k)-e.x,cy(r)-e.y); if(d<bd){bd=d;cell=[r,k];} } if(!cell) continue; grid[cell[0]][cell[1]]=cur; const n=flood(cell[0],cell[1],cur).length; grid[cell[0]][cell[1]]=-1; const sc=n+(n>=3?10:0)-cell[0]*0.01; if(sc>bs){bs=sc;best=a;} } return best; }, clearAll:()=>{ grid.forEach(r=>r.fill(-1)); }}; },
+  ending:{"0":["#FAIR DAY","The last bubble pops with a tiny sparkle, and the fairground goes quiet.","Then the music starts again. The Ferris wheel creaks back to life. Someone at the candy floss stand starts clapping.","The ceiling of bubbles is gone, and the sky is blue again.","#THE BUBBLE MACHINE","The old bubble machine coughs out one last bubble. It floats over to you, wobbles, and pops right on your nose.","The fair owner gives you a free ride on everything, for the rest of your life.","You mostly use it on the dodgems."],"1":["#THE BROKEN SWITCH","Popping your way to the top of the tent, you finally find what went wrong.","Someone jammed the bubble machine's switch with a stick of bubble gum. On purpose.","#THE CULPRIT","The clue leads to the fair's grumpy old clown, who was tired of kids laughing at his act.","He wanted one day where nobody could see the stage for bubbles.","#A NEW ACT","Instead of calling security, you make him an offer. Tomorrow, he does the show with you.","Him on the stage. You with the launcher. Popping bubbles to the music in perfect time.","It's the best show the fair has ever had.","The clown even smiles. Once."],"2":["#THE STORM","Expert was never meant to be finished.","The ceiling dropped every two shots. Stones everywhere. Seven colours and a clock ticking faster than you could think.","You did it a hundred times.","#THE SKY BREAKS","When the last bubble popped, the sky above the fair began to shimmer.","It wasn't sky at all. It was one giant bubble, wrapped around the whole world, and it was getting thinner.","#THE LAST SHOT","Everyone looked at you. The launcher had one bubble left in it: a small, perfect rainbow.","You aimed straight up.","#DAWN","The giant bubble popped with a sound like a million soap bubbles all at once.","Rainbow rain fell for a whole day. Every puddle in the world turned seven colours.","Scientists still can't explain it.","The fair has a new ride now. It's called THE LEGEND, and there's a statue of you at the entrance, holding the launcher."]},
+  _dbg(){ return {get grid(){return grid;}, get cur(){return cur;}, get shot(){return shot;}, cx, cy, fire:(ang)=>{ aim=ang; fire(); }, bestAim:()=>{ let best=-Math.PI/2, bs=-1; for(let a=-Math.PI+0.13;a<-0.12;a+=0.01){ const pts=trace(a,2400), e=pts[pts.length-1]; let cell=null, bd=1e9; for(let r=0;r<20;r++) for(let k=0;k<cols(r);k++){ if(grid[r][k]>=0) continue; if(!(r===0||nbrs(r,k).some(([x,y])=>grid[x][y]>=0))) continue; const d=Math.hypot(cx(r,k)-e.x,cy(r)-e.y); if(d<bd){bd=d;cell=[r,k];} } if(!cell) continue; grid[cell[0]][cell[1]]=cur; const fl=flood(cell[0],cell[1],cur), n=fl.length; let drop=0; if(n>=3){ const sv=grid.map(r=>r.slice()); fl.forEach(([x,y])=>grid[x][y]=-1); const seen=new Set(), q=[]; for(let k=0;k<cols(0);k++) if(grid[0][k]>=0){ seen.add('0,'+k); q.push([0,k]); } while(q.length){ const [x,y]=q.pop(); nbrs(x,y).forEach(([u,v])=>{ const key=u+','+v; if(!seen.has(key)&&grid[u][v]>=0){ seen.add(key); q.push([u,v]); } }); } grid.forEach((row,x)=>row.forEach((v,y)=>{ if(v>=0&&!seen.has(x+','+y)) drop++; })); grid=sv; } grid[cell[0]][cell[1]]=-1; const sc=n+(n>=3?10+drop*2:0)-cell[0]*0.01; if(sc>bs){bs=sc;best=a;} } return best; }, clearAll:()=>{ grid.forEach(r=>r.fill(-1)); }}; },
   init(a){ api=a; },
   startStage(n,a){
     api=a; this._n=n; t=0; done=false; lost=false; shot=null; shots=0; drops=0; ceil=0; falling=[]; pops=[]; aim=-Math.PI/2; aiming=false; bombNext=false; rainbowNext=false; guideShots=0;
@@ -449,6 +455,7 @@ function bub(c,x,y,v,sk,bomb,rain,sc){
   c.fillStyle=g; c.beginPath(); c.arc(x,y,r,0,7); c.fill();
   if(sk===2){ c.save(); c.clip(); c.strokeStyle='rgba(255,255,255,0.5)'; c.lineWidth=5; for(let k=-2;k<=2;k++){ c.beginPath(); c.moveTo(x+k*14-r,y-r); c.lineTo(x+k*14+r,y+r); c.stroke(); } c.restore(); }
   c.fillStyle='rgba(255,255,255,0.7)'; c.beginPath(); c.ellipse(x-r*0.35,y-r*0.45,r*0.28,r*0.16,-0.5,0,7); c.fill();
+  if(v===STONE){ c.strokeStyle='rgba(20,20,30,0.8)'; c.lineWidth=2; c.beginPath(); c.moveTo(x-r*0.5,y-r*0.1); c.lineTo(x-r*0.1,y+r*0.15); c.lineTo(x+r*0.2,y-r*0.2); c.lineTo(x+r*0.55,y+r*0.2); c.stroke(); }
 }
 function trace(a,len){ let x=SX,y=SY,vx=Math.cos(a),vy=Math.sin(a),d=0; const pts=[];
   while(d<len){ x+=vx*6; y+=vy*6; d+=6; if(x<LX+R){ x=LX+R; vx=-vx; pts.push({x,y}); } if(x>W-LX-R){ x=W-LX-R; vx=-vx; pts.push({x,y}); }
@@ -471,7 +478,7 @@ function land(){
   if(!best) return;
   const [r,k]=best;
   if(s.bomb){ const hit=[[r,k],...nbrs(r,k)]; nbrs(r,k).forEach(([a,b])=>hit.push(...nbrs(a,b))); let n=0; hit.forEach(([a,b])=>{ if(grid[a][b]>=0){ popAt(a,b); n++; } }); api.fx.flash('#ff9a2e',.3); api.fx.shake(8); api.sfx.boom(); api.addScore(n*20,cx(r,k),cy(r)); api.event('pop'); dropFloaters(); afterShot(); return; }
-  let v=s.v; if(s.rain){ const nv=nbrs(r,k).map(([a,b])=>grid[a][b]).filter(x=>x>=0); v = nv.length? nv[0] : v; }
+  let v=s.v; if(s.rain){ const nv=nbrs(r,k).map(([a,b])=>grid[a][b]).filter(x=>x>=0 && x!==STONE); v = nv.length? nv[0] : v; }
   grid[r][k]=v;
   const grp=flood(r,k,v);
   if(grp.length>=3){ grp.forEach(([a,b])=>popAt(a,b)); api.addScore(grp.length*15*(1+api.dk*0.5), cx(r,k), cy(r)); api.sfx.small(); api.event('pop'); dropFloaters(); }
@@ -493,7 +500,7 @@ function afterShot(){
   // lose if anything crosses the red line
   for(let r=19;r>=0;r--){ if(grid[r].some(v=>v>=0)){ if(cy(r)+R>DANGER) lose('THE BUBBLES REACHED YOU!'); break; } }
 }
-function lose(msg){ if(lost||done) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>{ lost=false; api.loseLife(); },900); }
+function lose(msg){ if(lost||done) return; GAME._loses=(GAME._loses||[]); GAME._loses.push(msg); lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>{ lost=false; api.loseLife(); },900); }
 })();
 
 </script>
