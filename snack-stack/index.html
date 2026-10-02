@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-ST-1.1 · 2026-09-28">
+<meta name="build" content="BUILD-ST-1.2 · 2026-10-02">
 <title>Snack Stack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -257,7 +257,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-ST-1.1 · 2026-09-28 -->
+<!-- BUILD-ST-1.2 · 2026-10-02 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -447,7 +447,8 @@ function makeStage(n,a){
   tiles.forEach(tl=>{ if(R()<iceP) tl.ice=1; if(R()<hidP) tl.hidden=true; });
   // timer: none on early Beginner stages; tight on Hard; brutal on Expert
   const secsPerTile = a.dv([7,3.4,2.4], 1.8, 0.6);
-  timeMax = (n===0 || L<20)? 0 : Math.round(tiles.length*secsPerTile + 8);
+  // v1.2: HARD gets 30 extra seconds on every timed stage (Andrew, 2 Oct)
+  timeMax = (n===0 || L<20)? 0 : Math.round(tiles.length*secsPerTile + 8) + (a.diff===1? 30 : 0);
   timeLeft = timeMax;
   return {types, layers};
 }
@@ -459,7 +460,7 @@ function slotPos(i){ const sw=(W-40)/SLOTS; return {x:20+i*sw+(sw-TW*TS)/2, y:TR
 
 const GAME = window.GAME = {
   id:'snack-stack', title:'Snack Stack', titleHTML:'SNACK<br>STACK', tagline:'Match 3 · Mzansi snack attack',
-  build:'BUILD-ST-1.1 · 2026-09-28', theme:{a:'#ffb000', b:'#1fc36b', bg:'#0b1a12'},
+  build:'BUILD-ST-1.2 · 2026-10-02', theme:{a:'#ffb000', b:'#1fc36b', bg:'#0b1a12'},
   w:W, h:H, stages:100, lives:3, livesIcon:'♥', joystick:false, coinPts:60,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows the best snack to tap next.'},
@@ -1242,6 +1243,7 @@ function finishRecord(code){
     suspicious: missing>5 || (fastest!==null && fastest<6) || total < G.stages*15};
 }
 function postRow(row){
+  if(G.proto) return Promise.resolve(true);
   if(!FIN.sb || FIN.sb.startsWith('__') || !FIN.key || FIN.key.startsWith('__')) return Promise.resolve(false);
   return fetch(FIN.sb.replace(/\/$/,'')+'/rest/v1/finishers',{method:'POST',headers:{'apikey':FIN.key,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(row)})
     .then(r=>r.ok, ()=>false);
@@ -1249,6 +1251,7 @@ function postRow(row){
 function queueRow(row){ P.pending=(P.pending||[]); P.pending.push(row); save(); }
 function flushPending(){ const q=(P.pending||[]).slice(); if(!q.length) return; P.pending=[]; save(); q.forEach(row=>postRow(row).then(ok=>{ if(!ok) queueRow(row); })); }
 function sendFinish(fin){
+  if(G.proto) return; // prototype builds (3 test stages) never send real finish alerts
   postRow(fin).then(ok=>{ if(!ok) queueRow(fin); });
   if(FIN.topic && !FIN.topic.startsWith('__')){
     const pr=['3','4','5'][P.diff], tag=['bronze','silver','gold'][P.diff];
