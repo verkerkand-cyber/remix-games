@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-GS-0.1 · 2026-10-03">
+<meta name="build" content="BUILD-GS-0.2 · 2026-10-04">
 <title>Gem Swap</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -213,6 +213,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 /* ---------- v1.6 finale ---------- */
 #fw{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 #screen-ending .crawl,#screen-ending .endbar,#screen-ending .endskip{z-index:2}
+#screen-ending .endskip{z-index:10;pointer-events:auto}#screen-ending .crawl,#screen-ending #fw,#screen-ending .finale{pointer-events:none}
 .finale{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px;transition:opacity 1.2s, transform 1.2s}
 .finale.out{opacity:0;transform:scale(1.15);pointer-events:none}
 .medal{width:170px;height:170px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:100px;background:radial-gradient(circle at 35% 30%,#fff8,transparent 45%),radial-gradient(circle,color-mix(in srgb,var(--mc) 60%,#000),#000 75%);border:5px solid var(--mc);box-shadow:0 0 40px var(--mc),0 0 120px color-mix(in srgb,var(--mc) 60%,transparent);animation:medalIn 1.4s cubic-bezier(.2,1.6,.4,1) both, medalGlow 1.6s 1.4s ease-in-out infinite}
@@ -254,10 +255,33 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   .ab4 .ctr span{font-size:8px;letter-spacing:.06em}
 }
 
+/* ===== v2 SIDE LAYOUT (Andrew, Oct 2026): abilities in a column on the RIGHT, game to the left =====
+   Bigger buttons, readable names, and a live countdown ring + seconds on any ability that is running. */
+.lay-side #bar{left:auto;right:0;top:46px;bottom:0;width:var(--side,88px);height:auto;padding:12px 0 calc(10px + env(safe-area-inset-bottom));flex-direction:column;justify-content:flex-start;gap:10px;border-bottom:0;border-left:2px solid color-mix(in srgb,var(--b) 55%,transparent);box-shadow:-6px 0 18px rgba(0,0,0,.5)}
+.lay-side #abilities{flex-direction:column;align-items:center;gap:22px}
+.lay-side .ab{width:66px;height:66px;font-size:30px}
+.lay-side .ab .nm{bottom:-16px;font-size:10px;opacity:1;letter-spacing:.04em}
+.lay-side .ab .cnt{min-width:24px;height:24px;font-size:13px}
+.lay-side #hudCounter{margin:6px 0 0;max-width:80px;width:80px;flex:none;padding:6px 2px}
+.lay-side .ctr b{font-size:17px}.lay-side .ctr span{font-size:8px;letter-spacing:.06em;text-align:center}
+.lay-side .barbtns{margin-top:auto;flex-direction:column;gap:8px}
+.lay-side .bbtn{width:62px;height:50px}
+.lay-side.ab4 #bar{padding:10px 0}
+.lay-side.ab4 .ab{width:62px;height:62px;font-size:27px}
+.lay-side.ab4 .bbtn small{display:block}
+@media (max-width:420px){ .lay-side{--side:80px} .lay-side .ab,.lay-side.ab4 .ab{width:58px;height:58px;font-size:25px} .lay-side #abilities{gap:20px} .lay-side #hudCounter{width:74px;max-width:74px} .lay-side .bbtn{width:58px;height:44px} }
+@media (max-height:640px){ .lay-side #abilities{gap:16px} .lay-side .ab,.lay-side.ab4 .ab{width:52px;height:52px;font-size:22px} }
+/* running ability: countdown ring + big seconds */
+.ab .tm{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff;text-shadow:0 0 6px #000,0 0 3px #000;pointer-events:none}
+.ab.timing{background:conic-gradient(var(--b) calc(var(--p,1)*360deg), rgba(5,4,16,.85) 0);box-shadow:0 0 26px var(--b);animation:none}
+.ab.timing .tm{display:flex}.ab.timing .ic{opacity:.35}
+.ab.timing.ending{animation:abend .35s infinite}
+@keyframes abend{50%{box-shadow:0 0 4px #ff3b3b;border-color:#ff3b3b}}
+
 </style>
 </head>
 <body>
-<!-- BUILD-GS-0.1 · 2026-10-03 -->
+<!-- BUILD-GS-0.2 · 2026-10-04 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -333,7 +357,7 @@ function resolve(chain){ const m=matches(); if(!m.size){ if(!findMove()){ api.to
   falling=0.25; setTimeout(()=>resolve(chain+1),260); }
 const GAME = window.GAME = {
   id:'gem-swap', title:'Gem Swap', titleHTML:'GEM<br>SWAP', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-GS-0.1 · 2026-10-03', theme:{a:'#c45cff', b:'#ffe14a', bg:'#120a24'},
+  build:'BUILD-GS-0.2 · 2026-10-04', theme:{a:'#c45cff', b:'#ffe14a', bg:'#120a24'},
   w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'💎', joystick:false, coinPts:40,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a good swap.'},
@@ -348,6 +372,7 @@ const GAME = window.GAME = {
   tutorial:[{text:'Tap a gem, then a gem next to it, to make a line of 3.', ev:'match'},{text:'Collect gems to fill the target!', time:6}],
   stageIntro:{1:'COLLECT THE GEMS'}, bossName:'GEM RUSH!', ending:{"0":["#RICH","The cart is full."],"1":["#RICHER","The mine is yours."],"2":["#LEGEND","Impossible. You did it."]},
   _dbg(){ return {get g(){return g;}, find:()=>findMove(), swap:(a,b)=>tryMove(a,b), get lost(){return lost;}}; },
+  abTime(id){ if(id==='hint') return {left:Math.max(0,hintT),total:3}; if(id==='hammer'&&hammer) return {left:1,total:1,label:'TAP'}; return null; },
   init(a){ api=a; },
   startStage(n,a){ api=a; this._n=n; t=0; sel=null; done=false; lost=false; moves=0; score2=0; hammer=false; hintT=0; falling=0;
     nC = n===0? 4 : Math.min(7, Math.round(a.dv([5,6,6.6],7,7)));
@@ -453,13 +478,16 @@ const SFX = {
    84px ability bar (bottom on tall screens, left side on wide screens). The game is
    scaled into whatever is left, so the buttons never sit on top of the play area. */
 const TOPH = 46, BARS = 84;
+const SIDE = (G.layout!=='top');   // v2: abilities in a column on the right (set G.layout='top' for the old top bar)
 const app = $('#app'), cv = $('#game'), ctx = cv.getContext('2d');
+if(SIDE){ app.classList.remove('lay-top'); app.classList.add('lay-side'); }
 let scale = 1, offX = 0, offY = 0, dpr = 1;
 function resize(){
   // top strip + ability bar sit ABOVE the game on every screen, so they are always in view
   const W = window.innerWidth, H = window.innerHeight;
   dpr = Math.min(window.devicePixelRatio||1, 2);
-  const ay = TOPH+BARS, aw = W, ah = H-ay-6;
+  const sw = SIDE? (W<=420? 80 : 88) : 0;
+  const ay = SIDE? TOPH : TOPH+BARS, aw = W-sw, ah = H-ay-6;
   scale = Math.min(aw/G.w, ah/G.h);
   const cw = G.w*scale, ch = G.h*scale; offX = (aw-cw)/2; offY = ay+(ah-ch)/2;
   cv.style.width = cw+'px'; cv.style.height = ch+'px'; cv.style.left = offX+'px'; cv.style.top = offY+'px';
@@ -652,7 +680,7 @@ G.api = API;
 const hudEl=$('#hud'), abWrap=$('#abilities');
 G.abilities.forEach((a,i)=>{
   const b=document.createElement('button'); b.className='ab'; b.title=a.name+(a.desc?' — '+a.desc:'');
-  b.innerHTML=`<span class="ic">${a.icon}</span><div class="cnt"></div><div class="kb">${a.keyLabel||''}</div><div class="nm">${a.name}</div>`;
+  b.innerHTML=`<span class="ic">${a.icon}</span><div class="cnt"></div><div class="kb">${a.keyLabel||''}</div><div class="nm">${a.name}</div><div class="tm"></div>`;
   b.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); audioInit(); useAbility(i); if(G.onAbilityDown) G.onAbilityDown(a.id); });
   b.addEventListener('pointerup', e=>{ e.stopPropagation(); if(G.onAbilityUp) G.onAbilityUp(a.id); });
   abWrap.appendChild(b);
@@ -681,6 +709,11 @@ function updAbilities(dt){
     el.classList.toggle('empty', empty);
     el.classList.toggle('ready', !empty && abLock[i]<=0 && !abActive[i]);
     el.classList.toggle('active', !!abActive[i]);
+    // live countdown for abilities that last a while (game reports {left,total[,unit]} via G.abTime)
+    let r=null; try{ r = G.abTime ? G.abTime(a.id) : null; }catch(e){ r=null; } const tm=el.querySelector('.tm');
+    if(r && r.left>0){ el.classList.add('timing'); el.classList.toggle('ending', r.left<=1.5 && r.unit===undefined && !r.label); el.style.setProperty('--p', Math.max(0,Math.min(1,r.left/r.total)));
+      const txt = r.label ? r.label : r.unit!==undefined ? Math.ceil(r.left)+r.unit : (r.left<9.95? r.left.toFixed(1) : Math.ceil(r.left))+'s'; if(tm.textContent!==txt) tm.textContent=txt; }
+    else if(el.classList.contains('timing')){ el.classList.remove('timing','ending'); tm.textContent=''; }
   });
 }
 let cntKey='';
