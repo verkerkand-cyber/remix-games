@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-DD-0.2 · 2026-10-04">
+<meta name="build" content="BUILD-DD-0.3 · 2026-10-05">
 <title>Deep Dig</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -281,7 +281,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-DD-0.2 · 2026-10-04 -->
+<!-- BUILD-DD-0.3 · 2026-10-05 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -340,7 +340,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 /* DEEP DIG — Dig Dug remix (#32) — PROTOTYPE: 3 test stages */
 (function(){
 const W=600, H=900, CS=40, GW=15, GH=20, OY=60;
-let graceT=0, api,t,dirt,pl,mons,rocks,done,lost,pump,eff,mouse,speedM;
+let shootT=0, beam=null, graceT=0, api,t,dirt,pl,mons,rocks,done,lost,pump,eff,mouse,speedM;
 function cx(x){ return x*CS+CS/2; } function cy(y){ return OY+y*CS+CS/2; }
 function dug(x,y){ return x>=0&&y>=0&&x<GW&&y<GH&&!dirt[y][x]; }
 function makeStage(n,a){ dirt=[...Array(GH)].map((_,y)=>Array(GW).fill(y>=2)); for(let y=0;y<=GH/2;y++) dirt[y][7]=y<2?false:dirt[y][7]; for(let y=2;y<=9;y++) dirt[y][7]=false;
@@ -350,9 +350,10 @@ function makeStage(n,a){ dirt=[...Array(GH)].map((_,y)=>Array(GW).fill(y>=2)); f
   speedM=a.dv([1,1,1],1,1); }
 const GAME = window.GAME = {
   id:'deep-dig', title:'Deep Dig', titleHTML:'DEEP<br>DIG', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-DD-0.2 · 2026-10-04', theme:{a:'#ffb000', b:'#ff3b5c', bg:'#1a0e06'},
+  build:'BUILD-DD-0.3 · 2026-10-05', theme:{a:'#ffb000', b:'#ff3b5c', bg:'#1a0e06'},
   w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'⛏️', joystick:true, coinPts:40,
   abilities:[
+    {id:'pump', icon:'🔫', name:'SHOOT', cd:0, key:'Space', keyLabel:'SPC', desc:'FREE — fire your pump at the monster in front of you. 3 hits pops it.'},
     {id:'blast', icon:'💨', name:'BIG PUMP', cd:15, key:'Digit1', keyLabel:'1', desc:'Pops the closest monster instantly.'},
     {id:'freeze', icon:'❄️', name:'FREEZE', cd:20, key:'Digit2', keyLabel:'2', desc:'Freezes all monsters for 5 seconds.'},
     {id:'speed', icon:'👟', name:'SPEED', cd:15, key:'Digit3', keyLabel:'3', desc:'Dig twice as fast for 8 seconds.'},
@@ -360,16 +361,17 @@ const GAME = window.GAME = {
   shop:[{id:'d_m',cat:'Digger',name:'Miner',cost:0,colors:['#ffb000'],desc:'Classic miner.'},{id:'s_e',cat:'Soil',name:'Earth',cost:0,colors:['#5a3418','#3a2010'],desc:'Brown earth.'},{id:'s_r',cat:'Soil',name:'Red Sand',cost:180,colors:['#7a3418','#4a1a0a'],desc:'Red Karoo sand.'}],
   premium:[{name:'Ultimate Pack', price:'$3', desc:'Everything in the shop.', swatch:'linear-gradient(90deg,#ffb000,#ff3b5c)'}],
   story:`<h3>DEEP DIG</h3><p>Monsters have moved into the old gold mine. Dig your tunnels, pump them up, and take the mine back.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>Drag (or arrow keys) to dig and move.</li><li>Your pump fires by itself at monsters in front of you — 3 pumps pops one.</li><li>Dig under a rock to drop it on monsters.</li><li>Pop every monster to clear the stage.</li></ul>`,
-  tutorial:[{text:'Drag to dig towards the monster. Your pump fires by itself!', ev:'pop'},{text:'Pop every monster!', time:6}],
-  stageIntro:{1:'TAKE BACK THE MINE'}, bossName:'MONSTER NEST!', ending:{"0":["#GOLD","The mine is yours."],"1":["#DEEPER","You found the mother lode."],"2":["#LEGEND","Impossible. You did it."]},
+  howto:`<h3>HOW TO PLAY</h3><ul><li>Drag (or arrow keys) to dig and move.</li><li>Face a monster and tap <b>🔫 SHOOT</b> (or SPACE) to pump it — 3 hits pops it. Your pump also fires by itself when one is close in front of you.</li><li>Dig under a rock to drop it on monsters.</li><li>Pop every monster to clear the stage.</li></ul>`,
+  tutorial:[{text:'Drag to dig towards the monster, face it, then tap <b>🔫 SHOOT</b> (or SPACE). 3 hits pops it!', ev:'pop'},{text:'Pop every monster!', time:6}],
+  stageIntro:{1:'FACE A MONSTER · TAP 🔫 SHOOT'}, bossName:'MONSTER NEST!', ending:{"0":["#GOLD","The mine is yours."],"1":["#DEEPER","You found the mother lode."],"2":["#LEGEND","Impossible. You did it."]},
   _dbg(){ return {get mons(){return mons;}, get pl(){return pl;}, get lost(){return lost;}}; },
   abTime(id){ const tot={freeze:5,speed:8,shield:6}[id]; return tot? {left:Math.max(0,eff[id]),total:tot} : null; },
   init(a){ api=a; },
-  startStage(n,a){ api=a; this._n=n; t=0; graceT=0; done=false; lost=false; pl={x:cx(7),y:cy(1),fx:0,fy:1}; pump=0; eff={freeze:0,speed:0,shield:0}; mouse=null; makeStage(n,a); },
+  startStage(n,a){ api=a; this._n=n; t=0; graceT=0; shootT=0; beam=null; done=false; lost=false; pl={x:cx(7),y:cy(1),fx:0,fy:1}; pump=0; eff={freeze:0,speed:0,shield:0}; mouse=null; makeStage(n,a); },
   respawn(){ lost=false; pl={x:cx(7),y:cy(1),fx:0,fy:1}; eff.shield=2.5; },
   stageBonus(){ return 0; },
   useAbility(id){ if(done||lost) return false;
+    if(id==='pump'){ if(shootT>0) return false; shootT=0.18; firePump(true); return true; }
     if(id==='blast'){ const m=mons.filter(q=>!q.dead).sort((a,b)=>Math.hypot(a.x-pl.x,a.y-pl.y)-Math.hypot(b.x-pl.x,b.y-pl.y))[0]; if(!m) return false; pop(m); return true; }
     eff[id]= id==='freeze'?5: id==='speed'?8:6; api.sfx.power(); return true; },
   onPointer(type,x,y,id,pt){ if(pt==='mouse'){ if(type==='down') mouse={x,y}; else if(type==='move'&&mouse) mouse={x,y}; else if(type==='up') mouse=null; } },
@@ -383,8 +385,8 @@ const GAME = window.GAME = {
       if(mx||my) api.event('move');
       const gx=Math.round((pl.x-CS/2)/CS), gy=Math.round((pl.y-OY-CS/2)/CS); if(dirt[gy]&&dirt[gy][gx]){ dirt[gy][gx]=false; api.addScore(1,pl.x,pl.y,true); }
       // auto pump
-      pump-=dt; if(pump<=0){ pump=0.35; const tgt=mons.find(m=>!m.dead && Math.hypot(m.x-pl.x,m.y-pl.y)<CS*3.2 && ((pl.fx && Math.abs(m.y-pl.y)<CS*0.6 && Math.sign(m.x-pl.x)===pl.fx) || (pl.fy && Math.abs(m.x-pl.x)<CS*0.6 && Math.sign(m.y-pl.y)===pl.fy)));
-        if(tgt){ tgt.inf+=1; api.sfx.blip(); if(tgt.inf>=3) pop(tgt); } } }
+      pump-=dt; if(pump<=0){ pump=0.45; firePump(false); } }
+    if(shootT>0) shootT-=dt; if(beam) { beam.t-=dt; if(beam.t<=0) beam=null; }
     // frozen monsters (and 1 s after the freeze ends) can't hurt you
     if(eff.freeze>0) graceT=1; else if(graceT>0) graceT-=dt;
     mons.forEach(m=>{ if(m.dead) return; if(m.inf>0) m.inf=Math.max(0,m.inf-dt*0.5); if(eff.freeze>0||m.inf>=1||graceT>0) return;
@@ -401,9 +403,18 @@ const GAME = window.GAME = {
     for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){ if(dirt[y][x]){ c.fillStyle=y%5<2?s[0]:s[1]; c.fillRect(x*CS,OY+y*CS,CS,CS); } else if(y>=2){ c.fillStyle='#120a04'; c.fillRect(x*CS,OY+y*CS,CS,CS); } }
     rocks.forEach(r=>{ if(r.state===3) return; c.fillStyle='#8a8a92'; c.beginPath(); c.arc(cx(r.x)+(r.state===1?Math.sin(t*40)*2:0),r.fy,CS*0.45,0,7); c.fill(); });
     mons.forEach(m=>{ if(m.dead) return; const r=CS*0.4*(1+m.inf*0.25); c.save(); c.globalAlpha=m.ghostT>1?0.5:1; c.fillStyle=m.fire?'#3bff7a':'#ff3b5c'; c.beginPath(); c.arc(m.x,m.y,r,0,7); c.fill(); c.fillStyle='#fff'; c.fillRect(m.x-8,m.y-6,6,6); c.fillRect(m.x+2,m.y-6,6,6); c.restore(); });
+    if(beam){ c.strokeStyle=beam.hit?'#7df9ff':'rgba(125,249,255,0.5)'; c.lineWidth=5; c.setLineDash([10,6]); c.beginPath(); c.moveTo(beam.x,beam.y); c.lineTo(beam.x+beam.dx*beam.len,beam.y+beam.dy*beam.len); c.stroke(); c.setLineDash([]); }
     if(!lost){ c.save(); c.shadowColor='#ffb000'; c.shadowBlur=12; c.fillStyle='#ffb000'; c.beginPath(); c.arc(pl.x,pl.y,CS*0.38,0,7); c.fill(); c.restore(); c.fillStyle='#fff'; c.fillRect(pl.x-12,pl.y-16,24,6); c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.moveTo(pl.x,pl.y); c.lineTo(pl.x+pl.fx*CS*0.8,pl.y+pl.fy*CS*0.8); c.stroke(); if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.beginPath(); c.arc(pl.x,pl.y,CS*0.6,0,7); c.stroke(); } } },
   attract(c,tt){ c.fillStyle='#5a3418'; c.fillRect(0,0,W,H); c.fillStyle='#120a04'; c.fillRect(0,400,W,40); c.fillStyle='#ffb000'; c.beginPath(); c.arc((tt*120)%W,420,16,0,7); c.fill(); }
 };
+function firePump(manual){
+  // hits the nearest monster in front of you (same tunnel line, up to 3.5 blocks)
+  const tgt=mons.filter(m=>!m.dead && Math.hypot(m.x-pl.x,m.y-pl.y)<CS*3.5 && ((pl.fx && Math.abs(m.y-pl.y)<CS*0.7 && Math.sign(m.x-pl.x)===pl.fx) || (pl.fy && Math.abs(m.x-pl.x)<CS*0.7 && Math.sign(m.y-pl.y)===pl.fy))).sort((a,b)=>Math.hypot(a.x-pl.x,a.y-pl.y)-Math.hypot(b.x-pl.x,b.y-pl.y))[0];
+  if(!tgt && !manual) return;
+  const len = tgt? Math.hypot(tgt.x-pl.x,tgt.y-pl.y) : CS*3.5;
+  beam={x:pl.x,y:pl.y,dx:pl.fx,dy:pl.fy,len,t:0.15,hit:!!tgt};
+  if(tgt){ tgt.inf+=1; api.sfx.blip(); api.fx.burst(tgt.x,tgt.y,'#7df9ff',6,120,.25,2); if(tgt.inf>=3) pop(tgt); } else if(manual) api.sfx.click();
+}
 function pop(m,crush){ m.dead=true; api.addScore((crush?500:200)*(1+api.dk*0.5),m.x,m.y); api.fx.burst(m.x,m.y,m.fire?'#3bff7a':'#ff3b5c',24,240,.6,3); api.sfx.small(); api.event('pop'); }
 function die(){ lost=true; api.fx.burst(pl.x,pl.y,'#ffb000',30,260,.8,3); api.sfx.hurt(); api.toast('CAUGHT!'); setTimeout(()=>api.loseLife(),900); }
 })();
@@ -422,7 +433,7 @@ const SUPPORT = G.support || 'appstreamsupportav@gmail.com';
    FIN.sb / FIN.key = Supabase project URL + public "anon" key. The table only accepts new rows,
    nobody can read it from the game, so cell numbers stay private. FIN.topic = ntfy.sh channel
    for Andrew's phone alert (no personal data is ever sent there). Leave a value empty to switch that part off. */
-const FIN = {sb:'https://uuyaoffzgjxxwxlzhwur.supabase.co', key:'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9', topic:'remix-arcade-a059c55346e0'};
+const FIN = {sb:'https://uuyaoffzgjxxwxlzhwur.supabase.co', key:'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9', topic:'remix-arcade-a059c55346e0', email:'appstreamsupportav@gmail.com'};  // v2: ntfy also emails the finish alert (no personal data) to the support inbox
 const root = document.documentElement.style;
 root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.setProperty('--bg', G.theme.bg);
 
@@ -1065,7 +1076,7 @@ function sendFinish(fin){
   if(FIN.topic && !FIN.topic.startsWith('__')){
     const pr=['3','4','5'][P.diff], tag=['bronze','silver','gold'][P.diff];
     const hrs=Math.floor(fin.total_secs/3600), mins=Math.floor(fin.total_secs%3600/60);
-    fetch('https://ntfy.sh/'+FIN.topic,{method:'POST',headers:{'Title':`${DIFFS[P.diff]} FINISHED - ${G.title}`,'Priority':pr,'Tags':(P.diff===2?'rotating_light,crown':'tada')+','+tag},
+    fetch('https://ntfy.sh/'+FIN.topic,{method:'POST',headers:{'Title':`${DIFFS[P.diff]} FINISHED - ${G.title}`,'Priority':pr,'Tags':(P.diff===2?'rotating_light,crown':'tada')+','+tag, ...(FIN.email?{'Email':FIN.email}:{})},
       body:`Someone beat all ${G.stages} stages of ${G.title} on ${DIFFS[P.diff]}!\nClaim code: ${fin.code}\nScore: ${fin.score.toLocaleString()} | Run time: ${hrs}h ${mins}m${fin.suspicious?'\nWARNING: run looks suspicious (very fast or missing stage times)':''}\nTheir name and cell number (if they left it) are in Supabase.`}).catch(()=>{});
   }
 }
@@ -1075,23 +1086,27 @@ function claimForm(fin, next){
   modal(`<h2>${exp?'👑 LEGEND!':'🎉 YOU DID IT!'}</h2>
     <p>You finished <b>all ${G.stages} stages</b> of ${esc(G.title)} on <b>${DIFFS[P.diff]}</b>.${exp?' Almost nobody will ever do this.':''}</p>
     <div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div>
-    <p style="font-size:13px">Leave your name and cell number and we'll send you a congratulations message on WhatsApp.${exp?' Keep your claim code — for the Expert challenge we may ask you for a screen recording of your final stages.':''}</p>
+    <p style="font-size:13px">Leave your name, cell number and/or email and we'll send you a congratulations message on WhatsApp or email.${exp?' Keep your claim code — for the Expert challenge we may ask you for a screen recording of your final stages.':''}</p>
     <input id="clName" maxlength="40" placeholder="YOUR NAME" autocomplete="name" style="text-transform:none">
     <input id="clPhone" type="tel" maxlength="20" placeholder="CELL NUMBER e.g. 082 123 4567" autocomplete="tel" style="text-transform:none">
-    <label class="clok"><input type="checkbox" id="clOk"> I agree to be contacted on WhatsApp about this.</label>
+    <input id="clEmail" type="email" maxlength="120" placeholder="EMAIL e.g. you@gmail.com" autocomplete="email" style="text-transform:none">
+    <label class="clok"><input type="checkbox" id="clOk"> I agree to be contacted on WhatsApp or email about this.</label>
     <div class="slot-msg" id="clMsg"></div>
     <button class="big" id="clSend">SEND</button><button class="mid" data-a="skip">NO THANKS</button>`, {skip:next});
-  ['#clName','#clPhone'].forEach(id=>$(id).addEventListener('keydown',e=>e.stopPropagation()));
+  ['#clName','#clPhone','#clEmail'].forEach(id=>$(id).addEventListener('keydown',e=>e.stopPropagation()));
   $('#clSend').onclick=()=>{
     const name=$('#clName').value.trim(), phone=$('#clPhone').value.replace(/[^0-9+]/g,'');
     const msg=t=>{ $('#clMsg').textContent=t; $('#clMsg').className='slot-msg lose'; };
     if(name.length<2) return msg('Please enter your name');
-    if(phone.replace(/\D/g,'').length<9) return msg('Please enter a valid cell number');
+    const email=$('#clEmail').value.trim().toLowerCase(), okPhone=phone.replace(/\D/g,'').length>=9, okEmail=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if(!okPhone && !okEmail) return msg('Please enter a cell number or an email address');
+    if(phone && !okPhone) return msg('That cell number looks too short');
+    if(email && !okEmail) return msg('That email address doesn\'t look right');
     if(!$('#clOk').checked) return msg('Please tick the box so we may contact you');
-    SFX.pickup(); const row={kind:'contact', game:G.id, difficulty:DIFFS[P.diff], code:fin.code, name, phone, score:fin.score};
+    SFX.pickup(); const row={kind:'contact', game:G.id, difficulty:DIFFS[P.diff], code:fin.code, name, phone: okPhone? phone : null, email: okEmail? email : null, score:fin.score};
     $('#clSend').disabled=true; $('#clSend').textContent='SENDING…';
     postRow(row).then(ok=>{ if(!ok) queueRow(row);
-      modal(`<h2>THANK YOU!</h2><p>Got it, ${esc(name)}. Watch your WhatsApp.</p><div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div><p style="font-size:12px;opacity:.7">Screenshot this screen to keep your code.</p><button class="big" data-a="n">CONTINUE</button>`, {n:next}); });
+      modal(`<h2>THANK YOU!</h2><p>Got it, ${esc(name)}. Watch your ${okPhone&&okEmail?'WhatsApp and email':okPhone?'WhatsApp':'email'}.</p><div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div><p style="font-size:12px;opacity:.7">Screenshot this screen to keep your code.</p><button class="big" data-a="n">CONTINUE</button>`, {n:next}); });
   };
 }
 /* ---------- the finale + story ending (after stage 100) ----------
@@ -1184,8 +1199,10 @@ function defaultAttract(c, t){
 /* ---------- loading ---------- */
 let loadP=0;
 const loadIv=setInterval(()=>{ loadP=Math.min(100, loadP+7+Math.random()*12); $('#loadFill').style.width=loadP+'%';
-  if(loadP>=100){ clearInterval(loadIv); $('#tapStart').style.opacity=1; $('#tapStart').style.animationPlayState='running'; $('#screen-loading').addEventListener('pointerdown', ()=>{ audioInit(); SFX.power(); toMenu(); }, {once:true}); } }, 110);
-window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); toMenu(); window.removeEventListener('keydown',k); } });
+  if(loadP>=100){ clearInterval(loadIv); $('#tapStart').style.opacity=1; $('#tapStart').style.animationPlayState='running'; $('#screen-loading').addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); audioInit(); SFX.power(); guardMenu(); toMenu(); }, {once:true}); } }, 110);
+// v2: the tap that closes the loading screen must NOT also press a menu button underneath it
+function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; setTimeout(()=>{ m.style.pointerEvents=''; },500); }
+window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
 $('#mTitle').innerHTML = G.titleHTML || G.title;
