@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-GS-0.2 · 2026-10-04">
+<meta name="build" content="BUILD-GS-0.3 · 2026-10-05">
 <title>Gem Swap</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -281,7 +281,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-GS-0.2 · 2026-10-04 -->
+<!-- BUILD-GS-0.3 · 2026-10-05 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -357,7 +357,7 @@ function resolve(chain){ const m=matches(); if(!m.size){ if(!findMove()){ api.to
   falling=0.25; setTimeout(()=>resolve(chain+1),260); }
 const GAME = window.GAME = {
   id:'gem-swap', title:'Gem Swap', titleHTML:'GEM<br>SWAP', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-GS-0.2 · 2026-10-04', theme:{a:'#c45cff', b:'#ffe14a', bg:'#120a24'},
+  build:'BUILD-GS-0.3 · 2026-10-05', theme:{a:'#c45cff', b:'#ffe14a', bg:'#120a24'},
   w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'💎', joystick:false, coinPts:40,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a good swap.'},
@@ -423,7 +423,7 @@ const SUPPORT = G.support || 'appstreamsupportav@gmail.com';
    FIN.sb / FIN.key = Supabase project URL + public "anon" key. The table only accepts new rows,
    nobody can read it from the game, so cell numbers stay private. FIN.topic = ntfy.sh channel
    for Andrew's phone alert (no personal data is ever sent there). Leave a value empty to switch that part off. */
-const FIN = {sb:'https://uuyaoffzgjxxwxlzhwur.supabase.co', key:'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9', topic:'remix-arcade-a059c55346e0'};
+const FIN = {sb:'https://uuyaoffzgjxxwxlzhwur.supabase.co', key:'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9', topic:'remix-arcade-a059c55346e0', email:'appstreamsupportav@gmail.com'};  // v2: ntfy also emails the finish alert (no personal data) to the support inbox
 const root = document.documentElement.style;
 root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.setProperty('--bg', G.theme.bg);
 
@@ -1066,7 +1066,7 @@ function sendFinish(fin){
   if(FIN.topic && !FIN.topic.startsWith('__')){
     const pr=['3','4','5'][P.diff], tag=['bronze','silver','gold'][P.diff];
     const hrs=Math.floor(fin.total_secs/3600), mins=Math.floor(fin.total_secs%3600/60);
-    fetch('https://ntfy.sh/'+FIN.topic,{method:'POST',headers:{'Title':`${DIFFS[P.diff]} FINISHED - ${G.title}`,'Priority':pr,'Tags':(P.diff===2?'rotating_light,crown':'tada')+','+tag},
+    fetch('https://ntfy.sh/'+FIN.topic,{method:'POST',headers:{'Title':`${DIFFS[P.diff]} FINISHED - ${G.title}`,'Priority':pr,'Tags':(P.diff===2?'rotating_light,crown':'tada')+','+tag, ...(FIN.email?{'Email':FIN.email}:{})},
       body:`Someone beat all ${G.stages} stages of ${G.title} on ${DIFFS[P.diff]}!\nClaim code: ${fin.code}\nScore: ${fin.score.toLocaleString()} | Run time: ${hrs}h ${mins}m${fin.suspicious?'\nWARNING: run looks suspicious (very fast or missing stage times)':''}\nTheir name and cell number (if they left it) are in Supabase.`}).catch(()=>{});
   }
 }
@@ -1076,23 +1076,27 @@ function claimForm(fin, next){
   modal(`<h2>${exp?'👑 LEGEND!':'🎉 YOU DID IT!'}</h2>
     <p>You finished <b>all ${G.stages} stages</b> of ${esc(G.title)} on <b>${DIFFS[P.diff]}</b>.${exp?' Almost nobody will ever do this.':''}</p>
     <div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div>
-    <p style="font-size:13px">Leave your name and cell number and we'll send you a congratulations message on WhatsApp.${exp?' Keep your claim code — for the Expert challenge we may ask you for a screen recording of your final stages.':''}</p>
+    <p style="font-size:13px">Leave your name, cell number and/or email and we'll send you a congratulations message on WhatsApp or email.${exp?' Keep your claim code — for the Expert challenge we may ask you for a screen recording of your final stages.':''}</p>
     <input id="clName" maxlength="40" placeholder="YOUR NAME" autocomplete="name" style="text-transform:none">
     <input id="clPhone" type="tel" maxlength="20" placeholder="CELL NUMBER e.g. 082 123 4567" autocomplete="tel" style="text-transform:none">
-    <label class="clok"><input type="checkbox" id="clOk"> I agree to be contacted on WhatsApp about this.</label>
+    <input id="clEmail" type="email" maxlength="120" placeholder="EMAIL e.g. you@gmail.com" autocomplete="email" style="text-transform:none">
+    <label class="clok"><input type="checkbox" id="clOk"> I agree to be contacted on WhatsApp or email about this.</label>
     <div class="slot-msg" id="clMsg"></div>
     <button class="big" id="clSend">SEND</button><button class="mid" data-a="skip">NO THANKS</button>`, {skip:next});
-  ['#clName','#clPhone'].forEach(id=>$(id).addEventListener('keydown',e=>e.stopPropagation()));
+  ['#clName','#clPhone','#clEmail'].forEach(id=>$(id).addEventListener('keydown',e=>e.stopPropagation()));
   $('#clSend').onclick=()=>{
     const name=$('#clName').value.trim(), phone=$('#clPhone').value.replace(/[^0-9+]/g,'');
     const msg=t=>{ $('#clMsg').textContent=t; $('#clMsg').className='slot-msg lose'; };
     if(name.length<2) return msg('Please enter your name');
-    if(phone.replace(/\D/g,'').length<9) return msg('Please enter a valid cell number');
+    const email=$('#clEmail').value.trim().toLowerCase(), okPhone=phone.replace(/\D/g,'').length>=9, okEmail=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if(!okPhone && !okEmail) return msg('Please enter a cell number or an email address');
+    if(phone && !okPhone) return msg('That cell number looks too short');
+    if(email && !okEmail) return msg('That email address doesn\'t look right');
     if(!$('#clOk').checked) return msg('Please tick the box so we may contact you');
-    SFX.pickup(); const row={kind:'contact', game:G.id, difficulty:DIFFS[P.diff], code:fin.code, name, phone, score:fin.score};
+    SFX.pickup(); const row={kind:'contact', game:G.id, difficulty:DIFFS[P.diff], code:fin.code, name, phone: okPhone? phone : null, email: okEmail? email : null, score:fin.score};
     $('#clSend').disabled=true; $('#clSend').textContent='SENDING…';
     postRow(row).then(ok=>{ if(!ok) queueRow(row);
-      modal(`<h2>THANK YOU!</h2><p>Got it, ${esc(name)}. Watch your WhatsApp.</p><div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div><p style="font-size:12px;opacity:.7">Screenshot this screen to keep your code.</p><button class="big" data-a="n">CONTINUE</button>`, {n:next}); });
+      modal(`<h2>THANK YOU!</h2><p>Got it, ${esc(name)}. Watch your ${okPhone&&okEmail?'WhatsApp and email':okPhone?'WhatsApp':'email'}.</p><div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div><p style="font-size:12px;opacity:.7">Screenshot this screen to keep your code.</p><button class="big" data-a="n">CONTINUE</button>`, {n:next}); });
   };
 }
 /* ---------- the finale + story ending (after stage 100) ----------
@@ -1185,8 +1189,10 @@ function defaultAttract(c, t){
 /* ---------- loading ---------- */
 let loadP=0;
 const loadIv=setInterval(()=>{ loadP=Math.min(100, loadP+7+Math.random()*12); $('#loadFill').style.width=loadP+'%';
-  if(loadP>=100){ clearInterval(loadIv); $('#tapStart').style.opacity=1; $('#tapStart').style.animationPlayState='running'; $('#screen-loading').addEventListener('pointerdown', ()=>{ audioInit(); SFX.power(); toMenu(); }, {once:true}); } }, 110);
-window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); toMenu(); window.removeEventListener('keydown',k); } });
+  if(loadP>=100){ clearInterval(loadIv); $('#tapStart').style.opacity=1; $('#tapStart').style.animationPlayState='running'; $('#screen-loading').addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); audioInit(); SFX.power(); guardMenu(); toMenu(); }, {once:true}); } }, 110);
+// v2: the tap that closes the loading screen must NOT also press a menu button underneath it
+function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; setTimeout(()=>{ m.style.pointerEvents=''; },500); }
+window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
 $('#mTitle').innerHTML = G.titleHTML || G.title;
