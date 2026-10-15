@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-DD-0.6 · 2026-10-15">
+<meta name="build" content="BUILD-DD-1.0 · 2026-10-15">
 <title>Deep Dig</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-DD-0.6 · 2026-10-15 -->
+<!-- BUILD-DD-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -380,9 +380,9 @@ function makeStage(n,a){ dirt=[...Array(GH)].map((_,y)=>Array(GW).fill(y>=2)); f
   rocks=[]; const nr=n===0?1:3; for(let i=0;i<nr;i++){ const x=1+Math.floor(Math.random()*(GW-2)), y=4+Math.floor(Math.random()*8); if(dirt[y][x]) rocks.push({x,y,fy:cy(y),state:0,t:0}); }
   speedM=a.dv([1,1,1],1,1); }
 const GAME = window.GAME = {
-  id:'deep-dig', title:'Deep Dig', titleHTML:'DEEP<br>DIG', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-DD-0.6 · 2026-10-15', theme:{a:'#ffb000', b:'#ff3b5c', bg:'#1a0e06'},
-  w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'⛏️', joystick:true, coinPts:40,
+  id:'deep-dig', title:'Deep Dig', titleHTML:'DEEP<br>DIG', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-DD-1.0 · 2026-10-15', theme:{a:'#ffb000', b:'#ff3b5c', bg:'#1a0e06'},
+  w:W, h:H, stages:100,  lives:3, livesIcon:'⛏️', joystick:true, coinPts:40,
   abilities:[
     {id:'pump', icon:'🔫', name:'SHOOT', cd:0, key:'Space', keyLabel:'SPC', desc:'FREE — fire your pump at the monster in front of you. 3 hits pops it.'},
     {id:'blast', icon:'💨', name:'BIG PUMP', cd:15, key:'Digit1', keyLabel:'1', desc:'Pops the closest monster instantly.'},
