@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-NS-0.5 · 2026-10-15">
+<meta name="build" content="BUILD-NS-0.6 · 2026-10-15">
 <title>Neon Serpent</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -302,10 +302,16 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .lay-side #toast{transform:translateX(-50%)}
 @media (max-width:480px){ .lay-side #hudTop{gap:3px 9px;padding:3px 58px 3px 6px;font-size:11px} .lay-side #hudTop span{display:none} .lay-side #hudCounter span{display:inline} }
 
+/* arcade navigation row on the main menu */
+.gnav{display:flex;gap:6px;margin-top:10px;width:100%}
+.gnav .gn{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:4px;padding:10px 6px;border-radius:12px;font-size:11px;font-weight:800;letter-spacing:.04em;text-decoration:none;color:#fff;background:rgba(255,255,255,.06);border:1px solid color-mix(in srgb,var(--a) 50%,transparent);white-space:nowrap;overflow:hidden}
+.gnav .gn span{overflow:hidden;text-overflow:ellipsis}
+.gnav .gn.all{flex:0 0 auto;padding:10px 10px;color:var(--a)}
+
 </style>
 </head>
 <body>
-<!-- BUILD-NS-0.5 · 2026-10-15 -->
+<!-- BUILD-NS-0.6 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -348,6 +354,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
       <button class="mid casino" id="btnSlots">🎰 DOUBLE UP OR LOSS</button>
       <div class="row"><button class="mid" id="btnShop">🛒 SHOP</button><button class="mid" id="btnScores">🏆 TOP SCORES</button></div>
       <div class="row"><button class="mid" id="btnHow">❔ HOW TO PLAY</button><button class="mid" id="btnStory">📖 STORY</button></div>
+      <div class="gnav"><a id="gPrev" class="gn">◀ <span></span></a><a id="gAll" class="gn all" href="../">🏠 ALL GAMES</a><a id="gNext" class="gn"><span></span> ▶</a></div>
       <div class="ver" id="ver"></div>
     </div>
   </div>
@@ -370,7 +377,7 @@ function free(x,y){ return !walls.has(key(x,y)) && !snake.some(s=>s.x===x&&s.y==
 function spawnFood(){ let x,y,k=0; do{ x=Math.floor(Math.random()*GW); y=Math.floor(Math.random()*GH); }while(!free(x,y)&&k++<500); food={x,y}; }
 const GAME = window.GAME = {
   id:'neon-serpent', title:'Neon Serpent', titleHTML:'NEON<br>SERPENT', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-NS-0.5 · 2026-10-15', theme:{a:'#3dffd8', b:'#ff3df0', bg:'#05030f'},
+  build:'BUILD-NS-0.6 · 2026-10-15', theme:{a:'#3dffd8', b:'#ff3df0', bg:'#05030f'},
   w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'🐍', joystick:false, coinPts:30,
   abilities:[
     {id:'ghost', icon:'👻', name:'GHOST', cd:15, key:'Digit1', keyLabel:'1', desc:'Pass through walls and yourself for 5 seconds.'},
@@ -1240,6 +1247,15 @@ if(G.init) G.init(API);
 setTimeout(flushPending, 3000);
 requestAnimationFrame(frame);
 
+})();
+
+/* ---------- Arcade navigation (15 Oct 2026): ◀ previous game · 🏠 all games · next game ▶ on the main menu ---------- */
+(function(){ const ORDER=[['chomp-circuit','Chomp Circuit'],['sky-shield','Sky Shield'],['star-hijack','Star Hijack'],['blast-grid','Blast Grid'],['prism-cut','Prism Cut'],['neon-flip','Neon Flip'],['snack-stack','Snack Stack'],['colour-pour','Colour Pour'],['brick-blitz','Brick Blitz'],['bubble-burst','Bubble Burst'],['taxi-rank-jam','Taxi Rank Jam'],['rock-storm','Rock Storm'],['gem-swap','Gem Swap'],['bug-blaster','Bug Blaster'],['block-blast','Block Blast'],['neon-serpent','Neon Serpent'],['bolt-jam','Bolt Jam'],['deep-dig','Deep Dig'],['road-hopper','Road Hopper'],['sky-raider','Sky Raider'],['cube-hop','Cube Hop'],['sky-joust','Sky Joust'],['robo-riot','Robo Riot'],['tube-blaster','Tube Blaster'],['dungeon-dash','Dungeon Dash'],['street-brawl','Street Brawl'],['fist-clash','Fist Clash'],['coast-racer','Coast Racer']];
+  const i=ORDER.findIndex(g=>g[0]===window.GAME.id), nav=document.querySelector('.gnav'); if(!nav) return; if(i<0){ nav.style.display='none'; return; }
+  const p=ORDER[(i-1+ORDER.length)%ORDER.length], n=ORDER[(i+1)%ORDER.length];
+  const gp=document.getElementById('gPrev'), gn=document.getElementById('gNext');
+  gp.href='../'+p[0]+'/'; gp.querySelector('span').textContent=p[1]; gn.href='../'+n[0]+'/'; gn.querySelector('span').textContent=n[1];
+  try{ localStorage.setItem('rmxHomeIdx', i); }catch(e){}
 })();
 
 </script>
