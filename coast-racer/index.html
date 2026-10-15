@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CR-0.5 · 2026-10-15">
+<meta name="build" content="BUILD-CR-1.0 · 2026-10-15">
 <title>Coast Racer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-CR-0.5 · 2026-10-15 -->
+<!-- BUILD-CR-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -382,9 +382,9 @@ function build(n,a){ segs=[]; const add=(len,curve,hill)=>{ const y0=segs.length
   addH(60,0,0); goal=(segs.length-50)*SEG;
   segs.forEach((s,i)=>{ s.i=i; s.dec=i%20===0?(i%40?'palm':'sign'):i%7===0?'palm':null; s.side=(i%14<7)?-1:1; }); }
 const GAME=window.GAME={
-  id:'coast-racer',title:'Coast Racer',titleHTML:'COAST<br>RACER',tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-CR-0.5 · 2026-10-15',theme:{a:'#ff3bd4',b:'#ffd23f',bg:'#1a0630'},
-  w:W,h:H,stages:3,proto:true,lives:3,livesIcon:'🏎️',joystick:false,coinPts:40,
+  id:'coast-racer',title:'Coast Racer',titleHTML:'COAST<br>RACER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-CR-1.0 · 2026-10-15',theme:{a:'#ff3bd4',b:'#ffd23f',bg:'#1a0630'},
+  w:W,h:H,stages:100,lives:3,livesIcon:'🏎️',joystick:false,coinPts:40,
   abilities:[
     {id:'nitro',icon:'🚀',name:'NITRO',cd:15,key:'Digit1',keyLabel:'1',desc:'Massive speed boost for 4 seconds.'},
     {id:'ghost',icon:'👻',name:'GHOST',cd:20,key:'Digit2',keyLabel:'2',desc:'Drive straight through traffic for 6 seconds.'},
