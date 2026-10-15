@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BJ-0.6 · 2026-10-15">
+<meta name="build" content="BUILD-BJ-1.0 · 2026-10-15">
 <title>Bolt Jam</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BJ-0.6 · 2026-10-15 -->
+<!-- BUILD-BJ-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -385,9 +385,9 @@ function makeStage(n,a){ nC=n===0?3:Math.min(7,Math.round(a.dv([4,5,6],7,7))); c
   while(bolts.length%3) bolts.pop();
   for(let i=0;i<bolts.length;i+=3){ const c=rnd(nC); cols.push(c,c,c); } cols.sort(()=>Math.random()-.5); bolts.forEach((b,i)=>b.col=cols[i]); }
 const GAME = window.GAME = {
-  id:'bolt-jam', title:'Bolt Jam', titleHTML:'BOLT<br>JAM', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-BJ-0.6 · 2026-10-15', theme:{a:'#ff9a2e', b:'#2ec4ff', bg:'#14161c'},
-  w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'🔩', joystick:false, coinPts:40,
+  id:'bolt-jam', title:'Bolt Jam', titleHTML:'BOLT<br>JAM', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-BJ-1.0 · 2026-10-15', theme:{a:'#ff9a2e', b:'#2ec4ff', bg:'#14161c'},
+  w:W, h:H, stages:100,  lives:3, livesIcon:'🔩', joystick:false, coinPts:40,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a bolt that fits a box.'},
     {id:'slot', icon:'➕', name:'+SLOT', cd:20, key:'Digit2', keyLabel:'2', desc:'Empties the tray into a spare box.'},
