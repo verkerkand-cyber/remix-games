@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SB-0.4 · 2026-10-15">
+<meta name="build" content="BUILD-SB-1.0 · 2026-10-15">
 <title>Street Brawl</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SB-0.4 · 2026-10-15 -->
+<!-- BUILD-SB-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -375,9 +375,9 @@ let stg=0,api,t,pl,ens,cam,wave,waves,done,lost,eff,grace,locked,goT;
 function fighter(x,y,k){ const B={thug:{hp:3,sp:90,col:'#ff3b5c',sz:1},knife:{hp:2,sp:130,col:'#b14bff',sz:0.95},big:{hp:7,sp:60,col:'#3bff7a',sz:1.3},boss:{hp:22,sp:85,col:'#ff9f1c',sz:1.45}}[k];
   return {x,y,k,hp:B.hp,max:B.hp,sp:B.sp*api.dv([1,1.25,1.5],1.7,2.4),col:B.col,sz:B.sz,face:-1,st:'walk',stT:0,atkT:1+Math.random(),hitT:0,vx:0}; }
 const GAME=window.GAME={
-  id:'street-brawl',title:'Street Brawl',titleHTML:'STREET<br>BRAWL',tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-SB-0.4 · 2026-10-15',theme:{a:'#ff3b5c',b:'#ffd23f',bg:'#0e0610'},
-  w:W,h:H,stages:3,proto:true,lives:3,livesIcon:'👊',joystick:true,coinPts:40,
+  id:'street-brawl',title:'Street Brawl',titleHTML:'STREET<br>BRAWL',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-SB-1.0 · 2026-10-15',theme:{a:'#ff3b5c',b:'#ffd23f',bg:'#0e0610'},
+  w:W,h:H,stages:100,lives:3,livesIcon:'👊',joystick:true,coinPts:40,
   abilities:[
     {id:'punch',icon:'👊',name:'PUNCH',cd:0,key:'KeyJ',keyLabel:'J',desc:'FREE — fast punch.'},
     {id:'kick',icon:'🦵',name:'KICK',cd:0,key:'KeyK',keyLabel:'K',desc:'FREE — slower, longer, knocks them back.'},
@@ -396,7 +396,7 @@ const GAME=window.GAME={
   startStage(n,a){ api=a; stg=n; t=0; done=false; lost=false; eff={rage:-9}; ens=[]; cam=0; wave=0; locked=false; grace=1; goT=0;
     pl={x:120,y:700,hp:100,face:1,st:'idle',stT:0,combo:0};
     const tut=a.content===0, m=Math.round(a.dv([3,4,5],6,8));
-    waves=tut?[{x:350,list:['thug']}]:[{x:300,list:Array(m).fill('thug')},{x:1100,list:[...Array(m-1).fill('thug'),'knife','big']},{x:1800,list:n>=3?['boss','thug','knife']:[...Array(m).fill('knife'),'big']}]; },
+    waves=tut?[{x:350,list:['thug']}]:[{x:300,list:Array(m).fill('thug')},{x:1100,list:[...Array(m-1).fill('thug'),'knife','big']},{x:1800,list:a.boss?['boss','thug','knife']:[...Array(m).fill('knife'),'big']}]; },
   respawn(){ lost=false; pl.hp=100; pl.st='idle'; grace=2.5; ens.forEach(e=>{ e.x+= (e.x<pl.x?-160:160); e.st='walk'; }); },
   useAbility(id){ if(done||lost) return false;
     if(id==='punch'||id==='kick'){ return attack(id); }
@@ -408,7 +408,7 @@ const GAME=window.GAME={
       const d=api.input.dir(), sp=pl.st==='idle'?220:60; if(pl.st!=='hurt'){ pl.x+=d.x*sp*dt; pl.y+=d.y*sp*0.7*dt; if(Math.abs(d.x)>0.2&&pl.st==='idle') pl.face=Math.sign(d.x); }
       const maxX=locked?cam+W-30:WL-40; pl.x=Math.max(cam+30,Math.min(maxX,pl.x)); pl.y=Math.max(Y0,Math.min(Y1,pl.y));
       const K=api.input.keys; if(K.Space&&!this._s){ attack('punch'); } this._s=K.Space; }
-    if(!locked&&wave<waves.length&&pl.x>waves[wave].x){ locked=true; const w=waves[wave]; w.list.forEach((k,i)=>{ const side=i%2?-1:1; ens.push(fighter(cam+(side>0?W+60+i*40:-60-i*40),Y0+40+Math.random()*(Y1-Y0-60),k)); }); api.toast(wave===waves.length-1&&stg>=3?'BOSS!':'FIGHT!'); }
+    if(!locked&&wave<waves.length&&pl.x>waves[wave].x){ locked=true; const w=waves[wave]; w.list.forEach((k,i)=>{ const side=i%2?-1:1; ens.push(fighter(cam+(side>0?W+60+i*40:-60-i*40),Y0+40+Math.random()*(Y1-Y0-60),k)); }); api.toast(wave===waves.length-1&&api.boss?'BOSS!':'FIGHT!'); }
     if(!locked) cam+=(Math.max(0,Math.min(WL-W,pl.x-W*0.4))-cam)*Math.min(1,dt*4);
     const atkW=api.dv([0.55,0.42,0.32],0.26,0.16), dmg=api.dv([8,12,16],20,30);
     ens.forEach(e=>{ e.stT-=dt; e.hitT-=dt;
