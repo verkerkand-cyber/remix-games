@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BK-0.6 · 2026-10-15">
+<meta name="build" content="BUILD-BK-1.0 · 2026-10-15">
 <title>Block Blast</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BK-0.6 · 2026-10-15 -->
+<!-- BUILD-BK-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -381,9 +381,9 @@ function newTray(){ const big=api.content===0?6:Math.round(api.dv([10,13,15],15,
 function rotate(p){ p.cells=p.cells.map(([x,y])=>[-y,x]); const mx=Math.min(...p.cells.map(c=>c[0])), my=Math.min(...p.cells.map(c=>c[1])); p.cells=p.cells.map(([x,y])=>[x-mx,y-my]); }
 function slotX(i){ return 40+i*180; }
 const GAME = window.GAME = {
-  id:'block-blast', title:'Block Blast', titleHTML:'BLOCK<br>BLAST', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-BK-0.6 · 2026-10-15', theme:{a:'#2ec4ff', b:'#ffe14a', bg:'#0a1020'},
-  w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'🟦', joystick:false, coinPts:40,
+  id:'block-blast', title:'Block Blast', titleHTML:'BLOCK<br>BLAST', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-BK-1.0 · 2026-10-15', theme:{a:'#2ec4ff', b:'#ffe14a', bg:'#0a1020'},
+  w:W, h:H, stages:100,  lives:3, livesIcon:'🟦', joystick:false, coinPts:40,
   abilities:[
     {id:'rotate', icon:'🔄', name:'ROTATE', cd:8, key:'Digit1', keyLabel:'1', desc:'Next tap on a tray piece rotates it.'},
     {id:'undo', icon:'↩️', name:'UNDO', cd:10, key:'Digit2', keyLabel:'2', desc:'Takes back your last piece.'},
