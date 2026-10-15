@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RH-0.4 · 2026-10-15">
+<meta name="build" content="BUILD-RH-1.0 · 2026-10-15">
 <title>Road Hopper</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-RH-0.4 · 2026-10-15 -->
+<!-- BUILD-RH-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -381,9 +381,9 @@ function laneDefs(a){ const sp=s=>s*(api.content===0?0.7:a.dv([1,1.5,2],2.6,5));
   return L; }
 function reset(){ hop={c:5,r:14,x:5*CS,y:0,anim:0}; }
 const GAME=window.GAME={
-  id:'road-hopper',title:'Road Hopper',titleHTML:'ROAD<br>HOPPER',tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-RH-0.4 · 2026-10-15',theme:{a:'#3bff7a',b:'#ffcc00',bg:'#0b1a12'},
-  w:W,h:H,stages:3,proto:true,lives:3,livesIcon:'🐇',joystick:false,coinPts:40,
+  id:'road-hopper',title:'Road Hopper',titleHTML:'ROAD<br>HOPPER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-RH-1.0 · 2026-10-15',theme:{a:'#3bff7a',b:'#ffcc00',bg:'#0b1a12'},
+  w:W,h:H,stages:100,lives:3,livesIcon:'🐇',joystick:false,coinPts:40,
   abilities:[
     {id:'freeze',icon:'⏸️',name:'FREEZE',cd:20,key:'Digit1',keyLabel:'1',desc:'Stops all traffic and the river for 4 seconds.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'Survive one hit or splash for 8 seconds.'},
