@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-FC-0.4 · 2026-10-15">
+<meta name="build" content="BUILD-FC-1.0 · 2026-10-15">
 <title>Fist Clash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-FC-0.4 · 2026-10-15 -->
+<!-- BUILD-FC-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -375,9 +375,9 @@ let api,t,p1,cpu,balls,done,lost,eff,round,wins,cwins,rt,pause,stg,banner;
 const RIVALS=[{name:'BRICK',col:'#ff3b5c',skin:'#c88a5a'},{name:'VIPER',col:'#3bff7a',skin:'#e0b080'},{name:'TITAN',col:'#ff9f1c',skin:'#8a5a3a'}];
 function mk(x,face,col,skin){ return {x,y:GY,vx:0,vy:0,face,hp:100,st:'idle',stT:0,col,skin,block:0,cool:0,air:false}; }
 const GAME=window.GAME={
-  id:'fist-clash',title:'Fist Clash',titleHTML:'FIST<br>CLASH',tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-FC-0.4 · 2026-10-15',theme:{a:'#ffd23f',b:'#ff3b5c',bg:'#100608'},
-  w:W,h:H,stages:3,proto:true,lives:3,livesIcon:'🥊',joystick:true,coinPts:40,
+  id:'fist-clash',title:'Fist Clash',titleHTML:'FIST<br>CLASH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-FC-1.0 · 2026-10-15',theme:{a:'#ffd23f',b:'#ff3b5c',bg:'#100608'},
+  w:W,h:H,stages:100,lives:3,livesIcon:'🥊',joystick:true,coinPts:40,
   abilities:[
     {id:'punch',icon:'👊',name:'PUNCH',cd:0,key:'KeyJ',keyLabel:'J',desc:'FREE — fast jab.'},
     {id:'kick',icon:'🦵',name:'KICK',cd:0,key:'KeyK',keyLabel:'K',desc:'FREE — slower, longer, more damage.'},
@@ -410,14 +410,14 @@ const GAME=window.GAME={
     const dist=Math.abs(p1.x-cpu.x), react=api.dv([0.75,0.5,0.32],0.22,0.1), agg=api.dv([0.45,0.65,0.85],0.95,1);
     cpu.think=(cpu.think||0)-dt; if(cpu.st==='idle'&&cpu.think<=0){ cpu.think=react*(0.6+Math.random()*0.8); const r=Math.random();
       if((p1.st==='punch'||p1.st==='kick'||p1.st==='wind')&&dist<120&&r<api.dv([0.2,0.45,0.65],0.75,0.9)) cpu.block=0.6;
-      else if(dist>110){ if(stg>=2&&r<0.15&&cpu.cool<=0){ cpu.st='wind'; cpu.stT=0.35; cpu.next='fire'; } else cpu.vx=cpu.face*api.dv([170,230,280],320,420); }
+      else if(dist>110){ if(api.level>=2&&r<0.15&&cpu.cool<=0){ cpu.st='wind'; cpu.stT=0.35; cpu.next='fire'; } else cpu.vx=cpu.face*api.dv([170,230,280],320,420); }
       else if(r<agg){ cpu.st='wind'; cpu.stT=api.dv([0.4,0.3,0.22],0.16,0.1); cpu.next=r<agg*0.5?'punch':'kick'; }
       else cpu.vx=-cpu.face*180; }
     if(cpu.st==='wind'&&cpu.stT<=0.01){ if(cpu.next==='fire'){ balls.push({x:cpu.x+cpu.face*40,y:cpu.y-95,vx:cpu.face*360,own:cpu}); cpu.cool=3; cpu.st='punch'; cpu.stT=0.25; api.sfx.shoot(); } else { cpu.st='idle'; attack(cpu,p1,cpu.next); } }
     balls.forEach(b=>{ b.x+=b.vx*dt; const tg=b.own===p1?cpu:p1; if(Math.abs(b.x-tg.x)<30&&tg.y>GY-60){ b.gone=true; damage(tg,b.own,12,true); } if(b.x<-30||b.x>W+30) b.gone=true; }); balls=balls.filter(b=>!b.gone);
     if(rt<=0) endRound(p1.hp>=cpu.hp);
     api.counter('🥊 ROUND',`${round} · ${'●'.repeat(wins)}${'○'.repeat(2-wins)}`); },
-  render(c){ const rv=RIVALS[(stg+2)%3]; const g=c.createLinearGradient(0,0,0,GY); g.addColorStop(0,'#100608'); g.addColorStop(1,['#5a1a2a','#1a3a2a','#4a2a0a'][(stg+2)%3]); c.fillStyle=g; c.fillRect(0,0,W,H);
+  render(c){ const rv=RIVALS[api.boss?2:stg%2]; const g=c.createLinearGradient(0,0,0,GY); g.addColorStop(0,'#100608'); g.addColorStop(1,['#5a1a2a','#1a3a2a','#4a2a0a'][(stg+2)%3]); c.fillStyle=g; c.fillRect(0,0,W,H);
     for(let i=0;i<14;i++){ c.fillStyle='rgba(0,0,0,.6)'; const x=i*46+((i*13)%20); c.beginPath(); c.arc(x,GY-160+Math.sin(t*3+i)*4,18,0,7); c.fill(); c.fillRect(x-16,GY-150,32,60); }
     c.fillStyle='#ffd23f'; c.shadowColor='#ffd23f'; c.shadowBlur=30; for(let i=0;i<3;i++){ c.beginPath(); c.arc(100+i*200,80,10,0,7); c.fill(); } c.shadowBlur=0;
     c.fillStyle='#2a1a1a'; c.fillRect(0,GY,W,H-GY); c.fillStyle='#4a2a2a'; c.fillRect(0,GY,W,6);
@@ -428,13 +428,13 @@ const GAME=window.GAME={
     c.textAlign='center'; c.font='bold 28px sans-serif'; c.fillText(Math.max(0,Math.ceil(rt)),300,102);
     c.font='18px sans-serif'; c.fillText('●'.repeat(cwins)+'○'.repeat(2-cwins),510,142); c.fillText('●'.repeat(wins)+'○'.repeat(2-wins),90,142);
     balls.forEach(b=>{ c.shadowColor=c.fillStyle=b.own===p1?'#00e5ff':'#ff3bd4'; c.shadowBlur=20; c.beginPath(); c.arc(b.x,b.y,16,0,7); c.fill(); c.fillStyle='#fff'; c.beginPath(); c.arc(b.x,b.y,7,0,7); c.fill(); }); c.shadowBlur=0;
-    drawF(c,cpu,stg>=3?1.2:1); drawF(c,p1,1);
+    drawF(c,cpu,api.boss?1.2:1); drawF(c,p1,1);
     if(eff.rage>0){ c.strokeStyle='#ff9f1c'; c.lineWidth=3; c.beginPath(); c.ellipse(p1.x,p1.y-80,46,90,0,0,7); c.stroke(); }
     if(pause>0&&banner){ c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(0,360,W,120); c.fillStyle='#ffd23f'; c.font='bold 54px sans-serif'; c.fillText(banner,300,440); }
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
   attract(c,tt){ c.fillStyle='#100608'; c.fillRect(0,0,W,H); const a=mk(220,1,'#2e7bff','#f0c090'), b=mk(380,-1,'#ff3b5c','#c88a5a'); a.y=b.y=600; a.st=(tt*2|0)%2?'kick':'idle'; drawF(c,a,1); drawF(c,b,1); }
 };
-function newRound(){ const rv=RIVALS[(stg+2)%3]; p1=mk(170,1,api.cos('Fighter').colors[0],'#f0c090'); cpu=mk(430,-1,rv.col,rv.skin); cpu.hp=stg>=3?130:100; cpu.max=cpu.hp; balls=[]; rt=api.content===0?99:60; pause=1.3; banner='ROUND '+round; api.sfx.blip(); }
+function newRound(){ const rv=RIVALS[api.boss?2:stg%2]; p1=mk(170,1,api.cos('Fighter').colors[0],'#f0c090'); cpu=mk(430,-1,rv.col,rv.skin); cpu.hp=api.boss?Math.round(api.dv([130,150,170],190,260)):100; cpu.max=cpu.hp; balls=[]; rt=api.content===0?99:60; pause=1.3; banner='ROUND '+round; api.sfx.blip(); }
 function attack(a,b,k){ if(done||lost||a.st==='ko'||a.st==='hurt'||(a.st!=='idle'&&a.stT>0.05)) return false; a.st=k; a.stT=k==='kick'?0.34:0.2; if(a===p1) api.sfx.click();
   const reach=k==='kick'?115:92; if(Math.abs(a.x-b.x)<reach&&Math.abs(a.y-b.y)<90){ damage(b,a,k==='kick'?11:7,false); if(a===p1) api.event('hit'); } return true; }
 function damage(v,a,dmg,proj){ if(v.st==='ko') return; let d=dmg; if(a===p1&&eff.rage>0) d*=2; if(a===cpu) d*=api.dv([0.8,1.1,1.4],1.8,3);
