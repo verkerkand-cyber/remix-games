@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SH-1.7 · 2026-09-27">
+<meta name="build" content="BUILD-SH-1.8 · 2026-10-15">
 <title>Star Hijack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -115,7 +115,10 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 @media (max-width:420px){.ab{width:54px;height:54px;font-size:23px}#abilities{gap:9px}.bbtn{width:48px;height:48px}.barbtns{gap:7px}}
 /* gold coins flying to the counter */
 #tut{position:absolute;left:50%;transform:translateX(-50%);width:min(520px,calc(100vw - 24px));padding:12px 14px;border-radius:14px;background:rgba(5,4,16,.9);border:2px solid var(--a);box-shadow:0 0 22px color-mix(in srgb,var(--a) 50%,transparent);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.4;pointer-events:auto}
-#tut{bottom:calc(14px + env(safe-area-inset-bottom))}
+#tut{top:calc(52px + env(safe-area-inset-top));bottom:auto;z-index:6}
+.lay-side #tut{left:10px;right:calc(var(--side,88px) + 8px);width:auto;transform:none;max-width:520px}
+#tut .tt span{color:#ffd23f}
+#tut button#tutSkip{font-size:12px;padding:7px 10px;background:var(--a);color:#000;font-weight:800}
 #tut .tt{font-family:'Orbitron',sans-serif;font-size:11px;color:var(--a);letter-spacing:.14em;margin-bottom:4px;display:flex;justify-content:space-between}
 #tut button{font-size:10px;padding:4px 8px;border-radius:7px;background:rgba(255,255,255,.14)}
 #toast{position:absolute;top:calc(130px + 8%);left:50%;transform:translateX(-50%);font-size:clamp(20px,5vw,34px);font-weight:900;letter-spacing:.1em;text-shadow:0 0 18px var(--a);opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none}
@@ -213,6 +216,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 /* ---------- v1.6 finale ---------- */
 #fw{position:absolute;inset:0;width:100%;height:100%;z-index:0}
 #screen-ending .crawl,#screen-ending .endbar,#screen-ending .endskip{z-index:2}
+#screen-ending .endskip{z-index:10;pointer-events:auto}#screen-ending .crawl,#screen-ending #fw,#screen-ending .finale{pointer-events:none}
 .finale{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px;transition:opacity 1.2s, transform 1.2s}
 .finale.out{opacity:0;transform:scale(1.15);pointer-events:none}
 .medal{width:170px;height:170px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:100px;background:radial-gradient(circle at 35% 30%,#fff8,transparent 45%),radial-gradient(circle,color-mix(in srgb,var(--mc) 60%,#000),#000 75%);border:5px solid var(--mc);box-shadow:0 0 40px var(--mc),0 0 120px color-mix(in srgb,var(--mc) 60%,transparent);animation:medalIn 1.4s cubic-bezier(.2,1.6,.4,1) both, medalGlow 1.6s 1.4s ease-in-out infinite}
@@ -239,10 +243,48 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .clok{display:flex;gap:8px;align-items:flex-start;text-align:left;font-family:'Segoe UI',sans-serif;font-size:13px;opacity:.85}
 .clok input{width:18px;height:18px;flex:none;margin-top:1px}
 
+/* 4-ability games: compact bar on phones */
+@media (max-width:480px){
+  .ab4 #bar{padding:0 8px;gap:6px}
+  .ab4 #abilities{gap:6px}
+  .ab4 .ab{width:46px;height:46px;font-size:20px}
+  .ab4 .ab .cnt{min-width:19px;height:19px;font-size:11px;right:-4px;top:-4px}
+  .ab4 .ab .nm{font-size:7px;bottom:-12px}
+  .ab4 .bbtn{width:42px;height:42px;font-size:15px}
+  .ab4 .bbtn small{display:none}
+  .ab4 .barbtns{gap:5px}
+  .ab4 .ctr{padding:4px 3px;max-width:86px}
+  .ab4 .ctr b{font-size:16px}
+  .ab4 .ctr span{font-size:8px;letter-spacing:.06em}
+}
+
+/* ===== v2 SIDE LAYOUT (Andrew, Oct 2026): abilities in a column on the RIGHT, game to the left =====
+   Bigger buttons, readable names, and a live countdown ring + seconds on any ability that is running. */
+.lay-side #bar{left:auto;right:0;top:46px;bottom:0;width:var(--side,88px);height:auto;padding:12px 0 calc(10px + env(safe-area-inset-bottom));flex-direction:column;justify-content:flex-start;gap:10px;border-bottom:0;border-left:2px solid color-mix(in srgb,var(--b) 55%,transparent);box-shadow:-6px 0 18px rgba(0,0,0,.5)}
+.lay-side #abilities{flex-direction:column;align-items:center;gap:22px}
+.lay-side .ab{width:66px;height:66px;font-size:30px}
+.lay-side .ab .nm{bottom:-16px;font-size:10px;opacity:1;letter-spacing:.04em}
+.lay-side .ab .cnt{min-width:24px;height:24px;font-size:13px}
+.lay-side #hudCounter{margin:6px 0 0;max-width:80px;width:80px;flex:none;padding:6px 2px}
+.lay-side .ctr b{font-size:17px}.lay-side .ctr span{font-size:8px;letter-spacing:.06em;text-align:center}
+.lay-side .barbtns{margin-top:auto;flex-direction:column;gap:8px}
+.lay-side .bbtn{width:62px;height:50px}
+.lay-side.ab4 #bar{padding:10px 0}
+.lay-side.ab4 .ab{width:62px;height:62px;font-size:27px}
+.lay-side.ab4 .bbtn small{display:block}
+@media (max-width:420px){ .lay-side{--side:80px} .lay-side .ab,.lay-side.ab4 .ab{width:58px;height:58px;font-size:25px} .lay-side #abilities{gap:20px} .lay-side #hudCounter{width:74px;max-width:74px} .lay-side .bbtn{width:58px;height:44px} }
+@media (max-height:640px){ .lay-side #abilities{gap:16px} .lay-side .ab,.lay-side.ab4 .ab{width:52px;height:52px;font-size:22px} }
+/* running ability: countdown ring + big seconds */
+.ab .tm{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff;text-shadow:0 0 6px #000,0 0 3px #000;pointer-events:none}
+.ab.timing{background:conic-gradient(var(--b) calc(var(--p,1)*360deg), rgba(5,4,16,.85) 0);box-shadow:0 0 26px var(--b);animation:none}
+.ab.timing .tm{display:flex}.ab.timing .ic{opacity:.35}
+.ab.timing.ending{animation:abend .35s infinite}
+@keyframes abend{50%{box-shadow:0 0 4px #ff3b3b;border-color:#ff3b3b}}
+
 </style>
 </head>
 <body>
-<!-- BUILD-SH-1.7 · 2026-09-27 -->
+<!-- BUILD-SH-1.8 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -306,7 +348,7 @@ const ET={ bee:{hp:1,pts:50,col:'#ffd23f',col2:'#3fa9ff',r:15}, moth:{hp:1,pts:8
 
 const GAME = window.GAME = {
   id:'star-hijack', title:'Star Hijack', titleHTML:'STAR<br>HIJACK', tagline:'Steal their ships · Space shooter remix',
-  build:'BUILD-SH-1.7 · 2026-09-27', theme:{a:'#ff3d7f', b:'#3fe0ff', bg:'#03020c'},
+  build:'BUILD-SH-1.8 · 2026-10-15', theme:{a:'#ff3d7f', b:'#3fe0ff', bg:'#03020c'},
   w:W, h:H, stages:100, lives:3, livesIcon:'▲', joystick:false,
   abilities:[
     {id:'beam', icon:'🧲', name:'CAPTURE BEAM', cd:14, key:'Digit1', keyLabel:'1', desc:'Grab an enemy above you as a wingman (max 2).'},
@@ -524,7 +566,7 @@ const SUPPORT = G.support || 'appstreamsupportav@gmail.com';
    FIN.sb / FIN.key = Supabase project URL + public "anon" key. The table only accepts new rows,
    nobody can read it from the game, so cell numbers stay private. FIN.topic = ntfy.sh channel
    for Andrew's phone alert (no personal data is ever sent there). Leave a value empty to switch that part off. */
-const FIN = {sb:'https://uuyaoffzgjxxwxlzhwur.supabase.co', key:'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9', topic:'remix-arcade-a059c55346e0'};
+const FIN = {sb:'https://uuyaoffzgjxxwxlzhwur.supabase.co', key:'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9', topic:'remix-arcade-a059c55346e0'};  // NOTE: ntfy.sh refuses anonymous email sending (tested 2026-10-05: HTTP 400), so finish alerts stay phone-only
 const root = document.documentElement.style;
 root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.setProperty('--bg', G.theme.bg);
 
@@ -579,18 +621,22 @@ const SFX = {
    84px ability bar (bottom on tall screens, left side on wide screens). The game is
    scaled into whatever is left, so the buttons never sit on top of the play area. */
 const TOPH = 46, BARS = 84;
+const SIDE = (G.layout!=='top');   // v2: abilities in a column on the right (set G.layout='top' for the old top bar)
 const app = $('#app'), cv = $('#game'), ctx = cv.getContext('2d');
+if(SIDE){ app.classList.remove('lay-top'); app.classList.add('lay-side'); }
 let scale = 1, offX = 0, offY = 0, dpr = 1;
 function resize(){
   // top strip + ability bar sit ABOVE the game on every screen, so they are always in view
   const W = window.innerWidth, H = window.innerHeight;
   dpr = Math.min(window.devicePixelRatio||1, 2);
-  const ay = TOPH+BARS, aw = W, ah = H-ay-6;
+  const sw = SIDE? (W<=420? 80 : 88) : 0;
+  const ay = SIDE? TOPH : TOPH+BARS, aw = W-sw, ah = H-ay-6;
   scale = Math.min(aw/G.w, ah/G.h);
   const cw = G.w*scale, ch = G.h*scale; offX = (aw-cw)/2; offY = ay+(ah-ch)/2;
   cv.style.width = cw+'px'; cv.style.height = ch+'px'; cv.style.left = offX+'px'; cv.style.top = offY+'px';
   cv.width = Math.round(cw*dpr); cv.height = Math.round(ch*dpr);
 }
+if(G.abilities.length>=4) app.classList.add('ab4');
 window.addEventListener('resize', resize); resize();
 function toGame(cx, cy){ return {x:(cx-offX)/scale, y:(cy-offY)/scale}; }
 
@@ -777,7 +823,7 @@ G.api = API;
 const hudEl=$('#hud'), abWrap=$('#abilities');
 G.abilities.forEach((a,i)=>{
   const b=document.createElement('button'); b.className='ab'; b.title=a.name+(a.desc?' — '+a.desc:'');
-  b.innerHTML=`<span class="ic">${a.icon}</span><div class="cnt"></div><div class="kb">${a.keyLabel||''}</div><div class="nm">${a.name}</div>`;
+  b.innerHTML=`<span class="ic">${a.icon}</span><div class="cnt"></div><div class="kb">${a.keyLabel||''}</div><div class="nm">${a.name}</div><div class="tm"></div>`;
   b.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); audioInit(); useAbility(i); if(G.onAbilityDown) G.onAbilityDown(a.id); });
   b.addEventListener('pointerup', e=>{ e.stopPropagation(); if(G.onAbilityUp) G.onAbilityUp(a.id); });
   abWrap.appendChild(b);
@@ -806,6 +852,11 @@ function updAbilities(dt){
     el.classList.toggle('empty', empty);
     el.classList.toggle('ready', !empty && abLock[i]<=0 && !abActive[i]);
     el.classList.toggle('active', !!abActive[i]);
+    // live countdown for abilities that last a while (game reports {left,total[,unit]} via G.abTime)
+    let r=null; try{ r = G.abTime ? G.abTime(a.id) : null; }catch(e){ r=null; } const tm=el.querySelector('.tm');
+    if(r && r.left>0){ el.classList.add('timing'); el.classList.toggle('ending', r.left<=1.5 && r.unit===undefined && !r.label); el.style.setProperty('--p', Math.max(0,Math.min(1,r.left/r.total)));
+      const txt = r.label ? r.label : r.unit!==undefined ? Math.ceil(r.left)+r.unit : (r.left<9.95? r.left.toFixed(1) : Math.ceil(r.left))+'s'; if(tm.textContent!==txt) tm.textContent=txt; }
+    else if(el.classList.contains('timing')){ el.classList.remove('timing','ending'); tm.textContent=''; }
   });
 }
 let cntKey='';
@@ -835,7 +886,7 @@ function tutShow(){
   if(!st){ el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
   const txt = (Input.touch || matchMedia('(hover:none)').matches) && st.touch ? st.touch : st.text;
-  el.innerHTML = `<div class="tt"><span>TUTORIAL ${tutIdx+1}/${G.tutorial.length}</span><button id="tutSkip">SKIP ▶▶</button></div><div>${txt}</div>`;
+  el.innerHTML = `<div class="tt"><span>🎓 PRACTICE ONLY · TUTORIAL ${tutIdx+1}/${G.tutorial.length}</span><button id="tutSkip">SKIP TO REAL GAME ▶▶</button></div><div>${txt}</div>`;
   $('#tutSkip').onclick = e=>{ e.stopPropagation(); SFX.click(); tutFinish(); };
   tutTimer = 0;
 }
@@ -943,8 +994,12 @@ function panel(title, html, onBack){
   $('#pBack').onclick = ()=>{ SFX.click(); (onBack||toMenu)(); };
 }
 const HOW_BUTTONS = ()=>`<h3>ABILITIES &amp; GOLD</h3><ul><li>You start every new game with <b>1 of each</b> ability. The number on each button is how many you have left.</li><li>Collect <b>🪙 gold</b> while you play: coins pop out when you score and fly to your gold counter. Clearing a stage gives bonus gold.</li><li>Spend gold in the <b>🛒 SHOP</b> button during a stage (it pauses the game), after each stage, or from <b>⚡ ABILITIES</b> on the main menu.</li>${G.abilities.some(a=>a.cd===0)?'<li>'+G.abilities.filter(a=>a.cd===0).map(a=>a.icon+' '+a.name).join(', ')+' is part of the game and never runs out.</li>':''}</ul><h3>IN-GAME BUTTONS</h3><ul><li><b>Top bar</b> — score, stage, lives, gold, and END (save &amp; exit)</li><li><b>Ability bar</b> (just under the top bar) — abilities, 🛒 SHOP and ❚❚ PAUSE</li></ul>`;
-$('#btnNew').addEventListener('click', ()=>{ SFX.click(); slotPicker('new'); });
-$('#btnCont').addEventListener('click', ()=>{ SFX.click(); slotPicker('cont'); });
+// ONE save only (no slot screen). NEW GAME starts straight away (asks first if it would wipe a saved game); CONTINUE goes straight back in.
+function savedIdx(){ let b=-1; P.slots.forEach((s,i)=>{ if(s&&(b<0||s.t>P.slots[b].t)) b=i; }); return b; }
+$('#btnNew').addEventListener('click', ()=>{ SFX.click(); const i=savedIdx();
+  if(i>=0){ const s=P.slots[i]; modal(`<h2>START OVER?</h2><p>You have a saved game at <b>Stage ${s.stage} · ${DIFFS[s.diff]}</b>. A new game replaces it.</p><button class="big" data-a="y">YES, NEW GAME</button><button class="mid" data-a="c">CONTINUE SAVED GAME</button><button class="mid" data-a="n">CANCEL</button>`, {y:()=>{ P.slots=[null,null,null]; newGame(0); }, c:()=>continueSlot(i), n:()=>{}}); }
+  else { P.slots=[null,null,null]; newGame(0); } });
+$('#btnCont').addEventListener('click', ()=>{ SFX.click(); const i=savedIdx(); if(i>=0) continueSlot(i); });
 $('#btnScores').addEventListener('click', ()=>{ SFX.click(); scoresPanel(P.diff); });
 $('#btnHow').addEventListener('click', ()=>{ SFX.click(); panel('HOW TO PLAY', G.howto + HOW_BUTTONS() + `<h3>NEED HELP?</h3><p>Email us at <b style="color:var(--b)">${esc(SUPPORT)}</b></p><p><button class="mid" id="howMail" style="width:100%">✉ CONTACT SUPPORT</button></p><p style="margin-top:16px"><button class="big" id="howTut" style="width:100%">▶ PLAY THE TUTORIAL</button></p>`); $('#howTut').onclick=()=>{ SFX.click(); startTutorial(true); }; $('#howMail').onclick=()=>{ SFX.click(); contactModal(); }; });
 $('#btnStory').addEventListener('click', ()=>{ SFX.click(); panel('STORY', G.story); });
@@ -1101,7 +1156,7 @@ function resumeGame(){ closeModal(); state='play'; last=performance.now(); }
 function endGamePrompt(){
   if(state==='play'){ state='paused'; }
   if(run.tutorial){ modal(`<h2>LEAVE TUTORIAL?</h2><p>You can replay it any time from How to Play.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>{ if(!run.practice){ P.tutDone=true; save(); } toMenu(); }, n:resumeGame}); return; }
-  modal(`<h2>END GAME?</h2><p>Your game is saved in <b>Slot ${run.slot+1}</b> at the start of Stage ${run.stage}. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
+  modal(`<h2>END GAME?</h2><p>Your game is saved at the start of <b>Stage ${run.stage}</b>. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
 }
 function stageClear(){
   if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
@@ -1145,6 +1200,7 @@ function finishRecord(code){
     suspicious: missing>5 || (fastest!==null && fastest<6) || total < G.stages*15};
 }
 function postRow(row){
+  if(G.proto) return Promise.resolve(true);
   if(!FIN.sb || FIN.sb.startsWith('__') || !FIN.key || FIN.key.startsWith('__')) return Promise.resolve(false);
   return fetch(FIN.sb.replace(/\/$/,'')+'/rest/v1/finishers',{method:'POST',headers:{'apikey':FIN.key,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(row)})
     .then(r=>r.ok, ()=>false);
@@ -1152,6 +1208,7 @@ function postRow(row){
 function queueRow(row){ P.pending=(P.pending||[]); P.pending.push(row); save(); }
 function flushPending(){ const q=(P.pending||[]).slice(); if(!q.length) return; P.pending=[]; save(); q.forEach(row=>postRow(row).then(ok=>{ if(!ok) queueRow(row); })); }
 function sendFinish(fin){
+  if(G.proto) return; // prototype builds (3 test stages) never send real finish alerts
   postRow(fin).then(ok=>{ if(!ok) queueRow(fin); });
   if(FIN.topic && !FIN.topic.startsWith('__')){
     const pr=['3','4','5'][P.diff], tag=['bronze','silver','gold'][P.diff];
@@ -1166,23 +1223,27 @@ function claimForm(fin, next){
   modal(`<h2>${exp?'👑 LEGEND!':'🎉 YOU DID IT!'}</h2>
     <p>You finished <b>all ${G.stages} stages</b> of ${esc(G.title)} on <b>${DIFFS[P.diff]}</b>.${exp?' Almost nobody will ever do this.':''}</p>
     <div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div>
-    <p style="font-size:13px">Leave your name and cell number and we'll send you a congratulations message on WhatsApp.${exp?' Keep your claim code — for the Expert challenge we may ask you for a screen recording of your final stages.':''}</p>
+    <p style="font-size:13px">Leave your name, cell number and/or email and we'll send you a congratulations message on WhatsApp or email.${exp?' Keep your claim code — for the Expert challenge we may ask you for a screen recording of your final stages.':''}</p>
     <input id="clName" maxlength="40" placeholder="YOUR NAME" autocomplete="name" style="text-transform:none">
     <input id="clPhone" type="tel" maxlength="20" placeholder="CELL NUMBER e.g. 082 123 4567" autocomplete="tel" style="text-transform:none">
-    <label class="clok"><input type="checkbox" id="clOk"> I agree to be contacted on WhatsApp about this.</label>
+    <input id="clEmail" type="email" maxlength="120" placeholder="EMAIL e.g. you@gmail.com" autocomplete="email" style="text-transform:none">
+    <label class="clok"><input type="checkbox" id="clOk"> I agree to be contacted on WhatsApp or email about this.</label>
     <div class="slot-msg" id="clMsg"></div>
     <button class="big" id="clSend">SEND</button><button class="mid" data-a="skip">NO THANKS</button>`, {skip:next});
-  ['#clName','#clPhone'].forEach(id=>$(id).addEventListener('keydown',e=>e.stopPropagation()));
+  ['#clName','#clPhone','#clEmail'].forEach(id=>$(id).addEventListener('keydown',e=>e.stopPropagation()));
   $('#clSend').onclick=()=>{
     const name=$('#clName').value.trim(), phone=$('#clPhone').value.replace(/[^0-9+]/g,'');
     const msg=t=>{ $('#clMsg').textContent=t; $('#clMsg').className='slot-msg lose'; };
     if(name.length<2) return msg('Please enter your name');
-    if(phone.replace(/\D/g,'').length<9) return msg('Please enter a valid cell number');
+    const email=$('#clEmail').value.trim().toLowerCase(), okPhone=phone.replace(/\D/g,'').length>=9, okEmail=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if(!okPhone && !okEmail) return msg('Please enter a cell number or an email address');
+    if(phone && !okPhone) return msg('That cell number looks too short');
+    if(email && !okEmail) return msg('That email address doesn\'t look right');
     if(!$('#clOk').checked) return msg('Please tick the box so we may contact you');
-    SFX.pickup(); const row={kind:'contact', game:G.id, difficulty:DIFFS[P.diff], code:fin.code, name, phone, score:fin.score};
+    SFX.pickup(); const row={kind:'contact', game:G.id, difficulty:DIFFS[P.diff], code:fin.code, name, phone: okPhone? phone : null, email: okEmail? email : null, score:fin.score};
     $('#clSend').disabled=true; $('#clSend').textContent='SENDING…';
     postRow(row).then(ok=>{ if(!ok) queueRow(row);
-      modal(`<h2>THANK YOU!</h2><p>Got it, ${esc(name)}. Watch your WhatsApp.</p><div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div><p style="font-size:12px;opacity:.7">Screenshot this screen to keep your code.</p><button class="big" data-a="n">CONTINUE</button>`, {n:next}); });
+      modal(`<h2>THANK YOU!</h2><p>Got it, ${esc(name)}. Watch your ${okPhone&&okEmail?'WhatsApp and email':okPhone?'WhatsApp':'email'}.</p><div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div><p style="font-size:12px;opacity:.7">Screenshot this screen to keep your code.</p><button class="big" data-a="n">CONTINUE</button>`, {n:next}); });
   };
 }
 /* ---------- the finale + story ending (after stage 100) ----------
@@ -1275,8 +1336,10 @@ function defaultAttract(c, t){
 /* ---------- loading ---------- */
 let loadP=0;
 const loadIv=setInterval(()=>{ loadP=Math.min(100, loadP+7+Math.random()*12); $('#loadFill').style.width=loadP+'%';
-  if(loadP>=100){ clearInterval(loadIv); $('#tapStart').style.opacity=1; $('#tapStart').style.animationPlayState='running'; $('#screen-loading').addEventListener('pointerdown', ()=>{ audioInit(); SFX.power(); toMenu(); }, {once:true}); } }, 110);
-window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); toMenu(); window.removeEventListener('keydown',k); } });
+  if(loadP>=100){ clearInterval(loadIv); $('#tapStart').style.opacity=1; $('#tapStart').style.animationPlayState='running'; $('#screen-loading').addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); audioInit(); SFX.power(); guardMenu(); toMenu(); }, {once:true}); } }, 110);
+// v2: the tap that closes the loading screen must NOT also press a menu button underneath it
+function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; setTimeout(()=>{ m.style.pointerEvents=''; },500); }
+window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
 $('#mTitle').innerHTML = G.titleHTML || G.title;
