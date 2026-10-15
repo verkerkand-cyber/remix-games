@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-DG-0.4 · 2026-10-15">
+<meta name="build" content="BUILD-DG-1.0 · 2026-10-15">
 <title>Dungeon Dash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-DG-0.4 · 2026-10-15 -->
+<!-- BUILD-DG-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -389,12 +389,12 @@ function gen(n,a){ for(let tries=0;tries<60;tries++){ map=[...Array(GH)].map((_,
     for(let f=0;f<(a.content===0?1:3);f++){ const p=reach[f+5]; items.push({k:'food',x:cx(p.i),y:cy(p.j)}); }
     for(let f=0;f<4;f++){ const p=reach[f+10]; items.push({k:'gold',x:cx(p.i),y:cy(p.j)}); }
     gens=[]; const ng=a.content===0?1:Math.round(a.dv([2,4,5],6,8)); for(let g=0;g<ng;g++){ const p=far[g+2]||reach[g+20]; gens.push({x:cx(p.i),y:cy(p.j),hp:a.dv([3,5,7],8,12)|0,t:Math.random()*2}); }
-    if(n>=3){ const p=far[ng+3]||reach[30]; gens.push({x:cx(p.i),y:cy(p.j),hp:25,t:0,boss:true}); }
+    if(a.boss){ const p=far[ng+3]||reach[30]; gens.push({x:cx(p.i),y:cy(p.j),hp:25,t:0,boss:true}); }
     pl={x:cx(st.i),y:cy(st.j),face:{x:0,y:-1}}; return; } }
 const GAME=window.GAME={
-  id:'dungeon-dash',title:'Dungeon Dash',titleHTML:'DUNGEON<br>DASH',tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-DG-0.4 · 2026-10-15',theme:{a:'#ffd23f',b:'#b14bff',bg:'#0a0806'},
-  w:W,h:H,stages:3,proto:true,lives:3,livesIcon:'🗡️',joystick:true,coinPts:40,
+  id:'dungeon-dash',title:'Dungeon Dash',titleHTML:'DUNGEON<br>DASH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-DG-1.0 · 2026-10-15',theme:{a:'#ffd23f',b:'#b14bff',bg:'#0a0806'},
+  w:W,h:H,stages:100,lives:3,livesIcon:'🗡️',joystick:true,coinPts:40,
   abilities:[
     {id:'potion',icon:'🧪',name:'MAGIC POTION',cd:20,key:'Digit1',keyLabel:'1',desc:'Destroys every ghost near you and damages spawners.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'Ghosts can\'t drain you for 6 seconds.'},
