@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CH-0.4 · 2026-10-15">
+<meta name="build" content="BUILD-CH-1.0 · 2026-10-15">
 <title>Cube Hop</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-CH-0.4 · 2026-10-15 -->
+<!-- BUILD-CH-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -377,9 +377,9 @@ const ok=(r,c)=>r>=0&&r<R&&c>=0&&c<=r;
 function mk(){ cubes=[]; for(let r=0;r<R;r++){ cubes[r]=[]; for(let c=0;c<=r;c++) cubes[r][c]=0; } }
 function newEnemy(k){ const c=Math.random()<.5?0:1; return {k,r:1,c,fr:0,fc:0,a:1,hopT:0,y0:-60,falling:true,fy:-80,gone:false}; }
 const GAME=window.GAME={
-  id:'cube-hop',title:'Cube Hop',titleHTML:'CUBE<br>HOP',tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-CH-0.4 · 2026-10-15',theme:{a:'#ff9f1c',b:'#00e5ff',bg:'#0a0620'},
-  w:W,h:H,stages:3,proto:true,lives:3,livesIcon:'🟠',joystick:false,coinPts:30,
+  id:'cube-hop',title:'Cube Hop',titleHTML:'CUBE<br>HOP',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-CH-1.0 · 2026-10-15',theme:{a:'#ff9f1c',b:'#00e5ff',bg:'#0a0620'},
+  w:W,h:H,stages:100,lives:3,livesIcon:'🟠',joystick:false,coinPts:30,
   abilities:[
     {id:'freeze',icon:'❄️',name:'FREEZE',cd:20,key:'Digit1',keyLabel:'1',desc:'Freezes every enemy for 5 seconds. Frozen enemies can\'t hurt you.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'6 seconds of safety.'},
@@ -395,7 +395,7 @@ const GAME=window.GAME={
   _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}, hop:(dr,dc)=>hop(dr,dc), get cubes(){return cubes;}}; },
   init(a){api=a;},
   startStage(n,a){ api=a; stg=n; t=0; done=false; lost=false; eff={freeze:-9,shield:-9}; mk(); ens=[]; spawnT=a.content===0?999:2.5;
-    steps=n>=3?2:1; toggle=a.dk>=2.2; COL=[['#2e3bff','#ffd23f','#ffd23f'],['#7a2eff','#ff9f1c','#3bff7a'],['#1f6a8a','#ff3bd4','#00e5ff']][(n+2)%3];
+    steps=(a.boss||a.level>=8)?2:1; toggle=a.dk>=2.2; COL=[['#2e3bff','#ffd23f','#ffd23f'],['#7a2eff','#ff9f1c','#3bff7a'],['#1f6a8a','#ff3bd4','#00e5ff']][(n+2)%3];
     if(a.content===0){ for(let r=0;r<R;r++) for(let c=0;c<=r;c++) cubes[r][c]= r>=3?steps:0; }
     pl={r:0,c:0,fr:0,fc:0,a:1}; },
   respawn(){ lost=false; pl={r:0,c:0,fr:0,fc:0,a:1}; ens=[]; spawnT=2; },
@@ -411,7 +411,7 @@ const GAME=window.GAME={
     if(pl.a<1) pl.a=Math.min(1,pl.a+dt*4.5);
     if(pl.off){ pl.fy=(pl.fy||0)+dt*900; if(pl.fy>500&&!lost) die('FELL OFF!',true); return; }
     if(lost) return;
-    spawnT-=dt; if(spawnT<=0&&eff.freeze<=0){ spawnT=api.dv([4,2.6,1.6],1.1,0.5); const r=Math.random(); const snake=stg>=2&&api.content!==0&&!ens.some(e=>e.k==='snake')&&r<0.45;
+    spawnT-=dt; if(spawnT<=0&&eff.freeze<=0){ spawnT=api.dv([4,2.6,1.6],1.1,0.5); const r=Math.random(); const snake=api.level>=2&&api.content!==0&&!ens.some(e=>e.k==='snake')&&r<0.45;
       ens.push(newEnemy(snake?'snake':r<0.15?'green':'red')); }
     const ht=api.dv([0.75,0.55,0.42],0.32,0.2);
     if(eff.freeze<=0) ens.forEach(e=>{ if(e.falling){ e.fy+=dt*600; if(e.fy>=0){ e.falling=false; e.fy=0; } return; }
