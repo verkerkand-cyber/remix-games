@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-GS-0.3 · 2026-10-05">
+<meta name="build" content="BUILD-GS-0.4 · 2026-10-15">
 <title>Gem Swap</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -115,7 +115,10 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 @media (max-width:420px){.ab{width:54px;height:54px;font-size:23px}#abilities{gap:9px}.bbtn{width:48px;height:48px}.barbtns{gap:7px}}
 /* gold coins flying to the counter */
 #tut{position:absolute;left:50%;transform:translateX(-50%);width:min(520px,calc(100vw - 24px));padding:12px 14px;border-radius:14px;background:rgba(5,4,16,.9);border:2px solid var(--a);box-shadow:0 0 22px color-mix(in srgb,var(--a) 50%,transparent);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.4;pointer-events:auto}
-#tut{bottom:calc(14px + env(safe-area-inset-bottom))}
+#tut{top:calc(52px + env(safe-area-inset-top));bottom:auto;z-index:6}
+.lay-side #tut{left:10px;right:calc(var(--side,88px) + 8px);width:auto;transform:none;max-width:520px}
+#tut .tt span{color:#ffd23f}
+#tut button#tutSkip{font-size:12px;padding:7px 10px;background:var(--a);color:#000;font-weight:800}
 #tut .tt{font-family:'Orbitron',sans-serif;font-size:11px;color:var(--a);letter-spacing:.14em;margin-bottom:4px;display:flex;justify-content:space-between}
 #tut button{font-size:10px;padding:4px 8px;border-radius:7px;background:rgba(255,255,255,.14)}
 #toast{position:absolute;top:calc(130px + 8%);left:50%;transform:translateX(-50%);font-size:clamp(20px,5vw,34px);font-weight:900;letter-spacing:.1em;text-shadow:0 0 18px var(--a);opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none}
@@ -281,7 +284,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-GS-0.3 · 2026-10-05 -->
+<!-- BUILD-GS-0.4 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -357,7 +360,7 @@ function resolve(chain){ const m=matches(); if(!m.size){ if(!findMove()){ api.to
   falling=0.25; setTimeout(()=>resolve(chain+1),260); }
 const GAME = window.GAME = {
   id:'gem-swap', title:'Gem Swap', titleHTML:'GEM<br>SWAP', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-GS-0.3 · 2026-10-05', theme:{a:'#c45cff', b:'#ffe14a', bg:'#120a24'},
+  build:'BUILD-GS-0.4 · 2026-10-15', theme:{a:'#c45cff', b:'#ffe14a', bg:'#120a24'},
   w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'💎', joystick:false, coinPts:40,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a good swap.'},
@@ -423,7 +426,7 @@ const SUPPORT = G.support || 'appstreamsupportav@gmail.com';
    FIN.sb / FIN.key = Supabase project URL + public "anon" key. The table only accepts new rows,
    nobody can read it from the game, so cell numbers stay private. FIN.topic = ntfy.sh channel
    for Andrew's phone alert (no personal data is ever sent there). Leave a value empty to switch that part off. */
-const FIN = {sb:'https://uuyaoffzgjxxwxlzhwur.supabase.co', key:'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9', topic:'remix-arcade-a059c55346e0', email:'appstreamsupportav@gmail.com'};  // v2: ntfy also emails the finish alert (no personal data) to the support inbox
+const FIN = {sb:'https://uuyaoffzgjxxwxlzhwur.supabase.co', key:'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9', topic:'remix-arcade-a059c55346e0'};  // NOTE: ntfy.sh refuses anonymous email sending (tested 2026-10-05: HTTP 400), so finish alerts stay phone-only
 const root = document.documentElement.style;
 root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.setProperty('--bg', G.theme.bg);
 
@@ -743,7 +746,7 @@ function tutShow(){
   if(!st){ el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
   const txt = (Input.touch || matchMedia('(hover:none)').matches) && st.touch ? st.touch : st.text;
-  el.innerHTML = `<div class="tt"><span>TUTORIAL ${tutIdx+1}/${G.tutorial.length}</span><button id="tutSkip">SKIP ▶▶</button></div><div>${txt}</div>`;
+  el.innerHTML = `<div class="tt"><span>🎓 PRACTICE ONLY · TUTORIAL ${tutIdx+1}/${G.tutorial.length}</span><button id="tutSkip">SKIP TO REAL GAME ▶▶</button></div><div>${txt}</div>`;
   $('#tutSkip').onclick = e=>{ e.stopPropagation(); SFX.click(); tutFinish(); };
   tutTimer = 0;
 }
@@ -851,8 +854,12 @@ function panel(title, html, onBack){
   $('#pBack').onclick = ()=>{ SFX.click(); (onBack||toMenu)(); };
 }
 const HOW_BUTTONS = ()=>`<h3>ABILITIES &amp; GOLD</h3><ul><li>You start every new game with <b>1 of each</b> ability. The number on each button is how many you have left.</li><li>Collect <b>🪙 gold</b> while you play: coins pop out when you score and fly to your gold counter. Clearing a stage gives bonus gold.</li><li>Spend gold in the <b>🛒 SHOP</b> button during a stage (it pauses the game), after each stage, or from <b>⚡ ABILITIES</b> on the main menu.</li>${G.abilities.some(a=>a.cd===0)?'<li>'+G.abilities.filter(a=>a.cd===0).map(a=>a.icon+' '+a.name).join(', ')+' is part of the game and never runs out.</li>':''}</ul><h3>IN-GAME BUTTONS</h3><ul><li><b>Top bar</b> — score, stage, lives, gold, and END (save &amp; exit)</li><li><b>Ability bar</b> (just under the top bar) — abilities, 🛒 SHOP and ❚❚ PAUSE</li></ul>`;
-$('#btnNew').addEventListener('click', ()=>{ SFX.click(); slotPicker('new'); });
-$('#btnCont').addEventListener('click', ()=>{ SFX.click(); slotPicker('cont'); });
+// ONE save only (no slot screen). NEW GAME starts straight away (asks first if it would wipe a saved game); CONTINUE goes straight back in.
+function savedIdx(){ let b=-1; P.slots.forEach((s,i)=>{ if(s&&(b<0||s.t>P.slots[b].t)) b=i; }); return b; }
+$('#btnNew').addEventListener('click', ()=>{ SFX.click(); const i=savedIdx();
+  if(i>=0){ const s=P.slots[i]; modal(`<h2>START OVER?</h2><p>You have a saved game at <b>Stage ${s.stage} · ${DIFFS[s.diff]}</b>. A new game replaces it.</p><button class="big" data-a="y">YES, NEW GAME</button><button class="mid" data-a="c">CONTINUE SAVED GAME</button><button class="mid" data-a="n">CANCEL</button>`, {y:()=>{ P.slots=[null,null,null]; newGame(0); }, c:()=>continueSlot(i), n:()=>{}}); }
+  else { P.slots=[null,null,null]; newGame(0); } });
+$('#btnCont').addEventListener('click', ()=>{ SFX.click(); const i=savedIdx(); if(i>=0) continueSlot(i); });
 $('#btnScores').addEventListener('click', ()=>{ SFX.click(); scoresPanel(P.diff); });
 $('#btnHow').addEventListener('click', ()=>{ SFX.click(); panel('HOW TO PLAY', G.howto + HOW_BUTTONS() + `<h3>NEED HELP?</h3><p>Email us at <b style="color:var(--b)">${esc(SUPPORT)}</b></p><p><button class="mid" id="howMail" style="width:100%">✉ CONTACT SUPPORT</button></p><p style="margin-top:16px"><button class="big" id="howTut" style="width:100%">▶ PLAY THE TUTORIAL</button></p>`); $('#howTut').onclick=()=>{ SFX.click(); startTutorial(true); }; $('#howMail').onclick=()=>{ SFX.click(); contactModal(); }; });
 $('#btnStory').addEventListener('click', ()=>{ SFX.click(); panel('STORY', G.story); });
@@ -1009,7 +1016,7 @@ function resumeGame(){ closeModal(); state='play'; last=performance.now(); }
 function endGamePrompt(){
   if(state==='play'){ state='paused'; }
   if(run.tutorial){ modal(`<h2>LEAVE TUTORIAL?</h2><p>You can replay it any time from How to Play.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>{ if(!run.practice){ P.tutDone=true; save(); } toMenu(); }, n:resumeGame}); return; }
-  modal(`<h2>END GAME?</h2><p>Your game is saved in <b>Slot ${run.slot+1}</b> at the start of Stage ${run.stage}. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
+  modal(`<h2>END GAME?</h2><p>Your game is saved at the start of <b>Stage ${run.stage}</b>. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
 }
 function stageClear(){
   if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
@@ -1066,7 +1073,7 @@ function sendFinish(fin){
   if(FIN.topic && !FIN.topic.startsWith('__')){
     const pr=['3','4','5'][P.diff], tag=['bronze','silver','gold'][P.diff];
     const hrs=Math.floor(fin.total_secs/3600), mins=Math.floor(fin.total_secs%3600/60);
-    fetch('https://ntfy.sh/'+FIN.topic,{method:'POST',headers:{'Title':`${DIFFS[P.diff]} FINISHED - ${G.title}`,'Priority':pr,'Tags':(P.diff===2?'rotating_light,crown':'tada')+','+tag, ...(FIN.email?{'Email':FIN.email}:{})},
+    fetch('https://ntfy.sh/'+FIN.topic,{method:'POST',headers:{'Title':`${DIFFS[P.diff]} FINISHED - ${G.title}`,'Priority':pr,'Tags':(P.diff===2?'rotating_light,crown':'tada')+','+tag},
       body:`Someone beat all ${G.stages} stages of ${G.title} on ${DIFFS[P.diff]}!\nClaim code: ${fin.code}\nScore: ${fin.score.toLocaleString()} | Run time: ${hrs}h ${mins}m${fin.suspicious?'\nWARNING: run looks suspicious (very fast or missing stage times)':''}\nTheir name and cell number (if they left it) are in Supabase.`}).catch(()=>{});
   }
 }
