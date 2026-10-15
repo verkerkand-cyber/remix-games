@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-NS-0.6 · 2026-10-15">
+<meta name="build" content="BUILD-NS-1.0 · 2026-10-15">
 <title>Neon Serpent</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-NS-0.6 · 2026-10-15 -->
+<!-- BUILD-NS-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -376,9 +376,9 @@ function key(x,y){ return x+','+y; }
 function free(x,y){ return !walls.has(key(x,y)) && !snake.some(s=>s.x===x&&s.y===y) && !rivals.some(r=>r.body.some(s=>s.x===x&&s.y===y)); }
 function spawnFood(){ let x,y,k=0; do{ x=Math.floor(Math.random()*GW); y=Math.floor(Math.random()*GH); }while(!free(x,y)&&k++<500); food={x,y}; }
 const GAME = window.GAME = {
-  id:'neon-serpent', title:'Neon Serpent', titleHTML:'NEON<br>SERPENT', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-NS-0.6 · 2026-10-15', theme:{a:'#3dffd8', b:'#ff3df0', bg:'#05030f'},
-  w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'🐍', joystick:false, coinPts:30,
+  id:'neon-serpent', title:'Neon Serpent', titleHTML:'NEON<br>SERPENT', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-NS-1.0 · 2026-10-15', theme:{a:'#3dffd8', b:'#ff3df0', bg:'#05030f'},
+  w:W, h:H, stages:100,  lives:3, livesIcon:'🐍', joystick:false, coinPts:30,
   abilities:[
     {id:'ghost', icon:'👻', name:'GHOST', cd:15, key:'Digit1', keyLabel:'1', desc:'Pass through walls and yourself for 5 seconds.'},
     {id:'slow', icon:'🐢', name:'SLOW-MO', cd:15, key:'Digit2', keyLabel:'2', desc:'Half speed for 6 seconds.'},
