@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-TB-0.4 · 2026-10-15">
+<meta name="build" content="BUILD-TB-1.0 · 2026-10-15">
 <title>Tube Blaster</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-TB-0.4 · 2026-10-15 -->
+<!-- BUILD-TB-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -379,9 +379,9 @@ function rim(i,d){ // d 0=deep centre, 1=rim. shapes squash the circle
 function edge(i,d){ const a=-Math.PI/2+i*2*Math.PI/N, r=RI+(RO-RI)*Math.pow(d,1.6); const sy=shape===1?0.8:1, k=shape===2?1+0.18*Math.cos(4*a):1; return {x:CX+Math.cos(a)*r*k,y:CY+Math.sin(a)*r*sy*k}; }
 const lane=x=>((Math.round(x)%N)+N)%N;
 const GAME=window.GAME={
-  id:'tube-blaster',title:'Tube Blaster',titleHTML:'TUBE<br>BLASTER',tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-TB-0.4 · 2026-10-15',theme:{a:'#ffd23f',b:'#2e7bff',bg:'#02020a'},
-  w:W,h:H,stages:3,proto:true,lives:3,livesIcon:'🔺',joystick:false,coinPts:40,
+  id:'tube-blaster',title:'Tube Blaster',titleHTML:'TUBE<br>BLASTER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-TB-1.0 · 2026-10-15',theme:{a:'#ffd23f',b:'#2e7bff',bg:'#02020a'},
+  w:W,h:H,stages:100,lives:3,livesIcon:'🔺',joystick:false,coinPts:40,
   abilities:[
     {id:'zap',icon:'⚡',name:'SUPER ZAP',cd:20,key:'Digit1',keyLabel:'1',desc:'Destroys everything in the tube.'},
     {id:'slow',icon:'🐌',name:'SLOW-MO',cd:18,key:'Digit2',keyLabel:'2',desc:'Enemies climb at half speed for 6 seconds.'},
@@ -397,7 +397,7 @@ const GAME=window.GAME={
   _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}}; },
   init(a){api=a;},
   startStage(n,a){ api=a; t=0; done=false; lost=false; warp=0; eff={slow:-9,rapid:-9,shield:-9}; ens=[]; shots=[]; ebul=[]; fireT=0; kills=0; spawnT=1; grace=1.5; shape=(n+2)%3; pl={p:0,tp:0};
-    goal=a.content===0?5:Math.round(a.dv([14,22,30],40,70)); if(n>=3) ens.push({k:'core',l:0,d:0.02,hp:20,t:0}); },
+    goal=a.content===0?5:Math.round(a.dv([14,22,30],40,70)); if(a.boss) ens.push({k:'core',l:0,d:0.02,hp:Math.round(a.dv([20,30,40],50,80)),t:0}); },
   respawn(){ lost=false; ens=ens.filter(e=>e.k==='core'||e.d<0.5); ebul=[]; grace=2; },
   useAbility(id){ if(done||lost) return false;
     if(id==='zap'){ ens.forEach(e=>{ if(e.k==='core') e.hp-=5; else e.hp=0; }); ebul=[]; api.fx.flash('#fff',.5); api.sfx.boom(); return true; }
