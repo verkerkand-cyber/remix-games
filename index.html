@@ -1,22 +1,87 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Remix Arcade</title><link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
-<style>body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 0,#2a1060,#05030f 70%);color:#fff;font-family:Orbitron,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:24px 16px;box-sizing:border-box}
-h1{font-size:clamp(32px,9vw,60px);margin:10px 0 4px;background:linear-gradient(90deg,#ff3dd6,#3dffd8);-webkit-background-clip:text;background-clip:text;color:transparent;text-align:center}
-p{opacity:.7;margin:0 0 24px;text-align:center;font-family:system-ui,sans-serif}
-.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;width:min(820px,100%)}
-a{display:block;padding:20px;border-radius:16px;text-decoration:none;color:#fff;background:rgba(255,255,255,.06);border:2px solid var(--c);box-shadow:0 0 18px color-mix(in srgb,var(--c) 40%,transparent)}
-a b{display:block;font-size:20px;color:var(--c)}a span{font-family:system-ui,sans-serif;opacity:.75;font-size:14px}</style></head>
-<body><!-- REMIX-HOME-1.9 --><h1>REMIX ARCADE</h1><p>12 classic games, remixed. 100 stages each. Can you beat EXPERT?</p><div class="g">
-<a href="chomp-circuit/" style="--c:#ffd23f"><b>CHOMP CIRCUIT</b><span>Maze chase · eat every dot</span></a>
-<a href="sky-shield/" style="--c:#36d6ff"><b>SKY SHIELD</b><span>Missile defence · save the cities</span></a>
-<a href="star-hijack/" style="--c:#ff4f7a"><b>STAR HIJACK</b><span>Space shooter · capture wingmen</span></a>
-<a href="blast-grid/" style="--c:#ff7b1c"><b>BLAST GRID</b><span>Bomb arena · outblast the champion</span></a>
-<a href="prism-cut/" style="--c:#ff3dd6"><b>PRISM CUT</b><span>Slice the dark · reveal the art</span></a>
-<a href="neon-flip/" style="--c:#3dffd8"><b>NEON FLIP</b><span>Pinball · wake the arcade</span></a>
-<a href="snack-stack/" style="--c:#ffb000"><b>SNACK STACK</b><span>Match 3 Mzansi snacks</span></a>
-<a href="colour-pour/" style="--c:#f06bb3"><b>COLOUR POUR</b><span>Pour and sort the colours</span></a>
-<a href="brick-blitz/" style="--c:#29f3ff"><b>BRICK BLITZ</b><span>NEW · Smash the neon wall</span></a>
-<a href="bubble-burst/" style="--c:#2ec4ff"><b>BUBBLE BURST</b><span>NEW · Pop them in threes</span></a>
-<a href="taxi-rank-jam/" style="--c:#ffcc00"><b>TAXI RANK JAM</b><span>NEW · Clear the Mzansi taxi rank</span></a>
-<a href="rock-storm/" style="--c:#ff9a2e"><b>ROCK STORM</b><span>NEW · Blast the rocks, survive the storm</span></a>
-</div></body></html>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 0,#2a1060,#05030f 70%);color:#fff;font-family:Orbitron,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:20px 16px 40px}
+h1{font-size:clamp(30px,9vw,56px);margin:6px 0 2px;background:linear-gradient(90deg,#ff3dd6,#3dffd8);-webkit-background-clip:text;background-clip:text;color:transparent;text-align:center}
+.sub{opacity:.75;margin:0 0 18px;text-align:center;font-family:system-ui,sans-serif}
+/* ---- featured game with arrows ---- */
+.hero{position:relative;width:min(820px,100%);display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.arrow{flex:none;width:56px;height:56px;border-radius:50%;border:2px solid var(--c);background:rgba(5,4,16,.7);color:var(--c);font-size:26px;font-weight:900;cursor:pointer;box-shadow:0 0 16px color-mix(in srgb,var(--c) 45%,transparent);transition:transform .1s}
+.arrow:active{transform:scale(.92)}
+.feat{flex:1;min-width:0;border-radius:22px;padding:22px 18px;text-align:center;border:2px solid var(--c);background:linear-gradient(160deg,color-mix(in srgb,var(--c) 22%,transparent),rgba(5,4,16,.85) 70%);box-shadow:0 0 30px color-mix(in srgb,var(--c) 40%,transparent);touch-action:pan-y;user-select:none}
+.feat .ic{font-size:72px;line-height:1;filter:drop-shadow(0 0 16px var(--c));display:block;margin-bottom:8px;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.feat h2{margin:0;font-size:clamp(22px,6vw,34px);color:var(--c);letter-spacing:.04em}
+.feat .tag{font-family:system-ui,sans-serif;opacity:.85;margin:6px 0 4px}
+.feat .num{font-size:11px;opacity:.6;letter-spacing:.15em}
+.badge{display:inline-block;font-size:11px;letter-spacing:.1em;padding:4px 10px;border-radius:20px;margin:8px 0 14px;font-weight:900}
+.badge.full{background:#3bff7a22;color:#3bff7a;border:1px solid #3bff7a88}
+.badge.test{background:#ffd23f22;color:#ffd23f;border:1px solid #ffd23f88}
+.play{display:inline-block;padding:14px 38px;border-radius:30px;background:var(--c);color:#05030f;font-weight:900;font-size:18px;text-decoration:none;letter-spacing:.08em;box-shadow:0 0 22px var(--c)}
+.dots{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:10px 0 26px;width:min(820px,100%)}
+.dots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer}
+.dots i.on{background:#fff;box-shadow:0 0 8px #fff}
+/* ---- lists ---- */
+h3{width:min(820px,100%);margin:10px 0 10px;font-size:15px;letter-spacing:.12em;display:flex;align-items:center;gap:10px}
+h3 small{font-family:system-ui,sans-serif;font-weight:400;opacity:.65;letter-spacing:0;font-size:13px}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;width:min(820px,100%);margin-bottom:22px}
+.g a{position:relative;display:flex;gap:10px;align-items:center;padding:12px;border-radius:14px;text-decoration:none;color:#fff;background:rgba(255,255,255,.05);border:2px solid color-mix(in srgb,var(--c) 70%,transparent);box-shadow:0 0 12px color-mix(in srgb,var(--c) 25%,transparent)}
+.g a.sel{background:color-mix(in srgb,var(--c) 18%,transparent)}
+.g a .e{font-size:30px;flex:none}
+.g a b{display:block;font-size:13px;color:var(--c)}.g a span{font-family:system-ui,sans-serif;opacity:.75;font-size:12px}
+.foot{font-family:system-ui,sans-serif;font-size:12px;opacity:.5;margin-top:10px;text-align:center}
+@media (max-width:480px){ .arrow{width:44px;height:44px;font-size:20px} .feat{padding:18px 10px} .feat .ic{font-size:60px} .g{grid-template-columns:1fr 1fr} .g a{padding:10px 8px;gap:6px} .g a .e{font-size:24px} }
+</style></head>
+<body><!-- REMIX-HOME-2.0 -->
+<h1>REMIX ARCADE</h1><p class="sub">28 classic games, remixed. Tap ◀ ▶ (or swipe) to flick through them.</p>
+<div class="hero" id="hero"><button class="arrow" id="prev" aria-label="Previous game">◀</button><div class="feat" id="feat"></div><button class="arrow" id="next" aria-label="Next game">▶</button></div>
+<div class="dots" id="dots"></div>
+<h3>🏆 FULL GAMES <small>100 stages · Beginner, Hard, Expert</small></h3><div class="g" id="gFull"></div>
+<h3>🧪 NEW · TEST VERSIONS <small>first 3 stages only — tell us what you think!</small></h3><div class="g" id="gTest"></div>
+<p class="foot">Support: appstreamsupportav@gmail.com · REMIX-HOME-2.0</p>
+<script>
+const GAMES=[
+ ['chomp-circuit','CHOMP CIRCUIT','🟡','#ffd23f','Maze chase · eat every dot',1],
+ ['sky-shield','SKY SHIELD','🛡️','#36d6ff','Missile defence · save the cities',1],
+ ['star-hijack','STAR HIJACK','🚀','#ff4f7a','Space shooter · capture wingmen',1],
+ ['blast-grid','BLAST GRID','💣','#ff7b1c','Bomb arena · outblast the champion',1],
+ ['prism-cut','PRISM CUT','🔷','#ff3dd6','Slice the dark · reveal the art',1],
+ ['neon-flip','NEON FLIP','🎯','#3dffd8','Pinball · wake the arcade',1],
+ ['snack-stack','SNACK STACK','🍟','#ffb000','Match 3 Mzansi snacks',1],
+ ['colour-pour','COLOUR POUR','🧪','#f06bb3','Pour and sort the colours',1],
+ ['brick-blitz','BRICK BLITZ','🧱','#29f3ff','Smash the neon wall',1],
+ ['bubble-burst','BUBBLE BURST','🫧','#2ec4ff','Pop them in threes',1],
+ ['taxi-rank-jam','TAXI RANK JAM','🚕','#ffcc00','Clear the Mzansi taxi rank',1],
+ ['rock-storm','ROCK STORM','☄️','#ff9a2e','Blast the rocks, survive the storm',1],
+ ['gem-swap','GEM SWAP','💎','#b14bff','Swap gems, make matches',0],
+ ['bug-blaster','BUG BLASTER','🐛','#3bff7a','Shoot the centipede down',0],
+ ['block-blast','BLOCK BLAST','🟦','#2e7bff','Drop blocks, clear lines',0],
+ ['neon-serpent','NEON SERPENT','🐍','#3dffd8','Eat, grow, don\'t crash',0],
+ ['bolt-jam','BOLT JAM','🔩','#ff9f1c','Unscrew the bolts in order',0],
+ ['deep-dig','DEEP DIG','⛏️','#ffb000','Dig tunnels, pop monsters',0],
+ ['road-hopper','ROAD HOPPER','🐇','#3bff7a','Hop the hare across road and river',0],
+ ['sky-raider','SKY RAIDER','🛸','#00e5ff','Stop the alien abductions',0],
+ ['cube-hop','CUBE HOP','🟧','#ff9f1c','Hop the pyramid, paint every cube',0],
+ ['sky-joust','SKY JOUST','🐦','#ffd23f','Flap high, strike from above',0],
+ ['robo-riot','ROBO RIOT','🤖','#3bff7a','Survive the robot riot',0],
+ ['tube-blaster','TUBE BLASTER','🔺','#ffd23f','Hold the rim of the neon tube',0],
+ ['dungeon-dash','DUNGEON DASH','🗝️','#b14bff','Find the key, escape the ghosts',0],
+ ['street-brawl','STREET BRAWL','👊','#ff3b5c','Fight down the street',0],
+ ['fist-clash','FIST CLASH','🥊','#ff3b5c','1v1 tournament fighter',0],
+ ['coast-racer','COAST RACER','🏎️','#ff3bd4','Race 7 rivals down the coast',0]];
+let cur=0; try{ const s=+localStorage.getItem('rmxHomeIdx'); if(s>=0&&s<GAMES.length) cur=s; }catch(e){}
+const $=id=>document.getElementById(id);
+function card([id,name,ic,c,tag,full]){ const a=document.createElement('a'); a.href=id+'/'; a.style.setProperty('--c',c); a.innerHTML=`<span class="e">${ic}</span><div><b>${name}</b><span>${tag}</span></div>`; return a; }
+GAMES.forEach((g,i)=>{ (g[5]?$('gFull'):$('gTest')).appendChild(card(g)); const d=document.createElement('i'); d.onclick=()=>show(i); d.title=g[1]; $('dots').appendChild(d); });
+function show(i){ cur=(i+GAMES.length)%GAMES.length; const [id,name,ic,c,tag,full]=GAMES[cur];
+  document.querySelectorAll('.arrow,#feat').forEach(e=>e.style.setProperty('--c',c));
+  $('feat').innerHTML=`<span class="ic">${ic}</span><h2>${name}</h2><div class="tag">${tag}</div><div class="badge ${full?'full':'test'}">${full?'FULL GAME · 100 STAGES':'TEST VERSION · 3 STAGES'}</div><br><a class="play" href="${id}/">▶ PLAY</a><div class="num" style="margin-top:12px">GAME ${cur+1} OF ${GAMES.length}</div>`;
+  document.querySelectorAll('#dots i').forEach((d,k)=>d.classList.toggle('on',k===cur));
+  document.querySelectorAll('.g a').forEach(a=>a.classList.toggle('sel',a.getAttribute('href')===id+'/'));
+  try{ localStorage.setItem('rmxHomeIdx',cur); }catch(e){} }
+$('prev').onclick=()=>show(cur-1); $('next').onclick=()=>show(cur+1);
+addEventListener('keydown',e=>{ if(e.key==='ArrowLeft') show(cur-1); if(e.key==='ArrowRight') show(cur+1); if(e.key==='Enter') location.href=GAMES[cur][0]+'/'; });
+let sx=null; $('feat').addEventListener('pointerdown',e=>sx=e.clientX); $('feat').addEventListener('pointerup',e=>{ if(sx!==null&&Math.abs(e.clientX-sx)>40) show(cur+(e.clientX<sx?1:-1)); sx=null; });
+show(cur);
+</script></body></html>
