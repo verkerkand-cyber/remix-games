@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BX-0.6 · 2026-10-15">
+<meta name="build" content="BUILD-BX-1.0 · 2026-10-15">
 <title>Bug Blaster</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BX-0.6 · 2026-10-15 -->
+<!-- BUILD-BX-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -379,9 +379,9 @@ function makeStage(n,a){ mush=new Map(); const nm=n===0?20:Math.round(a.dv([35,5
   segs=[]; for(let i=0;i<len;i++) segs.push({x:W/2-i*CS*0.9,y:CS/2,dir:1,sp,head:i===0,down:0});
   spider = (n===0||a.level<10)? null : {x:-30,y:PZ+60,vx:a.dv([90,140,180],220,340),vy:120,t:0}; }
 const GAME = window.GAME = {
-  id:'bug-blaster', title:'Bug Blaster', titleHTML:'BUG<br>BLASTER', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-BX-0.6 · 2026-10-15', theme:{a:'#7dff5a', b:'#ff3df0', bg:'#060a06'},
-  w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'🔫', joystick:true, coinPts:30,
+  id:'bug-blaster', title:'Bug Blaster', titleHTML:'BUG<br>BLASTER', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-BX-1.0 · 2026-10-15', theme:{a:'#7dff5a', b:'#ff3df0', bg:'#060a06'},
+  w:W, h:H, stages:100,  lives:3, livesIcon:'🔫', joystick:true, coinPts:30,
   abilities:[
     {id:'spread', icon:'🔱', name:'SPREAD', cd:15, key:'Digit1', keyLabel:'1', desc:'Triple shot for 8 seconds.'},
     {id:'freeze', icon:'❄️', name:'FREEZE', cd:20, key:'Digit2', keyLabel:'2', desc:'Freezes all bugs for 4 seconds.'},
