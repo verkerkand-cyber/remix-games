@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-GS-0.6 · 2026-10-15">
+<meta name="build" content="BUILD-GS-1.0 · 2026-10-15">
 <title>Gem Swap</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-GS-0.6 · 2026-10-15 -->
+<!-- BUILD-GS-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -387,9 +387,9 @@ function resolve(chain){ const m=matches(); if(!m.size){ if(!findMove()){ api.to
   for(let x=0;x<N;x++){ const col=[]; for(let y=N-1;y>=0;y--) if(g[y][x]>=0) col.push(g[y][x]); for(let y=N-1,k=0;y>=0;y--,k++) g[y][x]= k<col.length? col[k] : rnd(nC); }
   falling=0.25; setTimeout(()=>resolve(chain+1),260); }
 const GAME = window.GAME = {
-  id:'gem-swap', title:'Gem Swap', titleHTML:'GEM<br>SWAP', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-GS-0.6 · 2026-10-15', theme:{a:'#c45cff', b:'#ffe14a', bg:'#120a24'},
-  w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'💎', joystick:false, coinPts:40,
+  id:'gem-swap', title:'Gem Swap', titleHTML:'GEM<br>SWAP', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-GS-1.0 · 2026-10-15', theme:{a:'#c45cff', b:'#ffe14a', bg:'#120a24'},
+  w:W, h:H, stages:100,  lives:3, livesIcon:'💎', joystick:false, coinPts:40,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a good swap.'},
     {id:'hammer', icon:'🔨', name:'HAMMER', cd:15, key:'Digit2', keyLabel:'2', desc:'Next tap smashes any gem.'},
