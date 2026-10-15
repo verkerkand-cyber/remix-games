@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SR-0.4 · 2026-10-15">
+<meta name="build" content="BUILD-SR-1.0 · 2026-10-15">
 <title>Sky Raider</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SR-0.4 · 2026-10-15 -->
+<!-- BUILD-SR-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -375,9 +375,9 @@ let api,t,sh,cam,shots,ens,ebul,hum,done,lost,eff,fireT,spawnLeft,grace;
 const wrap=x=>((x%WW)+WW)%WW, wd=d=>{ d=((d%WW)+WW)%WW; return d>WW/2?d-WW:d; }, sx=x=>W/2+wd(x-cam);
 function enemy(k,x,y){ return {k,x:x??Math.random()*WW,y:y??TOP+40+Math.random()*200,vx:0,vy:0,t:Math.random()*3,grab:null,hp:k==='boss'?14:1,shT:2+Math.random()*3}; }
 const GAME=window.GAME={
-  id:'sky-raider',title:'Sky Raider',titleHTML:'SKY<br>RAIDER',tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-SR-0.4 · 2026-10-15',theme:{a:'#00e5ff',b:'#ff3bd4',bg:'#05040f'},
-  w:W,h:H,stages:3,proto:true,lives:3,livesIcon:'🚀',joystick:true,coinPts:40,
+  id:'sky-raider',title:'Sky Raider',titleHTML:'SKY<br>RAIDER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-SR-1.0 · 2026-10-15',theme:{a:'#00e5ff',b:'#ff3bd4',bg:'#05040f'},
+  w:W,h:H,stages:100,lives:3,livesIcon:'🚀',joystick:true,coinPts:40,
   abilities:[
     {id:'bomb',icon:'💥',name:'SMART BOMB',cd:18,key:'Digit1',keyLabel:'1',desc:'Destroys every alien on screen.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'6 seconds of safety.'},
@@ -396,8 +396,8 @@ const GAME=window.GAME={
     sh={x:300,y:450,vx:0,face:1}; cam=sh.x;
     hum=[]; for(let i=0;i<8;i++) hum.push({x:i*WW/8+Math.random()*200,y:GY,vy:0,st:'walk',d:Math.random()<.5?-1:1});
     const tut=a.content===0; const N=tut?2:Math.round(a.dv([6,10,14],18,30)); ens=[]; for(let i=0;i<N;i++) ens.push(enemy('lander',wrap(sh.x+500+i*WW/N)));
-    if(!tut&&n>=2) for(let i=0;i<Math.round(a.dv([1,3,5],6,12));i++) ens.push(enemy('pod',wrap(sh.x+900+i*300)));
-    if(n>=3) ens.push(enemy('boss',wrap(sh.x+1200),220));
+    if(!tut&&a.level>=2) for(let i=0;i<Math.round(a.dv([1,3,5],6,12));i++) ens.push(enemy('pod',wrap(sh.x+900+i*300)));
+    if(a.boss) ens.push(enemy('boss',wrap(sh.x+1200),220));
     spawnLeft=0; },
   respawn(){ lost=false; sh.y=450; sh.vx=0; grace=2; ebul=[]; },
   stageBonus(){ return hum.filter(h=>h.st!=='dead').length*100; },
