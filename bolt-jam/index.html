@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BJ-0.4 · 2026-10-15">
+<meta name="build" content="BUILD-BJ-0.5 · 2026-10-15">
 <title>Bolt Jam</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -116,7 +116,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 /* gold coins flying to the counter */
 #tut{position:absolute;left:50%;transform:translateX(-50%);width:min(520px,calc(100vw - 24px));padding:12px 14px;border-radius:14px;background:rgba(5,4,16,.9);border:2px solid var(--a);box-shadow:0 0 22px color-mix(in srgb,var(--a) 50%,transparent);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.4;pointer-events:auto}
 #tut{top:calc(52px + env(safe-area-inset-top));bottom:auto;z-index:6}
-.lay-side #tut{left:10px;right:calc(var(--side,88px) + 8px);width:auto;transform:none;max-width:520px}
+.lay-side #tut{transform:none;max-width:none;right:auto}
 #tut .tt span{color:#ffd23f}
 #tut button#tutSkip{font-size:12px;padding:7px 10px;background:var(--a);color:#000;font-weight:800}
 #tut .tt{font-family:'Orbitron',sans-serif;font-size:11px;color:var(--a);letter-spacing:.14em;margin-bottom:4px;display:flex;justify-content:space-between}
@@ -281,10 +281,31 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .ab.timing.ending{animation:abend .35s infinite}
 @keyframes abend{50%{box-shadow:0 0 4px #ff3b3b;border-color:#ff3b3b}}
 
+/* ===== v3 LAYOUT (Andrew, 15 Oct 2026) =====
+   Abilities: a column on the LEFT, hugging the game's left edge (outside the play area).
+   Score, stage, lives, gold, the game counter and every running ability timer: a see-through strip
+   laid slightly over the TOP of the game, tinted with the game's own colour so it doesn't pull your eye. */
+.lay-side #bar{right:auto;width:var(--side,88px);bottom:auto;border-left:0;border-right:2px solid color-mix(in srgb,var(--b) 30%,transparent);
+  background:color-mix(in srgb,var(--bg) 78%,transparent);box-shadow:none;border-radius:0}
+.lay-side #hudTop{right:auto;height:auto;min-height:34px;padding:4px 66px 4px 8px;flex-wrap:wrap;justify-content:flex-start;gap:4px 12px;font-size:12px;
+  background:linear-gradient(color-mix(in srgb,var(--bg) 55%,transparent),color-mix(in srgb,var(--bg) 25%,transparent));border-bottom:0;opacity:.88}
+.lay-side #hudTop .hs b{font-weight:800}
+.lay-side #btnEnd{top:4px;right:6px;padding:5px 9px;font-size:10px;background:color-mix(in srgb,var(--bg) 50%,transparent)}
+#hudRow2{display:none}
+.lay-side #hudRow2{display:flex;flex-basis:100%;flex-wrap:wrap;gap:5px;align-items:center}
+.lay-side #hudRow2:not(:has(.fx)):not(:has(.ctr:not(.hidden))){display:none}
+.lay-side #hudCounter{flex:none;flex-direction:row;gap:6px;max-width:none;width:auto;margin:0;padding:2px 9px;border-radius:10px;border-width:1px;background:color-mix(in srgb,var(--bg) 40%,transparent)}
+.lay-side #hudCounter span{font-size:9px;letter-spacing:.06em;opacity:.8}.lay-side #hudCounter b{font-size:14px}
+#hudFx{display:flex;flex-wrap:wrap;gap:5px}
+.fx{font-style:normal;display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:9px;font-size:11px;font-weight:800;border:1px solid color-mix(in srgb,var(--b) 70%,transparent);background:color-mix(in srgb,var(--b) 22%,transparent)}
+.fx.end{animation:abend .35s infinite}
+.lay-side #toast{transform:translateX(-50%)}
+@media (max-width:480px){ .lay-side #hudTop{gap:3px 9px;padding:3px 58px 3px 6px;font-size:11px} .lay-side #hudTop span{display:none} .lay-side #hudCounter span{display:inline} }
+
 </style>
 </head>
 <body>
-<!-- BUILD-BJ-0.4 · 2026-10-15 -->
+<!-- BUILD-BJ-0.5 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -295,10 +316,10 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
       <div class="hs" id="hudLives"></div>
       <div class="hs coins" id="hudCoinBox">🪙 <b id="hudCoins">0</b></div>
       <button id="btnEnd" class="hbtn">END ✕</button>
+      <div id="hudRow2"><div id="hudCounter" class="ctr hidden"></div><div id="hudFx"></div></div>
     </div>
     <div id="bar">
       <div id="abilities"></div>
-      <div id="hudCounter" class="ctr hidden"></div>
       <div class="barbtns">
         <button id="btnShopIn" class="bbtn">🛒<small>SHOP</small></button>
         <button id="btnPause" class="bbtn">❚❚<small>PAUSE</small></button>
@@ -358,7 +379,7 @@ function makeStage(n,a){ nC=n===0?3:Math.min(7,Math.round(a.dv([4,5,6],7,7))); c
   for(let i=0;i<bolts.length;i+=3){ const c=rnd(nC); cols.push(c,c,c); } cols.sort(()=>Math.random()-.5); bolts.forEach((b,i)=>b.col=cols[i]); }
 const GAME = window.GAME = {
   id:'bolt-jam', title:'Bolt Jam', titleHTML:'BOLT<br>JAM', tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-BJ-0.4 · 2026-10-15', theme:{a:'#ff9a2e', b:'#2ec4ff', bg:'#14161c'},
+  build:'BUILD-BJ-0.5 · 2026-10-15', theme:{a:'#ff9a2e', b:'#2ec4ff', bg:'#14161c'},
   w:W, h:H, stages:3, proto:true, lives:3, livesIcon:'🔩', joystick:false, coinPts:40,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a bolt that fits a box.'},
@@ -478,11 +499,26 @@ const app = $('#app'), cv = $('#game'), ctx = cv.getContext('2d');
 if(SIDE){ app.classList.remove('lay-top'); app.classList.add('lay-side'); }
 let scale = 1, offX = 0, offY = 0, dpr = 1;
 function resize(){
-  // top strip + ability bar sit ABOVE the game on every screen, so they are always in view
   const W = window.innerWidth, H = window.innerHeight;
   dpr = Math.min(window.devicePixelRatio||1, 2);
-  const sw = SIDE? (W<=420? 80 : 88) : 0;
-  const ay = SIDE? TOPH : TOPH+BARS, aw = W-sw, ah = H-ay-6;
+  if(SIDE){
+    // v3 (Andrew, 15 Oct 2026): ability column sits on the LEFT, right next to the game (never on top of it).
+    // Score / lives / gold / counter / running ability timers float as a see-through strip across the TOP of the game.
+    const sw = W<=420? 80 : 88, aw = W-sw, ah = H-4;
+    scale = Math.min(aw/G.w, ah/G.h);
+    const cw = G.w*scale, ch = G.h*scale, gx = (W-(sw+cw))/2;
+    offX = gx+sw; offY = (H-ch)/2;
+    cv.style.width = cw+'px'; cv.style.height = ch+'px'; cv.style.left = offX+'px'; cv.style.top = offY+'px';
+    cv.width = Math.round(cw*dpr); cv.height = Math.round(ch*dpr);
+    const bar=$('#bar'), top=$('#hudTop'), tut=$('#tut'), tst=$('#toast');
+    const bh=Math.max(ch, Math.min(H, 520)), by=Math.max(0, Math.min(offY, H-bh));
+    bar.style.left=gx+'px'; bar.style.top=by+'px'; bar.style.height=bh+'px';
+    top.style.left=offX+'px'; top.style.top=offY+'px'; top.style.width=cw+'px';
+    tut.style.left=(offX+8)+'px'; tut.style.width=(cw-16)+'px'; tut.style.top=(offY+58)+'px';
+    tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+    return;
+  }
+  const ay = TOPH+BARS, aw = W, ah = H-ay-6;
   scale = Math.min(aw/G.w, ah/G.h);
   const cw = G.w*scale, ch = G.h*scale; offX = (aw-cw)/2; offY = ay+(ah-ch)/2;
   cv.style.width = cw+'px'; cv.style.height = ch+'px'; cv.style.left = offX+'px'; cv.style.top = offY+'px';
@@ -693,6 +729,7 @@ function useAbility(i){
 }
 function flashShop(){ const b=$('#btnShopIn'); b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); }
 function updAbilities(dt){
+  const fx=[];
   G.abilities.forEach((a,i)=>{
     if(abLock[i]>0) abLock[i]=Math.max(0,abLock[i]-dt);
     const el=abEls[i], cnt=el.querySelector('.cnt');
@@ -709,8 +746,11 @@ function updAbilities(dt){
     if(r && r.left>0){ el.classList.add('timing'); el.classList.toggle('ending', r.left<=1.5 && r.unit===undefined && !r.label); el.style.setProperty('--p', Math.max(0,Math.min(1,r.left/r.total)));
       const txt = r.label ? r.label : r.unit!==undefined ? Math.ceil(r.left)+r.unit : (r.left<9.95? r.left.toFixed(1) : Math.ceil(r.left))+'s'; if(tm.textContent!==txt) tm.textContent=txt; }
     else if(el.classList.contains('timing')){ el.classList.remove('timing','ending'); tm.textContent=''; }
+    if(r && r.left>0) fx.push(`<em class="fx${r.left<=1.5&&r.unit===undefined&&!r.label?' end':''}">${a.icon} ${r.label ? r.label : r.unit!==undefined ? Math.ceil(r.left)+r.unit : (r.left<9.95? r.left.toFixed(1) : Math.ceil(r.left))+'s'}</em>`);
   });
+  const fh=fx.join(''); if(fh!==fxKey){ fxKey=fh; $('#hudFx').innerHTML=fh; }
 }
+let fxKey='';
 let cntKey='';
 function setCounter(label, value, level){
   const k=label+'|'+value+'|'+(level||''); if(k===cntKey) return; cntKey=k;
