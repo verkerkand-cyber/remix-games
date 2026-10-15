@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SJ-0.4 · 2026-10-15">
+<meta name="build" content="BUILD-SJ-1.0 · 2026-10-15">
 <title>Sky Joust</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -311,7 +311,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SJ-0.4 · 2026-10-15 -->
+<!-- BUILD-SJ-1.0 · 2026-10-15 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -378,9 +378,9 @@ function phys(o,dt){ o.vy+=G*dt; o.vy=Math.min(o.vy,600); o.x+=o.vx*dt; o.y+=o.v
   o.ground=false; for(const [px,py,pw] of PLAT){ if(o.vy>=0&&o.x>px-6&&o.x<px+pw+6&&o.y>=py-2&&o.y-o.vy*dt<=py+2){ o.y=py; o.vy=0; o.ground=true; o.vx*=Math.pow(0.05,dt); } } }
 function flap(o,dir,pow){ o.vy=Math.min(o.vy,0)-(pow||330); if(o.vy<-420) o.vy=-420; if(dir) { o.vx+=dir*70; o.face=dir; } }
 const GAME=window.GAME={
-  id:'sky-joust',title:'Sky Joust',titleHTML:'SKY<br>JOUST',tagline:'PROTOTYPE · 3 test stages',
-  build:'BUILD-SJ-0.4 · 2026-10-15',theme:{a:'#ffd23f',b:'#ff3b5c',bg:'#120614'},
-  w:W,h:H,stages:3,proto:true,lives:3,livesIcon:'🐦',joystick:false,coinPts:40,
+  id:'sky-joust',title:'Sky Joust',titleHTML:'SKY<br>JOUST',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-SJ-1.0 · 2026-10-15',theme:{a:'#ffd23f',b:'#ff3b5c',bg:'#120614'},
+  w:W,h:H,stages:100,lives:3,livesIcon:'🐦',joystick:false,coinPts:40,
   abilities:[
     {id:'flap',icon:'🪽',name:'FLAP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — flap your wings. Or just tap the screen: left half flaps left, right half flaps right.'},
     {id:'lance',icon:'⚔️',name:'MEGA LANCE',cd:18,key:'Digit1',keyLabel:'1',desc:'Win every clash for 8 seconds.'},
@@ -396,8 +396,8 @@ const GAME=window.GAME={
   _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}}; },
   init(a){api=a;},
   startStage(n,a){ api=a; t=0; done=false; lost=false; eff={lance:-9,freeze:-9,shield:-9}; eggs=[]; ens=[];
-    const N=a.content===0?1:Math.round(a.dv([3,5,7],9,14)); for(let i=0;i<N;i++){ const p=PLAT[i%5]; ens.push(rider(p[0]+p[2]/2,p[1]-60,i%3===2&&n>0?'hunter':'bounder')); }
-    if(n>=3) ens.push(Object.assign(rider(300,120,'ptero'),{hp:3}));
+    const N=a.content===0?1:Math.round(a.dv([3,5,7],9,14)); for(let i=0;i<N;i++){ const p=PLAT[i%5]; ens.push(rider(p[0]+p[2]/2,p[1]-60,i%3===2&&a.level>=2?'hunter':'bounder')); }
+    if(a.boss) ens.push(Object.assign(rider(300,120,'ptero'),{hp:Math.round(a.dv([3,4,5],6,9))}));
     pl={x:300,y:780,vx:0,vy:0,face:1}; grace=2; },
   respawn(){ lost=false; pl={x:300,y:780,vx:0,vy:0,face:1}; grace=2; },
   useAbility(id){ if(done||lost) return false;
