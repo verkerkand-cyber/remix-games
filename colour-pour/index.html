@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CP-1.3 · 2026-10-15">
+<meta name="build" content="BUILD-CP-1.4 · 2026-10-17">
 <title>Colour Pour</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -308,10 +308,12 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .gnav .gn span{overflow:hidden;text-overflow:ellipsis}
 .gnav .gn.all{flex:0 0 auto;padding:10px 10px;color:var(--a)}
 
+.fx.doom{background:#ff3b3b33;border-color:#ff3b3b;color:#ffd0d0}
+
 </style>
 </head>
 <body>
-<!-- BUILD-CP-1.3 · 2026-10-15 -->
+<!-- BUILD-CP-1.4 · 2026-10-17 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -444,7 +446,7 @@ let POS=[];
 
 const GAME = window.GAME = {
   id:'colour-pour', title:'Colour Pour', titleHTML:'COLOUR<br>POUR', tagline:'Sort the colours · Pour it right',
-  build:'BUILD-CP-1.3 · 2026-10-15', theme:{a:'#2ec4d6', b:'#f06bb3', bg:'#0c1022'},
+  build:'BUILD-CP-1.4 · 2026-10-17', theme:{a:'#2ec4d6', b:'#f06bb3', bg:'#0c1022'},
   w:W, h:H, stages:100, lives:3, livesIcon:'💧', joystick:false, coinPts:50,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a good next pour.'},
@@ -927,6 +929,7 @@ function updAbilities(dt){
     else if(el.classList.contains('timing')){ el.classList.remove('timing','ending'); tm.textContent=''; }
     if(r && r.left>0) fx.push(`<em class="fx${r.left<=1.5&&r.unit===undefined&&!r.label?' end':''}">${a.icon} ${r.label ? r.label : r.unit!==undefined ? Math.ceil(r.left)+r.unit : (r.left<9.95? r.left.toFixed(1) : Math.ceil(r.left))+'s'}</em>`);
   });
+  if(!run.tutorial&&run.doom!==undefined&&isFinite(run.doom)) fx.unshift(`<em class="fx doom${run.doom<5?' end':''}">⏳ EXPERT ${run.doom<9.95?Math.max(0,run.doom).toFixed(1):Math.ceil(run.doom)}s</em>`);
   const fh=fx.join(''); if(fh!==fxKey){ fxKey=fh; $('#hudFx').innerHTML=fh; }
 }
 let fxKey='';
@@ -1213,7 +1216,8 @@ function beginStage(){
   run.stageT0=performance.now();
   run.tutorial=false; resetAbilities(); enterPlay(); $('#tut').classList.add('hidden');
   G.startStage(run.stage, API); toast('STAGE '+run.stage);
-  const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY FROM HERE…' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
+  run.doom=doomLimit(); run.doomPend=0;
+  const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
 function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); last=performance.now(); }
@@ -1388,6 +1392,7 @@ function frame(now){
   if(state==='play'){
     run.time += dt;
     G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt);
+    doomTick(dt);
   } else if(state==='menu' || state==='loading' || state==='ending'){ menuT+=dt; fxUpdate(dt); }
   ctx.save();
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
@@ -1419,17 +1424,26 @@ $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
 setTimeout(flushPending, 3000);
 requestAnimationFrame(frame);
+/* ---------- EXPERT DOOM CLOCK (Andrew, 17 Oct 2026): Expert must be impossible to finish ----------
+   From Expert stage 4 every stage has a time limit that no ability can stop or pause:
+   stage 4 = 90 s, then 8 s less every stage (stage 10 = 42 s, stage 14 = 10 s) and from stage 15 on just 2 s.
+   Run out of time = lose a life (the stage restarts with the same tiny clock), so Expert can't be finished. */
+function doomLimit(){ if(P.diff!==2||run.tutorial||run.stage<4) return Infinity; return Math.max(2, 90-(run.stage-4)*8); }
+function doomTick(dt){ if(run.tutorial||run.doom===undefined||run.doom===Infinity||!isFinite(run.doom)) return;
+  if(run.doom>0){ run.doom-=dt; if(run.doom<=0){ run.doom=0; run.doomPend=1.2; } return; }
+  run.doomPend-=dt; if(run.doomPend<=0){ toast('⏳ EXPERT CLOCK RAN OUT!'); run.doom=doomLimit(); run.doomPend=0; API.loseLife(); } }
 
 })();
 
 /* ---------- Arcade navigation (15 Oct 2026): ◀ previous game · 🏠 all games · next game ▶ on the main menu ---------- */
-(function(){ const ORDER=[['chomp-circuit','Chomp Circuit'],['sky-shield','Sky Shield'],['star-hijack','Star Hijack'],['blast-grid','Blast Grid'],['prism-cut','Prism Cut'],['neon-flip','Neon Flip'],['snack-stack','Snack Stack'],['colour-pour','Colour Pour'],['brick-blitz','Brick Blitz'],['bubble-burst','Bubble Burst'],['taxi-rank-jam','Taxi Rank Jam'],['rock-storm','Rock Storm'],['gem-swap','Gem Swap'],['bug-blaster','Bug Blaster'],['block-blast','Block Blast'],['neon-serpent','Neon Serpent'],['bolt-jam','Bolt Jam'],['deep-dig','Deep Dig'],['road-hopper','Road Hopper'],['sky-raider','Sky Raider'],['cube-hop','Cube Hop'],['sky-joust','Sky Joust'],['robo-riot','Robo Riot'],['tube-blaster','Tube Blaster'],['dungeon-dash','Dungeon Dash'],['street-brawl','Street Brawl'],['fist-clash','Fist Clash'],['coast-racer','Coast Racer']];
+(function(){ const ORDER=[['chomp-circuit','Chomp Circuit'],['sky-shield','Sky Shield'],['star-hijack','Star Hijack'],['blast-grid','Blast Grid'],['prism-cut','Prism Cut'],['neon-flip','Neon Flip'],['snack-stack','Snack Stack'],['colour-pour','Colour Pour'],['brick-blitz','Brick Blitz'],['bubble-burst','Bubble Burst'],['taxi-rank-jam','Taxi Rank Jam'],['rock-storm','Rock Storm'],['gem-swap','Gem Swap'],['bug-blaster','Bug Blaster'],['block-blast','Block Blast'],['neon-serpent','Neon Serpent'],['bolt-jam','Bolt Jam'],['deep-dig','Deep Dig'],['road-hopper','Road Hopper'],['sky-raider','Sky Raider'],['cube-hop','Cube Hop'],['sky-joust','Sky Joust'],['robo-riot','Robo Riot'],['tube-blaster','Tube Blaster'],['dungeon-dash','Dungeon Dash'],['street-brawl','Street Brawl'],['fist-clash','Fist Clash'],['coast-racer','Coast Racer'],['moon-drop','Moon Drop'],['sky-ace','Sky Ace'],['moon-buggy','Moon Buggy'],['ice-push','Ice Push'],['burger-drop','Burger Drop'],['cherry-dig','Cherry Dig'],['flag-rally','Flag Rally'],['sky-strike','Sky Strike'],['maze-bots','Maze Bots'],['cave-run','Cave Run'],['shake-bar','Shake Bar'],['light-trail','Light Trail'],['road-agent','Road Agent'],['temple-kick','Temple Kick']];
   const i=ORDER.findIndex(g=>g[0]===window.GAME.id), nav=document.querySelector('.gnav'); if(!nav) return; if(i<0){ nav.style.display='none'; return; }
   const p=ORDER[(i-1+ORDER.length)%ORDER.length], n=ORDER[(i+1)%ORDER.length];
   const gp=document.getElementById('gPrev'), gn=document.getElementById('gNext');
   gp.href='../'+p[0]+'/'; gp.querySelector('span').textContent=p[1]; gn.href='../'+n[0]+'/'; gn.querySelector('span').textContent=n[1];
   try{ localStorage.setItem('rmxHomeIdx', i); }catch(e){}
 })();
+
 
 </script>
 </body>
