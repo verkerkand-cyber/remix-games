@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RS-1.4 · 2026-10-17">
+<meta name="build" content="BUILD-RS-1.5 · 2026-10-18">
 <title>Rock Storm</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-RS-1.4 · 2026-10-17 -->
+<!-- BUILD-RS-1.5 · 2026-10-18 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -393,7 +393,7 @@ function makeStage(n,a){
 
 const GAME = window.GAME = {
   id:'rock-storm', title:'Rock Storm', titleHTML:'ROCK<br>STORM', tagline:'Blast the rocks · Survive the storm',
-  build:'BUILD-RS-1.4 · 2026-10-17', theme:{a:'#7df9ff', b:'#ff9a2e', bg:'#04030c'},
+  build:'BUILD-RS-1.5 · 2026-10-18', theme:{a:'#7df9ff', b:'#ff9a2e', bg:'#04030c'},
   w:W, h:H, stages:100, lives:3, livesIcon:'▲', joystick:true, coinPts:30,
   abilities:[
     {id:'shield', icon:'🛡️', name:'SHIELD', cd:20, key:'Digit1', keyLabel:'1', desc:'Nothing can hurt you for 6 seconds.'},
@@ -415,9 +415,9 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#7df9ff,#ff9a2e)'}
   ],
   story:`<h3>THE STORM</h3><p>A storm of rocks is heading straight for the last space station, where the whole colony sleeps.</p><p>You're the only pilot on duty. Blast the rocks into dust before they reach the station.</p>`,
-  howto:`<h3>GOAL</h3><p>Destroy every rock.</p><h3>HOW TO PLAY</h3><ul><li><b>Phone:</b> drag anywhere to fly — your ship turns the way you drag.</li><li><b>PC:</b> arrow keys / WASD, or hold the mouse button to fly towards the pointer.</li><li>Your ship <b>fires by itself</b>. Bullets are free.</li><li>Big rocks split into smaller, faster rocks.</li><li>Fly off one edge and you come back on the other.</li><li>Later on, <b>UFOs</b> fly in and shoot at you.</li></ul><h3>ABILITIES</h3><ul><li>🛡️ <b>SHIELD</b> <span class="key">1</span> — 6 seconds of safety</li><li>💥 <b>NOVA</b> <span class="key">2</span> — smashes every rock</li><li>🌀 <b>WARP</b> <span class="key">3</span> — jump to the safest spot</li><li>🔥 <b>RAPID</b> <span class="key">4</span> — triple fire + spread shot</li></ul>`,
+  howto:`<h3>GOAL</h3><p>Destroy every rock.</p><h3>HOW TO PLAY</h3><ul><li><b>Phone:</b> drag anywhere to fly — your ship turns the way you drag.</li><li><b>PC:</b> arrow keys / WASD, or hold the mouse button to fly towards the pointer.</li><li>Your ship fires while you fly (finger on the screen, keys held, or SPACE). Let go and it stops. Bullets are free.</li><li>Big rocks split into smaller, faster rocks.</li><li>Fly off one edge and you come back on the other.</li><li>Later on, <b>UFOs</b> fly in and shoot at you.</li></ul><h3>ABILITIES</h3><ul><li>🛡️ <b>SHIELD</b> <span class="key">1</span> — 6 seconds of safety</li><li>💥 <b>NOVA</b> <span class="key">2</span> — smashes every rock</li><li>🌀 <b>WARP</b> <span class="key">3</span> — jump to the safest spot</li><li>🔥 <b>RAPID</b> <span class="key">4</span> — triple fire + spread shot</li></ul>`,
   tutorial:[
-    {text:'Drag (or use the arrow keys) to fly. Your ship shoots by itself.', ev:'move'},
+    {text:'Drag (or use the arrow keys) to fly. Your ship shoots while you fly.', ev:'move'},
     {text:'Shoot a rock!', ev:'hit'},
     {text:'Big rocks split into small ones. Destroy a small one!', ev:'kill'},
     {text:'In trouble? Tap <b>🛡️ SHIELD</b> (key 1).', ev:'ab_shield'},
@@ -457,7 +457,7 @@ const GAME = window.GAME = {
       ship.vx*=Math.pow(0.35,dt); ship.vy*=Math.pow(0.35,dt); const sp=Math.hypot(ship.vx,ship.vy); if(sp>420){ ship.vx*=420/sp; ship.vy*=420/sp; }
       ship.x+=ship.vx*dt; ship.y+=ship.vy*dt; wrap(ship,SR);
       // auto-fire (bullets are free)
-      fireT-=dt; if(fireT<=0){ fireT = eff.rapid>0? 0.09 : 0.26; const spread = eff.rapid>0? [-0.18,0,0.18] : [0];
+      fireT-=dt; if(fireT<=0&&(m>0.1||mouse||api.input.keys.Space)){ fireT = eff.rapid>0? 0.09 : 0.26; const spread = eff.rapid>0? [-0.18,0,0.18] : [0];
         spread.forEach(o=>bullets.push({x:ship.x+Math.cos(ship.a)*SR,y:ship.y+Math.sin(ship.a)*SR,vx:Math.cos(ship.a+o)*760+ship.vx*0.3,vy:Math.sin(ship.a+o)*760+ship.vy*0.3,l:0.75})); }
     }
     // ---- bullets ----
