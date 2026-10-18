@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-MR-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-MR-1.1 · 2026-10-18">
 <title>Marble Rush</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-MR-1.0 · 2026-10-17 -->
+<!-- BUILD-MR-1.1 · 2026-10-18 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -377,7 +377,7 @@ let api,t,m,rows,hz,camY,time,time0,cp,cpGot,done,lost,eff,grace,ms,bot,brakeCD,
 const SLOPE={10:[-1,0],11:[1,0],12:[0,-1],13:[0,1]};
 const GAME=window.GAME={
   id:'marble-rush',title:'Marble Rush',titleHTML:'MARBLE<br>RUSH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-MR-1.0 · 2026-10-17',theme:{a:'#4fd1ff',b:'#ff3bd4',bg:'#070a1a'},
+  build:'BUILD-MR-1.1 · 2026-10-18',theme:{a:'#4fd1ff',b:'#ff3bd4',bg:'#070a1a'},
   w:W,h:H,stages:100,lives:3,livesIcon:'🔮',joystick:true,coinPts:40,
   abilities:[
     {id:'brake',icon:'🛑',name:'BRAKE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — stop the marble dead. Recharges in 1 second.'},
@@ -485,7 +485,7 @@ function gen(){ rows=[]; hz=[]; const tut=api.content===0, L=api.level; let cx=W
   put(1,4); cx=Math.max(T*2,Math.min(W-T*2,cx)); goalRow=rows.length; for(let i=0;i<3;i++) put(5,4);
   const perRow=tut?99:api.dv([0.62,0.5,0.42],0.36,0.27); time=time0=tut?90:Math.round(rows.length*perRow+8); }
 /* ---------- physics helpers ---------- */
-function knock(h,imp,kind){ const dx=m.x-h.x, dy=m.y-h.y, L=Math.hypot(dx,dy); if(L<h.r+MR&&L>0.1&&grace<=0){ const nx=dx/L, ny=dy/L; m.x=h.x+nx*(h.r+MR+1); m.y=h.y+ny*(h.r+MR+1); const vn=m.vx*nx+m.vy*ny; m.vx+=nx*(imp-vn); m.vy+=ny*(imp-vn); if(kind) { h.vx-=nx*200; h.vy-=ny*200; } api.sfx.bump(); api.fx.shake(4); api.fx.burst(h.x+nx*h.r,h.y+ny*h.r-camY,kind===2?'#ff3b3b':'#ff3bd4',10,160,.3,3); } }
+function knock(h,imp,kind){ const dx=m.x-h.x, dy=m.y-h.y, L=Math.hypot(dx,dy); if(L<h.r+MR&&L>0.1&&grace<=0){ const nx=dx/L, ny=dy/L; m.x=h.x+nx*(h.r+MR+1); m.y=h.y+ny*(h.r+MR+1); const vn=m.vx*nx+m.vy*ny; m.vx+=nx*(imp-vn); m.vy+=ny*(imp-vn); if(kind) { h.vx-=nx*200; h.vy-=ny*200; } if(kind===2&&m.vy<0){ m.vx+=(nx>=0?1:-1)*Math.abs(m.vy)*0.8; m.vy=Math.abs(m.vy)*0.3; } api.sfx.bump(); api.fx.shake(4); api.fx.burst(h.x+nx*h.r,h.y+ny*h.r-camY,kind===2?'#ff3b3b':'#ff3bd4',10,160,.3,3); } }
 function bossUpdate(dt,fz){ const b=boss; b.spin+=dt*2;
   if(b.fall>0){ b.fall+=dt; if(b.fall>1.6){ b.fall=0; b.x=cp.x; b.y=cp.y+T*2.2; b.vx=b.vy=0; b.wait=1.5; } return; }
   if(b.wait>0){ b.wait-=dt; if(b.wait<=0) api.toast('THE BLACK ORB IS COMING!'); return; }
