@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BX-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-BX-1.2 · 2026-10-18">
 <title>Bug Blaster</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BX-1.1 · 2026-10-17 -->
+<!-- BUILD-BX-1.2 · 2026-10-18 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -373,7 +373,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 /* BUG BLASTER — Centipede remix (#28) — PROTOTYPE: 3 test stages */
 (function(){
 const W=600, H=900, CS=30, COLS=20, ROWS=26, PZ=H-200;
-let graceT=0, api,t,mush,segs,ship,shots,fireT,done,lost,spider,eff,mouse;
+let touchN=0, graceT=0, api,t,mush,segs,ship,shots,fireT,done,lost,spider,eff,mouse;
 function cell(x,y){ return Math.floor(y/CS)*COLS+Math.floor(x/CS); }
 function makeStage(n,a){ mush=new Map(); const nm=n===0?20:Math.round(a.dv([35,55,75],90,140));
   for(let i=0;i<nm;i++){ const x=Math.floor(Math.random()*COLS), y=2+Math.floor(Math.random()*(ROWS-8)); mush.set(y*COLS+x,4); }
@@ -382,7 +382,7 @@ function makeStage(n,a){ mush=new Map(); const nm=n===0?20:Math.round(a.dv([35,5
   spider = (n===0||a.level<10)? null : {x:-30,y:PZ+60,vx:a.dv([90,140,180],220,340),vy:120,t:0}; }
 const GAME = window.GAME = {
   id:'bug-blaster', title:'Bug Blaster', titleHTML:'BUG<br>BLASTER', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-BX-1.1 · 2026-10-17', theme:{a:'#7dff5a', b:'#ff3df0', bg:'#060a06'},
+  build:'BUILD-BX-1.2 · 2026-10-18', theme:{a:'#7dff5a', b:'#ff3df0', bg:'#060a06'},
   w:W, h:H, stages:100,  lives:3, livesIcon:'🔫', joystick:true, coinPts:30,
   abilities:[
     {id:'spread', icon:'🔱', name:'SPREAD', cd:15, key:'Digit1', keyLabel:'1', desc:'Triple shot for 8 seconds.'},
@@ -392,7 +392,7 @@ const GAME = window.GAME = {
   shop:[{id:'s_g',cat:'Blaster',name:'Lime',cost:0,colors:['#7dff5a'],desc:'Classic.'},{id:'b_d',cat:'Garden',name:'Night Garden',cost:0,colors:['#060a06','#0e1a10'],desc:'Dark garden.'},{id:'b_s',cat:'Garden',name:'Dusk',cost:180,colors:['#140818','#3a1440'],desc:'Purple dusk.'}],
   premium:[{name:'Ultimate Pack', price:'$3', desc:'Everything in the shop.', swatch:'linear-gradient(90deg,#7dff5a,#ff3df0)'}],
   story:`<h3>THE BUG INVASION</h3><p>A giant bug is snaking through the garden. Blast every segment before it reaches you.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>Drag (or arrow keys) to move in the bottom zone. You fire automatically.</li><li>Shot segments turn into mushrooms. Mushrooms take 4 hits.</li><li>Destroy every bug segment to clear the stage.</li></ul>`,
+  howto:`<h3>HOW TO PLAY</h3><ul><li>Drag (or arrow keys) to move in the bottom zone. You fire while your finger is down (PC: while moving or holding SPACE).</li><li>Shot segments turn into mushrooms. Mushrooms take 4 hits.</li><li>Destroy every bug segment to clear the stage.</li></ul>`,
   tutorial:[{text:'Drag to move. You fire by yourself — hit the bug!', ev:'hit'},{text:'Destroy every segment!', time:6}],
   stageIntro:{1:'BLAST THE BUG'}, bossName:'QUEEN BUG!', ending:{"0":["#SAFE","The garden is safe."],"1":["#CLEAN","No bug will ever return."],"2":["#LEGEND","Impossible. You did it."]},
   _dbg(){ return {get segs(){return segs;}, get ship(){return ship;}, get lost(){return lost;}}; },
@@ -404,11 +404,11 @@ const GAME = window.GAME = {
   useAbility(id){ if(done||lost) return false;
     if(id==='spray'){ segs.sort((a,b)=>Math.hypot(a.x-ship.x,a.y-ship.y)-Math.hypot(b.x-ship.x,b.y-ship.y)).slice(0,5).forEach(s=>s.dead=true); kill(); api.sfx.boom(); return true; }
     eff[id]= id==='freeze'?4: id==='spread'?8:6; api.sfx.power(); return true; },
-  onPointer(type,x,y,id,pt){ if(pt==='mouse'){ if(type==='down') mouse={x,y}; else if(type==='move'&&mouse) mouse={x,y}; else if(type==='up') mouse=null; } },
+  onPointer(type,x,y,id,pt){ if(pt!=='mouse'){ if(type==='down') touchN++; else if(type==='up') touchN=Math.max(0,touchN-1); } if(pt==='mouse'){ if(type==='down') mouse={x,y}; else if(type==='move'&&mouse) mouse={x,y}; else if(type==='up') mouse=null; } },
   update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>0) eff[k]-=dt;
     if(!lost){ let d=api.input.dir(); if(mouse){ const dx=mouse.x-ship.x, dy=mouse.y-ship.y, m=Math.hypot(dx,dy); d=m>8?{x:dx/m,y:dy/m}:{x:0,y:0}; }
       ship.x=Math.max(15,Math.min(W-15,ship.x+d.x*420*dt)); ship.y=Math.max(PZ,Math.min(H-20,ship.y+d.y*420*dt)); if(d.x||d.y) api.event('move');
-      fireT-=dt; if(fireT<=0){ fireT=0.12; (eff.spread>0?[-0.2,0,0.2]:[0]).forEach(o=>shots.push({x:ship.x,y:ship.y-14,vx:Math.sin(o)*900,vy:-900})); } }
+      fireT-=dt; if(fireT<=0&&(touchN>0||mouse||d.x||d.y||api.input.keys.Space)){ fireT=0.12; (eff.spread>0?[-0.2,0,0.2]:[0]).forEach(o=>shots.push({x:ship.x,y:ship.y-14,vx:Math.sin(o)*900,vy:-900})); } }
     shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt;
       const k=cell(s.x,s.y); if(mush.has(k)){ const h=mush.get(k)-1; if(h<=0) mush.delete(k); else mush.set(k,h); s.y=-99; api.addScore(1,s.x,s.y,true); return; }
       for(const g of segs){ if(!g.dead && Math.abs(g.x-s.x)<14 && Math.abs(g.y-s.y)<14){ g.dead=true; s.y=-99; mush.set(cell(g.x,g.y),4); api.addScore((g.head?100:10)*(1+api.dk*0.5),g.x,g.y); api.fx.burst(g.x,g.y,'#7dff5a',10,180,.4,3); api.sfx.small(); api.event('hit'); break; } }
