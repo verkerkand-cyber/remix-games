@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RR-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-RR-1.2 · 2026-10-18">
 <title>Robo Riot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-RR-1.1 · 2026-10-17 -->
+<!-- BUILD-RR-1.2 · 2026-10-18 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -373,12 +373,12 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 /* ROBO RIOT — Robotron remix (#37) — PROTOTYPE: 3 test stages. Survive the robot riot and save the family. */
 (function(){
 const W=600,H=900,TOP=100;
-let api,t,pl,ens,shots,hum,sparks,done,lost,eff,fireT,grace,aim;
+let api,t,pl,ens,shots,hum,sparks,done,lost,eff,fireT,grace,aim,ptrs={},moveId=null;
 function rnd(a,b){ return a+Math.random()*(b-a); }
 function spawnFar(k,extra){ let x,y; do{ x=rnd(30,W-30); y=rnd(TOP+30,H-30); } while(Math.hypot(x-pl.x,y-pl.y)<220); return Object.assign({k,x,y,vx:0,vy:0,t:Math.random()*5,hp:k==='hulk'?99:k==='boss'?30:1,dead:false},extra||{}); }
 const GAME=window.GAME={
   id:'robo-riot',title:'Robo Riot',titleHTML:'ROBO<br>RIOT',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-RR-1.1 · 2026-10-17',theme:{a:'#3bff7a',b:'#ff3b5c',bg:'#060a10'},
+  build:'BUILD-RR-1.2 · 2026-10-18',theme:{a:'#3bff7a',b:'#ff3b5c',bg:'#060a10'},
   w:W,h:H,stages:100,lives:3,livesIcon:'🧑‍🚀',joystick:true,coinPts:40,
   abilities:[
     {id:'bomb',icon:'💥',name:'EMP BOMB',cd:18,key:'Digit1',keyLabel:'1',desc:'Destroys every robot near you (not hulks).'},
@@ -388,13 +388,15 @@ const GAME=window.GAME={
   shop:[{id:'h_b',cat:'Hero',name:'Neon Blue',cost:0,colors:['#00e5ff'],desc:'Classic.'},{id:'h_o',cat:'Hero',name:'Orange',cost:150,colors:['#ff9f1c'],desc:'Bright.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3bff7a,#ff3b5c)'}],
   story:`<h3>ROBO RIOT</h3><p>The factory robots have turned on the city. You're the last hero in the arena — blast them and get the families to safety.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to run (WASD on PC). Your blaster aims at the closest robot by itself. PC: aim with the ARROW keys if you want.</li><li>Touch people to rescue them for big points.</li><li>Big green HULKS can't be destroyed — just push them back and keep away.</li><li>Destroy every red robot to clear the wave.</li></ul>`,
-  tutorial:[{text:'Drag to move. You shoot by yourself — get the robots!',ev:'kill'},{text:'Touch the person to rescue them!',ev:'save'},{text:'Clear every robot!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Two thumbs:</b> your FIRST finger on the screen moves you (a stick appears). Put a SECOND finger down and hold it where you want to shoot — you fire toward it.</li><li>PC: WASD to move, ARROW keys or hold the mouse button to shoot toward the cursor.</li><li>You only shoot when YOU aim — stand still and the robots will get you!</li><li>Touch people to rescue them for big points.</li><li>Big green HULKS can't be destroyed — just push them back and keep away.</li><li>Destroy every red robot to clear the wave.</li></ul>`,
+  tutorial:[{text:'One finger drags to move. Hold a SECOND finger where you want to shoot (PC: arrows or mouse)!',ev:'kill'},{text:'Touch the person to rescue them!',ev:'save'},{text:'Clear every robot!',time:5}],
   stageIntro:{1:'SAVE THE FAMILY'},bossName:'BRAIN BOT!',ending:{"0":["#HERO","The city is safe."],"1":["#LEGEND","Robot-proof."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const tot={freeze:4,spread:8,shield:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
+  onPointer(type,x,y,id,ptype){ if(ptype==='mouse'){ if(type==='down') ptrs.m={x,y}; else if(type==='move'&&ptrs.m) ptrs.m={x,y}; else if(type==='up') delete ptrs.m; return; }
+    if(type==='down'){ if(moveId===null) moveId=id; else ptrs[id]={x,y}; } else if(type==='move'){ if(ptrs[id]) ptrs[id]={x,y}; } else if(type==='up'){ if(id===moveId) moveId=null; delete ptrs[id]; } },
   _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={freeze:-9,spread:-9,shield:-9}; shots=[]; sparks=[]; fireT=0; grace=1.5; pl={x:W/2,y:H/2+40,face:{x:0,y:-1}};
+  startStage(n,a){ api=a; ptrs={}; moveId=null; t=0; done=false; lost=false; eff={freeze:-9,spread:-9,shield:-9}; shots=[]; sparks=[]; fireT=0; grace=1.5; pl={x:W/2,y:H/2+40,face:{x:0,y:-1}};
     ens=[]; const tut=a.content===0; const N=tut?3:Math.round(a.dv([10,18,26],32,50));
     for(let i=0;i<N;i++) ens.push(spawnFar('grunt'));
     if(!tut) for(let i=0;i<Math.round(a.dv([1,3,5],6,9));i++) ens.push(spawnFar('hulk'));
@@ -409,7 +411,7 @@ const GAME=window.GAME={
     const frozen=eff.freeze>0, harmless=eff.freeze>-1;
     if(!lost){ const d=api.input.dir(), sp=250; pl.x=Math.max(16,Math.min(W-16,pl.x+d.x*sp*dt)); pl.y=Math.max(TOP+16,Math.min(H-16,pl.y+d.y*sp*dt));
       const K=api.input.keys; let ax=(K.ArrowRight?1:0)-(K.ArrowLeft?1:0), ay=(K.ArrowDown?1:0)-(K.ArrowUp?1:0);
-      if(!ax&&!ay){ const tg=ens.filter(e=>e.k!=='hulk').sort((a,b)=>Math.hypot(a.x-pl.x,a.y-pl.y)-Math.hypot(b.x-pl.x,b.y-pl.y))[0]; if(tg){ ax=tg.x-pl.x; ay=tg.y-pl.y; } }
+      if(!ax&&!ay){ const k=Object.keys(ptrs)[0]; if(k!==undefined){ ax=ptrs[k].x-pl.x; ay=ptrs[k].y-pl.y; } }
       const m=Math.hypot(ax,ay); if(m>0) aim={x:ax/m,y:ay/m}; else aim=aim||{x:0,y:-1};
       fireT-=dt; if(fireT<=0&&m>0){ fireT=0.14; const a0=Math.atan2(aim.y,aim.x); (eff.spread>0?[-0.22,0,0.22]:[0]).forEach(o=>shots.push({x:pl.x,y:pl.y,vx:Math.cos(a0+o)*800,vy:Math.sin(a0+o)*800})); api.sfx.shoot(); } }
     shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; }); shots=shots.filter(s=>s.x>0&&s.x<W&&s.y>TOP&&s.y<H&&!s.hit);
