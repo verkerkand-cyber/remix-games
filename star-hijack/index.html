@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SH-1.11 · 2026-10-17">
+<meta name="build" content="BUILD-SH-1.12 · 2026-10-18">
 <title>Star Hijack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SH-1.11 · 2026-10-17 -->
+<!-- BUILD-SH-1.12 · 2026-10-18 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -378,7 +378,7 @@ const ET={ bee:{hp:1,pts:50,col:'#ffd23f',col2:'#3fa9ff',r:15}, moth:{hp:1,pts:8
 
 const GAME = window.GAME = {
   id:'star-hijack', title:'Star Hijack', titleHTML:'STAR<br>HIJACK', tagline:'Steal their ships · Space shooter remix',
-  build:'BUILD-SH-1.11 · 2026-10-17', theme:{a:'#ff3d7f', b:'#3fe0ff', bg:'#03020c'},
+  build:'BUILD-SH-1.12 · 2026-10-18', theme:{a:'#ff3d7f', b:'#3fe0ff', bg:'#03020c'},
   w:W, h:H, stages:100, lives:3, livesIcon:'▲', joystick:false,
   abilities:[
     {id:'beam', icon:'🧲', name:'CAPTURE BEAM', cd:14, key:'Digit1', keyLabel:'1', desc:'Grab an enemy above you as a wingman (max 2).'},
@@ -403,9 +403,9 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ff3d7f,#3fe0ff,#ffd23f)'}
   ],
   story:`<h3>THE SWARM</h3><p>The <b>Vrak Swarm</b> has crossed into human space: thousands of insect-like warships moving as one mind.</p><p>You fly the <b>Arrow</b>, an experimental fighter fitted with a stolen Vrak technology: the <b>Capture Beam</b>.</p><h3>TURN THEIR SHIPS AGAINST THEM</h3><p>Pull enemy ships into your beam and they switch sides. Captured ships fly next to you as <b>wingmen</b> and fire with you. They also take a hit to protect you.</p><ul><li><b style="color:#ffd23f">Drones</b> — fast and many.</li><li><b style="color:#ff4f7a">Stingers</b> — dive at you and shoot.</li><li><b style="color:#3dff9a">Guardians</b> — armoured, take 2 hits.</li><li><b style="color:#ff3d7f">The Dreadnought</b> — the Swarm's flagship. Stage 3.</li></ul>`,
-  howto:`<h3>GOAL</h3><p>Destroy every wave of the Swarm. Your ship fires <b>automatically</b>, so you just focus on moving and dodging.</p><h3>CONTROLS</h3><ul><li><b>PC:</b> <span class="key">←</span> <span class="key">→</span> or <span class="key">A</span> <span class="key">D</span> to move, or hold the mouse button and drag</li><li><b>Phone:</b> put your finger anywhere and slide left/right, and the ship follows</li></ul><h3>ABILITIES</h3><ul><li>🧲 <b>CAPTURE BEAM</b> <span class="key">1</span> — grab an enemy above you. It becomes your wingman (max 2)</li><li>🛡️ <b>SHIELD</b> <span class="key">2</span> — 3 seconds of protection</li><li>✴️ <b>NOVA BOMB</b> <span class="key">3</span> — wipes enemy bullets and hurts everything</li></ul><h3>PICKUPS</h3><p>Grab the glowing <b>P</b> orbs for rapid fire.</p><h3>WINGMEN</h3><p>If you get hit while you have a wingman, the wingman is lost instead of your life.</p>`,
+  howto:`<h3>GOAL</h3><p>Destroy every wave of the Swarm. Your ship fires while your finger is on the screen (PC: while you hold a move key or SPACE). Let go and it stops firing.</p><h3>CONTROLS</h3><ul><li><b>PC:</b> <span class="key">←</span> <span class="key">→</span> or <span class="key">A</span> <span class="key">D</span> to move, or hold the mouse button and drag</li><li><b>Phone:</b> put your finger anywhere and slide left/right, and the ship follows</li></ul><h3>ABILITIES</h3><ul><li>🧲 <b>CAPTURE BEAM</b> <span class="key">1</span> — grab an enemy above you. It becomes your wingman (max 2)</li><li>🛡️ <b>SHIELD</b> <span class="key">2</span> — 3 seconds of protection</li><li>✴️ <b>NOVA BOMB</b> <span class="key">3</span> — wipes enemy bullets and hurts everything</li></ul><h3>PICKUPS</h3><p>Grab the glowing <b>P</b> orbs for rapid fire.</p><h3>WINGMEN</h3><p>If you get hit while you have a wingman, the wingman is lost instead of your life.</p>`,
   tutorial:[
-    {text:'Move with <b>← →</b> or <b>A D</b> (or drag with the mouse). You fire automatically.', touch:'Put your finger anywhere and <b>slide</b> to move. You fire automatically.', ev:'move'},
+    {text:'Move with <b>← →</b> or <b>A D</b> (or drag with the mouse). Hold a key to fire.', touch:'Put your finger anywhere and <b>slide</b> to move. You fire while your finger is down.', ev:'move'},
     {text:'Shoot down <b>3 enemies</b>.', ev:'kill3'},
     {text:'Get under an enemy and press <b>🧲 CAPTURE BEAM</b> (key 1) to steal it!', touch:'Get under an enemy and tap <b>🧲 CAPTURE BEAM</b> to steal it!', ev:'capture'},
     {text:'Your new wingman fires with you. Now try <b>🛡️ SHIELD</b> (key 2).', touch:'Your new wingman fires with you. Now tap <b>🛡️ SHIELD</b>.', ev:'ab_shield'},
@@ -461,7 +461,7 @@ const GAME = window.GAME = {
     else {
       const d=api.input.dir(); if(d.x){ ship.x=Math.max(24,Math.min(W-24,ship.x+d.x*420*dt)); api.event('move'); }
       ship.inv=Math.max(0,ship.inv-dt);
-      ship.fire-=dt; if(ship.fire<=0){ ship.fire=rapidT>0?0.085:0.17; fireShot(ship.x,PY-22); for(let i=0;i<wings;i++) fireShot(ship.x+(i?38:-38),PY-12); if(Math.random()<.4) api.sfx.shoot(); }
+      ship.fire-=dt; if(ship.fire<=0&&(drag||(function(K){return K.Space||K.ArrowLeft||K.ArrowRight||K.ArrowUp||K.ArrowDown||K.KeyA||K.KeyD||K.KeyW||K.KeyS;})(api.input.keys))){ ship.fire=rapidT>0?0.085:0.17; fireShot(ship.x,PY-22); for(let i=0;i<wings;i++) fireShot(ship.x+(i?38:-38),PY-12); if(Math.random()<.4) api.sfx.shoot(); }
     }
     // bullets
     for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i]; b.y-=900*dt; if(b.y<-20){ bullets.splice(i,1); continue; }
