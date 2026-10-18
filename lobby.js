@@ -1,10 +1,10 @@
-/* REMIX LOBBY-1 — who's online + invites. Shared by the games page and every game (loaded from the site root). */
+/* REMIX LOBBY-2 — who's online + invites. Shared by the games page and every game (loaded from the site root). */
 (function(){
   if(window.RMXL) return;
   var SB='https://uuyaoffzgjxxwxlzhwur.supabase.co', KEY='sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9';
   var ROOT=(location.pathname.match(/^(.*\/remix-games\/)/)||[0,'/'])[1];
   function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
-  function clean(s){ return String(s||'').replace(/[^A-Za-z0-9 _-]/g,'').slice(0,10).toUpperCase(); }
+  function clean(s){ var d=0; return String(s||'').replace(/[^A-Za-z0-9 _-]/g,'').replace(/[0-9]/g,function(c){ return ++d<=2?c:''; }).slice(0,10).toUpperCase(); }
   var me=ls('rmxId'); if(!me){ me=Math.random().toString(36).slice(2,10); ls('rmxId',me); }
   var L={ me:me, ch:null, sb:null, list:{}, ready:false, game:(window.GAME&&window.GAME.id)||'', gameTitle:(window.GAME&&window.GAME.title)||'',
     get name(){ return clean(ls('rmxName'))||''; }, set name(v){ ls('rmxName',clean(v)); },
