@@ -1,6 +1,6 @@
 /* REMIX-SW-1.0 offline cache */
-const C='rmx-v2';
-const URLS=['./',
+const C='rmx-v4';
+const URLS=['./','./icon-512.png','./icon-192.png','./manifest.webmanifest',
   './chomp-circuit/',
   './sky-shield/',
   './star-hijack/',
@@ -62,7 +62,17 @@ const URLS=['./',
   './royal-solitaire/',
   './mine-field/',
   './number-grid/',
-  './word-hunt/'];
+  './word-hunt/',
+  './spider-deck/',
+  './pixel-logic/',
+  './slide-puzzle/',
+  './crate-push/',
+  './rock-digger/',
+  './pipe-flow/',
+  './marble-chain/',
+  './garden-guard/',
+  './candy-rope/',
+  './hill-rider/'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>Promise.all(URLS.map(u=>c.add(u).catch(()=>{})))));});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET'||new URL(r.url).origin!==location.origin)return;
