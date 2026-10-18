@@ -845,7 +845,7 @@ const API = {
   resetCooldown(i){ abLock[i]=0; },
   useAb(i){ useAbility(i); },
   // big always-visible counter in the top bar (e.g. Sky Shield ammo). level: '', 'low' or 'empty'
-  counter(label, value, level){ setCounter(label, value, level); },
+  counter(label, value, level){ setCounter(label, value, level); mpCounter(value); },
   choice(title, opts, cb){ showChoice(title, opts, cb); },
   get extra(){ return run.extra; },
   saveNow(){ if(!run.tutorial) writeSlot(); },
@@ -1015,7 +1015,7 @@ function toMenu(){
   flushCoins();
   state='menu'; hudEl.classList.add('hidden'); $('#tut').classList.add('hidden'); closeModal(); show('#screen-menu');
   run.tutorial=false; run.practice=false; joy.active=false; joyEl.classList.add('hidden');
-  renderMenu();
+  renderMenu(); mpOnMenu();
 }
 function renderMenu(){
   document.querySelectorAll('.diff button').forEach((b,i)=>b.classList.toggle('on', i===P.diff));
@@ -1195,10 +1195,12 @@ function pauseAgain(){ state='play'; pauseGame(); }
 function resumeGame(){ closeModal(); state='play'; last=performance.now(); }
 function endGamePrompt(){
   if(state==='play'){ state='paused'; }
+  if(MP.on){ modal(`<h2>LEAVE THE RACE?</h2><p>You'll drop out of this multiplayer race.</p><button class="big" data-a="y">LEAVE RACE</button><button class="mid" data-a="n">KEEP RACING</button>`, {y:()=>{ mpSend({e:'out'}); mpLeave(); toMenu(); }, n:resumeGame}); return; }
   if(run.tutorial){ modal(`<h2>LEAVE TUTORIAL?</h2><p>You can replay it any time from How to Play.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>{ if(!run.practice){ P.tutDone=true; save(); } toMenu(); }, n:resumeGame}); return; }
   modal(`<h2>END GAME?</h2><p>Your game is saved at the start of <b>Stage ${run.stage}</b>. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
 }
 function stageClear(){
+  if(MP.on){ if(run.tutorial) return; mpFinish(true); return; }
   if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
   state='modal'; SFX.clear(); flushCoins();
   const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)) + (API.boss? 50 : 0), got=run.coinsStage, wasBoss=API.boss;
@@ -1220,6 +1222,7 @@ function nameEntry(title, sub, win){
 }
 function afterRun(){ modal(`<h2>WHAT NEXT?</h2><button class="big" data-a="p">PLAY AGAIN</button><button class="mid abil" data-a="a">⚡ ABILITIES</button><button class="mid" data-a="s">TOP SCORES</button><button class="mid" data-a="m">MAIN MENU</button>`, {p:()=>newGame(run.slot), a:()=>{ toMenu(); abilPanel(); }, s:()=>{ toMenu(); scoresPanel(P.diff); }, m:toMenu}); }
 function gameOver(){
+  if(MP.on){ mpFinish(false); return; }
   if(state==='modal' || state==='menu') return; state='modal'; SFX.over(); flushCoins();
   const coins = Math.floor(run.score/500), got=run.coinsStage; P.coins += coins; save();
   nameEntry('GAME OVER', `🪙 ${got} collected this stage · +${coins} score bonus`, false);
@@ -1357,7 +1360,7 @@ function frame(now){
   if(state==='play'){
     run.time += dt;
     G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt);
-    doomTick(dt);
+    doomTick(dt); mpTick(dt);
   } else if(state==='menu' || state==='loading' || state==='ending'){ menuT+=dt; fxUpdate(dt); }
   ctx.save();
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
@@ -1397,6 +1400,95 @@ function doomLimit(){ if(P.diff!==2||run.tutorial||run.stage<4) return Infinity;
 function doomTick(dt){ if(run.tutorial||run.doom===undefined||run.doom===Infinity||!isFinite(run.doom)) return;
   if(run.doom>0){ run.doom-=dt; if(run.doom<=0){ run.doom=0; run.doomPend=1.2; } return; }
   run.doomPend-=dt; if(run.doomPend<=0){ toast('⏳ EXPERT CLOCK RAN OUT!'); run.doom=doomLimit(); run.doomPend=0; API.loseLife(); } }
+/* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
+const MP = { on:false, ch:null, sb:null, me:null, name:'', room:'', host:false, players:{}, prog:{}, seed:0, stage:1, t0:0, n0:null, over:false, sendT:0, prevDiff:0, rnd:null };
+function mpEsc(s){ let d=0; return String(s).replace(/[^A-Za-z0-9 _-]/g,'').replace(/[0-9]/g,c=>(++d<=2?c:'')).slice(0,10); } /*SAFE-NAME*/
+function mpLoad(cb){ if(window.supabase) return cb(); const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js'; s.onload=cb; s.onerror=()=>modal(`<h2>NO CONNECTION</h2><p>Multiplayer needs internet. Check your connection and try again.</p><button class="big" data-a="m">OK</button>`,{m:toMenu}); document.head.appendChild(s); }
+function mpSeeded(seed){ let a=seed>>>0; return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const mpRealRandom = Math.random;
+function mpMenu(){
+  if(!navigator.onLine){ modal(`<h2>👥 MULTIPLAYER</h2><p>You need internet to play with friends.</p><button class="big" data-a="m">OK</button>`,{m:()=>{}}); return; }
+  let nm=''; try{ nm=mpEsc(localStorage.getItem('rmxName')||''); }catch(e){} nm=nm||mpEsc(P.lastName||'');
+  modal(`<h2>👥 MULTIPLAYER</h2><p>Race 1 or 2 friends (max 3 players). Everyone gets the SAME stage — first to clear it wins!</p><input id="mpName" maxlength="10" placeholder="YOUR NICKNAME" value="${nm}"><button class="big" data-a="q">⚡ QUICK MATCH</button><button class="mid" data-a="c">➕ CREATE ROOM (get a code)</button><input id="mpCode" maxlength="4" placeholder="ROOM CODE" style="text-transform:uppercase"><button class="mid" data-a="j">🔑 JOIN WITH CODE</button><button class="mid" data-a="x">◀ BACK</button>`,
+    {q:()=>mpJoin('QUICK',false), c:()=>mpJoin(Array.from({length:4},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(mpRealRandom()*31)]).join(''),true), j:()=>{ const c=(window.__mpCode||'').toUpperCase().replace(/[^A-Z0-9]/g,''); if(c.length!==4){ toast('ENTER THE 4-LETTER CODE'); setTimeout(mpMenu,600); return; } mpJoin(c,false); }, x:()=>{}});
+  const n=$('#mpName'), c=$('#mpCode'); window.__mpCode='';
+  [n,c].forEach(i=>i.addEventListener('keydown',e=>e.stopPropagation()));
+  n.addEventListener('input',()=>{ MP.name=mpEsc(n.value); }); MP.name=nm;
+  c.addEventListener('input',()=>{ window.__mpCode=c.value; });
+}
+function mpJoin(room, creator, onReady){
+  if(!MP.name){ try{ MP.name=mpEsc(localStorage.getItem('rmxName')||''); }catch(e){} }
+  MP.name=(mpEsc(MP.name)||('PLAYER'+Math.floor(mpRealRandom()*90+10))).toUpperCase(); P.lastName=MP.name; save(); try{ localStorage.setItem('rmxName',MP.name); if(window.RMXL) RMXL.retrack(); }catch(e){}
+  modal(`<h2>CONNECTING…</h2><p>Joining room <b>${room==='QUICK'?'QUICK MATCH':room}</b></p>`,{});
+  mpLoad(()=>{ try{
+    MP.sb = MP.sb || window.supabase.createClient(FIN.sb, FIN.key);
+    MP.me = Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); MP.room=room; MP.players={}; MP.prog={}; MP.over=false;
+    const ch = MP.sb.channel('rmx-'+G.id+'-'+room, {config:{broadcast:{self:false}, presence:{key:MP.me}}}); MP.ch=ch; MP.joinT=Date.now();
+    ch.on('presence',{event:'sync'},()=>{ const st=ch.presenceState(); MP.players={}; Object.keys(st).forEach(k=>{ const v=st[k][0]; if(v) MP.players[k]=v; }); mpRoom(); })
+      .on('broadcast',{event:'m'},({payload})=>mpMsg(payload||{}))
+      .subscribe(async (s)=>{ if(s==='SUBSCRIBED'){ await ch.track({name:MP.name, t:MP.joinT}); mpSend({e:'hi'}); if(onReady) onReady(room); setTimeout(()=>{ const ids=Object.keys(MP.players); if(ids.length>3){ const mine=ids.sort((a,b)=>MP.players[a].t-MP.players[b].t).indexOf(MP.me); if(mine>=3){ mpLeave(); modal(`<h2>ROOM FULL</h2><p>That room already has 3 players. Try another code or Quick Match.</p><button class="big" data-a="m">OK</button>`,{m:mpMenu}); } } },1500); }
+        else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'){ mpLeave(); modal(`<h2>COULDN'T CONNECT</h2><p>Please check your internet and try again.</p><button class="big" data-a="m">OK</button>`,{m:mpMenu}); } });
+  }catch(e){ modal(`<h2>COULDN'T CONNECT</h2><p>${esc(e.message||'Error')}</p><button class="big" data-a="m">OK</button>`,{m:toMenu}); } });
+}
+function mpHostId(){ const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t||a.localeCompare(b)); return ids[0]; }
+function mpRoom(){
+  if(MP.on) { mpBars(); return; }
+  if(!MP.ch) return; const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t).slice(0,3); MP.host = mpHostId()===MP.me;
+  const list=ids.map((k,i)=>`<div style="padding:8px 12px;margin:6px 0;border-radius:10px;background:#ffffff14;text-align:left">${['🟦','🟥','🟩'][i]} <b>${esc(MP.players[k].name||'?')}</b>${k===MP.me?' (you)':''}${i===0?' · HOST':''}</div>`).join('');
+  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
+    {s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
+}
+function mpSend(o){ try{ MP.ch && MP.ch.send({type:'broadcast', event:'m', payload:Object.assign({id:MP.me,name:MP.name},o)}); }catch(e){} }
+function mpMsg(m){
+  if(m.e==='start' && !MP.on){ mpStart(m.seed,m.stage); }
+  else if(m.e==='prog'){ MP.prog[m.id]={p:m.p,l:m.l,name:m.name,out:m.out}; mpBars(); }
+  else if(m.e==='win' && MP.on && !MP.over){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{p:1}); mpEnd(m.name,false); }
+  else if(m.e==='hi' && MP.wa && MP.host){ mpSend({e:'wa',url:MP.wa}); }
+  else if(m.e==='out'){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{out:true,name:m.name}); mpBars(); mpCheckAllOut(); }
+}
+function mpStart(seed,stage){
+  MP.seed=seed; MP.stage=stage; MP.over=false; MP.prog={}; MP.n0=null; MP.outMe=false;
+  let n=3; const tick=()=>{ modal(`<h2>GET READY!</h2><p>Stage ${stage} · first to clear it wins</p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); go(); } else setTimeout(tick,1000); }; tick();
+  function go(){ MP.on=true; MP.prevDiff=P.diff; P.diff=0; run.stage=stage; run.score=0; run.lives=G.lives; run.extra={}; Math.random=mpSeeded(seed); beginStage(); mpBars(); if(window.RMXL) RMXL.setBusy(true); }
+}
+function mpCounter(v){ if(!MP.on||typeof v!=='number') return; if(MP.n0===null||v>MP.n0) MP.n0=Math.max(v,1); MP.myP=Math.max(0,Math.min(1,1-v/MP.n0)); }
+function mpTick(dt){ if(!MP.on||MP.over) return; MP.sendT-=dt; if(MP.sendT<=0){ MP.sendT=0.5; mpSend({e:'prog',p:MP.myP||0,l:run.lives}); mpBars(); } }
+function mpBars(){
+  let el=$('#mpBars'); if(!el){ el=document.createElement('div'); el.id='mpBars'; el.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:8px;z-index:30;display:flex;gap:6px;pointer-events:none;font:700 11px system-ui,sans-serif;color:#fff'; document.body.appendChild(el); }
+  if(!MP.on){ el.style.display='none'; return; } el.style.display='flex';
+  const rows=[{name:MP.name+' (YOU)',p:MP.myP||0,l:run.lives,c:'#00e5ff'}].concat(Object.keys(MP.prog).filter(k=>k!==MP.me&&MP.players[k]).map((k,i)=>({name:MP.prog[k].name||MP.players[k].name,p:MP.prog[k].p||0,l:MP.prog[k].l,out:MP.prog[k].out,c:['#ff3b5c','#3bff7a'][i%2]})));
+  el.innerHTML=rows.map(r=>`<div style="background:#000a;border:1px solid ${r.c};border-radius:8px;padding:4px 6px;min-width:92px"><div style="white-space:nowrap;overflow:hidden;max-width:110px">${esc(r.name)}${r.out?' ❌':''}</div><div style="height:6px;background:#ffffff22;border-radius:3px;margin-top:3px"><div style="height:6px;width:${Math.round(r.p*100)}%;background:${r.c};border-radius:3px"></div></div></div>`).join('');
+}
+function mpFinish(win){ // called instead of stageClear / gameOver while racing
+  if(MP.over) return;
+  if(win){ MP.myP=1; mpSend({e:'win'}); mpEnd(MP.name,true); }
+  else { MP.outMe=true; state='modal'; mpSend({e:'out'}); mpBars(); modal(`<h2>YOU'RE OUT!</h2><p>Out of lives. Watch the race at the bottom…</p><button class="mid" data-a="l">LEAVE ROOM</button>`,{l:()=>{ mpLeave(); toMenu(); }}); mpCheckAllOut(); }
+}
+function mpCheckAllOut(){ if(!MP.on||MP.over) return; const others=Object.keys(MP.players).filter(k=>k!==MP.me); if(MP.outMe && others.every(k=>MP.prog[k]&&MP.prog[k].out)) mpEnd(null,false); }
+function mpEnd(winner,me){
+  MP.over=true; state='modal'; flushCoins(); Math.random=mpRealRandom; P.diff=MP.prevDiff; MP.on=false; mpBars(); if(window.RMXL) RMXL.setBusy(false);
+  if(me){ P.coins+=50; save(); }
+  const t= me?'🏆 YOU WIN!': winner? '🏁 '+esc(winner)+' WINS!' : 'NOBODY WON';
+  modal(`<h2>${t}</h2><p>${me?'+50 🪙 winner bonus':'Better luck next race!'}</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="l">LEAVE</button>`,{r:()=>{ mpRoom(); }, l:()=>{ mpLeave(); toMenu(); }});
+}
+function mpLeave(){ MP.wa=null; try{ const b=document.getElementById('mpWaBtn'); if(b) b.style.display='none'; }catch(e){} try{ if(MP.ch){ MP.ch.untrack(); MP.sb.removeChannel(MP.ch); } }catch(e){} MP.ch=null; if(MP.on){ Math.random=mpRealRandom; P.diff=MP.prevDiff; } MP.on=false; MP.over=true; MP.players={}; mpBars(); if(window.RMXL) RMXL.setBusy(false); }
+(function(){ const nb=$('#btnNew'); if(!nb) return; const b=document.createElement('button'); b.className='big'; b.id='btnMP'; b.textContent='👥 MULTIPLAYER (2–3)'; b.style.background='linear-gradient(90deg,#ff3bd4,#ffd23f)'; nb.textContent='▶ SINGLE PLAYER'; nb.parentNode.insertBefore(b, $('#btnCont').nextSibling); b.addEventListener('click',()=>{ SFX.click(); mpMenu(); }); })();
+
+// invite support for the shared lobby (lobby.js): create/get a room code
+window.rmxInvite=function(cb){ if(MP.ch&&MP.room&&MP.room!=='QUICK'){ cb(MP.room); return; } if(MP.ch) mpLeave(); const code=Array.from({length:4},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(mpRealRandom()*31)]).join(''); mpJoin(code,true,(r)=>{ cb(r); }); };
+// menu: WHO'S ONLINE button + live count; SOLO/MULTIPLAYER picker when a game opens; ?room=CODE joins straight away
+(function(){ const mb=$('#btnMP'); if(!mb) return; const b=document.createElement('button'); b.className='mid'; b.id='btnOnline'; b.textContent="🟢 WHO'S ONLINE"; mb.parentNode.insertBefore(b, mb.nextSibling); b.addEventListener('click',()=>{ SFX.click(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); });
+  const upd=()=>{ const L=window.RMXL; if(!L) return; const n=Object.keys(L.list||{}).filter(k=>k!==L.me).length; b.textContent=L.online? ("🟢 WHO'S ONLINE ("+n+")") : "⚫ HIDDEN — TAP TO GO ONLINE"; };
+  const hook=()=>{ if(window.RMXL){ RMXL.onList=upd; RMXL.onDecline=(n)=>toast(n+' SAID NO THANKS'); upd(); } else setTimeout(hook,500); }; hook();
+  try{ const sc=document.createElement('script'); sc.src='../lobby.js'; document.head.appendChild(sc); }catch(e){}
+})();
+let mpFirstMenu=true;
+function mpOnMenu(){ if(!mpFirstMenu) return; mpFirstMenu=false; const q=(location.search.match(/[?&]room=([A-Za-z0-9]{4})/)||[])[1];
+  if(q){ setTimeout(()=>mpJoin(q.toUpperCase(),false),300); return; }
+  setTimeout(()=>{ if(state!=='menu') return; modal(`<h2>${esc(G.title)}</h2><p>How do you want to play?</p><button class="big" data-a="s">▶ SOLO</button><button class="big" data-a="m" style="background:linear-gradient(90deg,#ff3bd4,#ffd23f)">👥 MULTIPLAYER (2–3)</button>`,{s:()=>{}, m:()=>mpMenu()}); },150); }
+
+function mpWaBtn(){}
+
 
 })();
 
