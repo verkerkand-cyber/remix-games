@@ -1,6 +1,7 @@
-/* REMIX LOBBY-2 — who's online + invites. Shared by the games page and every game (loaded from the site root). */
+/* REMIX LOBBY-3 — who's online + invites. Shared by the games page and every game (loaded from the site root). */
 (function(){
   if(window.RMXL) return;
+  if(window.GAME&&!window.GAME.net) return; // LOBBY-3: solo-only games stay offline/invisible
   var SB='https://uuyaoffzgjxxwxlzhwur.supabase.co', KEY='sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9';
   var ROOT=(location.pathname.match(/^(.*\/remix-games\/)/)||[0,'/'])[1];
   function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
@@ -59,4 +60,29 @@
   L.setOnline=function(on){ ls('rmxOnline',on?'1':'0'); if(!on){ try{ if(L.ch){ L.ch.untrack(); L.sb.removeChannel(L.ch); } }catch(e){} L.ch=null; L.ready=false; L.list={}; } else L.connect(); if(L.onList) L.onList(); };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',L.connect); else L.connect();
   window.addEventListener('online',L.connect);
+})();
+
+/* LOBBY-3 2P-ONLY: multiplayer only in games with real PLAY TOGETHER (GAME.net). Others = solo only. Race mode hidden everywhere. */
+(function(){
+  var g=window.GAME; if(!g) return; var two=!!g.net;
+  var css=document.createElement('style');
+  css.textContent= two ? '' : '#btnMP,#btnOnline{display:none!important}';
+  document.head.appendChild(css);
+  function fix(){
+    var m=document.querySelectorAll('button');
+    for(var i=0;i<m.length;i++){ var b=m[i], t=b.textContent;
+      if(!two && t.indexOf('MULTIPLAYER (2')>=0 && b.getAttribute('data-a')==='m'){ var s=b.parentNode.querySelector('[data-a="s"]'); if(s){ s.click(); return; } }
+      if(two){
+        if(t==='👥 MULTIPLAYER (2–3)'){ b.textContent='👥 2 PLAYER — PLAY TOGETHER'; }
+        if(t.indexOf('START RACE')>=0){ b.style.display='none'; }
+        if(t.indexOf('QUICK MATCH')>=0){ b.style.display='none'; }
+      }
+    }
+    if(two){ var ps=document.querySelectorAll('p'); for(var j=0;j<ps.length;j++){ var x=ps[j];
+      if(x.textContent.indexOf('Race 1 or 2 friends')===0) x.textContent='Play the whole game TOGETHER with 1 friend on 2 phones. Create a room and send the code, or join with a code.';
+      if(x.textContent.indexOf('Waiting for the host to start')>=0) x.innerHTML='<b>Waiting for the host to tap PLAY TOGETHER…</b>';
+      if(x.textContent.indexOf('need at least 2')>=0||x.textContent==='3/3 players') x.textContent=x.textContent.replace('/3','/2');
+    } }
+  }
+  new MutationObserver(fix).observe(document.documentElement,{childList:true,subtree:true,characterData:true}); fix();
 })();
