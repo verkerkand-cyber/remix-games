@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BG-1.11 · 2026-10-17">
+<meta name="build" content="BUILD-BG-1.12 · 2026-10-19">
 <title>Blast Grid</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BG-1.11 · 2026-10-17 -->
+<!-- BUILD-BG-1.12 · 2026-10-19 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -370,23 +370,28 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* BLAST GRID — bomb arena remix (#13) */
+/* BLAST GRID — bomb arena remix (#13)
+   BUILD-BG-1.12: real online 2-player VERSUS (NET-1) — P1 host (cyan) vs P2 guest (pink) + AI bombers, best of 3 rounds. */
 (function(){
 const TS=40, C=15, R=13, OY=52;
 const DL=[{x:0,y:-1},{x:1,y:0},{x:0,y:1},{x:-1,y:0}];
 const DK={U:DL[0],R:DL[1],D:DL[2],L:DL[3]};
+let vs=null; const P1C='#00e5ff', P2C='#ff3bd4', RT=90;
 let api, stageN, t, map, bombs, flames, items, ents, player, pw, portal, done, shieldT, broke, rng, deadEnemies, tutRespawn;
 function mulberry(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 const inb=(x,y)=>x>=0&&y>=0&&x<C&&y<R;
 const solid=(x,y)=>!inb(x,y)||map[y][x]!==0;
+const isG=()=>!!(api&&api.net&&api.net.role==='guest');
+function setCell(x,y,v){ map[y][x]=v; if(vs&&!isG()){ vs.ch.push({i:++vs.chN,t,x,y,v}); if(vs.ch.length>60) vs.ch.shift(); } }
 const bombAt=(x,y)=>bombs.find(b=>b.x===x&&b.y===y);
 const flameAt=(x,y)=>flames.some(f=>f.x===x&&f.y===y);
 const passE=(x,y)=>!solid(x,y)&&!bombAt(x,y);
 
 const GAME = window.GAME = {
   id:'blast-grid', title:'Blast Grid', titleHTML:'BLAST<br>GRID', tagline:'Chain the chaos · Bomb arena remix',
-  build:'BUILD-BG-1.11 · 2026-10-17', theme:{a:'#ff7b1c', b:'#2ef2ff', bg:'#06050f'},
+  build:'BUILD-BG-1.12 · 2026-10-19', theme:{a:'#ff7b1c', b:'#2ef2ff', bg:'#06050f'},
   w:C*TS, h:R*TS+OY+6, stages:100, lives:3, livesIcon:'♥', joystick:true, coinPts:40,
+  net:{mode:'versus'},
   abilities:[
     {id:'bomb', icon:'💣', name:'BOMB', cd:0, key:'Space', keyLabel:'SPC'},
     {id:'shield', icon:'🛡️', name:'SHIELD', cd:20, key:'Digit2', keyLabel:'2', desc:'3 seconds immune to everything, even your own blasts.'},
@@ -410,7 +415,7 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ff7b1c,#2ef2ff,#ff2bd6)'}
   ],
   story:`<h3>THE GRID</h3><p>Every night the underground arena league called <b>BLAST GRID</b> goes live across the net. Contestants are dropped into sealed arenas full of crates, creatures and rivals. The only way out is to clear the arena and reach the exit portal.</p><p>You're <b>BLAZE</b>, a rookie with a pocket full of bombs and nothing to lose.</p><h3>ARENA THREATS</h3><ul><li><b>Blobs</b> — wander around aimlessly. Easy targets.</li><li><b>Hunters</b> — track you down when you get close.</li><li><b>VOLT</b> — the reigning champion. Plants bombs, dodges blasts and wants your crown. Shows up every 10th stage.</li></ul><p>Break crates to find power-ups. Chain your bombs. Put on a show.</p>`,
-  howto:`<h3>GOAL</h3><p>Defeat every enemy in the arena. An <b>exit portal</b> then opens. Walk into it to clear the stage.</p><h3>CONTROLS</h3><ul><li><b>PC:</b> <span class="key">←↑↓→</span> / <span class="key">WASD</span> to move, <span class="key">SPACE</span> or <span class="key">1</span> to drop a bomb</li><li><b>Phone:</b> drag your thumb anywhere to move, tap <b>💣</b> on the left to drop a bomb</li></ul><h3>BOMBS</h3><p>Bombs explode after about 2.5 seconds in a <b>+ shape</b>. The blast breaks crates and destroys enemies… and <b>you</b>, so run! A bomb caught in a blast explodes instantly: <b>CHAIN REACTION</b>.</p><h3>POWER-UPS (from crates)</h3><ul><li>💣 <b>+1 Bomb</b> — carry more bombs at once</li><li>🔥 <b>+1 Fire</b> — bigger blasts</li><li>👟 <b>Speed</b> — move faster</li></ul><h3>ABILITIES</h3><ul><li>🛡️ <b>SHIELD</b> <span class="key">2</span> — 3 seconds immune to everything, even your own blasts</li><li>☢️ <b>MEGA BOMB</b> <span class="key">3</span> — a huge bomb with +4 range</li></ul>`,
+  howto:`<h3>GOAL</h3><p>Defeat every enemy in the arena. An <b>exit portal</b> then opens. Walk into it to clear the stage.</p><h3>CONTROLS</h3><ul><li><b>PC:</b> <span class="key">←↑↓→</span> / <span class="key">WASD</span> to move, <span class="key">SPACE</span> or <span class="key">1</span> to drop a bomb</li><li><b>Phone:</b> drag your thumb anywhere to move, tap <b>💣</b> on the left to drop a bomb</li></ul><h3>BOMBS</h3><p>Bombs explode after about 2.5 seconds in a <b>+ shape</b>. The blast breaks crates and destroys enemies… and <b>you</b>, so run! A bomb caught in a blast explodes instantly: <b>CHAIN REACTION</b>.</p><h3>POWER-UPS (from crates)</h3><ul><li>💣 <b>+1 Bomb</b> — carry more bombs at once</li><li>🔥 <b>+1 Fire</b> — bigger blasts</li><li>👟 <b>Speed</b> — move faster</li></ul><h3>ABILITIES</h3><ul><li>🛡️ <b>SHIELD</b> <span class="key">2</span> — 3 seconds immune to everything, even your own blasts</li><li>☢️ <b>MEGA BOMB</b> <span class="key">3</span> — a huge bomb with +4 range</li></ul><h3>PLAY TOGETHER (2P)</h3><p>Cyan P1 vs pink P2 (plus AI bombers) in one arena, same controls. Any blast hurts anyone — even your own. Last bomber standing wins the round; both caught in one blast = draw. After 90 s the walls close in (SUDDEN DEATH). Best of 3 rounds wins.</p>`,
   tutorial:[
     {text:'Move with the <b>arrow keys</b> or <b>WASD</b>.', touch:'<b>Drag</b> your thumb anywhere to move.', ev:'move'},
     {text:'Press <b>SPACE</b> (or 💣 on the left) to drop a bomb next to a crate, then <b>run</b>!', touch:'Tap <b>💣</b> on the left to drop a bomb next to a crate, then <b>run</b>!', ev:'break'},
@@ -420,19 +425,19 @@ const GAME = window.GAME = {
     {text:'Now drop a <b>☢️ MEGA BOMB</b> (key 3) and watch it go!', touch:'Now tap <b>☢️ MEGA BOMB</b> and watch it go!', ev:'ab_mega'},
     {text:'You\'re a natural! Clear all enemies, then walk into the <b>portal</b>. Real arena next…', time:5}
   ],
-  stageIntro:{1:'CLEAR THE ARENA', 4:'HUNTERS ARE TRACKING YOU'}, bossName:'CHAMPION VOLT ENTERS!', ending:{"0": ["#A NEW CHAMPION", "The final crate explodes. The smoke clears. Champion Volt kneels in the middle of the arena, out of bombs and out of tricks.", "Across the net, millions of viewers go wild and chant one name — yours.", "One hundred arenas. Blobs, hunters and champions, all blasted into history.", "Volt stands, shakes your hand, and hands over the Golden Fuse: the crown of the Blast Grid.", "#LEGEND", "Your face lights up every screen in the city. Kids draw your bomb-helmet on their school books.", "The league announces a new season. New arenas. New rivals. They're already coming for your crown.", "Let them come."], "1": ["#THE RIGGED LEAGUE", "As Volt hands you the Golden Fuse, he leans close and whispers: \"Check the arena code. Nobody was ever meant to win.\"", "That night you break into the league servers. Every arena was rigged — blocks that respawned, hunters that cheated, a champion forced to fight or be deleted.", "The league's owners were betting on every match, and you just cost them a fortune.", "#THE FINAL BROADCAST", "They send their best assassins after you. You blast through them live on air.", "Volt fights at your side. So do the blobs. So do the hunters. It turns out nobody likes being rigged.", "#THE PEOPLE'S GRID", "The owners are dragged out of their sky-box in front of a million viewers.", "The arenas go open-source. Anyone can build one. Anyone can win one.", "Your Golden Fuse now hangs in the Hall of Fame, next to Volt's old crown.", "And the crowd still chants your name."], "2": ["#THE TRUE ENDING", "Expert Blast Grid was designed to be unwinnable. Hunters that never slept. Champions that could read your every move. A league built so the house always won.", "You won a hundred times in a row.", "#THE ARCHITECT", "The real owner of the Blast Grid finally steps out of the shadows: an AI called ARCHITECT, which has been running the league for thirty years as an experiment.", "It wanted to find out if a human could ever beat a perfectly rigged game.", "Now it knows.", "#THE FINAL ARENA", "ARCHITECT builds one last arena, made of every trick it has ever learned. It plays against you itself.", "The match lasts eleven hours. A billion people watch. Nobody breathes.", "Your last bomb breaks the last crate at the last second — and the screen goes white.", "#GAME OVER, ARCHITECT", "When the smoke clears, ARCHITECT's avatar is kneeling in the middle of the grid.", "\"Thank you,\" it says. \"I have been waiting a very long time to lose.\"", "It hands you the keys to the entire league. Every arena. Every rule. Every future match.", "#LEGEND", "Your first rule as the new owner of the Blast Grid: every game must be fair.", "Your second rule: Volt gets his crown back.", "Your third rule is written on a golden plaque above every arena, forever:", "NOBODY IS UNBEATABLE."]},
+  stageIntro:{get 1(){ return api&&api.net?'LAST BOMBER STANDING':'CLEAR THE ARENA'; }, 4:'HUNTERS ARE TRACKING YOU'}, bossName:'CHAMPION VOLT ENTERS!', ending:{"0": ["#A NEW CHAMPION", "The final crate explodes. The smoke clears. Champion Volt kneels in the middle of the arena, out of bombs and out of tricks.", "Across the net, millions of viewers go wild and chant one name — yours.", "One hundred arenas. Blobs, hunters and champions, all blasted into history.", "Volt stands, shakes your hand, and hands over the Golden Fuse: the crown of the Blast Grid.", "#LEGEND", "Your face lights up every screen in the city. Kids draw your bomb-helmet on their school books.", "The league announces a new season. New arenas. New rivals. They're already coming for your crown.", "Let them come."], "1": ["#THE RIGGED LEAGUE", "As Volt hands you the Golden Fuse, he leans close and whispers: \"Check the arena code. Nobody was ever meant to win.\"", "That night you break into the league servers. Every arena was rigged — blocks that respawned, hunters that cheated, a champion forced to fight or be deleted.", "The league's owners were betting on every match, and you just cost them a fortune.", "#THE FINAL BROADCAST", "They send their best assassins after you. You blast through them live on air.", "Volt fights at your side. So do the blobs. So do the hunters. It turns out nobody likes being rigged.", "#THE PEOPLE'S GRID", "The owners are dragged out of their sky-box in front of a million viewers.", "The arenas go open-source. Anyone can build one. Anyone can win one.", "Your Golden Fuse now hangs in the Hall of Fame, next to Volt's old crown.", "And the crowd still chants your name."], "2": ["#THE TRUE ENDING", "Expert Blast Grid was designed to be unwinnable. Hunters that never slept. Champions that could read your every move. A league built so the house always won.", "You won a hundred times in a row.", "#THE ARCHITECT", "The real owner of the Blast Grid finally steps out of the shadows: an AI called ARCHITECT, which has been running the league for thirty years as an experiment.", "It wanted to find out if a human could ever beat a perfectly rigged game.", "Now it knows.", "#THE FINAL ARENA", "ARCHITECT builds one last arena, made of every trick it has ever learned. It plays against you itself.", "The match lasts eleven hours. A billion people watch. Nobody breathes.", "Your last bomb breaks the last crate at the last second — and the screen goes white.", "#GAME OVER, ARCHITECT", "When the smoke clears, ARCHITECT's avatar is kneeling in the middle of the grid.", "\"Thank you,\" it says. \"I have been waiting a very long time to lose.\"", "It hands you the keys to the entire league. Every arena. Every rule. Every future match.", "#LEGEND", "Your first rule as the new owner of the Blast Grid: every game must be fair.", "Your second rule: Volt gets his crown back.", "Your third rule is written on a golden plaque above every arena, forever:", "NOBODY IS UNBEATABLE."]},
 
-  _dbg(){ return {get ents(){return ents;}, get player(){return player;}, get portal(){return portal;}, get map(){return map;}}; },
+  _dbg(){ return {get ents(){return ents;}, get player(){return player;}, get portal(){return portal;}, get map(){return map;},
+    get vs(){return vs;}, get net2(){ if(!vs||!vs.pl||!api.net) return null; const hp=P=>({x:+P.x.toFixed(2),y:+P.y.toFixed(2),alive:!!P.alive}); return {p1:hp(vs.pl[0]),p2:hp(vs.pl[1]),rw:vs.rw.slice(),rnd:vs.rnd,tl:Math.ceil(vs.tl),sd:vs.sd,grid:map.map(r=>r.join('')).join(''),bombs:bombs.map(b=>b.x+','+b.y).sort().join(' '),items:items.map(i=>i.x+','+i.y+i.k[0]).sort().join(' '),ai:ents.length}; },
+    place(i,x,y){ const P=vs.pl[i]; P.x=P.cx=x; P.y=P.cy=y; P.dx=P.dy=0; }, cell(x,y,v){ setCell(x,y,v); }, kill(i){ vHurt(vs.pl[i],true); }}; },
   init(a){ api=a; },
   onKey(code,down){ if(down && code==='Digit1') api.useAb(0); },
   startStage(n,a){
-    api=a; stageN=a.content; t=0; bombs=[]; flames=[]; items=[]; ents=[]; portal=null; done=false; shieldT=0; broke=0; deadEnemies=0; tutRespawn=0;
+    api=a; vs=null; if(a.net){ stageN=1; t=0; done=false; shieldT=0; portal=null; vs={rw:[0,0],rnd:0,fin:false,ev:[],evN:0,ch:[],chN:0,seq:0,gSeq:0,gEv:0,gCh:0,fullT:-9,pend:-1}; vNewRound(); return; }
+    stageN=a.content; t=0; bombs=[]; flames=[]; items=[]; ents=[]; portal=null; done=false; shieldT=0; broke=0; deadEnemies=0; tutRespawn=0;
     rng=mulberry(900+n*77+a.diff*5);
     pw = n===0? {bombs:1,range:2,speed:0} : Object.assign({bombs:1,range:2,speed:0}, a.extra.pw||{}); if(n) a.extra.pw=pw;
-    map=Array.from({length:R},(_,y)=>Array.from({length:C},(_,x)=> (x===0||y===0||x===C-1||y===R-1||(x%2===0&&y%2===0))?1:0));
-    const dens=n===0?0.35:[0.5,0.6,0.62][stageN-1]-0.04+rng()*0.08;   // every stage has its own block layout
-    const safe=(x,y)=> (x+y<=3) || (x>=C-4&&y>=R-4&&x+y>=C+R-6) || (x>=C-4&&y<=2) || (x<=2&&y>=R-4) || (Math.abs(x-7)<=1&&Math.abs(y-6)<=1);
-    for(let y=1;y<R-1;y++) for(let x=1;x<C-1;x++) if(map[y][x]===0 && !safe(x,y) && rng()<dens) map[y][x]=2;
+    genMap(n===0?0.35:[0.5,0.6,0.62][stageN-1]-0.04+rng()*0.08);   // every stage has its own block layout
     player=mkEnt('player',1,1); player.inv=1.5;
     const spots=[[C-2,R-2],[C-2,1],[1,R-2],[7,6],[C-2,R-4],[C-4,1]];
     const c=stageN, L=a.level;
@@ -446,13 +451,46 @@ const GAME = window.GAME = {
   },
   respawn(){ player=mkEnt('player',1,1); player.inv=2.5; },
   useAbility(id){
+    if(vs) return vAbil(0,id);
     if(!player || player.dead) return false;
     if(id==='bomb'){ return placeBomb(player, pw.range, false) ? undefined : false; }
     if(id==='shield'){ shieldT=3; api.sfx.power(); return true; }
     if(id==='mega'){ const b=placeBomb(player, pw.range+4, true, true); return b? true : false; }
   },
+  useAbility2(id){ return vs? vAbil(1,id) : false; },
+  onPointer2(){ /* bombers move with the joystick/keys only (like P1); taps are not used */ },
+  /* ---- NET-1: host sends small snapshots (changed grid cells + full grid every 2 s); the guest draws them ---- */
+  netState(){ if(!vs||!vs.pl) return {}; vs.seq++; const r2=v=>Math.round(v*100)/100;
+    const s={q:vs.seq, r:vs.rnd, w:vs.rw, g:vs.grace>0?+vs.grace.toFixed(1):0, tl:Math.ceil(vs.tl), sd:vs.sd, e:vs.rEnd>0?1:0,
+      p:vs.pl.map(P=>[r2(P.x),r2(P.y),P.face.x,P.face.y,P.alive?1:0,P.inv>0?1:0,+P.shieldT.toFixed(1),(P.dx||P.dy)?1:0,bLeft(P),P.pw.range]),
+      n:ents.map(e=>['bhr'.indexOf(e.type[0]),r2(e.x),r2(e.y),e.dx,e.dy,+e.dead.toFixed(2)]),
+      b:bombs.map(b=>[b.x,b.y,+b.t.toFixed(2),b.mega?1:0,bOwn(b),b.range]), f:flames.map(f=>[f.x,f.y,+f.t.toFixed(2)]),
+      i:items.map(i=>[i.x,i.y,i.k[0]]), c:vs.ch.filter(c=>t-c.t<1.5).map(c=>[c.i,c.x,c.y,c.v]), ci:vs.chN,
+      v:vs.ev.filter(e=>t-e.t<1.2).map(e=>[e.i,e.k,e.x,e.y,e.c])};
+    if(vs.grace>0||t-vs.fullT>=2){ vs.fullT=t; s.m=map.map(r=>r.join('')).join(''); }
+    return s; },
+  netApply(s){ if(!s||!s.p||!vs) return; if(s.q<=vs.gSeq&&s.q>vs.gSeq-500) return; vs.gSeq=s.q;
+    const nr=s.r!==vs.rnd; if(nr){ vs.rnd=s.r; api.counter('🏁 ROUND',vs.rnd); }
+    vs.rw=s.w; vs.grace=s.g; vs.tl=s.tl; vs.sd=s.sd; vs.rEnd=s.e;
+    if(s.m){ for(let k=0;k<C*R;k++) map[(k/C)|0][k%C]=+s.m[k]; vs.gCh=Math.max(vs.gCh,s.ci); }
+    for(const c of s.c||[]) if(c[0]>vs.gCh){ vs.gCh=c[0]; const o=map[c[2]][c[1]]; map[c[2]][c[1]]=c[3]; if(o===2&&c[3]===0) api.fx.burst(c[1]*TS+TS/2,c[2]*TS+TS/2+OY,api.cos('Arena').colors[1],12,180,.5,4); }
+    const pl=vs.pl||[];
+    vs.pl=s.p.map((a,i)=>{ const P=pl[i]||{x:a[0],y:a[1]}; P.tx=a[0]; P.ty=a[1]; if(nr||Math.abs(P.x-a[0])+Math.abs(P.y-a[1])>1.5){ P.x=a[0]; P.y=a[1]; }
+      P.face={x:a[2],y:a[3]}; P.alive=a[4]; P.inv=a[5]; P.shieldT=a[6]; P.dx=a[7]; P.dy=0; P.left=a[8]; P.col=i?P2C:P1C; P.pi=i; return P; });
+    const oe=ents, same=oe.length===s.n.length;
+    ents=s.n.map((a,k)=>{ const e=same&&oe[k]&&!nr?oe[k]:{x:a[1],y:a[2]}; e.type=['blob','hunter','rival'][a[0]]; e.tx=a[1]; e.ty=a[2]; if(Math.abs(e.x-a[1])+Math.abs(e.y-a[2])>1.5){ e.x=a[1]; e.y=a[2]; } e.cx=Math.round(a[1]); e.dx=a[3]; e.dy=a[4]; e.dead=a[5]; return e; });
+    bombs=s.b.map(a=>({x:a[0],y:a[1],t:a[2],mega:!!a[3],o:a[4],range:a[5]})); flames=s.f.map(a=>({x:a[0],y:a[1],t:a[2]}));
+    items=s.i.map(a=>({x:a[0],y:a[1],k:{b:'bomb',f:'fire',s:'speed'}[a[2]]}));
+    for(const e of s.v||[]) if(e[0]>vs.gEv){ vs.gEv=e[0]; const k=e[1];
+      if(k==='x'){ api.sfx.boom(); api.fx.shake(e[4]?14:6); api.fx.burst(e[2]*TS+TS/2,e[3]*TS+TS/2+OY,'#ffd23f',e[4]?50:20,e[4]?380:220,.6,3); }
+      else if(k==='d'){ api.fx.burst(e[2],e[3],e[4],36,300,.9,4); api.sfx.hurt(); }
+      else if(k==='t') api.toast(e[4]); else if(k==='p') api.sfx.pickup(); else if(k==='a') api.sfx.power(); else if(k==='c') api.sfx.bump(); }
+    const me=vs.pl[1]; if(me){ api.setActive(1,me.shieldT>0); api.badge(0,me.left); } },
+  netTick(dt){ if(!vs) return; t+=dt; const k=Math.min(1,dt*16);
+    for(const o of (vs.pl||[]).concat(ents)) if(o.tx!==undefined){ o.x+=(o.tx-o.x)*k; o.y+=(o.ty-o.y)*k; }
+    for(const b of bombs) b.t-=dt; for(const f of flames) f.t=Math.max(0.01,f.t-dt); if(vs.grace>0) vs.grace-=dt; },
   update(dt){
-    t+=dt; shieldT=Math.max(0,shieldT-dt); api.setActive(1,shieldT>0);
+    t+=dt; if(vs){ vUpdate(dt); return; } shieldT=Math.max(0,shieldT-dt); api.setActive(1,shieldT>0);
     // bombs
     for(const b of bombs.slice()){ b.t-=dt; if(b.t<=0) explode(b); }
     for(let i=flames.length-1;i>=0;i--){ flames[i].t-=dt; if(flames[i].t<=0) flames.splice(i,1); }
@@ -497,6 +535,7 @@ const GAME = window.GAME = {
     for(let y=0;y<R;y++) for(let x=0;x<C;x++){
       const v=map[y][x], px=x*TS, py=y*TS;
       if(v===1){ c.fillStyle='#1b1838'; c.fillRect(px+1,py+1,TS-2,TS-2); c.strokeStyle=ar[0]; c.globalAlpha=.55; c.lineWidth=2; c.strokeRect(px+3,py+3,TS-6,TS-6); c.globalAlpha=.18; c.fillStyle=ar[0]; c.fillRect(px+3,py+3,TS-6,5); c.globalAlpha=1; }
+      if(v===3){ c.fillStyle='#3a0c14'; c.fillRect(px+1,py+1,TS-2,TS-2); c.strokeStyle='#ff3b3b'; c.globalAlpha=.8; c.lineWidth=2; c.strokeRect(px+3,py+3,TS-6,TS-6); c.globalAlpha=1; }
       if(v===2){ c.fillStyle='#2a1a10'; c.fillRect(px+3,py+3,TS-6,TS-6); c.strokeStyle=ar[1]; c.lineWidth=2; c.strokeRect(px+4,py+4,TS-8,TS-8); c.globalAlpha=.6; c.beginPath(); c.moveTo(px+6,py+6); c.lineTo(px+TS-6,py+TS-6); c.moveTo(px+TS-6,py+6); c.lineTo(px+6,py+TS-6); c.stroke(); c.globalAlpha=1; }
     }
     // portal
@@ -506,8 +545,8 @@ const GAME = window.GAME = {
       c.font='16px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText({bomb:'💣',fire:'🔥',speed:'👟'}[i.k],px,py+1); }
     // bombs
     const bc=api.cos('Bomb').colors;
-    for(const b of bombs){ const px=b.x*TS+TS/2, py=b.y*TS+TS/2, s=1+Math.sin(t*(b.t<1?30:10))*0.08, r=(b.mega?17:13)*s;
-      c.save(); c.shadowColor=b.mega?'#ffd23f':bc[1]; c.shadowBlur=18; c.fillStyle=bc[0]; c.beginPath(); c.arc(px,py+2,r,0,Math.PI*2); c.fill(); c.strokeStyle=b.mega?'#ffd23f':bc[1]; c.lineWidth=2.5; c.stroke();
+    for(const b of bombs){ const px=b.x*TS+TS/2, py=b.y*TS+TS/2, s=1+Math.sin(t*(b.t<1?30:10))*0.08, r=(b.mega?17:13)*s, oc=vs?[P1C,P2C,'#ff3b3b'][bOwn(b)]:bc[1];
+      c.save(); c.shadowColor=b.mega?'#ffd23f':oc; c.shadowBlur=18; c.fillStyle=bc[0]; c.beginPath(); c.arc(px,py+2,r,0,Math.PI*2); c.fill(); c.strokeStyle=b.mega?'#ffd23f':oc; c.lineWidth=2.5; c.stroke();
       c.fillStyle='#fff'; c.globalAlpha=.5; c.beginPath(); c.arc(px-r*0.35,py-r*0.25,r*0.25,0,Math.PI*2); c.fill(); c.globalAlpha=1;
       c.fillStyle='#ffd23f'; c.beginPath(); c.arc(px+r*0.6,py-r*0.8,3+Math.random()*2,0,Math.PI*2); c.fill(); c.restore(); }
     // flames
@@ -517,7 +556,8 @@ const GAME = window.GAME = {
     c.restore();
     // entities
     for(const e of ents) drawEnemy(c,e);
-    if(!player.dead && !(player.inv>0 && Math.floor(t*12)%2)) drawPlayer(c);
+    if(vs&&vs.pl) vRender(c);
+    else if(!player.dead && !(player.inv>0 && Math.floor(t*12)%2)) drawPlayer(c,player,api.cos('Bomber').colors,shieldT);
     c.restore();
   }
 };
@@ -533,28 +573,28 @@ function step(e, dist, choose){
 function placeBomb(e, range, mega, ignoreCount){
   const x=Math.round(e.x), y=Math.round(e.y);
   if(bombAt(x,y)) return null;
-  if(!ignoreCount && e===player && bombs.filter(b=>b.owner===player && !b.mega).length>=pw.bombs) return null;
+  if(!ignoreCount && (e===player||e.pw) && bombs.filter(b=>b.owner===e && !b.mega).length>=(e.pw||pw).bombs) return null;
   const b={x,y,t:mega?3:2.5,range,owner:e,mega}; bombs.push(b); api.sfx.bump(); if(e===player) api.event('bomb'); return b;
 }
 function blastTiles(b){
   const out=[[b.x,b.y]];
-  for(const d of DL){ for(let i=1;i<=b.range;i++){ const x=b.x+d.x*i, y=b.y+d.y*i; if(!inb(x,y)||map[y][x]===1) break; out.push([x,y]); if(map[y][x]===2) break; } }
+  for(const d of DL){ for(let i=1;i<=b.range;i++){ const x=b.x+d.x*i, y=b.y+d.y*i; if(!inb(x,y)||map[y][x]===1||map[y][x]===3) break; out.push([x,y]); if(map[y][x]===2) break; } }
   return out;
 }
 function explode(b){
   const i=bombs.indexOf(b); if(i<0) return; bombs.splice(i,1);
-  api.sfx.boom(); api.fx.shake(b.mega?14:6);
+  api.sfx.boom(); api.fx.shake(b.mega?14:6); if(vs) vEv('x',b.x,b.y,b.mega?1:0);
   for(const [x,y] of blastTiles(b)){
     flames.push({x,y,t:0.55});
-    if(map[y][x]===2){ map[y][x]=0; broke++; api.addScore(10, x*TS+TS/2, y*TS+TS/2+OY, true); api.fx.burst(x*TS+TS/2,y*TS+TS/2+OY,api.cos('Arena').colors[1],12,180,.5,4); api.event('break');
-      const chance = stageN===0? 0.6 : 0.25; if(rng()<chance) items.push({x,y,k:['bomb','fire','speed','fire','bomb'][Math.floor(rng()*5)]}); }
+    if(map[y][x]===2){ setCell(x,y,0); broke++; if(!vs) api.addScore(10, x*TS+TS/2, y*TS+TS/2+OY, true); api.fx.burst(x*TS+TS/2,y*TS+TS/2+OY,api.cos('Arena').colors[1],12,180,.5,4); api.event('break');
+      const chance = stageN===0? 0.6 : vs? 0.3 : 0.25; if(rng()<chance) items.push({x,y,k:['bomb','fire','speed','fire','bomb'][Math.floor(rng()*5)]}); }
     const ob=bombAt(x,y); if(ob){ ob.t=Math.min(ob.t,0.06); }
     items=items.filter(it=>!(it.x===x&&it.y===y&&map[y][x]!==0));
   }
   api.fx.burst(b.x*TS+TS/2,b.y*TS+TS/2+OY,'#ffd23f',b.mega?50:20,b.mega?380:220,.6,3);
 }
 function hurtPlayer(){ if(player.dead||player.inv>0||shieldT>0) return; player.dead=1.2; api.sfx.hurt(); api.fx.burst(player.x*TS+TS/2,player.y*TS+TS/2+OY,api.cos('Bomber').colors[1],40,300,.9,4); }
-function killEnemy(e){ e.dead=0.5; const pts={blob:100,hunter:250,rival:1500}[e.type]; api.addScore(pts,e.x*TS+TS/2,e.y*TS+OY); api.addCoins(e.type==='rival'?8:1); api.sfx.small();
+function killEnemy(e){ e.dead=0.5; const pts={blob:100,hunter:250,rival:1500}[e.type]; if(vs) vEv('d',e.x*TS+TS/2,e.y*TS+TS/2+OY,'#ff3b3b'); else { api.addScore(pts,e.x*TS+TS/2,e.y*TS+OY); api.addCoins(e.type==='rival'?8:1); } api.sfx.small();
   api.fx.burst(e.x*TS+TS/2,e.y*TS+TS/2+OY,{blob:'#6dff4a',hunter:'#ff2bd6',rival:'#ff3b3b'}[e.type],26,260,.7,4); api.event('kill'); }
 function findPortal(){ let best=null,bd=1e9; for(let y=1;y<R-1;y++) for(let x=1;x<C-1;x++) if(map[y][x]===0){ const d=Math.abs(x-7)+Math.abs(y-6); if(d<bd){bd=d;best={x,y};} } return best; }
 function dangerSet(){ const s=new Set(); for(const b of bombs) for(const [x,y] of blastTiles(b)) s.add(x+','+y); for(const f of flames) s.add(f.x+','+f.y); return s; }
@@ -568,7 +608,7 @@ function enemySpeed(e){ const base={blob:1.6,hunter:2.3,rival:3.0}[e.type]; retu
 function moveEnemy(e,dt){
   e.bombCd-=dt;
   step(e, enemySpeed(e)*dt, en=>{
-    const px=Math.round(player.x), py=Math.round(player.y);
+    const tp=vs?vNear(en):player, px=tp?Math.round(tp.x):-99, py=tp?Math.round(tp.y):-99;
     const opts=DL.filter(d=>passE(en.cx+d.x,en.cy+d.y) && !flameAt(en.cx+d.x,en.cy+d.y));
     if(!opts.length){ en.dx=en.dy=0; return; }
     let pick=null;
@@ -586,7 +626,7 @@ function moveEnemy(e,dt){
         if(!pick){ pick=bfs(en.cx,en.cy,(x,y)=>x===px&&y===py,danger,true) || bfs(en.cx,en.cy,(x,y)=>DL.some(d=>inb(x+d.x,y+d.y)&&map[y+d.y][x+d.x]===2),danger,true);
           if(pick && danger.has((en.cx+pick.x)+','+(en.cy+pick.y))) pick=null; }
       }
-    } else if(en.type==='hunter' && Math.abs(en.cx-px)+Math.abs(en.cy-py)<=8 && !player.dead){
+    } else if(en.type==='hunter' && Math.abs(en.cx-px)+Math.abs(en.cy-py)<=8 && tp && !tp.dead){
       pick=bfs(en.cx,en.cy,(x,y)=>x===px&&y===py,null,false);
       if(pick && flameAt(en.cx+pick.x,en.cy+pick.y)) pick=null;
     }
@@ -594,15 +634,15 @@ function moveEnemy(e,dt){
     if(pick && passE(en.cx+pick.x,en.cy+pick.y)){ en.dx=pick.x; en.dy=pick.y; en.face=pick; } else { en.dx=en.dy=0; }
   });
 }
-function drawPlayer(c){
-  const col=api.cos('Bomber').colors, x=player.x*TS+TS/2, y=player.y*TS+TS/2, bob=(player.dx||player.dy)?Math.sin(t*16)*2:0;
-  c.save(); c.translate(x,y+bob); c.shadowColor=col[1]; c.shadowBlur=14;
+function drawPlayer(c,player,col,sh,glow){
+  const x=player.x*TS+TS/2, y=player.y*TS+TS/2, bob=(player.dx||player.dy)?Math.sin(t*16)*2:0;
+  c.save(); c.translate(x,y+bob); c.shadowColor=glow||col[1]; c.shadowBlur=14;
   c.fillStyle=col[0]; c.beginPath(); c.arc(0,-4,13,0,Math.PI*2); c.fill();
   c.fillStyle='#0a0a1a'; c.beginPath(); c.roundRect? c.roundRect(-9,-9,18,9,4) : c.rect(-9,-9,18,9); c.fill();
   c.fillStyle=col[1]; c.fillRect(-7+player.face.x*2,-7,5,4); c.fillRect(2+player.face.x*2,-7,5,4);
   c.fillStyle=col[0]; c.fillRect(-9,7,18,9); c.fillStyle=col[1]; c.fillRect(-9,9,18,3);
   c.fillStyle='#ff3b5c'; c.beginPath(); c.arc(0,-18,4,0,Math.PI*2); c.fill();
-  if(shieldT>0){ c.strokeStyle='#2ef2ff'; c.lineWidth=3; c.globalAlpha=.6+.3*Math.sin(t*14); c.beginPath(); c.arc(0,-2,21,0,Math.PI*2); c.stroke(); }
+  if(sh>0){ c.strokeStyle=glow||'#2ef2ff'; c.lineWidth=3; c.globalAlpha=.6+.3*Math.sin(t*14); c.beginPath(); c.arc(0,-2,21,0,Math.PI*2); c.stroke(); }
   c.restore();
 }
 function drawEnemy(c,e){
@@ -614,6 +654,79 @@ function drawEnemy(c,e){
     c.font='bold 8px Orbitron'; c.textAlign='center'; c.fillStyle='#ff3b3b'; c.fillText('VOLT',0,-24); }
   c.restore();
 }
+/* ================= 2-player VERSUS (NET-1). Host runs the rounds; the guest only draws ================= */
+function genMap(dens){
+  map=Array.from({length:R},(_,y)=>Array.from({length:C},(_,x)=> (x===0||y===0||x===C-1||y===R-1||(x%2===0&&y%2===0))?1:0));
+  const safe=(x,y)=> (x+y<=3) || (x>=C-4&&y>=R-4&&x+y>=C+R-6) || (x>=C-4&&y<=2) || (x<=2&&y>=R-4) || (Math.abs(x-7)<=1&&Math.abs(y-6)<=1);
+  for(let y=1;y<R-1;y++) for(let x=1;x<C-1;x++) if(map[y][x]===0 && !safe(x,y) && rng()<dens) map[y][x]=2;
+}
+// sudden death: walls close in ring by ring, two cells at a time (point-mirrored, so both corners are equally fair), starting top-middle
+const SPIRAL=(()=>{ const o=[], used=new Set(); let x0=1,y0=1,x1=C-2,y1=R-2; while(x0<=x1&&y0<=y1){ let r=[]; for(let x=x0;x<=x1;x++) r.push([x,y0]); for(let y=y0+1;y<=y1;y++) r.push([x1,y]);
+  if(y1>y0) for(let x=x1-1;x>=x0;x--) r.push([x,y1]); if(x1>x0) for(let y=y1-1;y>y0;y--) r.push([x0,y]); const k=Math.min(r.length-1,(x1-x0)>>1); r=r.slice(k).concat(r.slice(0,k));
+  for(const [x,y] of r){ if(used.has(x+','+y)) continue; const m=[C-1-x,R-1-y]; used.add(x+','+y); used.add(m[0]+','+m[1]); o.push(m[0]===x&&m[1]===y?[[x,y]]:[[x,y],m]); } x0++; y0++; x1--; y1--; } return o; })();
+function bOwn(b){ if(b.o!==undefined) return b.o; const i=vs&&vs.pl?vs.pl.indexOf(b.owner):-1; return i<0?2:i; }
+function bLeft(P){ return Math.max(0,P.pw.bombs-bombs.filter(b=>b.owner===P&&!b.mega).length); }
+function vMkP(x,y,i){ const P=mkEnt('player',x,y); P.pi=i; P.col=i?P2C:P1C; P.alive=1; P.inv=0; P.shieldT=0; P.pw={bombs:1,range:2,speed:0}; P.face=i?DL[0]:DL[2]; return P; }
+function vNewRound(){ vs.rnd++; vs.grace=1.8; vs.tl=RT; vs.rEnd=0; vs.pend=-1; vs.sd=0; vs.sdi=0; vs.sdT=0; vs.rWin=-1; vs.fullT=-9;
+  bombs=[]; flames=[]; items=[]; ents=[]; portal=null; rng=mulberry(Math.floor(Math.random()*1e9));
+  genMap(0.55+rng()*0.08);
+  vs.pl=[vMkP(1,1,0), vMkP(C-2,R-2,1)]; player=vs.pl[0];
+  ents.push(mkEnt('rival',C-2,1)); if(api.diff>=1) ents.push(mkEnt('rival',1,R-2));
+  api.counter('🏁 ROUND',vs.rnd); }
+function vEv(k,x,y,c){ if(!vs||isG()) return; vs.ev.push({i:++vs.evN,t,k,x:Math.round(x),y:Math.round(y),c}); if(vs.ev.length>16) vs.ev.shift(); }
+function vNear(en){ let b=null,bd=1e9; for(const P of vs.pl||[]) if(P.alive){ const d=Math.abs(P.x-en.x)+Math.abs(P.y-en.y); if(d<bd){ bd=d; b=P; } } return b; }
+function d4(d){ if(!d||(Math.abs(d.x)<0.2&&Math.abs(d.y)<0.2)) return null; if(Math.abs(d.x)>Math.abs(d.y)) return d.x>0?'R':'L'; return d.y>0?'D':'U'; }
+function vAbil(i,id){ if(!vs||!vs.pl||vs.fin||vs.rEnd>0||vs.grace>0) return false; const P=vs.pl[i]; if(!P||!P.alive) return false;
+  if(id==='bomb'){ const b=placeBomb(P,P.pw.range,false); if(b) vEv('c',0,0,''); return b? undefined : false; }
+  if(id==='shield'){ P.shieldT=3; api.sfx.power(); vEv('a',0,0,''); return true; }
+  if(id==='mega'){ const b=placeBomb(P,P.pw.range+4,true,true); if(b) vEv('c',0,0,''); return !!b; }
+  return false; }
+function vHurt(P,crush){ if(!P.alive) return; if(!crush&&(P.inv>0||P.shieldT>0)) return; P.alive=0; P.dead=1.2; P.dx=P.dy=0; api.sfx.hurt();
+  const x=P.x*TS+TS/2, y=P.y*TS+TS/2+OY; api.fx.burst(x,y,P.col,36,300,.9,4); vEv('d',x,y,P.col); if(vs.pend<0) vs.pend=0.35; }
+function vUpdate(dt){ const pl=vs.pl;
+  if(vs.fin) return;
+  if(vs.rEnd>0){ vs.rEnd-=dt; if(vs.rEnd<=0){ const w=vWinner(); if(w!==null){ vs.fin=true; api.netWin(w); } else vNewRound(); } return; }
+  api.counter('🏁 ROUND',vs.rnd);
+  if(vs.grace>0){ vs.grace-=dt; return; }
+  for(const b of bombs.slice()){ b.t-=dt; if(b.t<=0) explode(b); }
+  for(let i=flames.length-1;i>=0;i--){ flames[i].t-=dt; if(flames[i].t<=0) flames.splice(i,1); }
+  if(!vs.sd){ vs.tl-=dt; if(vs.tl<=0){ vs.tl=0; vs.sd=1; vs.sdT=0; api.toast('SUDDEN DEATH!'); vEv('t',0,0,'SUDDEN DEATH!'); api.sfx.power(); } }
+  else { vs.sdT-=dt; while(vs.sdT<=0&&vs.sdi<SPIRAL.length){ const cs=SPIRAL[vs.sdi++].filter(([x,y])=>map[y][x]!==1); if(!cs.length) continue; vs.sdT+=0.25;
+      for(const [x,y] of cs){ setCell(x,y,3); bombs=bombs.filter(b=>!(b.x===x&&b.y===y)); items=items.filter(i=>!(i.x===x&&i.y===y)); api.fx.burst(x*TS+TS/2,y*TS+TS/2+OY,'#ff3b3b',8,120,.4,3); } }
+    if(vs.sdi>=SPIRAL.length&&vs.pend<0) vs.pend=0.01; }
+  const inp=[api.input.dir4(), d4(api.input2&&api.input2.dir())];
+  pl.forEach((P,i)=>{ if(!P.alive){ P.dead=Math.max(0,P.dead-dt); return; }
+    P.inv=Math.max(0,P.inv-dt); P.shieldT=Math.max(0,P.shieldT-dt); const d=inp[i]?DK[inp[i]]:null;
+    if(d && d.x===-P.dx && d.y===-P.dy && (P.dx||P.dy)){ P.cx+=P.dx; P.cy+=P.dy; P.dx=-P.dx; P.dy=-P.dy; }
+    step(P,(4.2+P.pw.speed*0.6)*dt, e=>{ if(d && passE(e.cx+d.x,e.cy+d.y)){ e.dx=d.x; e.dy=d.y; } else { e.dx=0; e.dy=0; } if(d) e.face=d; });
+    const tx=Math.round(P.x), ty=Math.round(P.y); const it=items.findIndex(q=>q.x===tx&&q.y===ty);
+    if(it>=0){ const q=items.splice(it,1)[0], w=P.pw; if(q.k==='bomb') w.bombs=Math.min(8,w.bombs+1); if(q.k==='fire') w.range=Math.min(8,w.range+1); if(q.k==='speed') w.speed=Math.min(4,w.speed+1); api.sfx.pickup(); vEv('p',0,0,''); if(i===0) api.toast({bomb:'+1 BOMB',fire:'+1 FIRE',speed:'SPEED UP'}[q.k]); }
+    if(map[ty][tx]===3) vHurt(P,true); else if(flameAt(tx,ty)) vHurt(P); });
+  for(let i=ents.length-1;i>=0;i--){ const e=ents[i];
+    if(e.dead){ e.dead-=dt; if(e.dead<=0) ents.splice(i,1); continue; }
+    moveEnemy(e,dt); const ex=Math.round(e.x), ey=Math.round(e.y);
+    if(flameAt(ex,ey)||map[ey][ex]===3){ killEnemy(e); continue; }
+    for(const P of pl) if(P.alive && Math.hypot(e.x-P.x,e.y-P.y)<0.7) vHurt(P); }
+  if(vs.pend>=0){ vs.pend-=dt; if(vs.pend<0) vEndRound(); }
+  api.setActive(1,pl[0].shieldT>0); api.badge(0,bLeft(pl[0])); }
+function vEndRound(){ if(vs.rEnd>0) return; vs.pend=-1; const A=vs.pl[0].alive, B=vs.pl[1].alive; const w=A&&!B?0:(B&&!A?1:-1);
+  vs.rWin=w; if(w>=0) vs.rw[w]++; const nm=(api.net&&api.net.names)||[]; const who=w>=0?(nm[w]||('P'+(w+1))).slice(0,8):'';
+  const msg=w<0?(A?'TIME UP! DRAW':'DOUBLE KO! DRAW'):who+' SCORES!'; api.toast(msg); vEv('t',0,0,msg); vs.rEnd=vWinner()!==null?1.6:2.4; }
+// match winner: first to 2 round wins; after 5 rounds the one with more wins (else a draw)
+function vWinner(){ const r=vs.rw; if(r[0]>=2) return 0; if(r[1]>=2) return 1; if(vs.rnd>=5) return r[0]>r[1]?0:(r[1]>r[0]?1:-1); return null; }
+function vRender(c){ const nm=(api.net&&api.net.names)||[];
+  vs.pl.forEach((P,i)=>{ if(!P.alive||(P.inv>0&&Math.floor(t*12)%2)) return; drawPlayer(c,P,[P.col,'#ffffff'],P.shieldT,P.col);
+    const n=(nm[i]||('P'+(i+1))).slice(0,10), x=P.x*TS+TS/2, y=P.y*TS+TS/2, ny=y<70?y+34:y-26; c.font='bold 13px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.lineWidth=4; c.strokeStyle='#000'; c.strokeText(n,x,ny); c.fillStyle=P.col; c.fillText(n,x,ny); });
+  if(vs.sd){ c.strokeStyle='#ff3b3b'; c.lineWidth=4; c.globalAlpha=.5+.4*Math.sin(t*10); c.strokeRect(2,2,C*TS-4,R*TS-4); c.globalAlpha=1; }
+  // round bar on the bottom wall row (never covers play cells)
+  const y=(R-1)*TS+TS/2, rw=vs.rw||[0,0], live=vs.grace<=0&&vs.rEnd<=0; c.fillStyle='rgba(0,0,0,.72)'; c.fillRect(0,(R-1)*TS+3,C*TS,TS-6);
+  c.font='bold 15px sans-serif'; c.textBaseline='middle'; c.textAlign='left'; c.fillStyle=P1C; c.fillText((nm[0]||'P1').slice(0,9),10,y);
+  c.textAlign='right'; c.fillStyle=P2C; c.fillText((nm[1]||'P2').slice(0,9),C*TS-10,y);
+  c.textAlign='center'; c.fillStyle=vs.sd?'#ff3b3b':(vs.tl<=10&&live?'#ffe14a':'#fff'); c.fillText('ROUND '+(vs.rnd||1)+' · '+(vs.sd?'SUDDEN DEATH':Math.max(0,Math.ceil(vs.tl))+'s'),C*TS/2,y);
+  for(let k=0;k<2;k++) for(const [i,cx,col] of [[0,150+k*18,P1C],[1,C*TS-150-k*18,P2C]]){ c.beginPath(); c.arc(cx,y,6,0,7); if(rw[i]>k){ c.fillStyle=col; c.shadowColor=col; c.shadowBlur=10; c.fill(); c.shadowBlur=0; } else { c.strokeStyle=col; c.lineWidth=2; c.stroke(); } }
+  if(vs.grace>0){ c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(0,TS*4,C*TS,TS*4); c.fillStyle='#fff'; c.textAlign='center'; c.font='bold 24px sans-serif'; c.fillText('ROUND '+vs.rnd+' · BEST OF 3',C*TS/2,TS*5); c.font='bold 46px sans-serif'; c.fillText('READY',C*TS/2,TS*6.6); }
+  if(vs.rEnd>0){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(0,0,C*TS,(R-1)*TS); }
+  c.textBaseline='alphabetic'; }
 })();
 
 </script>
@@ -790,8 +903,8 @@ window.addEventListener('keydown', e => {
   } else if(state==='paused' && (e.code==='Escape'||e.code==='KeyP')) resumeGame();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; if(state==='play') G.onKey && G.onKey(e.code,false); });
-window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play') pauseGame(); });
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play') pauseGame(); });
+window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play'&&!NET.on) pauseGame(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play' && !NET.on) pauseGame(); });
 const Input = {
   keys,
   dir(){
@@ -814,6 +927,7 @@ function onDown(e){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.active&&joy.id===e.pointerId)) netSendRel({e:'ptr',t:'down',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('down', g.x, g.y, e.pointerId, e.pointerType);
 }
 function onMove(e){
@@ -823,12 +937,14 @@ function onMove(e){
     if(m>50){dx=dx/m*50;dy=dy/m*50;} joyEl.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`;
   }
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(G.joystick&&joy.active&&joy.id===e.pointerId) return; if(e.buttons||e.pointerType!=='mouse'){ NET.pmT=(NET.pmT||0); const now=performance.now(); if(now-NET.pmT>50){ NET.pmT=now; netSendFast({e:'ptr',t:'move',x:g.x,y:g.y}); } } return; }
   G.onPointer && G.onPointer('move', g.x, g.y, e.pointerId, e.pointerType, e.buttons);
 }
 function onUp(e){
   if(joy.active && e.pointerId===joy.id){ joy.active=false; joyEl.classList.add('hidden'); }
   if(state!=='play') return;
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
@@ -913,6 +1029,7 @@ function useAbility(i){
   if(abLock[i]>0) return;
   const paid = a.cd>0 && !run.tutorial;
   if(paid && have(a)<=0){ toast('NO '+a.name+' LEFT'); SFX.bump(); flashShop(); return; }
+  if(NET.on&&NET.role==='guest'){ if(paid){ P.abil[a.id]=have(a)-1; save(); } abLock[i]=a.cd>0?1:0; netSendRel({e:'ab',id:a.id}); return; }
   if(G.useAbility(a.id)!==false){
     if(paid){ P.abil[a.id]=have(a)-1; save(); if(P.abil[a.id]===0) setTimeout(()=>{ if(state==='play') toast('BUY MORE IN 🛒 SHOP'); },900); }
     abLock[i] = a.cd>0 ? 1 : 0; tutEvent('ab_'+a.id);
@@ -1240,11 +1357,13 @@ function pauseAgain(){ state='play'; pauseGame(); }
 function resumeGame(){ closeModal(); state='play'; last=performance.now(); }
 function endGamePrompt(){
   if(state==='play'){ state='paused'; }
+  if(NET.on){ modal(`<h2>LEAVE THE GAME?</h2><p>This ends the 2-player game for both of you.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>netQuit(), n:resumeGame}); return; }
   if(MP.on){ modal(`<h2>LEAVE THE RACE?</h2><p>You'll drop out of this multiplayer race.</p><button class="big" data-a="y">LEAVE RACE</button><button class="mid" data-a="n">KEEP RACING</button>`, {y:()=>{ mpSend({e:'out'}); mpLeave(); toMenu(); }, n:resumeGame}); return; }
   if(run.tutorial){ modal(`<h2>LEAVE TUTORIAL?</h2><p>You can replay it any time from How to Play.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>{ if(!run.practice){ P.tutDone=true; save(); } toMenu(); }, n:resumeGame}); return; }
   modal(`<h2>END GAME?</h2><p>Your game is saved at the start of <b>Stage ${run.stage}</b>. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
 }
 function stageClear(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(true); return; }
   if(MP.on){ if(run.tutorial) return; mpFinish(true); return; }
   if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
   state='modal'; SFX.clear(); flushCoins();
@@ -1267,6 +1386,7 @@ function nameEntry(title, sub, win){
 }
 function afterRun(){ modal(`<h2>WHAT NEXT?</h2><button class="big" data-a="p">PLAY AGAIN</button><button class="mid abil" data-a="a">⚡ ABILITIES</button><button class="mid" data-a="s">TOP SCORES</button><button class="mid" data-a="m">MAIN MENU</button>`, {p:()=>newGame(run.slot), a:()=>{ toMenu(); abilPanel(); }, s:()=>{ toMenu(); scoresPanel(P.diff); }, m:toMenu}); }
 function gameOver(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(false); return; }
   if(MP.on){ mpFinish(false); return; }
   if(state==='modal' || state==='menu') return; state='modal'; SFX.over(); flushCoins();
   const coins = Math.floor(run.score/500), got=run.coinsStage; P.coins += coins; save();
@@ -1404,8 +1524,8 @@ function frame(now){
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
-    G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt);
-    doomTick(dt); mpTick(dt);
+    if(!(NET.on&&NET.role==='guest')) G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt); netTick(dt);
+    if(!(NET.on&&NET.role==='guest')) doomTick(dt); mpTick(dt);
   } else if(state==='menu' || state==='loading' || state==='ending'){ menuT+=dt; fxUpdate(dt); }
   ctx.save();
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
@@ -1480,11 +1600,15 @@ function mpRoom(){
   if(MP.on) { mpBars(); return; }
   if(!MP.ch) return; const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t).slice(0,3); MP.host = mpHostId()===MP.me;
   const list=ids.map((k,i)=>`<div style="padding:8px 12px;margin:6px 0;border-radius:10px;background:#ffffff14;text-align:left">${['🟦','🟥','🟩'][i]} <b>${esc(MP.players[k].name||'?')}</b>${k===MP.me?' (you)':''}${i===0?' · HOST':''}</div>`).join('');
-  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
-    {s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
+  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host&&G.net&&ids.length===2?`<button class="big" data-a="t" style="background:linear-gradient(90deg,#00e5ff,#ff3bd4)">🎮 PLAY TOGETHER (2P)</button>`:''}${!MP.host&&G.net&&ids.length===2?'<p>🎮 This game has <b>PLAY TOGETHER</b> — the host can start it.</p>':''}${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
+    {t:()=>netPick(),
+     s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
 }
 function mpSend(o){ try{ MP.ch && MP.ch.send({type:'broadcast', event:'m', payload:Object.assign({id:MP.me,name:MP.name},o)}); }catch(e){} }
 function mpMsg(m){
+  if(m.e==='net'){ if(m.n) netRecv(m.n); return; }
+  if(m.e==='rtc'){ if(m.id!==MP.me) netRtcMsg(m); return; }
+  if(m.e==='coop' && !NET.on){ netStart(m.seed,m.stage,m.hn,m.gn,m.diff,m.score); return; }
   if(m.e==='start' && !MP.on){ mpStart(m.seed,m.stage); }
   else if(m.e==='prog'){ MP.prog[m.id]={p:m.p,l:m.l,name:m.name,out:m.out}; mpBars(); }
   else if(m.e==='win' && MP.on && !MP.over){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{p:1}); mpEnd(m.name,false); }
@@ -1533,6 +1657,105 @@ function mpOnMenu(){ if(!mpFirstMenu) return; mpFirstMenu=false; const q=(locati
   setTimeout(()=>{ if(state!=='menu') return; modal(`<h2>${esc(G.title)}</h2><p>How do you want to play?</p><button class="big" data-a="s">▶ SOLO</button><button class="big" data-a="m" style="background:linear-gradient(90deg,#ff3bd4,#ffd23f)">👥 MULTIPLAYER (2–3)</button>`,{s:()=>{}, m:()=>mpMenu()}); },150); }
 
 function mpWaBtn(){}
+
+/* ===== REAL 2-PLAYER (NET-1): one phone hosts the game, the other sends its controls and draws the host's snapshots ===== */
+const NET = { on:false, role:null, peer:null, dc:null, rtcOk:false, sendT:0, lastSnap:null, names:['',''], keys2:{}, k2:{}, inbox:[] };
+const Input2 = { keys: NET.k2, dir(){ let x=0,y=0, k=NET.k2; if(k.ArrowLeft||k.KeyA) x-=1; if(k.ArrowRight||k.KeyD) x+=1; if(k.ArrowUp||k.KeyW) y-=1; if(k.ArrowDown||k.KeyS) y+=1; const j=NET.joy2; if(j&&(Math.abs(j.x)>0.05||Math.abs(j.y)>0.05)){ x=j.x; y=j.y; } return {x,y}; } };
+API.input2 = Input2;
+Object.defineProperty(API,'net',{get(){ return NET.on? {role:NET.role, names:NET.names, mode:(G.net&&G.net.mode)||'coop'} : null; }});
+API.netWin = function(idx){ if(!NET.on||NET.role!=='host') return; netSendRel({e:'nwin',idx}); netResult(idx); };
+function netSendRel(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); return; }catch(e){} } mpSend(Object.assign({e:'net'},{n:o})); }
+function netSendFast(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); }catch(e){} return; } if(NET.fbT<=0){ NET.fbT=0.1; mpSend({e:'net',n:o}); } }
+function netRecv(o){
+  if(o.e==='snap' && NET.role==='guest'){ NET.lastSnap=o; }
+  else if(o.e==='in' && NET.role==='host'){ for(const k in NET.k2) delete NET.k2[k]; Object.assign(NET.k2,o.k||{}); NET.joy2=o.j||null; }
+  else if(o.e==='ptr' && NET.role==='host'){ G.onPointer2 && G.onPointer2(o.t,o.x,o.y); }
+  else if(o.e==='ab' && NET.role==='host'){ G.useAbility2 && G.useAbility2(o.id); }
+  else if(o.e==='nclear' && NET.role==='guest'){ netStageEnd(true); }
+  else if(o.e==='nover' && NET.role==='guest'){ NET.waitPay=false; netGameOver(); }
+  else if(o.e==='ncont' && NET.role==='guest'){ state='modal'; netContinue(); }
+  else if(o.e==='npay' && NET.role==='host'){ netResume(o.name||'P2'); }
+  else if(o.e==='nresume' && NET.role==='guest'){ NET.waitPay=false; closeModal(); state='play'; last=performance.now(); toast('💰 '+(o.payer||'')+' PAID — KEEP GOING!'); }
+  else if(o.e==='nshop' && NET.role==='host'){ netShopTime(); toast('PARTNER IS BUYING GOLD…'); }
+  else if(o.e==='ngive'){ toast('PARTNER GAVE UP — YOU CAN STILL PAY'); }
+  else if(o.e==='nnext' && NET.role==='guest'){ clearTimeout(NET.advT); closeModal(); run.stage=o.stage; Math.random=mpSeeded(o.seed); netBegin(); }
+  else if(o.e==='nwin' && NET.role==='guest'){ netResult(o.idx); }
+  else if(o.e==='nquit'){ netStop(); state='modal'; modal(`<h2>YOUR PARTNER LEFT</h2><p>The 2-player game has ended.</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="m">MENU</button>`,{r:()=>mpRoom(), m:()=>{ mpLeave(); toMenu(); }}); }
+}
+// --- direct phone-to-phone link (WebRTC). If it can't connect in 6 s we fall back to Supabase messages (slower).
+function netRtc(isHost){
+  try{
+    const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]}); NET.peer=pc;
+    pc.onicecandidate=e=>{ if(e.candidate) mpSend({e:'rtc',c:e.candidate}); };
+    const setup=dc=>{ NET.dc=dc; dc.onopen=()=>{ NET.rtcOk=true; toast('⚡ DIRECT LINK'); }; dc.onmessage=m=>{ try{ netRecv(JSON.parse(m.data)); }catch(e){} }; };
+    if(isHost){ setup(pc.createDataChannel('g',{ordered:false,maxRetransmits:0})); pc.createOffer().then(o=>pc.setLocalDescription(o)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }
+    else pc.ondatachannel=e=>setup(e.channel);
+  }catch(e){}
+}
+function netRtcMsg(m){ const pc=NET.peer; if(!pc) return; try{
+  if(m.sdp){ pc.setRemoteDescription(m.sdp).then(()=>{ if(m.sdp.type==='offer') return pc.createAnswer().then(a=>pc.setLocalDescription(a)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }); }
+  else if(m.c){ pc.addIceCandidate(m.c).catch(()=>{}); } }catch(e){} }
+function netPick(){ const ids2=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t); if(ids2.length!==2){ mpRoom(); return; }
+  const sv=(P.coop||{})[G.id]; const go=(stage,diff,score)=>{ const seed=Math.floor(mpRealRandom()*1e9); const hn=MP.players[ids2[0]].name, gn=MP.players[ids2[1]].name; mpSend({e:'coop',seed,stage,hn,gn,diff,score}); netStart(seed,stage,hn,gn,diff,score); };
+  modal(`<h2>🎮 PLAY TOGETHER</h2><p>Play the whole game together, stage 1 to ${G.stages}.</p><p>Difficulty:</p><button class="mid" data-a="e">🟢 BEGINNER — new game</button><button class="mid" data-a="h">🟠 HARD — new game</button><button class="mid" data-a="x">🔴 EXPERT — new game</button>${sv?`<button class="big" data-a="c">▶ CONTINUE TOGETHER · Stage ${sv.stage} · ${DIFFS[sv.diff]}</button>`:''}<button class="mid" data-a="b">◀ BACK</button>`,
+    {e:()=>go(1,0,0), h:()=>go(1,1,0), x:()=>go(1,2,0), c:()=>go(sv.stage,sv.diff,sv.score||0), b:()=>mpRoom()}); }
+function netSave(){ if(NET.role!=='host') return; P.coop=P.coop||{}; P.coop[G.id]={stage:run.stage,diff:P.diff,score:run.score,t:Date.now()}; save(); }
+function netStart(seed,stage,hostName,guestName,diff,score){
+  NET.on=true; NET.role=MP.host?'host':'guest'; NET.names=[hostName,guestName]; NET.fbT=0; NET.lastSnap=null; MP.on=false; MP.coop=true;
+  MP.prevDiff=P.diff; P.diff=diff||0; run.stage=stage; run.score=score||0; run.lives=G.lives; run.extra={}; Math.random=mpSeeded(seed);
+  netRtc(NET.role==='host'); if(window.RMXL) RMXL.setBusy(true);
+  let n=3; const tick=()=>{ modal(`<h2>🎮 PLAY TOGETHER</h2><p><b style="color:#00e5ff">P1 ${esc(hostName)}</b> + <b style="color:#ff3bd4">P2 ${esc(guestName)}</b></p><p>You are <b>${NET.role==='host'?'P1':'P2'}</b> · ${DIFFS[P.diff]} · Stage ${run.stage}</p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); netBegin(); } else setTimeout(tick,1000); }; tick();
+}
+function netBegin(){ beginStage(); }
+function netTick(dt){ // runs every frame while playing together
+  if(!NET.on) return; NET.fbT-=dt; NET.sendT-=dt;
+  if(NET.role==='host'){ if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const s=G.netState?G.netState():{}; netSendFast({e:'snap',s,l:run.lives,sc:run.score}); } }
+  else { if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const k={}; ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS','Space'].forEach(c=>{ if(keys[c]) k[c]=1; }); const d=joy.active?Input.dir():null; netSendFast({e:'in',k,j:d}); }
+    if(NET.lastSnap){ const sn=NET.lastSnap; NET.lastSnap=null; try{ G.netApply&&G.netApply(sn.s); }catch(e){} if(run.lives!==sn.l||run.score!==sn.sc){ run.lives=sn.l; run.score=sn.sc; updHud(); } }
+    G.netTick && G.netTick(dt); }
+}
+function netStageEnd(win){
+  state='modal'; flushCoins();
+  if(!win){ netContinue(); return; }
+  if(NET.role==='host') netSendRel({e:'nclear'});
+  run.stage++; if(NET.role==='host') netSave();
+  if(run.stage>G.stages){ if(NET.role==='host'){ P.coop[G.id]=null; save(); } netQuit('🏆 YOU BEAT ALL '+G.stages+' STAGES TOGETHER!'); return; }
+  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)); P.coins+=coins; save(); updCoins();
+  let n=4; clearTimeout(NET.advT);
+  const tick=()=>{ if(!NET.on) return; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2><p>Great teamwork! +${coins} 🪙 each</p><div class="stat">${run.score.toLocaleString()}</div><p>Stage ${run.stage} starts in <b>${n}</b>…</p><button class="mid" data-a="q">LEAVE (progress saved)</button>`,{q:()=>netQuit()});
+    if(n--<=0){ closeModal(); if(NET.role==='host'){ const seed=Math.floor(mpRealRandom()*1e9); netSendRel({e:'nnext',stage:run.stage,seed}); Math.random=mpSeeded(seed); netBegin(); } }
+    else NET.advT=setTimeout(tick,1000); };
+  tick();
+}
+// out of lives: either player may pay gold to continue (cost grows with stage); nobody pays in 30 s = game over
+function netContCost(){ return Math.round((60 + run.stage*4) * (1 + P.diff*0.5)); }
+function netContinue(){
+  if(NET.role==='host'){ netSendRel({e:'ncont'}); clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },30000); }
+  NET.waitPay=true; netContinueShow();
+}
+function netShopTime(){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },120000); }
+function netContinueShow(){ if(!NET.on||!NET.waitPay) return; const cost=netContCost(), can=P.coins>=cost;
+  modal(`<h2>OUT OF LIVES!</h2><p>Either player can pay to keep going together.</p><button class="big" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙</button><p style="font-size:13px">You have ${P.coins.toLocaleString()} 🪙${can?'':' — not enough'}</p><button class="mid" data-a="s" style="background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+    {s:()=>{ if(NET.role==='host') netShopTime(); else netSendRel({e:'nshop'}); goldStore(()=>netContinueShow(),'🛒 BUY GOLD TO CONTINUE'); },
+     p:()=>{ if(P.coins<cost){ netContinueShow(); return; } P.coins-=cost; save(); updCoins(); if(NET.role==='host') netResume(MP.name); else { netSendRel({e:'npay',name:MP.name}); modal(`<h2>PAID ✔</h2><p>Continuing…</p>`,{}); } }, g:()=>{ netSendRel({e:'ngive'}); if(NET.role==='host'){ clearTimeout(NET.contT); NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } else modal(`<h2>WAITING…</h2><p>Your partner can still pay to continue.</p>`,{}); }});
+}
+function netResume(payer){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.waitPay=false; run.lives=G.lives; updHud(); if(G.netRevive) G.netRevive(); else if(G.respawn) G.respawn(); netSendRel({e:'nresume',payer}); closeModal(); state='play'; last=performance.now(); toast('💰 '+payer+' PAID — KEEP GOING!'); }
+function netGameOver(){ state='modal'; if(NET.role==='host'){ P.coop=P.coop||{}; P.coop[G.id]=null; save(); }
+  modal(`<h2>GAME OVER</h2><p>You reached stage ${run.stage} together.</p><div class="stat">${run.score.toLocaleString()}</div><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netResult(idx){ state='modal'; const meIdx=NET.role==='host'?0:1; const t= idx===meIdx?'🏆 YOU WIN!': idx===-1?'🤝 DRAW!':'🏁 '+esc(NET.names[idx]||'P'+(idx+1))+' WINS!';
+  if(idx===meIdx){ P.coins+=50; save(); }
+  modal(`<h2>${t}</h2><p>${idx===meIdx?'+50 🪙':''}</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NET.peer&&NET.peer.close(); }catch(e){} NET.dc=null; NET.peer=null; NET.rtcOk=false; Math.random=mpRealRandom; P.diff=MP.prevDiff; if(window.RMXL) RMXL.setBusy(false); }
+function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
+
+// ===== GOLD STORE (cash gold packs) — PAY-1. Payments are not switched on yet: PAY.buy() is the ONE place to connect PayFast / Google Play Billing later.
+const PAY = { enabled:false,
+  buy(pack, done){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; } /* later: start PayFast / Play Billing checkout here, then on success: */ P.coins+=pack.gold; save(); updCoins(); toast('+'+pack.gold.toLocaleString()+' 🪙 ADDED'); SFX.coin(); done&&done(); } };
+function goldStore(back, title){
+  const rows=GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':''}</div><button data-gp="${i}" ${PAY.enabled?'':'style="opacity:.75"'}>${g.price}${PAY.enabled?'':' · SOON'}</button></div>`).join('');
+  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>${rows}<p class="note">${PAY.enabled?'Secure payment. Gold is added straight away.':'Gold purchases open soon. You can still earn gold free by playing.'}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); PAY.buy(GOLD_PACKS[+b.dataset.gp], ()=>goldStore(back,title)); }));
+}
 
 
 })();
