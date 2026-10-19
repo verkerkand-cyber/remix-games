@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-DG-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-DG-1.2 · 2026-10-19">
 <title>Dungeon Dash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-DG-1.1 · 2026-10-17 -->
+<!-- BUILD-DG-1.2 · 2026-10-19 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -370,14 +370,27 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* DUNGEON DASH — Gauntlet remix (#39) — PROTOTYPE: 3 test stages. Find the key, smash the ghost spawners, reach the stairs. */
+/* DUNGEON DASH — Gauntlet remix (#39). Find the key, smash the ghost spawners, reach the stairs.
+   1.2: real online 2-player CO-OP (NET-1). Host runs the dungeon for both heroes; guest draws snapshots. */
 (function(){
-const W=600,H=900,CS=40,GW=15,GH=21,OY=50;
-let api,t,map,pl,ens,gens,shots,items,done,lost,eff,fireT,hp,grace,exit,hasKey,drain;
+const W=600,H=900,CS=40,GW=15,GH=21,OY=50,TAGC=['#00e5ff','#ff3bd4'],HP0=700,NEAR=125;
+let api,t,map,pl,pls,ens,gens,shots,items,done,lost,exit,hasKey,drain;
+let nid=0,evq=[],evSeq=0,evSeen=0,snapN=0,snapSeen=0,lastHp=null,waitT=0;
 const cx=i=>i*CS+CS/2, cy=j=>OY+j*CS+CS/2;
+function net(){ return api&&api.net; }
+function isHost(){ const n=net(); return !!(n&&n.role==='host'); }
+function isGuest(){ const n=net(); return !!(n&&n.role==='guest'); }
+function me(){ return (isGuest()&&pls&&pls[1])||pl; }
+function nm(i){ const n=net(); return String((n&&n.names[i])||('P'+(i+1))).slice(0,12); }
+function ev(k,...a){ if(!isHost()) return; evq.push([++evSeq,t,k,...a]); if(evq.length>30) evq.shift(); }
+function T(msg){ api.toast(msg); ev('toast',msg); }
+function S(k){ api.sfx[k](); ev('sfx',k); }
+function mkPl(i,x,y,hp){ return {i,x,y,face:{x:0,y:-1},hp,grace:1.5,fireT:0,eff:{shield:-9,speed:-9},dead:false,respT:0}; }
 const wall=(x,y)=>{ const i=Math.floor(x/CS), j=Math.floor((y-OY)/CS); return i<0||j<0||i>=GW||j>=GH||map[j][i]===1||(map[j][i]===2&&!hasKey); };
 function canMove(o,x,y,r){ return !wall(x-r,y-r)&&!wall(x+r,y-r)&&!wall(x-r,y+r)&&!wall(x+r,y+r); }
-function gen(n,a){ for(let tries=0;tries<60;tries++){ map=[...Array(GH)].map((_,j)=>[...Array(GW)].map((_,i)=>(i===0||j===0||i===GW-1||j===GH-1)?1:0));
+const up=()=>pls.filter(p=>!p.dead);
+function near(o){ let b=null,bd=1e9; for(const p of pls){ if(p.dead) continue; const d=Math.hypot(p.x-o.x,p.y-o.y); if(d<bd){ bd=d; b=p; } } return b; }
+function gen(n,a){ const N2=!!net(); for(let tries=0;tries<60;tries++){ map=[...Array(GH)].map((_,j)=>[...Array(GW)].map((_,i)=>(i===0||j===0||i===GW-1||j===GH-1)?1:0));
     for(let j=2;j<GH-2;j+=2) for(let i=2;i<GW-2;i+=2) if(Math.random()<0.75){ map[j][i]=1; const d=Math.floor(Math.random()*4), dx=[1,-1,0,0][d], dy=[0,0,1,-1][d]; if(Math.random()<0.6) map[j+dy][i+dx]=1; }
     const st={i:7,j:GH-2}; map[st.j][st.i]=0; map[st.j-1][st.i]=0;
     // exit room at the top, locked by a door
@@ -390,13 +403,15 @@ function gen(n,a){ for(let tries=0;tries<60;tries++){ map=[...Array(GH)].map((_,
     items=[]; const key=far[0]||reach[0]; items.push({k:'key',x:cx(key.i),y:cy(key.j)});
     for(let f=0;f<(a.content===0?1:3);f++){ const p=reach[f+5]; items.push({k:'food',x:cx(p.i),y:cy(p.j)}); }
     for(let f=0;f<4;f++){ const p=reach[f+10]; items.push({k:'gold',x:cx(p.i),y:cy(p.j)}); }
-    gens=[]; const ng=a.content===0?1:Math.round(a.dv([2,4,5],6,8)); for(let g=0;g<ng;g++){ const p=far[g+2]||reach[g+20]; gens.push({x:cx(p.i),y:cy(p.j),hp:a.dv([3,5,7],8,12)|0,t:Math.random()*2}); }
-    if(a.boss){ const p=far[ng+3]||reach[30]; gens.push({x:cx(p.i),y:cy(p.j),hp:25,t:0,boss:true}); }
-    pl={x:cx(st.i),y:cy(st.j),face:{x:0,y:-1}}; return; } }
+    gens=[]; let ng=a.content===0?1:Math.round(a.dv([2,4,5],6,8)); if(N2) ng=Math.round(ng*1.3); // co-op: monsters x1.3
+    for(let g=0;g<ng;g++){ const p=far[g+2]||reach[g+20]; gens.push({x:cx(p.i),y:cy(p.j),hp:a.dv([3,5,7],8,12)|0,t:Math.random()*2}); }
+    if(a.boss){ const p=far[ng+3]||reach[30]; gens.push({x:cx(p.i),y:cy(p.j),hp:N2?33:25,t:0,boss:true}); }
+    pl=mkPl(0,cx(st.i),cy(st.j),a.content===0?900:HP0); pls=[pl]; if(N2) pls.push(mkPl(1,cx(st.i),cy(st.j-1),a.content===0?900:HP0)); return; } }
 const GAME=window.GAME={
   id:'dungeon-dash',title:'Dungeon Dash',titleHTML:'DUNGEON<br>DASH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-DG-1.1 · 2026-10-17',theme:{a:'#ffd23f',b:'#b14bff',bg:'#0a0806'},
+  build:'BUILD-DG-1.2 · 2026-10-19',theme:{a:'#ffd23f',b:'#b14bff',bg:'#0a0806'},
   w:W,h:H,stages:100,lives:3,livesIcon:'🗡️',joystick:true,coinPts:40,
+  net:{mode:'coop'},
   abilities:[
     {id:'potion',icon:'🧪',name:'MAGIC POTION',cd:20,key:'Digit1',keyLabel:'1',desc:'Destroys every ghost near you and damages spawners.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'Ghosts can\'t drain you for 6 seconds.'},
@@ -405,60 +420,126 @@ const GAME=window.GAME={
   shop:[{id:'k_w',cat:'Hero',name:'Warrior',cost:0,colors:['#ff3b3b'],desc:'Classic.'},{id:'k_v',cat:'Hero',name:'Valkyrie',cost:150,colors:['#00e5ff'],desc:'Blue.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#b14bff)'}],
   story:`<h3>DUNGEON DASH</h3><p>The old mine shafts are full of ghosts. Grab the key, smash the bone-pile spawners, and take the stairs down.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to walk (WASD/arrows on PC). You throw axes by yourself at the closest ghost.</li><li>Your HEALTH drops all the time, and faster when ghosts touch you. Eat 🍗 food!</li><li>Smash the bone-pile spawners to stop new ghosts.</li><li>Find the 🔑 key to open the door, then reach the stairs at the top.</li></ul>`,
+  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to walk (WASD/arrows on PC). You throw axes by yourself at the closest ghost.</li><li>Your HEALTH drops all the time, and faster when ghosts touch you. Eat 🍗 food!</li><li>Smash the bone-pile spawners to stop new ghosts.</li><li>Find the 🔑 key to open the door, then reach the stairs at the top.</li><li><b>Play together:</b> two heroes share lives and score. Either hero can grab the key. Food heals whoever eats it. The stage is cleared when one hero is on the stairs and the other is within 3 tiles of them. A hero out of health is down for 2 seconds, then gets back up with half health — but the team loses a life.</li></ul>`,
   tutorial:[{text:'Drag to walk. Find the 🔑 key!',ev:'key'},{text:'Now go through the door to the stairs at the top!',ev:'exit'}],
   stageIntro:{1:'FIND THE KEY · REACH THE STAIRS'},bossName:'THE DEATH PIT!',ending:{"0":["#OUT","You escaped the dungeon."],"1":["#HERO","Ghost-buster."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={shield:6,speed:8}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}, get hp(){return hp;}}; },
+  abTime(id){ const tot={shield:6,speed:8}[id], p=me(); return tot&&p?{left:Math.max(0,p.eff[id]),total:tot}:null; },
+  onPointer2(type,x,y){ }, // single player uses the joystick only, so P2 does too
+  _dbg(){ return {get pl(){return pl;}, get pls(){return pls;}, get ens(){return ens;}, get gens(){return gens;}, get items(){return items;}, get lost(){return lost;}, get done(){return done;}, get hp(){return pl.hp;}, get hasKey(){return hasKey;}, exit:()=>({x:cx(exit.i),y:cy(exit.j)}),
+    toEnd:()=>{ hasKey=true; ens=[]; pls.forEach((p,i)=>{ p.x=cx(exit.i)+(i?40:0); p.y=cy(exit.j); }); },
+    get net2(){ return {role:net()&&net().role, p:(pls||[]).map(p=>[Math.round(p.x),Math.round(p.y),p.dead?1:0,Math.ceil(p.hp)]), ens:(ens||[]).length, gens:(gens||[]).length, key:hasKey?1:0, items:(items||[]).filter(i=>!i.got).length, done, lives:api.lives}; }}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={shield:-9,speed:-9}; ens=[]; shots=[]; fireT=0; grace=1.5; hasKey=false; hp=a.content===0?900:700; drain=a.dv([1.5,3,4.5],6,12); gen(n,a); },
-  respawn(){ lost=false; hp=700; grace=2.5; ens=ens.filter(e=>Math.hypot(e.x-pl.x,e.y-pl.y)>250); },
-  stageBonus(){ return Math.round(hp); },
-  useAbility(id){ if(done||lost) return false;
-    if(id==='potion'){ ens.forEach(e=>{ if(Math.hypot(e.x-pl.x,e.y-pl.y)<330) e.dead=true; }); gens.forEach(g=>{ if(Math.hypot(g.x-pl.x,g.y-pl.y)<330) g.hp-=4; }); api.fx.flash('#b14bff',.4); api.sfx.boom(); return true; }
-    if(id==='food'){ hp+=300; api.sfx.pickup(); return true; }
-    eff[id]={shield:6,speed:8}[id]; api.sfx.power(); return true; },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; if(lost) return;
-    const d=api.input.dir(), sp=(eff.speed>0?260:160); if(Math.hypot(d.x,d.y)>0.2) pl.face={x:d.x,y:d.y};
-    const nx=pl.x+d.x*sp*dt, ny=pl.y+d.y*sp*dt; if(canMove(pl,nx,pl.y,13)) pl.x=nx; if(canMove(pl,pl.x,ny,13)) pl.y=ny;
-    const tg=[...ens,...gens].filter(e=>Math.hypot(e.x-pl.x,e.y-pl.y)<300).sort((a,b)=>Math.hypot(a.x-pl.x,a.y-pl.y)-Math.hypot(b.x-pl.x,b.y-pl.y))[0];
-    fireT-=dt; if(fireT<=0){ fireT=0.32; let ax=pl.face.x, ay=pl.face.y; if(tg){ ax=tg.x-pl.x; ay=tg.y-pl.y; } const m=Math.hypot(ax,ay)||1; if(tg||Math.hypot(d.x,d.y)>0.2){ shots.push({x:pl.x,y:pl.y,vx:ax/m*520,vy:ay/m*520,r:0}); api.sfx.shoot(); } }
+  startStage(n,a){ api=a; t=0; done=false; lost=false; ens=[]; shots=[]; hasKey=false; nid=0; evq=[]; lastHp=null; waitT=0; drain=a.dv([1.5,3,4.5],6,12); gen(n,a);
+    if(net()) setTimeout(()=>{ if(!done&&isHost()) T('BOTH HEROES TO THE STAIRS!'); },3200); },
+  respawn(){ if(net()) return; // co-op: the downed hero gets up on its own timer; the dungeon stays as it is
+    lost=false; pl.hp=HP0; pl.grace=2.5; ens=ens.filter(e=>Math.hypot(e.x-pl.x,e.y-pl.y)>250); },
+  netRevive(){ if(!pls) return; pls.forEach(p=>{ if(p.dead) getUp(p,HP0); p.hp=Math.max(p.hp,HP0); p.grace=Math.max(p.grace,3); }); },
+  stageBonus(){ return Math.round(pls.reduce((s,p)=>s+Math.max(0,p.hp),0)/pls.length); },
+  useAbility(id){ return useAb(pl,id); },
+  useAbility2(id){ if(!pls||!pls[1]) return false; return useAb(pls[1],id); },
+  update(dt){ t+=dt; if(done) return; pls.forEach(p=>{ for(const k in p.eff) if(p.eff[k]>-2) p.eff[k]-=dt; p.grace-=dt; }); if(lost) return;
+    move(pl,api.input.dir(),dt); if(pls[1]) move(pls[1],api.input2.dir(),dt);
     shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; s.r+=dt*20; if(wall(s.x,s.y)) s.hit=true; });
-    const gsp=api.dv([60,85,110],125,190), spawnEvery=api.dv([3.5,2.4,1.6],1.2,0.6);
-    gens.forEach(g=>{ g.t+=dt; if(g.t>spawnEvery*(g.boss?0.5:1)&&ens.length<40&&Math.hypot(g.x-pl.x,g.y-pl.y)<520){ g.t=0; ens.push({x:g.x+(Math.random()-.5)*20,y:g.y+(Math.random()-.5)*20,k:g.boss&&Math.random()<.4?'demon':'ghost'}); }
+    const gsp=api.dv([60,85,110],125,190), spawnEvery=api.dv([3.5,2.4,1.6],1.2,0.6), cap=pls.length>1?52:40;
+    gens.forEach(g=>{ g.t+=dt; if(g.t>spawnEvery*(g.boss?0.5:1)&&ens.length<cap&&up().some(p=>Math.hypot(g.x-p.x,g.y-p.y)<520)){ g.t=0; ens.push({id:++nid,x:g.x+(Math.random()-.5)*20,y:g.y+(Math.random()-.5)*20,k:g.boss&&Math.random()<.4?'demon':'ghost'}); }
       shots.forEach(s=>{ if(!s.hit&&Math.hypot(s.x-g.x,s.y-g.y)<22){ s.hit=true; g.hp--; } }); });
-    gens.filter(g=>g.hp<=0).forEach(g=>{ api.addScore(g.boss?2000:300,g.x,g.y); api.fx.burst(g.x,g.y,'#ffd23f',24,240,.5,3); api.sfx.boom(); }); gens=gens.filter(g=>g.hp>0);
-    let touching=0;
-    ens.forEach(e=>{ const a=Math.atan2(pl.y-e.y,pl.x-e.x), s=gsp*(e.k==='demon'?1.3:1); const ex=e.x+Math.cos(a)*s*dt, ey=e.y+Math.sin(a)*s*dt; if(canMove(e,ex,e.y,11)) e.x=ex; if(canMove(e,e.x,ey,11)) e.y=ey;
-      shots.forEach(s=>{ if(!s.hit&&Math.hypot(s.x-e.x,s.y-e.y)<18){ s.hit=true; e.dead=true; api.addScore(e.k==='demon'?60:30,e.x,e.y,true); api.fx.burst(e.x,e.y,'#b8b8ff',8,140,.3,2); api.sfx.small(); } });
-      if(Math.hypot(e.x-pl.x,e.y-pl.y)<24){ touching++; } });
+    gens.filter(g=>g.hp<=0).forEach(g=>{ api.addScore(g.boss?2000:300,g.x,g.y); api.fx.burst(g.x,g.y,'#ffd23f',24,240,.5,3); S('boom'); ev('bu',Math.round(g.x),Math.round(g.y),0); }); gens=gens.filter(g=>g.hp>0);
+    pls.forEach(p=>p.touch=0);
+    ens.forEach(e=>{ const tg=near(e); if(tg){ const a=Math.atan2(tg.y-e.y,tg.x-e.x), s=gsp*(e.k==='demon'?1.3:1); const ex=e.x+Math.cos(a)*s*dt, ey=e.y+Math.sin(a)*s*dt; if(canMove(e,ex,e.y,11)) e.x=ex; if(canMove(e,e.x,ey,11)) e.y=ey; }
+      shots.forEach(s=>{ if(!s.hit&&Math.hypot(s.x-e.x,s.y-e.y)<18){ s.hit=true; e.dead=true; api.addScore(e.k==='demon'?60:30,e.x,e.y,true); api.fx.burst(e.x,e.y,'#b8b8ff',8,140,.3,2); api.sfx.small(); ev('bu',Math.round(e.x),Math.round(e.y),1); } });
+      pls.forEach(p=>{ if(!p.dead&&Math.hypot(e.x-p.x,e.y-p.y)<24) p.touch++; }); });
     ens=ens.filter(e=>!e.dead); shots=shots.filter(s=>!s.hit);
-    hp-=dt*drain; if(eff.shield<=0&&grace<=0) hp-=touching*dt*api.dv([25,40,55],70,140);
-    items.forEach(it=>{ if(!it.got&&Math.hypot(it.x-pl.x,it.y-pl.y)<26){ it.got=true;
-      if(it.k==='key'){ hasKey=true; api.toast('🔑 DOOR UNLOCKED!'); api.sfx.power(); api.event('key'); }
-      else if(it.k==='food'){ hp+=200; api.toast('+200 HEALTH'); api.sfx.pickup(); }
-      else { api.addScore(250,it.x,it.y); api.sfx.coin(); } } });
-    if(Math.hypot(pl.x-cx(exit.i),pl.y-cy(exit.j))<24){ done=true; api.event('exit'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); return; }
-    api.counter(hasKey?'❤️ HEALTH · 🔑':'❤️ HEALTH',Math.max(0,Math.ceil(hp)),hp<150?'empty':hp<300?'low':'');
-    if(hp<=0) die(); },
-  render(c){ c.fillStyle='#0a0806'; c.fillRect(0,0,W,H);
+    const bite=api.dv([25,40,55],70,140);
+    pls.forEach(p=>{ if(p.dead) return; p.hp-=dt*drain; if(p.eff.shield<=0&&p.grace<=0) p.hp-=p.touch*dt*bite; });
+    items.forEach(it=>{ if(it.got) return; const p=up().find(p=>Math.hypot(it.x-p.x,it.y-p.y)<26); if(!p) return; it.got=true;
+      if(it.k==='key'){ hasKey=true; T(pls.length>1?'🔑 '+nm(p.i).toUpperCase()+' UNLOCKED THE DOOR!':'🔑 DOOR UNLOCKED!'); S('power'); api.event('key'); }
+      else if(it.k==='food'){ p.hp+=200; T(pls.length>1?'+200 HEALTH · '+nm(p.i).toUpperCase():'+200 HEALTH'); S('pickup'); }
+      else { api.addScore(250,it.x,it.y); S('coin'); } });
+    const ex=cx(exit.i), ey=cy(exit.j), dE=p=>Math.hypot(p.x-ex,p.y-ey);
+    if(pls.length===1){ if(dE(pl)<24){ win(); return; } }
+    else { const on=up().filter(p=>dE(p)<24); waitT=on.length?waitT+dt:0;
+      if(on.length&&pls.every(p=>!p.dead&&dE(p)<NEAR)){ win(); return; } }
+    const m=pl; api.counter(hasKey?'❤️ HEALTH · 🔑':'❤️ HEALTH',Math.max(0,Math.ceil(m.hp)),m.hp<150?'empty':m.hp<300?'low':'');
+    pls.forEach(p=>{ if(p.hp<=0) die(p); }); },
+  // ===== NET-1 co-op: host -> guest snapshot (small flat arrays) =====
+  netState(){ const R=Math.round, e=[], sh=[], g=[], it=[];
+    ens.forEach(o=>e.push(o.id,R(o.x),R(o.y),o.k==='demon'?1:0));
+    shots.forEach(s=>sh.push(R(s.x),R(s.y),R(s.vx/10),R(s.vy/10)));
+    gens.forEach(o=>g.push(R(o.x),R(o.y),o.hp,o.boss?1:0));
+    items.forEach(o=>{ if(!o.got) it.push(R(o.x),R(o.y),['key','food','gold'].indexOf(o.k)); });
+    const s={n:++snapN,k:hasKey?1:0,d:done?1:0,w:waitT>0.4?1:0,
+      p:pls.map(p=>[R(p.x),R(p.y),Math.max(0,R(p.hp)),R(p.face.x*10),R(p.face.y*10),p.dead?Math.max(1,R(p.respT*10)):0,Math.max(0,R(p.grace*10)),Math.max(0,R(p.eff.shield*10)),Math.max(0,R(p.eff.speed*10))]),
+      e,sh,g,it,v:evq.filter(x=>t-x[1]<1.2).slice(-20).map(x=>[x[0],...x.slice(2)])};
+    if(snapN<6||snapN%20===0) s.m=map.map(r=>r.join('')).join('');
+    return s; },
+  netApply(s){ if(!s||!s.p||!pls) return; if(s.n&&s.n<=snapSeen) return; snapSeen=s.n||snapSeen;
+    if(s.m&&s.m.length===GW*GH) map=[...Array(GH)].map((_,j)=>[...s.m.slice(j*GW,(j+1)*GW)].map(Number));
+    hasKey=!!s.k; done=!!s.d; waitT=s.w?1:0;
+    s.p.forEach((a,i)=>{ let p=pls[i]; if(!p) p=pls[i]=mkPl(i,a[0],a[1],HP0); setT(p,a[0],a[1]); p.hp=a[2]; p.face={x:a[3]/10,y:a[4]/10}; p.dead=a[5]>0; p.respT=a[5]/10; p.grace=a[6]/10; p.eff.shield=a[7]>0?a[7]/10:-9; p.eff.speed=a[8]>0?a[8]/10:-9; });
+    pl=pls[0];
+    const em={}; ens.forEach(o=>em[o.id]=o); const ne=[];
+    for(let i=0;i<s.e.length;i+=4){ const id=s.e[i], o=em[id]||{id,x:s.e[i+1],y:s.e[i+2]}; o.k=s.e[i+3]?'demon':'ghost'; setT(o,s.e[i+1],s.e[i+2]); ne.push(o); }
+    ens=ne; shots=[]; for(let i=0;i<s.sh.length;i+=4) shots.push({x:s.sh[i],y:s.sh[i+1],vx:s.sh[i+2]*10,vy:s.sh[i+3]*10,r:i});
+    gens=[]; for(let i=0;i<s.g.length;i+=4) gens.push({x:s.g[i],y:s.g[i+1],hp:s.g[i+2],boss:!!s.g[i+3]});
+    items=[]; for(let i=0;i<s.it.length;i+=3) items.push({x:s.it[i],y:s.it[i+1],k:['key','food','gold'][s.it[i+2]]});
+    const m=me(), h=Math.max(0,Math.ceil(m.hp)), lb=(hasKey?'❤️ HEALTH · 🔑':'❤️ HEALTH'); if(h+lb!==lastHp){ lastHp=h+lb; api.counter(lb,h,h<150?'empty':h<300?'low':''); }
+    (s.v||[]).forEach(a=>{ if(a[0]>evSeen){ evSeen=a[0]; try{ netFx(a); }catch(e){} } }); },
+  netTick(dt){ if(!pls) return; t+=dt; const k=1-Math.exp(-dt*16);
+    const L=o=>{ if(o&&o.tx!==undefined){ o.x+=(o.tx-o.x)*k; o.y+=(o.ty-o.y)*k; } };
+    pls.forEach(p=>{ L(p); p.grace-=dt; if(p.dead) p.respT-=dt; for(const q in p.eff) if(p.eff[q]>0) p.eff[q]-=dt; });
+    ens.forEach(L); shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; s.r+=dt*20; }); },
+  render(c){ c.fillStyle='#0a0806'; c.fillRect(0,0,W,H); const N=net();
     for(let j=0;j<GH;j++) for(let i=0;i<GW;i++){ const x=i*CS,y=OY+j*CS,v=map[j][i];
       if(v===1){ c.fillStyle='#4a3a2a'; c.fillRect(x,y,CS,CS); c.fillStyle='#6a5236'; c.fillRect(x+2,y+2,CS/2-3,CS/2-3); c.fillRect(x+CS/2+1,y+CS/2+1,CS/2-3,CS/2-3); c.fillStyle='#2a2016'; c.fillRect(x,y+CS-4,CS,4); }
       else { c.fillStyle=(i+j)%2?'#1a1510':'#1e1812'; c.fillRect(x,y,CS,CS); if(v===2){ c.fillStyle=hasKey?'#1e1812':'#b07a2a'; c.fillRect(x+2,y+6,CS-4,CS-12); if(!hasKey){ c.fillStyle='#ffd23f'; c.fillRect(x+CS/2-3,y+CS/2-3,6,6); } } } }
     const ex=cx(exit.i),ey=cy(exit.j); c.fillStyle='#000'; c.fillRect(ex-16,ey-16,32,32); c.fillStyle='#b14bff'; for(let k=0;k<4;k++) c.fillRect(ex-16+k*4,ey-16+k*8,32-k*8,6); c.shadowColor='#b14bff'; c.shadowBlur=20; c.strokeStyle='#b14bff'; c.strokeRect(ex-16,ey-16,32,32); c.shadowBlur=0;
+    if(N&&hasKey&&!done){ c.globalAlpha=0.35+0.2*Math.sin(t*4); c.strokeStyle='#ffd23f'; c.lineWidth=2; c.setLineDash([6,6]); c.beginPath(); c.arc(ex,ey,NEAR,0,Math.PI); c.stroke(); c.setLineDash([]); c.globalAlpha=1; }
     items.forEach(it=>{ if(it.got) return; c.font='26px sans-serif'; c.textAlign='center'; c.fillText(it.k==='key'?'🔑':it.k==='food'?'🍗':'💰',it.x,it.y+9+Math.sin(t*4)*2); });
     gens.forEach(g=>{ c.fillStyle=g.boss?'#5a1a2a':'#5a5040'; c.beginPath(); c.arc(g.x,g.y,g.boss?20:16,0,7); c.fill(); c.fillStyle='#e8e0d0'; for(let k=0;k<5;k++){ c.fillRect(g.x-10+k*4,g.y-8+(k%2)*6,6,3); } c.fillStyle='#ff3b3b'; c.fillRect(g.x-14,g.y+18,28*Math.min(1,g.hp/(g.boss?25:7)),3); });
     ens.forEach(e=>{ const w=Math.sin(t*8+e.x)*3; c.fillStyle=e.k==='demon'?'rgba(255,60,60,.9)':'rgba(200,200,255,.85)'; c.beginPath(); c.arc(e.x,e.y-4,12,Math.PI,0); c.lineTo(e.x+12,e.y+10+w); c.lineTo(e.x+4,e.y+6); c.lineTo(e.x-4,e.y+10-w); c.lineTo(e.x-12,e.y+6); c.fill(); c.fillStyle='#000'; c.fillRect(e.x-6,e.y-7,4,5); c.fillRect(e.x+2,e.y-7,4,5); });
     shots.forEach(s=>{ c.save(); c.translate(s.x,s.y); c.rotate(s.r); c.fillStyle='#ddd'; c.fillRect(-8,-2,16,4); c.fillStyle='#8a5a2a'; c.fillRect(-2,-8,4,16); c.restore(); });
-    if(!lost&&(grace<=0||(t*10|0)%2)){ const col=api.cos('Hero').colors[0]; c.fillStyle=col; c.shadowColor=col; c.shadowBlur=10; c.fillRect(pl.x-9,pl.y-6,18,18); c.fillStyle='#f0c090'; c.beginPath(); c.arc(pl.x,pl.y-12,8,0,7); c.fill(); c.fillStyle='#ccc'; c.beginPath(); c.moveTo(pl.x-9,pl.y-14); c.lineTo(pl.x-16,pl.y-24); c.lineTo(pl.x-6,pl.y-18); c.moveTo(pl.x+9,pl.y-14); c.lineTo(pl.x+16,pl.y-24); c.lineTo(pl.x+6,pl.y-18); c.fill(); c.shadowBlur=0;
-      if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(pl.x,pl.y,24,0,7); c.stroke(); } }
-    // torch light
-    const g=c.createRadialGradient(pl.x,pl.y,120,pl.x,pl.y,520); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.75)'); c.fillStyle=g; c.fillRect(0,0,W,H);
-    
+    pls.forEach(p=>{ if(lost||p.dead) return; if(p.grace>0&&!((t*10|0)%2)) return; const col=N?TAGC[p.i]:api.cos('Hero').colors[0]; hero(c,p,col); });
+    // torch light (co-op: lit around the middle of the pair, wider when they spread out)
+    const lx=pls.reduce((s,p)=>s+p.x,0)/pls.length, ly=pls.reduce((s,p)=>s+p.y,0)/pls.length, sp=pls.length>1?Math.hypot(pls[0].x-pls[1].x,pls[0].y-pls[1].y)/2:0;
+    const g=c.createRadialGradient(lx,ly,120+sp,lx,ly,520+sp); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.75)'); c.fillStyle=g; c.fillRect(0,0,W,H);
+    if(N) pls.forEach(p=>{ const col=TAGC[p.i], s=nm(p.i), x=Math.max(50,Math.min(W-50,p.x)), y=Math.max(110,p.y);
+      c.font='bold 15px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.8)';
+      if(p.dead){ c.globalAlpha=0.6+0.3*Math.sin(t*8); const m='↻ '+s.toUpperCase()+' '+Math.max(0,p.respT).toFixed(1); c.strokeText(m,x,y); c.fillStyle=col; c.fillText(m,x,y); c.globalAlpha=1; return; }
+      c.strokeText(s,x,y-34); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=8; c.fillText(s,x,y-34); c.shadowBlur=0;
+      c.fillStyle='#000'; c.fillRect(x-22,y-30,44,5); c.fillStyle=p.hp<150?'#ff3b3b':p.hp<300?'#ffd23f':col; c.fillRect(x-22,y-30,44*Math.min(1,Math.max(0,p.hp)/HP0),5); });
+    if(N&&waitT>0.4&&!done){ const o=pls.find(p=>Math.hypot(p.x-ex,p.y-ey)>=24)||pls[1]; const m='⏳ WAITING FOR '+nm(o.i).toUpperCase()+' — COME WITHIN 3 TILES OF THE STAIRS!';
+      c.font='bold 15px sans-serif'; c.textAlign='center'; c.lineWidth=5; c.strokeStyle='rgba(0,0,0,.9)'; c.strokeText(m,W/2,ey+CS*2+16); c.fillStyle='#ffd23f'; c.fillText(m,W/2,ey+CS*2+16); }
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
   attract(c,tt){ c.fillStyle='#0a0806'; c.fillRect(0,0,W,H); c.fillStyle='rgba(200,200,255,.8)'; for(let i=0;i<6;i++){ c.beginPath(); c.arc(300+Math.cos(tt+i)*160,450+Math.sin(tt*1.3+i)*160,14,0,7); c.fill(); } }
 };
-function die(){ if(lost||done) return; lost=true; api.toast('OUT OF HEALTH!'); api.fx.burst(pl.x,pl.y,'#ff3b3b',30,240,.6,3); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>api.loseLife(),1000); }
+function setT(o,x,y){ if(o.tx===undefined||Math.hypot(x-o.x,y-o.y)>200){ o.x=x; o.y=y; } o.tx=x; o.ty=y; }
+// one hero: walks from its own controls; throws axes at the closest ghost (as in single player)
+function move(p,d,dt){ if(p.dead){ p.respT-=dt; if(p.respT<=0) getUp(p,HP0/2); return; }
+  const sp=(p.eff.speed>0?260:160); if(Math.hypot(d.x,d.y)>0.2) p.face={x:d.x,y:d.y};
+  const nx=p.x+d.x*sp*dt, ny=p.y+d.y*sp*dt; if(canMove(p,nx,p.y,13)) p.x=nx; if(canMove(p,p.x,ny,13)) p.y=ny;
+  const tg=[...ens,...gens].filter(e=>Math.hypot(e.x-p.x,e.y-p.y)<300).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
+  p.fireT-=dt; if(p.fireT<=0){ p.fireT=0.32; let ax=p.face.x, ay=p.face.y; if(tg){ ax=tg.x-p.x; ay=tg.y-p.y; } const m=Math.hypot(ax,ay)||1; if(tg||Math.hypot(d.x,d.y)>0.2){ shots.push({x:p.x,y:p.y,vx:ax/m*520,vy:ay/m*520,r:0}); api.sfx.shoot(); } } }
+function getUp(p,hp){ p.dead=false; p.respT=0; p.hp=hp; p.grace=2.5; ens=ens.filter(e=>Math.hypot(e.x-p.x,e.y-p.y)>150); ev('up',Math.round(p.x),Math.round(p.y),p.i); api.fx.burst(p.x,p.y,TAGC[p.i],16,180,.4,3); }
+function useAb(p,id){ if(done||lost||!p||p.dead) return false;
+  if(id==='potion'){ ens.forEach(e=>{ if(Math.hypot(e.x-p.x,e.y-p.y)<330) e.dead=true; }); gens.forEach(g=>{ if(Math.hypot(g.x-p.x,g.y-p.y)<330) g.hp-=4; }); api.fx.flash('#b14bff',.4); S('boom'); ev('fl','#b14bff'); return true; }
+  if(id==='food'){ p.hp+=300; S('pickup'); return true; }
+  p.eff[id]={shield:6,speed:8}[id]; S('power'); return true; }
+function hero(c,p,col){ c.fillStyle=col; c.shadowColor=col; c.shadowBlur=10; c.fillRect(p.x-9,p.y-6,18,18); c.fillStyle='#f0c090'; c.beginPath(); c.arc(p.x,p.y-12,8,0,7); c.fill(); c.fillStyle='#ccc'; c.beginPath(); c.moveTo(p.x-9,p.y-14); c.lineTo(p.x-16,p.y-24); c.lineTo(p.x-6,p.y-18); c.moveTo(p.x+9,p.y-14); c.lineTo(p.x+16,p.y-24); c.lineTo(p.x+6,p.y-18); c.fill(); c.shadowBlur=0;
+  if(p.eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(p.x,p.y,24,0,7); c.stroke(); } }
+function win(){ done=true; api.event('exit'); api.sfx.clear(); api.fx.flash('#fff',.3); ev('clear'); setTimeout(()=>api.stageClear(),900); }
+function die(p){ if(!net()){ if(lost||done) return; lost=true; api.toast('OUT OF HEALTH!'); api.fx.burst(pl.x,pl.y,'#ff3b3b',30,240,.6,3); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>api.loseLife(),1000); return; }
+  // co-op: this hero is down for 2 s, the team loses one life, the other keeps going
+  if(p.dead||done) return; p.dead=true; p.hp=0; p.respT=2;
+  T('💀 '+nm(p.i).toUpperCase()+' IS DOWN!'); api.fx.burst(p.x,p.y,'#ff3b3b',30,240,.6,3); api.sfx.hurt(); api.fx.shake(8); ev('ko',Math.round(p.x),Math.round(p.y));
+  if(api.lives>0) api.loseLife(); }
+function netFx(a){ const k=a[1], F=api.fx, SF=api.sfx;
+  if(k==='toast') api.toast(a[2]);
+  else if(k==='sfx'){ if(SF[a[2]]) SF[a[2]](); }
+  else if(k==='bu'){ if(a[4]){ SF.small(); F.burst(a[2],a[3],'#b8b8ff',8,140,.3,2); } else F.burst(a[2],a[3],'#ffd23f',24,240,.5,3); }
+  else if(k==='fl') F.flash(a[2],.4);
+  else if(k==='ko'){ SF.hurt(); F.shake(8); F.burst(a[2],a[3],'#ff3b3b',30,240,.6,3); }
+  else if(k==='up') F.burst(a[2],a[3],TAGC[a[4]]||'#fff',16,180,.4,3);
+  else if(k==='clear'){ SF.clear(); F.flash('#fff',.3); } }
 })();
 
 </script>
@@ -635,8 +716,8 @@ window.addEventListener('keydown', e => {
   } else if(state==='paused' && (e.code==='Escape'||e.code==='KeyP')) resumeGame();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; if(state==='play') G.onKey && G.onKey(e.code,false); });
-window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play') pauseGame(); });
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play') pauseGame(); });
+window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play'&&!NET.on) pauseGame(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play' && !NET.on) pauseGame(); });
 const Input = {
   keys,
   dir(){
@@ -659,6 +740,7 @@ function onDown(e){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.active&&joy.id===e.pointerId)) netSendRel({e:'ptr',t:'down',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('down', g.x, g.y, e.pointerId, e.pointerType);
 }
 function onMove(e){
@@ -668,12 +750,14 @@ function onMove(e){
     if(m>50){dx=dx/m*50;dy=dy/m*50;} joyEl.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`;
   }
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(G.joystick&&joy.active&&joy.id===e.pointerId) return; if(e.buttons||e.pointerType!=='mouse'){ NET.pmT=(NET.pmT||0); const now=performance.now(); if(now-NET.pmT>50){ NET.pmT=now; netSendFast({e:'ptr',t:'move',x:g.x,y:g.y}); } } return; }
   G.onPointer && G.onPointer('move', g.x, g.y, e.pointerId, e.pointerType, e.buttons);
 }
 function onUp(e){
   if(joy.active && e.pointerId===joy.id){ joy.active=false; joyEl.classList.add('hidden'); }
   if(state!=='play') return;
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
@@ -758,6 +842,7 @@ function useAbility(i){
   if(abLock[i]>0) return;
   const paid = a.cd>0 && !run.tutorial;
   if(paid && have(a)<=0){ toast('NO '+a.name+' LEFT'); SFX.bump(); flashShop(); return; }
+  if(NET.on&&NET.role==='guest'){ if(paid){ P.abil[a.id]=have(a)-1; save(); } abLock[i]=a.cd>0?1:0; netSendRel({e:'ab',id:a.id}); return; }
   if(G.useAbility(a.id)!==false){
     if(paid){ P.abil[a.id]=have(a)-1; save(); if(P.abil[a.id]===0) setTimeout(()=>{ if(state==='play') toast('BUY MORE IN 🛒 SHOP'); },900); }
     abLock[i] = a.cd>0 ? 1 : 0; tutEvent('ab_'+a.id);
@@ -1085,11 +1170,13 @@ function pauseAgain(){ state='play'; pauseGame(); }
 function resumeGame(){ closeModal(); state='play'; last=performance.now(); }
 function endGamePrompt(){
   if(state==='play'){ state='paused'; }
+  if(NET.on){ modal(`<h2>LEAVE THE GAME?</h2><p>This ends the 2-player game for both of you.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>netQuit(), n:resumeGame}); return; }
   if(MP.on){ modal(`<h2>LEAVE THE RACE?</h2><p>You'll drop out of this multiplayer race.</p><button class="big" data-a="y">LEAVE RACE</button><button class="mid" data-a="n">KEEP RACING</button>`, {y:()=>{ mpSend({e:'out'}); mpLeave(); toMenu(); }, n:resumeGame}); return; }
   if(run.tutorial){ modal(`<h2>LEAVE TUTORIAL?</h2><p>You can replay it any time from How to Play.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>{ if(!run.practice){ P.tutDone=true; save(); } toMenu(); }, n:resumeGame}); return; }
   modal(`<h2>END GAME?</h2><p>Your game is saved at the start of <b>Stage ${run.stage}</b>. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
 }
 function stageClear(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(true); return; }
   if(MP.on){ if(run.tutorial) return; mpFinish(true); return; }
   if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
   state='modal'; SFX.clear(); flushCoins();
@@ -1112,6 +1199,7 @@ function nameEntry(title, sub, win){
 }
 function afterRun(){ modal(`<h2>WHAT NEXT?</h2><button class="big" data-a="p">PLAY AGAIN</button><button class="mid abil" data-a="a">⚡ ABILITIES</button><button class="mid" data-a="s">TOP SCORES</button><button class="mid" data-a="m">MAIN MENU</button>`, {p:()=>newGame(run.slot), a:()=>{ toMenu(); abilPanel(); }, s:()=>{ toMenu(); scoresPanel(P.diff); }, m:toMenu}); }
 function gameOver(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(false); return; }
   if(MP.on){ mpFinish(false); return; }
   if(state==='modal' || state==='menu') return; state='modal'; SFX.over(); flushCoins();
   const coins = Math.floor(run.score/500), got=run.coinsStage; P.coins += coins; save();
@@ -1249,8 +1337,8 @@ function frame(now){
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
-    G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt);
-    doomTick(dt); mpTick(dt);
+    if(!(NET.on&&NET.role==='guest')) G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt); netTick(dt);
+    if(!(NET.on&&NET.role==='guest')) doomTick(dt); mpTick(dt);
   } else if(state==='menu' || state==='loading' || state==='ending'){ menuT+=dt; fxUpdate(dt); }
   ctx.save();
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
@@ -1325,11 +1413,15 @@ function mpRoom(){
   if(MP.on) { mpBars(); return; }
   if(!MP.ch) return; const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t).slice(0,3); MP.host = mpHostId()===MP.me;
   const list=ids.map((k,i)=>`<div style="padding:8px 12px;margin:6px 0;border-radius:10px;background:#ffffff14;text-align:left">${['🟦','🟥','🟩'][i]} <b>${esc(MP.players[k].name||'?')}</b>${k===MP.me?' (you)':''}${i===0?' · HOST':''}</div>`).join('');
-  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
-    {s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
+  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host&&G.net&&ids.length===2?`<button class="big" data-a="t" style="background:linear-gradient(90deg,#00e5ff,#ff3bd4)">🎮 PLAY TOGETHER (2P)</button>`:''}${!MP.host&&G.net&&ids.length===2?'<p>🎮 This game has <b>PLAY TOGETHER</b> — the host can start it.</p>':''}${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
+    {t:()=>netPick(),
+     s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
 }
 function mpSend(o){ try{ MP.ch && MP.ch.send({type:'broadcast', event:'m', payload:Object.assign({id:MP.me,name:MP.name},o)}); }catch(e){} }
 function mpMsg(m){
+  if(m.e==='net'){ if(m.n) netRecv(m.n); return; }
+  if(m.e==='rtc'){ if(m.id!==MP.me) netRtcMsg(m); return; }
+  if(m.e==='coop' && !NET.on){ netStart(m.seed,m.stage,m.hn,m.gn,m.diff,m.score); return; }
   if(m.e==='start' && !MP.on){ mpStart(m.seed,m.stage); }
   else if(m.e==='prog'){ MP.prog[m.id]={p:m.p,l:m.l,name:m.name,out:m.out}; mpBars(); }
   else if(m.e==='win' && MP.on && !MP.over){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{p:1}); mpEnd(m.name,false); }
@@ -1378,6 +1470,105 @@ function mpOnMenu(){ if(!mpFirstMenu) return; mpFirstMenu=false; const q=(locati
   setTimeout(()=>{ if(state!=='menu') return; modal(`<h2>${esc(G.title)}</h2><p>How do you want to play?</p><button class="big" data-a="s">▶ SOLO</button><button class="big" data-a="m" style="background:linear-gradient(90deg,#ff3bd4,#ffd23f)">👥 MULTIPLAYER (2–3)</button>`,{s:()=>{}, m:()=>mpMenu()}); },150); }
 
 function mpWaBtn(){}
+
+/* ===== REAL 2-PLAYER (NET-1): one phone hosts the game, the other sends its controls and draws the host's snapshots ===== */
+const NET = { on:false, role:null, peer:null, dc:null, rtcOk:false, sendT:0, lastSnap:null, names:['',''], keys2:{}, k2:{}, inbox:[] };
+const Input2 = { keys: NET.k2, dir(){ let x=0,y=0, k=NET.k2; if(k.ArrowLeft||k.KeyA) x-=1; if(k.ArrowRight||k.KeyD) x+=1; if(k.ArrowUp||k.KeyW) y-=1; if(k.ArrowDown||k.KeyS) y+=1; const j=NET.joy2; if(j&&(Math.abs(j.x)>0.05||Math.abs(j.y)>0.05)){ x=j.x; y=j.y; } return {x,y}; } };
+API.input2 = Input2;
+Object.defineProperty(API,'net',{get(){ return NET.on? {role:NET.role, names:NET.names, mode:(G.net&&G.net.mode)||'coop'} : null; }});
+API.netWin = function(idx){ if(!NET.on||NET.role!=='host') return; netSendRel({e:'nwin',idx}); netResult(idx); };
+function netSendRel(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); return; }catch(e){} } mpSend(Object.assign({e:'net'},{n:o})); }
+function netSendFast(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); }catch(e){} return; } if(NET.fbT<=0){ NET.fbT=0.1; mpSend({e:'net',n:o}); } }
+function netRecv(o){
+  if(o.e==='snap' && NET.role==='guest'){ NET.lastSnap=o; }
+  else if(o.e==='in' && NET.role==='host'){ for(const k in NET.k2) delete NET.k2[k]; Object.assign(NET.k2,o.k||{}); NET.joy2=o.j||null; }
+  else if(o.e==='ptr' && NET.role==='host'){ G.onPointer2 && G.onPointer2(o.t,o.x,o.y); }
+  else if(o.e==='ab' && NET.role==='host'){ G.useAbility2 && G.useAbility2(o.id); }
+  else if(o.e==='nclear' && NET.role==='guest'){ netStageEnd(true); }
+  else if(o.e==='nover' && NET.role==='guest'){ NET.waitPay=false; netGameOver(); }
+  else if(o.e==='ncont' && NET.role==='guest'){ state='modal'; netContinue(); }
+  else if(o.e==='npay' && NET.role==='host'){ netResume(o.name||'P2'); }
+  else if(o.e==='nresume' && NET.role==='guest'){ NET.waitPay=false; closeModal(); state='play'; last=performance.now(); toast('💰 '+(o.payer||'')+' PAID — KEEP GOING!'); }
+  else if(o.e==='nshop' && NET.role==='host'){ netShopTime(); toast('PARTNER IS BUYING GOLD…'); }
+  else if(o.e==='ngive'){ toast('PARTNER GAVE UP — YOU CAN STILL PAY'); }
+  else if(o.e==='nnext' && NET.role==='guest'){ clearTimeout(NET.advT); closeModal(); run.stage=o.stage; Math.random=mpSeeded(o.seed); netBegin(); }
+  else if(o.e==='nwin' && NET.role==='guest'){ netResult(o.idx); }
+  else if(o.e==='nquit'){ netStop(); state='modal'; modal(`<h2>YOUR PARTNER LEFT</h2><p>The 2-player game has ended.</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="m">MENU</button>`,{r:()=>mpRoom(), m:()=>{ mpLeave(); toMenu(); }}); }
+}
+// --- direct phone-to-phone link (WebRTC). If it can't connect in 6 s we fall back to Supabase messages (slower).
+function netRtc(isHost){
+  try{
+    const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]}); NET.peer=pc;
+    pc.onicecandidate=e=>{ if(e.candidate) mpSend({e:'rtc',c:e.candidate}); };
+    const setup=dc=>{ NET.dc=dc; dc.onopen=()=>{ NET.rtcOk=true; toast('⚡ DIRECT LINK'); }; dc.onmessage=m=>{ try{ netRecv(JSON.parse(m.data)); }catch(e){} }; };
+    if(isHost){ setup(pc.createDataChannel('g',{ordered:false,maxRetransmits:0})); pc.createOffer().then(o=>pc.setLocalDescription(o)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }
+    else pc.ondatachannel=e=>setup(e.channel);
+  }catch(e){}
+}
+function netRtcMsg(m){ const pc=NET.peer; if(!pc) return; try{
+  if(m.sdp){ pc.setRemoteDescription(m.sdp).then(()=>{ if(m.sdp.type==='offer') return pc.createAnswer().then(a=>pc.setLocalDescription(a)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }); }
+  else if(m.c){ pc.addIceCandidate(m.c).catch(()=>{}); } }catch(e){} }
+function netPick(){ const ids2=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t); if(ids2.length!==2){ mpRoom(); return; }
+  const sv=(P.coop||{})[G.id]; const go=(stage,diff,score)=>{ const seed=Math.floor(mpRealRandom()*1e9); const hn=MP.players[ids2[0]].name, gn=MP.players[ids2[1]].name; mpSend({e:'coop',seed,stage,hn,gn,diff,score}); netStart(seed,stage,hn,gn,diff,score); };
+  modal(`<h2>🎮 PLAY TOGETHER</h2><p>Play the whole game together, stage 1 to ${G.stages}.</p><p>Difficulty:</p><button class="mid" data-a="e">🟢 BEGINNER — new game</button><button class="mid" data-a="h">🟠 HARD — new game</button><button class="mid" data-a="x">🔴 EXPERT — new game</button>${sv?`<button class="big" data-a="c">▶ CONTINUE TOGETHER · Stage ${sv.stage} · ${DIFFS[sv.diff]}</button>`:''}<button class="mid" data-a="b">◀ BACK</button>`,
+    {e:()=>go(1,0,0), h:()=>go(1,1,0), x:()=>go(1,2,0), c:()=>go(sv.stage,sv.diff,sv.score||0), b:()=>mpRoom()}); }
+function netSave(){ if(NET.role!=='host') return; P.coop=P.coop||{}; P.coop[G.id]={stage:run.stage,diff:P.diff,score:run.score,t:Date.now()}; save(); }
+function netStart(seed,stage,hostName,guestName,diff,score){
+  NET.on=true; NET.role=MP.host?'host':'guest'; NET.names=[hostName,guestName]; NET.fbT=0; NET.lastSnap=null; MP.on=false; MP.coop=true;
+  MP.prevDiff=P.diff; P.diff=diff||0; run.stage=stage; run.score=score||0; run.lives=G.lives; run.extra={}; Math.random=mpSeeded(seed);
+  netRtc(NET.role==='host'); if(window.RMXL) RMXL.setBusy(true);
+  let n=3; const tick=()=>{ modal(`<h2>🎮 PLAY TOGETHER</h2><p><b style="color:#00e5ff">P1 ${esc(hostName)}</b> + <b style="color:#ff3bd4">P2 ${esc(guestName)}</b></p><p>You are <b>${NET.role==='host'?'P1':'P2'}</b> · ${DIFFS[P.diff]} · Stage ${run.stage}</p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); netBegin(); } else setTimeout(tick,1000); }; tick();
+}
+function netBegin(){ beginStage(); }
+function netTick(dt){ // runs every frame while playing together
+  if(!NET.on) return; NET.fbT-=dt; NET.sendT-=dt;
+  if(NET.role==='host'){ if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const s=G.netState?G.netState():{}; netSendFast({e:'snap',s,l:run.lives,sc:run.score}); } }
+  else { if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const k={}; ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS','Space'].forEach(c=>{ if(keys[c]) k[c]=1; }); const d=joy.active?Input.dir():null; netSendFast({e:'in',k,j:d}); }
+    if(NET.lastSnap){ const sn=NET.lastSnap; NET.lastSnap=null; try{ G.netApply&&G.netApply(sn.s); }catch(e){} if(run.lives!==sn.l||run.score!==sn.sc){ run.lives=sn.l; run.score=sn.sc; updHud(); } }
+    G.netTick && G.netTick(dt); }
+}
+function netStageEnd(win){
+  state='modal'; flushCoins();
+  if(!win){ netContinue(); return; }
+  if(NET.role==='host') netSendRel({e:'nclear'});
+  run.stage++; if(NET.role==='host') netSave();
+  if(run.stage>G.stages){ if(NET.role==='host'){ P.coop[G.id]=null; save(); } netQuit('🏆 YOU BEAT ALL '+G.stages+' STAGES TOGETHER!'); return; }
+  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)); P.coins+=coins; save(); updCoins();
+  let n=4; clearTimeout(NET.advT);
+  const tick=()=>{ if(!NET.on) return; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2><p>Great teamwork! +${coins} 🪙 each</p><div class="stat">${run.score.toLocaleString()}</div><p>Stage ${run.stage} starts in <b>${n}</b>…</p><button class="mid" data-a="q">LEAVE (progress saved)</button>`,{q:()=>netQuit()});
+    if(n--<=0){ closeModal(); if(NET.role==='host'){ const seed=Math.floor(mpRealRandom()*1e9); netSendRel({e:'nnext',stage:run.stage,seed}); Math.random=mpSeeded(seed); netBegin(); } }
+    else NET.advT=setTimeout(tick,1000); };
+  tick();
+}
+// out of lives: either player may pay gold to continue (cost grows with stage); nobody pays in 30 s = game over
+function netContCost(){ return Math.round((60 + run.stage*4) * (1 + P.diff*0.5)); }
+function netContinue(){
+  if(NET.role==='host'){ netSendRel({e:'ncont'}); clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },30000); }
+  NET.waitPay=true; netContinueShow();
+}
+function netShopTime(){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },120000); }
+function netContinueShow(){ if(!NET.on||!NET.waitPay) return; const cost=netContCost(), can=P.coins>=cost;
+  modal(`<h2>OUT OF LIVES!</h2><p>Either player can pay to keep going together.</p><button class="big" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙</button><p style="font-size:13px">You have ${P.coins.toLocaleString()} 🪙${can?'':' — not enough'}</p><button class="mid" data-a="s" style="background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+    {s:()=>{ if(NET.role==='host') netShopTime(); else netSendRel({e:'nshop'}); goldStore(()=>netContinueShow(),'🛒 BUY GOLD TO CONTINUE'); },
+     p:()=>{ if(P.coins<cost){ netContinueShow(); return; } P.coins-=cost; save(); updCoins(); if(NET.role==='host') netResume(MP.name); else { netSendRel({e:'npay',name:MP.name}); modal(`<h2>PAID ✔</h2><p>Continuing…</p>`,{}); } }, g:()=>{ netSendRel({e:'ngive'}); if(NET.role==='host'){ clearTimeout(NET.contT); NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } else modal(`<h2>WAITING…</h2><p>Your partner can still pay to continue.</p>`,{}); }});
+}
+function netResume(payer){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.waitPay=false; run.lives=G.lives; updHud(); if(G.netRevive) G.netRevive(); else if(G.respawn) G.respawn(); netSendRel({e:'nresume',payer}); closeModal(); state='play'; last=performance.now(); toast('💰 '+payer+' PAID — KEEP GOING!'); }
+function netGameOver(){ state='modal'; if(NET.role==='host'){ P.coop=P.coop||{}; P.coop[G.id]=null; save(); }
+  modal(`<h2>GAME OVER</h2><p>You reached stage ${run.stage} together.</p><div class="stat">${run.score.toLocaleString()}</div><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netResult(idx){ state='modal'; const meIdx=NET.role==='host'?0:1; const t= idx===meIdx?'🏆 YOU WIN!': idx===-1?'🤝 DRAW!':'🏁 '+esc(NET.names[idx]||'P'+(idx+1))+' WINS!';
+  if(idx===meIdx){ P.coins+=50; save(); }
+  modal(`<h2>${t}</h2><p>${idx===meIdx?'+50 🪙':''}</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NET.peer&&NET.peer.close(); }catch(e){} NET.dc=null; NET.peer=null; NET.rtcOk=false; Math.random=mpRealRandom; P.diff=MP.prevDiff; if(window.RMXL) RMXL.setBusy(false); }
+function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
+
+// ===== GOLD STORE (cash gold packs) — PAY-1. Payments are not switched on yet: PAY.buy() is the ONE place to connect PayFast / Google Play Billing later.
+const PAY = { enabled:false,
+  buy(pack, done){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; } /* later: start PayFast / Play Billing checkout here, then on success: */ P.coins+=pack.gold; save(); updCoins(); toast('+'+pack.gold.toLocaleString()+' 🪙 ADDED'); SFX.coin(); done&&done(); } };
+function goldStore(back, title){
+  const rows=GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':''}</div><button data-gp="${i}" ${PAY.enabled?'':'style="opacity:.75"'}>${g.price}${PAY.enabled?'':' · SOON'}</button></div>`).join('');
+  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>${rows}<p class="note">${PAY.enabled?'Secure payment. Gold is added straight away.':'Gold purchases open soon. You can still earn gold free by playing.'}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); PAY.buy(GOLD_PACKS[+b.dataset.gp], ()=>goldStore(back,title)); }));
+}
 
 
 })();
