@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CR-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-CR-1.2 · 2026-10-19">
 <title>Coast Racer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-CR-1.1 · 2026-10-17 -->
+<!-- BUILD-CR-1.2 · 2026-10-19 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -374,6 +374,13 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 (function(){
 const W=600,H=900,SEG=200,RW=2000,DRAW=140,CAMH=1000,DEPTH=0.84,HZ=380;
 let api,t,segs,pos,spd,px,cars,riv,done,lost,eff,goal,crashT,steerTgt,drag,stg,maxS,need,place,offT,grid;
+/* BUILD-CR-1.2: real online 2-player VERSUS (NET-1). Host phone runs the race; P1 cyan (host) vs P2 pink (guest) on the same road + traffic.
+   First over the line wins. 3 traffic crashes = WRECKED (out); the other car wins once it has driven 10% of the road (or crosses the line).
+   Race clock runs out = car in front wins (if it has driven 10%), else draw. Each phone's camera follows its OWN car. */
+const P1C='#00e5ff',P2C='#ff3bd4',MAXHIT=3;
+let PL=null,me=0,res=null,resT=0,raceT=0,LIM=90,nSent=false,seq=0,gSeq=0,msgs=[],msgN=0,gMsg=0;
+const isNet=()=>!!(api&&api.net);
+const nName=i=>(((api&&api.net&&api.net.names)||[])[i]||('P'+(i+1))).slice(0,10);
 const RNAMES=['THABO','LERATO','SIPHO','ZANELE','PIETER','AYANDA','NALEDI'], RCOL=['#2e7bff','#3bff7a','#ffd23f','#f4f4f0','#b14bff','#00e5ff','#ff9f1c'];
 const ord=n=>n+(n===1?'st':n===2?'nd':n===3?'rd':'th');
 function build(n,a){ segs=[]; const add=(len,curve,hill)=>{ const y0=segs.length?segs[segs.length-1].y:0; for(let i=0;i<len;i++){ const e=i/len; segs.push({curve:curve*Math.sin(e*Math.PI),y:y0+hill*(1-Math.cos(e*Math.PI))/2*SEG*0}); } };
@@ -385,8 +392,10 @@ function build(n,a){ segs=[]; const add=(len,curve,hill)=>{ const y0=segs.length
   segs.forEach((s,i)=>{ s.i=i; s.dec=i%20===0?(i%40?'palm':'sign'):i%7===0?'palm':null; s.side=(i%14<7)?-1:1; }); }
 const GAME=window.GAME={
   id:'coast-racer',title:'Coast Racer',titleHTML:'COAST<br>RACER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-CR-1.1 · 2026-10-17',theme:{a:'#ff3bd4',b:'#ffd23f',bg:'#1a0630'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🏎️',joystick:false,coinPts:40,
+  build:'BUILD-CR-1.2 · 2026-10-19',net:{mode:'versus'},theme:{a:'#ff3bd4',b:'#ffd23f',bg:'#1a0630'},
+  w:W,h:H,stages:100,lives:3,livesIcon:'🏎️',
+  // 2P guest: use the shell's touch stick, because its direction rides in the steady input stream to the host (finger 'move' messages can be dropped)
+  get joystick(){ return !!(isNet()&&api.net.role==='guest'); },coinPts:40,
   abilities:[
     {id:'nitro',icon:'🚀',name:'NITRO',cd:15,key:'Digit1',keyLabel:'1',desc:'Massive speed boost for 4 seconds.'},
     {id:'ghost',icon:'👻',name:'GHOST',cd:20,key:'Digit2',keyLabel:'2',desc:'Drive straight through traffic for 6 seconds.'},
@@ -395,22 +404,43 @@ const GAME=window.GAME={
   shop:[{id:'c_r',cat:'Car',name:'Red Convertible',cost:0,colors:['#ff3b3b'],desc:'Classic.'},{id:'c_y',cat:'Car',name:'Yellow',cost:200,colors:['#ffd23f'],desc:'Bright.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff3bd4,#ffd23f)'}],
   story:`<h3>COAST RACER</h3><p>Sunset, a open coast road and a red convertible. Seven rivals, one coast road. Finish high enough to make the next race.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Phone:</b> put your finger down anywhere and push it UP to accelerate. Slide it left/right to steer, pull it DOWN to brake. Let go and the car rolls to a stop.</li><li><b>PC:</b> ↑ or W = accelerate, ← → or A D = steer, ↓ or S = brake.</li><li>Bends PUSH you to the outside — steer into them or you'll end up in the sand, which kills your speed.</li><li>You start LAST of 8. Your place shows big at the top. Finish in the place shown (e.g. TOP 3) to clear the stage.</li><li>Don't hit traffic or rivals! Use 🚀 NITRO on straights.</li></ul>`,
+  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Phone:</b> put your finger down anywhere and push it UP to accelerate. Slide it left/right to steer, pull it DOWN to brake. Let go and the car rolls to a stop.</li><li><b>PC:</b> ↑ or W = accelerate, ← → or A D = steer, ↓ or S = brake.</li><li>Bends PUSH you to the outside — steer into them or you'll end up in the sand, which kills your speed.</li><li>You start LAST of 8. Your place shows big at the top. Finish in the place shown (e.g. TOP 3) to clear the stage.</li><li>Don't hit traffic or rivals! Use 🚀 NITRO on straights.</li><li><b>Play Together (2P):</b> cyan P1 vs pink P2 on the same road. First over the finish line wins. Crash into traffic 3 times and you're WRECKED. 💫 OIL SLICK spins your friend out if they're just ahead.</li></ul>`,
   tutorial:[{text:'Touch and push UP to go (PC: ↑ or W). Slide left/right to steer!',ev:'go'},{text:'Overtake the other cars! Your place is at the top.',ev:'pass'},{text:'Reach the finish line!',ev:'fin'}],
-  stageIntro:{1:'START LAST · FINISH TOP 3'},bossName:'RUSH HOUR!',ending:{"0":["#FINISH","What a drive."],"1":["#KING","King of the coast."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={nitro:4,ghost:6,slow:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pos(){return pos;}, get spd(){return spd;}, get px(){return px;}, set px(v){px=v;}, get cars(){return cars;}, get riv(){return riv;}, get place(){return place;}, get need(){return need;}, get lost(){return lost;}, get done(){return done;}}; },
+  get stageIntro(){ return isNet()?{1:'FIRST OVER THE LINE WINS!'}:{1:'START LAST · FINISH TOP 3'}; },bossName:'RUSH HOUR!',ending:{"0":["#FINISH","What a drive."],"1":["#KING","King of the coast."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ const tot={nitro:4,ghost:6,slow:6}[id]; if(isNet()&&PL){ const E=PL[me].eff; return tot?{left:Math.max(0,E[id]),total:tot}:null; } return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return { get PL(){return PL;}, get res(){return res;}, get LIM(){return LIM;}, get raceT(){return raceT;}, set raceT(v){raceT=v;}, get goal(){return goal;},
+    get net2(){ if(!PL) return null; const f=P=>({pos:Math.round(P.pos),spd:Math.round(P.spd),px:+P.px.toFixed(3),hits:P.hits,out:P.out,fin:P.fin}); return {p1:f(PL[0]),p2:f(PL[1]),res,rt:+raceT.toFixed(1),goal,cars:cars.length}; },get pos(){return pos;}, get spd(){return spd;}, get px(){return px;}, set px(v){px=v;}, get cars(){return cars;}, get riv(){return riv;}, get place(){return place;}, get need(){return need;}, get lost(){return lost;}, get done(){return done;}}; },
   init(a){api=a;},
   startStage(n,a){ api=a; stg=n; t=0; done=false; lost=false; eff={nitro:-9,ghost:-9,slow:-9}; build(n,a); pos=0; spd=0; px=0; crashT=0; steerTgt=null; maxS=12000;
-    need=a.content===0?8:Math.max(1,Math.round(a.dv([3,2,1],1,1))); resetRace(); },
-  respawn(){ lost=false; resetRace(); },
+    need=a.content===0?8:Math.max(1,Math.round(a.dv([3,2,1],1,1))); resetRace();
+    if(a.net){ nStart(); return; } PL=null; },
+  respawn(){ if(isNet()) return; lost=false; resetRace(); },
   stageBonus(){ return (9-place)*400; },
-  useAbility(id){ if(done||lost) return false;
+  useAbility(id){ if(isNet()) return nAbil(0,id); if(done||lost) return false;
     if(id==='spin'){ let k=0; riv.forEach(r=>{ const d=r.z-pos; if(d>-300&&d<9000){ r.spinT=3; k++; } }); api.toast(k?k+' RIVAL'+(k>1?'S':'')+' SPUN OUT!':'NOBODY CLOSE'); api.sfx.power(); return true; }
     eff[id]={nitro:4,ghost:6,slow:6}[id]; api.sfx.power(); return true; },
   // phone: a stick appears where you touch. Push UP = accelerate, DOWN = brake, LEFT/RIGHT = steer. Let go = no gas.
-  onPointer(type,x,y){ if(type==='down') drag={x0:x,y0:y,x,y}; else if(type==='move'&&drag){ drag.x=x; drag.y=y; } else if(type==='up') drag=null; },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; if(lost) return;
+  onPointer(type,x,y){ if(isNet()){ if(PL) nPtr(PL[0],type,x,y); return; } if(type==='down') drag={x0:x,y0:y,x,y}; else if(type==='move'&&drag){ drag.x=x; drag.y=y; } else if(type==='up') drag=null; },
+  // 2P host: the guest's finger / abilities drive P2
+  onPointer2(type,x,y){ if(isNet()&&PL) nPtr(PL[1],type,x,y); },
+  useAbility2(id){ if(!isNet()) return false; return nAbil(1,id); },
+  netState(){ if(!PL) return {}; const r1=v=>Math.round(v*10)/10, d=PL[1].drag;
+    return {q:++seq,t:r1(raceT),L:LIM,r:res===null?-9:res,rt:r1(resT),
+      p:PL.map(P=>[Math.round(P.pos),Math.round(P.spd),Math.round(P.px*1000)/1000,r1(P.crashT),r1(P.eff.nitro),r1(P.eff.ghost),r1(P.eff.slow),P.hits,P.out?1:0,P.fin?1:0,Math.round(P.steer*100)/100,r1(P.spinT)]),
+      c:cars.map(c=>[Math.round(c.z),Math.round(c.x*100)/100,Math.round(c.sp)]), d:d?[d.x0|0,d.y0|0,d.x|0,d.y|0]:0, m:msgs}; },
+  netApply(s){ if(!s||!s.p||!PL) return; if(s.q<=gSeq&&s.q>gSeq-500) return; gSeq=s.q;
+    raceT=s.t; LIM=s.L||LIM; res=s.r===-9?null:s.r; resT=s.rt||0;
+    s.p.forEach((a,i)=>{ const P=PL[i]; P.pos=a[0]; P.spd=a[1]; P.px=a[2]; P.crashT=a[3]; P.eff.nitro=a[4]; P.eff.ghost=a[5]; P.eff.slow=a[6]; P.hits=a[7]; P.out=!!a[8]; P.fin=!!a[9]; P.steer=a[10]; P.spinT=a[11]; });
+    if(cars.length!==s.c.length) cars=s.c.map((a,i)=>({z:0,x:0,sp:0,col:['#7a7a8a','#5a6a7a','#8a7a6a'][i%3]}));
+    s.c.forEach((a,i)=>{ cars[i].z=a[0]; cars[i].x=a[1]; cars[i].sp=a[2]; });
+    PL[1].drag=s.d?{x0:s.d[0],y0:s.d[1],x:s.d[2],y:s.d[3]}:null;
+    (s.m||[]).forEach(m=>{ if(m[0]>gMsg){ gMsg=m[0]; if(m[1]) api.toast(m[1]); if(m[2]&&api.sfx[m[2]]) api.sfx[m[2]](); if(m[2]==='hurt') api.fx.shake(10); } });
+    nCounter(); },
+  netTick(dt){ if(!PL) return; t+=dt; nEff(dt); if(res!==null) return; const cs=nSlow();
+    PL.forEach(P=>{ P.crashT-=dt; if(!P.out&&!P.fin) P.pos=Math.min(goal,P.pos+P.spd*dt); });
+    cars.forEach(c=>{ c.z+=c.sp*cs*dt; if(c.z>goal) c.z=1000; });
+    const V=PL[me]; if(Math.abs(V.px)>1&&V.spd>200&&Math.random()<dt*20) api.fx.burst(W/2+(Math.random()-.5)*200,H-70,'#e8c87a',2,120,.3,3); },
+  update(dt){ if(isNet()&&PL){ nUpdate(dt); return; } t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; if(lost) return;
     const K=api.input.keys; crashT-=dt; const top=maxS*(eff.nitro>0?1.45:1);
     const sx_=drag?Math.max(-1,Math.min(1,(drag.x-drag.x0)/70)):0, sy_=drag?Math.max(-1,Math.min(1,(drag.y-drag.y0)/70)):0;
     const gas=K.ArrowUp||K.KeyW||sy_<-0.3, brake=K.ArrowDown||K.KeyS||sy_>0.5;
@@ -434,7 +464,8 @@ const GAME=window.GAME={
       else { done=false; lost=true; api.toast('FINISHED '+ord(place)+' — NEED TOP '+need); api.sfx.hurt(); setTimeout(()=>api.loseLife(),1600); }
       return; }
     api.counter('🏁 PLACE',ord(place)+' / 8',place>need?'low':''); },
-  render(c){ const sky=c.createLinearGradient(0,0,0,HZ+40); sky.addColorStop(0,'#2a0a5a'); sky.addColorStop(0.6,'#ff3bd4'); sky.addColorStop(1,'#ffb000'); c.fillStyle=sky; c.fillRect(0,0,W,H);
+  render(c){ const N=!!(isNet()&&PL); let V=null,O=null; if(N){ V=PL[me]; O=PL[1-me]; pos=V.pos; spd=V.spd; px=V.px; crashT=V.crashT; eff=V.eff; drag=V.drag; done=false; lost=false; }
+    const sky=c.createLinearGradient(0,0,0,HZ+40); sky.addColorStop(0,'#2a0a5a'); sky.addColorStop(0.6,'#ff3bd4'); sky.addColorStop(1,'#ffb000'); c.fillStyle=sky; c.fillRect(0,0,W,H);
     const base=segs[Math.floor(pos/SEG)%segs.length]; const bgx=-(pos*0.0001+(base?0:0));
     c.fillStyle='#ffd23f'; c.shadowColor='#ffd23f'; c.shadowBlur=40; c.beginPath(); c.arc(W/2,HZ-40,90,Math.PI,0); c.fill(); c.shadowBlur=0;
     c.fillStyle='#ff3bd4'; for(let i=0;i<6;i++) c.fillRect(W/2-90,HZ-110+i*14,180,3+i);
@@ -454,14 +485,18 @@ const GAME=window.GAME={
         else { c.fillStyle='#2e7bff'; c.fillRect(dxs-120*k,p.sy-260*k,240*k,120*k); c.fillStyle='#ffd23f'; c.fillRect(dxs-10*k,p.sy-140*k,20*k,140*k); } }
       cars.forEach(cr=>{ const cz=cr.z-pos; if(cz<(n)*SEG-bpz()&&cz>=(n-1)*SEG-bpz()&&cz>40){ const k=p.sw/RW, cx=p.sx+cr.x*p.sw, w=560*k, h=280*k; drawCar(c,cx,p.sy,w,h,cr.col,eff.ghost>0); } });
       riv.forEach((r,i)=>{ const cz=r.z-pos; if(cz<(n)*SEG-bpz()&&cz>=(n-1)*SEG-bpz()&&cz>40){ const k=p.sw/RW, cx=p.sx+r.lx*p.sw, w=600*k, h=300*k; c.save(); if(r.spinT>0){ c.translate(cx,p.sy); c.rotate(Math.sin(t*20)*0.5); c.translate(-cx,-p.sy); } drawCar(c,cx,p.sy,w,h,RCOL[i],eff.ghost>0,false,true); c.restore();
-        if(w>30){ c.fillStyle='#fff'; c.font=`bold ${Math.min(22,Math.max(10,w*0.16))|0}px sans-serif`; c.textAlign='center'; c.fillText(RNAMES[i],cx,p.sy-h*1.08); } } }); }
-    const bounce=crashT>0?Math.sin(t*40)*6:(spd>200?Math.sin(t*30)*1.5:0); const tilt=(K_steer())*0.15;
-    c.save(); c.translate(W/2,H-110+bounce); c.rotate(crashT>0?Math.sin(t*20)*0.2:tilt); drawCar(c,0,0,220,110,api.cos('Car').colors[0],eff.ghost>0&&(t*10|0)%2,true); c.restore();
+        if(w>30){ c.fillStyle='#fff'; c.font=`bold ${Math.min(22,Math.max(10,w*0.16))|0}px sans-serif`; c.textAlign='center'; c.fillText(RNAMES[i],cx,p.sy-h*1.08); } } });
+      if(N){ const cz=O.pos-pos; if(cz<(n)*SEG-bpz()&&cz>=(n-1)*SEG-bpz()&&cz>40){ const k=p.sw/RW, cx=p.sx+O.px*p.sw, w=600*k, h=300*k; nOther(c,O,cx,p.sy,w,h,1-me); } } }
+    if(N){ const cz=O.pos-pos; if(cz<=40&&cz>-260){ const xo=W/2+(O.px-px)*785, sc=1-Math.max(0,-cz)/600; if(Math.abs(xo-W/2)<W/2+90) nOther(c,O,xo,H-110+Math.max(0,-cz)*0.12,220*sc,110*sc,1-me); } }
+    const bounce=crashT>0?Math.sin(t*40)*6:(spd>200?Math.sin(t*30)*1.5:0); const tilt=(N?V.steer:K_steer())*0.15;
+    c.save(); c.translate(W/2,H-110+bounce); c.rotate(crashT>0||(N&&V.spinT>0)?Math.sin(t*20)*0.2:tilt); drawCar(c,0,0,220,110,N?V.col:api.cos('Car').colors[0],eff.ghost>0&&(t*10|0)%2,true); c.restore();
+    if(N){ c.font='bold 18px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='#000'; const nm=nName(me)+' (YOU)'; c.strokeText(nm,W/2,H-232); c.fillStyle=V.col; c.fillText(nm,W/2,H-232); }
     if(eff.nitro>0){ c.fillStyle='rgba(255,180,0,.7)'; for(let i=0;i<2;i++){ c.beginPath(); c.moveTo(W/2-60+i*120-14,H-90); c.lineTo(W/2-60+i*120,H-40+Math.random()*30); c.lineTo(W/2-60+i*120+14,H-90); c.fill(); } }
     c.fillStyle='rgba(0,0,0,.5)'; c.fillRect(20,H-60,160,40); c.fillStyle='#fff'; c.font='bold 26px sans-serif'; c.textAlign='left'; c.fillText(Math.round(spd/40)+' km/h',30,H-30);
     // progress bar with every racer
     c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(W-38,200,26,520); c.fillStyle='#fff'; c.fillRect(W-38,198,26,4);
     riv.forEach((r,i)=>{ c.fillStyle=RCOL[i]; c.fillRect(W-34,716-516*Math.min(1,r.z/goal),18,5); });
+    if(N){ nHud(c,V,O); return; }
     c.fillStyle=api.cos('Car').colors[0]; c.fillRect(W-38,712-516*Math.min(1,pos/goal),26,10); c.strokeStyle='#fff'; c.lineWidth=2; c.strokeRect(W-38,712-516*Math.min(1,pos/goal),26,10);
     // BIG place banner
     const ok=place<=need; c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(14,74,250,104); c.strokeStyle=ok?'#3bff7a':'#ff3b5c'; c.lineWidth=3; c.strokeRect(14,74,250,104);
@@ -488,6 +523,76 @@ function drawCar(c,x,y,w,h,col,ghost,me,racer){ if(w<3) return; c.globalAlpha=gh
   c.fillStyle=col; c.fillRect(x-w/2+w*0.04,y-h*0.75,w*0.92,h*0.52); c.fillStyle=me?'#1a1a2a':'#223'; c.fillRect(x-w*0.3,y-h,w*0.6,h*0.3);
   c.fillStyle='#ff3b3b'; c.fillRect(x-w*0.44,y-h*0.62,w*0.16,h*0.1); c.fillRect(x+w*0.28,y-h*0.62,w*0.16,h*0.1);
   c.fillStyle='#ffd23f'; c.fillRect(x-w*0.1,y-h*0.45,w*0.2,h*0.1); if(racer){ c.fillStyle='#fff'; c.fillRect(x-w*0.46,y-h*0.75,w*0.92,h*0.06); } c.globalAlpha=1; }
+/* ===== 2-PLAYER VERSUS (NET-1) ===== */
+function nPlayer(i){ return {pos:0,spd:0,px:i?0.35:-0.35,crashT:0,eff:{nitro:-9,ghost:-9,slow:-9},drag:null,offT:0,hits:0,out:false,fin:false,finO:0,steer:0,spinT:0,bumpT:0,col:i?P2C:P1C}; }
+function nStart(){ riv=[]; place=2; need=1; PL=[nPlayer(0),nPlayer(1)]; me=api.net.role==='guest'?1:0; res=null; resT=0; raceT=0; nSent=false; seq=0; gSeq=0; msgs=[]; msgN=0; gMsg=0;
+  LIM=Math.round(goal/maxS*4+30); }
+function nPtr(P,type,x,y){ if(type==='down') P.drag={x0:x,y0:y,x,y}; else if(type==='move'&&P.drag){ P.drag.x=x; P.drag.y=y; } else if(type==='up') P.drag=null; }
+function say(i,txt,s){ if(i<0){ say(0,txt,s); say(1,txt,s); return; } if(i===0){ if(txt) api.toast(txt); if(s&&api.sfx[s]) api.sfx[s](); if(s==='hurt') api.fx.shake(10); return; }
+  msgs.push([++msgN,txt||'',s||'']); if(msgs.length>6) msgs.shift(); }
+function nEff(dt){ PL.forEach(P=>{ for(const k in P.eff) if(P.eff[k]>-2) P.eff[k]-=dt; if(P.spinT>-1) P.spinT-=dt; }); }
+function nSlow(){ return (PL[0].eff.slow>0||PL[1].eff.slow>0)?0.35:1; }
+function nCounter(){ const V=PL[me], O=PL[1-me]; const pl=(O.fin&&!V.fin)||(!V.fin&&!O.fin&&O.pos>V.pos&&!O.out)?2:1; api.counter('🏁 PLACE',ord(pl)+' / 2',pl>1?'low':''); }
+function nAbil(i,id){ const P=PL&&PL[i]; if(!P||P.out||P.fin||res!==null) return false;
+  if(id==='spin'){ const O=PL[1-i], d=O.pos-P.pos; if(!O.out&&!O.fin&&d>-300&&d<9000){ O.spinT=3; say(i,nName(1-i)+' SPUN OUT!','power'); say(1-i,'OIL SLICK! YOU SPUN OUT!','hurt'); } else say(i,'NOBODY CLOSE','power'); return true; }
+  const d={nitro:4,ghost:6,slow:6}[id]; if(!d) return false; P.eff[id]=d; say(i,null,'power'); return true; }
+function nDrive(P,i,dt,cs){
+  if(P.out||P.fin){ P.spd=0; return; }
+  const K=i?((api.input2&&api.input2.keys)||{}):api.input.keys, d=P.drag; P.crashT-=dt; P.bumpT-=dt;
+  const top=maxS*(P.eff.nitro>0?1.45:1)*(P.spinT>0?0.4:1);
+  const sx_=d?Math.max(-1,Math.min(1,(d.x-d.x0)/70)):0, sy_=d?Math.max(-1,Math.min(1,(d.y-d.y0)/70)):0;
+  const jd=(i===1&&api.input2&&api.input2.dir)?api.input2.dir():{x:0,y:0};
+  const gas=K.ArrowUp||K.KeyW||sy_<-0.3||jd.y<-0.25, brake=K.ArrowDown||K.KeyS||sy_>0.5||jd.y>0.5;
+  if(P.crashT>0) P.spd*=Math.pow(0.1,dt); else if(brake) P.spd-=maxS*1.5*dt; else if(gas) P.spd+=(top-P.spd>0?maxS*0.45:-maxS*0.6)*dt; else P.spd-=maxS*0.25*dt;
+  if(Math.abs(P.px)>1) P.spd-=P.spd*1.8*dt; P.spd=Math.max(0,Math.min(top,P.spd));
+  const sf=P.spd/maxS; let steer=0; if(K.ArrowLeft||K.KeyA) steer=-1; if(K.ArrowRight||K.KeyD) steer=1; if(Math.abs(sx_)>0.15) steer=sx_; if(Math.abs(jd.x)>0.15&&!(K.ArrowLeft||K.KeyA||K.ArrowRight||K.KeyD)) steer=Math.max(-1,Math.min(1,jd.x/0.7));
+  P.steer=steer; P.px+=steer*dt*4.5*Math.max(0.3,sf); if(P.spinT>0) P.px+=Math.sin(t*9)*dt*0.6*sf;
+  const seg=segs[Math.floor(P.pos/SEG)%segs.length], push=seg.curve*sf*sf*dt*0.6*api.dv([1,1.1,1.2],1.25,1.3); P.px-=push; P.px=Math.max(-2.4,Math.min(2.4,P.px));
+  if(Math.abs(P.px)>1){ P.offT+=dt; if(i===0&&P.spd>200&&Math.random()<dt*20) api.fx.burst(W/2+(Math.random()-.5)*200,H-70,'#e8c87a',2,120,.3,3); } else P.offT=0;
+  if(P.eff.ghost<=0&&P.crashT<=0) for(const c of cars){ const dz=c.z-P.pos; if(dz>0&&dz<260&&Math.abs(c.x-P.px)<0.36){ P.crashT=1.1; P.spd=Math.min(P.spd,c.sp*cs*0.5); P.hits++;
+      if(P.hits>=MAXHIT){ P.out=true; P.spd=0; say(i,'💥 WRECKED! OUT OF THE RACE','hurt'); say(1-i,nName(i)+' WRECKED!','blip'); } else say(i,'CRASH! '+P.hits+'/'+MAXHIT,'hurt'); break; } }
+  P.pos+=P.spd*dt; if(P.pos>=goal){ P.finO=P.pos-goal; P.pos=goal; P.fin=true; } }
+function nUpdate(dt){ t+=dt; nEff(dt);
+  if(res!==null){ PL.forEach(P=>{ P.spd*=Math.pow(0.3,dt); }); resT-=dt; if(resT<=0&&!nSent){ nSent=true; api.netWin(res); } return; }
+  raceT+=dt; const cs=nSlow();
+  cars.forEach(c=>{ c.z+=c.sp*cs*dt; if(c.z>goal) c.z=1000; });
+  PL.forEach((P,i)=>nDrive(P,i,dt,cs));
+  // the two cars bump each other (no damage, the one behind slows)
+  const A=PL[0], B=PL[1];
+  if(!A.out&&!B.out&&!A.fin&&!B.fin&&A.eff.ghost<=0&&B.eff.ghost<=0&&A.bumpT<=0&&B.bumpT<=0){ const dz=B.pos-A.pos; if(Math.abs(dz)<220&&Math.abs(A.px-B.px)<0.34){
+    const bk=dz>=0?A:B, fr=dz>=0?B:A; bk.spd=Math.min(bk.spd,fr.spd*0.75); const s=A.px<B.px?-1:1; A.px+=s*0.12; B.px-=s*0.12; A.bumpT=B.bumpT=0.6; say(-1,'BUMP!','bump'); } }
+  // winner
+  let w=null;
+  if(A.fin||B.fin) w=A.fin&&B.fin?(A.finO>B.finO?0:B.finO>A.finO?1:-1):(A.fin?0:1);
+  else if(A.out&&B.out) w=-1;
+  else if(A.out||B.out){ const s=A.out?1:0; if(PL[s].pos>=goal*0.1) w=s; }
+  if(w===null&&raceT>=LIM){ const al=PL.map((P,i)=>P.out?-1:P.pos); const ld=al[0]>al[1]+SEG?0:al[1]>al[0]+SEG?1:-1; w=(ld>=0&&PL[ld].pos>=goal*0.1)?ld:-1; say(-1,'⏱ TIME UP!','blip'); }
+  if(w!==null){ res=w; resT=2.2; if(w<0) say(-1,'🤝 DRAW!','blip'); else { say(w,'🏆 YOU WIN!','clear'); say(1-w,nName(w)+' WINS!','hurt'); } if(w===0) api.fx.flash('#fff',.3); }
+  nCounter(); }
+function nOther(c,O,x,y,w,h,idx){ c.save(); if(O.spinT>0){ c.translate(x,y); c.rotate(Math.sin(t*20)*0.5); c.translate(-x,-y); } drawCar(c,x,y,w,h,O.col,O.eff.ghost>0,false,true); c.restore();
+  if(O.out){ c.fillStyle='rgba(60,60,60,.6)'; c.fillRect(x-w/2,y-h,w,h); }
+  const fs=Math.min(22,Math.max(12,w*0.16))|0; c.font=`bold ${fs}px sans-serif`; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='#000'; const ty=y-h*1.08-2; c.strokeText(nName(idx),x,ty); c.fillStyle=O.col; c.fillText(nName(idx),x,ty); }
+function nHud(c,V,O){ const bar=p=>712-516*Math.min(1,p/goal);
+  // progress: both cars
+  c.fillStyle=O.col; c.fillRect(W-38,bar(O.pos),26,10); c.fillStyle=V.col; c.fillRect(W-42,bar(V.pos)-1,34,12); c.strokeStyle='#fff'; c.lineWidth=2; c.strokeRect(W-42,bar(V.pos)-1,34,12);
+  c.font='bold 13px sans-serif'; c.textAlign='right'; const oy=bar(O.pos), vy=bar(V.pos), sep=Math.abs(oy-vy)<16?(oy<=vy?-10:10):0; c.fillStyle=O.col; c.fillText(nName(1-me),W-46,oy+9+sep); c.fillStyle=V.col; c.fillText('YOU',W-46,vy+9-sep);
+  // place banner (1st / 2)
+  const pl=(O.fin&&!V.fin)||(!V.fin&&!O.fin&&O.pos>V.pos&&!O.out)?2:1, ok=pl===1;
+  c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(14,74,250,104); c.strokeStyle=V.col; c.lineWidth=3; c.strokeRect(14,74,250,104);
+  c.textAlign='left'; c.fillStyle=ok?'#3bff7a':'#ff3b5c'; c.font='bold 64px sans-serif'; c.fillText(ord(pl),26,142); c.font='bold 22px sans-serif'; c.fillStyle='#fff'; c.fillText('/ 2',132,142);
+  c.font='bold 17px sans-serif'; c.fillStyle=V.out?'#ff3b5c':'#ffd23f'; c.fillText(V.out?'WRECKED':'HITS '+'■'.repeat(V.hits)+'□'.repeat(Math.max(0,MAXHIT-V.hits)),26,168);
+  // where is the other car?
+  const dz=O.pos-V.pos, m=Math.round(Math.abs(dz)/20); let tag=null;
+  if(O.out) tag='💥 '+nName(1-me)+' WRECKED'; else if(O.fin) tag='🏁 '+nName(1-me)+' FINISHED'; else if(dz>DRAW*SEG*0.8) tag='▲ '+nName(1-me)+' '+m+'m AHEAD'; else if(dz<-260) tag='▼ '+nName(1-me)+' '+m+'m BEHIND';
+  else if(dz<=40){ const xo=W/2+(O.px-V.px)*785; if(xo<-40) tag='◀ '+nName(1-me)+' BESIDE YOU'; else if(xo>W+40) tag=nName(1-me)+' BESIDE YOU ▶'; }
+  if(tag&&res===null){ c.font='bold 20px sans-serif'; c.textAlign='center'; const tw=c.measureText(tag).width+24; c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(W/2-tw/2,192,tw,32); c.fillStyle=O.col; c.fillText(tag,W/2,215); }
+  const left=Math.max(0,LIM-raceT); if(left<20&&res===null){ c.font='bold 30px sans-serif'; c.textAlign='right'; c.fillStyle=left<6?'#ff3b5c':'#fff'; c.fillText('⏱ '+Math.ceil(left),W-60,110); }
+  if(Math.abs(V.px)>1&&!V.out&&res===null){ c.fillStyle='rgba(255,59,92,.85)'; c.fillRect(W/2-150,H-200,300,44); c.fillStyle='#fff'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.fillText('⚠ OFF THE ROAD',W/2,H-169); }
+  const d=V.drag; if(d&&res===null){ c.globalAlpha=0.5; c.strokeStyle='#fff'; c.lineWidth=3; c.beginPath(); c.arc(d.x0,d.y0,70,0,7); c.stroke(); c.fillStyle='#fff'; c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillText('GO',d.x0,d.y0-78);
+    const kx=d.x0+Math.max(-70,Math.min(70,d.x-d.x0)), ky=d.y0+Math.max(-70,Math.min(70,d.y-d.y0)); c.fillStyle=(d.y-d.y0)<-21?'#3bff7a':'#fff'; c.beginPath(); c.arc(kx,ky,28,0,7); c.fill(); c.globalAlpha=1; }
+  if(!V.out&&!V.fin&&res===null&&V.spd<300&&raceT>1){ c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(W/2-190,H/2-40,380,64); c.fillStyle='#ffd23f'; c.font='bold 24px sans-serif'; c.textAlign='center'; c.fillText(api.input.touch?'TOUCH & PUSH UP TO GO ⬆':'PRESS ↑ OR W TO GO',W/2,H/2); }
+  if(V.out&&res===null){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); c.fillStyle='#ff3b5c'; c.font='bold 40px sans-serif'; c.textAlign='center'; c.fillText('💥 WRECKED',W/2,H/2-20); c.fillStyle='#fff'; c.font='bold 20px sans-serif'; c.fillText(nName(1-me)+' must reach 10% or the line to win',W/2,H/2+16); }
+  if(res!==null){ c.fillStyle='rgba(0,0,0,.55)'; c.fillRect(0,H/2-80,W,130); c.textAlign='center'; c.font='bold 52px sans-serif'; c.fillStyle=res<0?'#fff':PL[res].col; c.fillText(res<0?'DRAW!':res===me?'YOU WIN!':nName(res)+' WINS!',W/2,H/2); c.font='bold 20px sans-serif'; c.fillStyle='#fff'; c.fillText(res<0?'Nobody made it':((PL[res].fin?'First over the line':PL[1-res].out?'The other car wrecked':'In front when time ran out')),W/2,H/2+34); } }
 })();
 
 </script>
@@ -664,8 +769,8 @@ window.addEventListener('keydown', e => {
   } else if(state==='paused' && (e.code==='Escape'||e.code==='KeyP')) resumeGame();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; if(state==='play') G.onKey && G.onKey(e.code,false); });
-window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play') pauseGame(); });
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play') pauseGame(); });
+window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play'&&!NET.on) pauseGame(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play' && !NET.on) pauseGame(); });
 const Input = {
   keys,
   dir(){
@@ -688,6 +793,7 @@ function onDown(e){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.active&&joy.id===e.pointerId)) netSendRel({e:'ptr',t:'down',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('down', g.x, g.y, e.pointerId, e.pointerType);
 }
 function onMove(e){
@@ -697,12 +803,14 @@ function onMove(e){
     if(m>50){dx=dx/m*50;dy=dy/m*50;} joyEl.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`;
   }
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(G.joystick&&joy.active&&joy.id===e.pointerId) return; if(e.buttons||e.pointerType!=='mouse'){ NET.pmT=(NET.pmT||0); const now=performance.now(); if(now-NET.pmT>50){ NET.pmT=now; netSendFast({e:'ptr',t:'move',x:g.x,y:g.y}); } } return; }
   G.onPointer && G.onPointer('move', g.x, g.y, e.pointerId, e.pointerType, e.buttons);
 }
 function onUp(e){
   if(joy.active && e.pointerId===joy.id){ joy.active=false; joyEl.classList.add('hidden'); }
   if(state!=='play') return;
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
@@ -787,6 +895,7 @@ function useAbility(i){
   if(abLock[i]>0) return;
   const paid = a.cd>0 && !run.tutorial;
   if(paid && have(a)<=0){ toast('NO '+a.name+' LEFT'); SFX.bump(); flashShop(); return; }
+  if(NET.on&&NET.role==='guest'){ if(paid){ P.abil[a.id]=have(a)-1; save(); } abLock[i]=a.cd>0?1:0; netSendRel({e:'ab',id:a.id}); return; }
   if(G.useAbility(a.id)!==false){
     if(paid){ P.abil[a.id]=have(a)-1; save(); if(P.abil[a.id]===0) setTimeout(()=>{ if(state==='play') toast('BUY MORE IN 🛒 SHOP'); },900); }
     abLock[i] = a.cd>0 ? 1 : 0; tutEvent('ab_'+a.id);
@@ -1114,11 +1223,13 @@ function pauseAgain(){ state='play'; pauseGame(); }
 function resumeGame(){ closeModal(); state='play'; last=performance.now(); }
 function endGamePrompt(){
   if(state==='play'){ state='paused'; }
+  if(NET.on){ modal(`<h2>LEAVE THE GAME?</h2><p>This ends the 2-player game for both of you.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>netQuit(), n:resumeGame}); return; }
   if(MP.on){ modal(`<h2>LEAVE THE RACE?</h2><p>You'll drop out of this multiplayer race.</p><button class="big" data-a="y">LEAVE RACE</button><button class="mid" data-a="n">KEEP RACING</button>`, {y:()=>{ mpSend({e:'out'}); mpLeave(); toMenu(); }, n:resumeGame}); return; }
   if(run.tutorial){ modal(`<h2>LEAVE TUTORIAL?</h2><p>You can replay it any time from How to Play.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>{ if(!run.practice){ P.tutDone=true; save(); } toMenu(); }, n:resumeGame}); return; }
   modal(`<h2>END GAME?</h2><p>Your game is saved at the start of <b>Stage ${run.stage}</b>. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
 }
 function stageClear(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(true); return; }
   if(MP.on){ if(run.tutorial) return; mpFinish(true); return; }
   if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
   state='modal'; SFX.clear(); flushCoins();
@@ -1141,6 +1252,7 @@ function nameEntry(title, sub, win){
 }
 function afterRun(){ modal(`<h2>WHAT NEXT?</h2><button class="big" data-a="p">PLAY AGAIN</button><button class="mid abil" data-a="a">⚡ ABILITIES</button><button class="mid" data-a="s">TOP SCORES</button><button class="mid" data-a="m">MAIN MENU</button>`, {p:()=>newGame(run.slot), a:()=>{ toMenu(); abilPanel(); }, s:()=>{ toMenu(); scoresPanel(P.diff); }, m:toMenu}); }
 function gameOver(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(false); return; }
   if(MP.on){ mpFinish(false); return; }
   if(state==='modal' || state==='menu') return; state='modal'; SFX.over(); flushCoins();
   const coins = Math.floor(run.score/500), got=run.coinsStage; P.coins += coins; save();
@@ -1278,8 +1390,8 @@ function frame(now){
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
-    G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt);
-    doomTick(dt); mpTick(dt);
+    if(!(NET.on&&NET.role==='guest')) G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt); netTick(dt);
+    if(!(NET.on&&NET.role==='guest')) doomTick(dt); mpTick(dt);
   } else if(state==='menu' || state==='loading' || state==='ending'){ menuT+=dt; fxUpdate(dt); }
   ctx.save();
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
@@ -1354,11 +1466,15 @@ function mpRoom(){
   if(MP.on) { mpBars(); return; }
   if(!MP.ch) return; const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t).slice(0,3); MP.host = mpHostId()===MP.me;
   const list=ids.map((k,i)=>`<div style="padding:8px 12px;margin:6px 0;border-radius:10px;background:#ffffff14;text-align:left">${['🟦','🟥','🟩'][i]} <b>${esc(MP.players[k].name||'?')}</b>${k===MP.me?' (you)':''}${i===0?' · HOST':''}</div>`).join('');
-  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
-    {s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
+  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host&&G.net&&ids.length===2?`<button class="big" data-a="t" style="background:linear-gradient(90deg,#00e5ff,#ff3bd4)">🎮 PLAY TOGETHER (2P)</button>`:''}${!MP.host&&G.net&&ids.length===2?'<p>🎮 This game has <b>PLAY TOGETHER</b> — the host can start it.</p>':''}${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
+    {t:()=>netPick(),
+     s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
 }
 function mpSend(o){ try{ MP.ch && MP.ch.send({type:'broadcast', event:'m', payload:Object.assign({id:MP.me,name:MP.name},o)}); }catch(e){} }
 function mpMsg(m){
+  if(m.e==='net'){ if(m.n) netRecv(m.n); return; }
+  if(m.e==='rtc'){ if(m.id!==MP.me) netRtcMsg(m); return; }
+  if(m.e==='coop' && !NET.on){ netStart(m.seed,m.stage,m.hn,m.gn,m.diff,m.score); return; }
   if(m.e==='start' && !MP.on){ mpStart(m.seed,m.stage); }
   else if(m.e==='prog'){ MP.prog[m.id]={p:m.p,l:m.l,name:m.name,out:m.out}; mpBars(); }
   else if(m.e==='win' && MP.on && !MP.over){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{p:1}); mpEnd(m.name,false); }
@@ -1407,6 +1523,105 @@ function mpOnMenu(){ if(!mpFirstMenu) return; mpFirstMenu=false; const q=(locati
   setTimeout(()=>{ if(state!=='menu') return; modal(`<h2>${esc(G.title)}</h2><p>How do you want to play?</p><button class="big" data-a="s">▶ SOLO</button><button class="big" data-a="m" style="background:linear-gradient(90deg,#ff3bd4,#ffd23f)">👥 MULTIPLAYER (2–3)</button>`,{s:()=>{}, m:()=>mpMenu()}); },150); }
 
 function mpWaBtn(){}
+
+/* ===== REAL 2-PLAYER (NET-1): one phone hosts the game, the other sends its controls and draws the host's snapshots ===== */
+const NET = { on:false, role:null, peer:null, dc:null, rtcOk:false, sendT:0, lastSnap:null, names:['',''], keys2:{}, k2:{}, inbox:[] };
+const Input2 = { keys: NET.k2, dir(){ let x=0,y=0, k=NET.k2; if(k.ArrowLeft||k.KeyA) x-=1; if(k.ArrowRight||k.KeyD) x+=1; if(k.ArrowUp||k.KeyW) y-=1; if(k.ArrowDown||k.KeyS) y+=1; const j=NET.joy2; if(j&&(Math.abs(j.x)>0.05||Math.abs(j.y)>0.05)){ x=j.x; y=j.y; } return {x,y}; } };
+API.input2 = Input2;
+Object.defineProperty(API,'net',{get(){ return NET.on? {role:NET.role, names:NET.names, mode:(G.net&&G.net.mode)||'coop'} : null; }});
+API.netWin = function(idx){ if(!NET.on||NET.role!=='host') return; netSendRel({e:'nwin',idx}); netResult(idx); };
+function netSendRel(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); return; }catch(e){} } mpSend(Object.assign({e:'net'},{n:o})); }
+function netSendFast(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); }catch(e){} return; } if(NET.fbT<=0){ NET.fbT=0.1; mpSend({e:'net',n:o}); } }
+function netRecv(o){
+  if(o.e==='snap' && NET.role==='guest'){ NET.lastSnap=o; }
+  else if(o.e==='in' && NET.role==='host'){ for(const k in NET.k2) delete NET.k2[k]; Object.assign(NET.k2,o.k||{}); NET.joy2=o.j||null; }
+  else if(o.e==='ptr' && NET.role==='host'){ G.onPointer2 && G.onPointer2(o.t,o.x,o.y); }
+  else if(o.e==='ab' && NET.role==='host'){ G.useAbility2 && G.useAbility2(o.id); }
+  else if(o.e==='nclear' && NET.role==='guest'){ netStageEnd(true); }
+  else if(o.e==='nover' && NET.role==='guest'){ NET.waitPay=false; netGameOver(); }
+  else if(o.e==='ncont' && NET.role==='guest'){ state='modal'; netContinue(); }
+  else if(o.e==='npay' && NET.role==='host'){ netResume(o.name||'P2'); }
+  else if(o.e==='nresume' && NET.role==='guest'){ NET.waitPay=false; closeModal(); state='play'; last=performance.now(); toast('💰 '+(o.payer||'')+' PAID — KEEP GOING!'); }
+  else if(o.e==='nshop' && NET.role==='host'){ netShopTime(); toast('PARTNER IS BUYING GOLD…'); }
+  else if(o.e==='ngive'){ toast('PARTNER GAVE UP — YOU CAN STILL PAY'); }
+  else if(o.e==='nnext' && NET.role==='guest'){ clearTimeout(NET.advT); closeModal(); run.stage=o.stage; Math.random=mpSeeded(o.seed); netBegin(); }
+  else if(o.e==='nwin' && NET.role==='guest'){ netResult(o.idx); }
+  else if(o.e==='nquit'){ netStop(); state='modal'; modal(`<h2>YOUR PARTNER LEFT</h2><p>The 2-player game has ended.</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="m">MENU</button>`,{r:()=>mpRoom(), m:()=>{ mpLeave(); toMenu(); }}); }
+}
+// --- direct phone-to-phone link (WebRTC). If it can't connect in 6 s we fall back to Supabase messages (slower).
+function netRtc(isHost){
+  try{
+    const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]}); NET.peer=pc;
+    pc.onicecandidate=e=>{ if(e.candidate) mpSend({e:'rtc',c:e.candidate}); };
+    const setup=dc=>{ NET.dc=dc; dc.onopen=()=>{ NET.rtcOk=true; toast('⚡ DIRECT LINK'); }; dc.onmessage=m=>{ try{ netRecv(JSON.parse(m.data)); }catch(e){} }; };
+    if(isHost){ setup(pc.createDataChannel('g',{ordered:false,maxRetransmits:0})); pc.createOffer().then(o=>pc.setLocalDescription(o)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }
+    else pc.ondatachannel=e=>setup(e.channel);
+  }catch(e){}
+}
+function netRtcMsg(m){ const pc=NET.peer; if(!pc) return; try{
+  if(m.sdp){ pc.setRemoteDescription(m.sdp).then(()=>{ if(m.sdp.type==='offer') return pc.createAnswer().then(a=>pc.setLocalDescription(a)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }); }
+  else if(m.c){ pc.addIceCandidate(m.c).catch(()=>{}); } }catch(e){} }
+function netPick(){ const ids2=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t); if(ids2.length!==2){ mpRoom(); return; }
+  const sv=(P.coop||{})[G.id]; const go=(stage,diff,score)=>{ const seed=Math.floor(mpRealRandom()*1e9); const hn=MP.players[ids2[0]].name, gn=MP.players[ids2[1]].name; mpSend({e:'coop',seed,stage,hn,gn,diff,score}); netStart(seed,stage,hn,gn,diff,score); };
+  modal(`<h2>🎮 PLAY TOGETHER</h2><p>Play the whole game together, stage 1 to ${G.stages}.</p><p>Difficulty:</p><button class="mid" data-a="e">🟢 BEGINNER — new game</button><button class="mid" data-a="h">🟠 HARD — new game</button><button class="mid" data-a="x">🔴 EXPERT — new game</button>${sv?`<button class="big" data-a="c">▶ CONTINUE TOGETHER · Stage ${sv.stage} · ${DIFFS[sv.diff]}</button>`:''}<button class="mid" data-a="b">◀ BACK</button>`,
+    {e:()=>go(1,0,0), h:()=>go(1,1,0), x:()=>go(1,2,0), c:()=>go(sv.stage,sv.diff,sv.score||0), b:()=>mpRoom()}); }
+function netSave(){ if(NET.role!=='host') return; P.coop=P.coop||{}; P.coop[G.id]={stage:run.stage,diff:P.diff,score:run.score,t:Date.now()}; save(); }
+function netStart(seed,stage,hostName,guestName,diff,score){
+  NET.on=true; NET.role=MP.host?'host':'guest'; NET.names=[hostName,guestName]; NET.fbT=0; NET.lastSnap=null; MP.on=false; MP.coop=true;
+  MP.prevDiff=P.diff; P.diff=diff||0; run.stage=stage; run.score=score||0; run.lives=G.lives; run.extra={}; Math.random=mpSeeded(seed);
+  netRtc(NET.role==='host'); if(window.RMXL) RMXL.setBusy(true);
+  let n=3; const tick=()=>{ modal(`<h2>🎮 PLAY TOGETHER</h2><p><b style="color:#00e5ff">P1 ${esc(hostName)}</b> + <b style="color:#ff3bd4">P2 ${esc(guestName)}</b></p><p>You are <b>${NET.role==='host'?'P1':'P2'}</b> · ${DIFFS[P.diff]} · Stage ${run.stage}</p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); netBegin(); } else setTimeout(tick,1000); }; tick();
+}
+function netBegin(){ beginStage(); }
+function netTick(dt){ // runs every frame while playing together
+  if(!NET.on) return; NET.fbT-=dt; NET.sendT-=dt;
+  if(NET.role==='host'){ if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const s=G.netState?G.netState():{}; netSendFast({e:'snap',s,l:run.lives,sc:run.score}); } }
+  else { if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const k={}; ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS','Space'].forEach(c=>{ if(keys[c]) k[c]=1; }); const d=joy.active?Input.dir():null; netSendFast({e:'in',k,j:d}); }
+    if(NET.lastSnap){ const sn=NET.lastSnap; NET.lastSnap=null; try{ G.netApply&&G.netApply(sn.s); }catch(e){} if(run.lives!==sn.l||run.score!==sn.sc){ run.lives=sn.l; run.score=sn.sc; updHud(); } }
+    G.netTick && G.netTick(dt); }
+}
+function netStageEnd(win){
+  state='modal'; flushCoins();
+  if(!win){ netContinue(); return; }
+  if(NET.role==='host') netSendRel({e:'nclear'});
+  run.stage++; if(NET.role==='host') netSave();
+  if(run.stage>G.stages){ if(NET.role==='host'){ P.coop[G.id]=null; save(); } netQuit('🏆 YOU BEAT ALL '+G.stages+' STAGES TOGETHER!'); return; }
+  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)); P.coins+=coins; save(); updCoins();
+  let n=4; clearTimeout(NET.advT);
+  const tick=()=>{ if(!NET.on) return; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2><p>Great teamwork! +${coins} 🪙 each</p><div class="stat">${run.score.toLocaleString()}</div><p>Stage ${run.stage} starts in <b>${n}</b>…</p><button class="mid" data-a="q">LEAVE (progress saved)</button>`,{q:()=>netQuit()});
+    if(n--<=0){ closeModal(); if(NET.role==='host'){ const seed=Math.floor(mpRealRandom()*1e9); netSendRel({e:'nnext',stage:run.stage,seed}); Math.random=mpSeeded(seed); netBegin(); } }
+    else NET.advT=setTimeout(tick,1000); };
+  tick();
+}
+// out of lives: either player may pay gold to continue (cost grows with stage); nobody pays in 30 s = game over
+function netContCost(){ return Math.round((60 + run.stage*4) * (1 + P.diff*0.5)); }
+function netContinue(){
+  if(NET.role==='host'){ netSendRel({e:'ncont'}); clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },30000); }
+  NET.waitPay=true; netContinueShow();
+}
+function netShopTime(){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },120000); }
+function netContinueShow(){ if(!NET.on||!NET.waitPay) return; const cost=netContCost(), can=P.coins>=cost;
+  modal(`<h2>OUT OF LIVES!</h2><p>Either player can pay to keep going together.</p><button class="big" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙</button><p style="font-size:13px">You have ${P.coins.toLocaleString()} 🪙${can?'':' — not enough'}</p><button class="mid" data-a="s" style="background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+    {s:()=>{ if(NET.role==='host') netShopTime(); else netSendRel({e:'nshop'}); goldStore(()=>netContinueShow(),'🛒 BUY GOLD TO CONTINUE'); },
+     p:()=>{ if(P.coins<cost){ netContinueShow(); return; } P.coins-=cost; save(); updCoins(); if(NET.role==='host') netResume(MP.name); else { netSendRel({e:'npay',name:MP.name}); modal(`<h2>PAID ✔</h2><p>Continuing…</p>`,{}); } }, g:()=>{ netSendRel({e:'ngive'}); if(NET.role==='host'){ clearTimeout(NET.contT); NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } else modal(`<h2>WAITING…</h2><p>Your partner can still pay to continue.</p>`,{}); }});
+}
+function netResume(payer){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.waitPay=false; run.lives=G.lives; updHud(); if(G.netRevive) G.netRevive(); else if(G.respawn) G.respawn(); netSendRel({e:'nresume',payer}); closeModal(); state='play'; last=performance.now(); toast('💰 '+payer+' PAID — KEEP GOING!'); }
+function netGameOver(){ state='modal'; if(NET.role==='host'){ P.coop=P.coop||{}; P.coop[G.id]=null; save(); }
+  modal(`<h2>GAME OVER</h2><p>You reached stage ${run.stage} together.</p><div class="stat">${run.score.toLocaleString()}</div><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netResult(idx){ state='modal'; const meIdx=NET.role==='host'?0:1; const t= idx===meIdx?'🏆 YOU WIN!': idx===-1?'🤝 DRAW!':'🏁 '+esc(NET.names[idx]||'P'+(idx+1))+' WINS!';
+  if(idx===meIdx){ P.coins+=50; save(); }
+  modal(`<h2>${t}</h2><p>${idx===meIdx?'+50 🪙':''}</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NET.peer&&NET.peer.close(); }catch(e){} NET.dc=null; NET.peer=null; NET.rtcOk=false; Math.random=mpRealRandom; P.diff=MP.prevDiff; if(window.RMXL) RMXL.setBusy(false); }
+function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
+
+// ===== GOLD STORE (cash gold packs) — PAY-1. Payments are not switched on yet: PAY.buy() is the ONE place to connect PayFast / Google Play Billing later.
+const PAY = { enabled:false,
+  buy(pack, done){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; } /* later: start PayFast / Play Billing checkout here, then on success: */ P.coins+=pack.gold; save(); updCoins(); toast('+'+pack.gold.toLocaleString()+' 🪙 ADDED'); SFX.coin(); done&&done(); } };
+function goldStore(back, title){
+  const rows=GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':''}</div><button data-gp="${i}" ${PAY.enabled?'':'style="opacity:.75"'}>${g.price}${PAY.enabled?'':' · SOON'}</button></div>`).join('');
+  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>${rows}<p class="note">${PAY.enabled?'Secure payment. Gold is added straight away.':'Gold purchases open soon. You can still earn gold free by playing.'}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); PAY.buy(GOLD_PACKS[+b.dataset.gp], ()=>goldStore(back,title)); }));
+}
 
 
 })();
