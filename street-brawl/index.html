@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SB-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-SB-1.2 · 2026-10-19">
 <title>Street Brawl</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SB-1.1 · 2026-10-17 -->
+<!-- BUILD-SB-1.2 · 2026-10-19 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -370,16 +370,31 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* STREET BRAWL — Double Dragon remix (#40) — PROTOTYPE: 3 test stages. Fight your way down the street. */
+/* STREET BRAWL — Double Dragon remix (#40). Fight your way down the street.
+   1.2: real online 2-player CO-OP (NET-1). Host runs the fight for both fighters; guest draws snapshots. */
 (function(){
 const W=600,H=900,WL=2400,Y0=560,Y1=840;
-let stg=0,api,t,pl,ens,cam,wave,waves,done,lost,eff,grace,locked,goT;
-function fighter(x,y,k){ const B={thug:{hp:3,sp:90,col:'#ff3b5c',sz:1},knife:{hp:2,sp:130,col:'#b14bff',sz:0.95},big:{hp:7,sp:60,col:'#3bff7a',sz:1.3},boss:{hp:22,sp:85,col:'#ff9f1c',sz:1.45}}[k];
-  return {x,y,k,hp:B.hp,max:B.hp,sp:B.sp*api.dv([1,1.25,1.5],1.7,2.4),col:B.col,sz:B.sz,face:-1,st:'walk',stT:0,atkT:1+Math.random(),hitT:0,vx:0}; }
+const KB={thug:{hp:3,sp:90,col:'#ff3b5c',sz:1},knife:{hp:2,sp:130,col:'#b14bff',sz:0.95},big:{hp:7,sp:60,col:'#3bff7a',sz:1.3},boss:{hp:22,sp:85,col:'#ff9f1c',sz:1.45}};
+const KINDS=['thug','knife','big','boss'], ST=['idle','walk','punch','kick','spin','hurt','down','wind','atk'], TAGC=['#00e5ff','#ff3bd4'];
+let stg=0,api,t,pl,pls,ens,cam,wave,waves,done,lost,locked,goT;
+let nid=0,evq=[],evSeq=0,evSeen=0,snapN=0,snapSeen=0,camT=0,goF=false,lastHp=null;
+function net(){ return api&&api.net; }
+function isHost(){ const n=net(); return !!(n&&n.role==='host'); }
+function isGuest(){ const n=net(); return !!(n&&n.role==='guest'); }
+function me(){ return (isGuest()&&pls&&pls[1])||pl; }
+function ev(k,...a){ if(!isHost()) return; evq.push([++evSeq,t,k,...a]); if(evq.length>30) evq.shift(); }
+function T(msg){ api.toast(msg); ev('toast',msg); }
+function nm(i){ const n=net(); return String((n&&n.names[i])||('P'+(i+1))).slice(0,12); }
+function mkPl(i,x,y){ return {i,x,y,hp:100,face:1,st:'idle',stT:0,combo:0,grace:1,rage:-9,dead:false,respT:0,s:false}; }
+// nearest standing fighter (single player: always the fighter)
+function near(o){ if(!pls||pls.length<2) return pl; let best=null,bd=1e9; for(const p of pls){ if(p.dead) continue; const d=Math.hypot(p.x-o.x,(p.y-o.y)*2); if(d<bd){ bd=d; best=p; } } return best||pl; }
+function fighter(x,y,k){ const B=KB[k];
+  return {id:++nid,x,y,k,hp:B.hp,max:B.hp,sp:B.sp*api.dv([1,1.25,1.5],1.7,2.4),col:B.col,sz:B.sz,face:-1,st:'walk',stT:0,atkT:1+Math.random(),hitT:0,vx:0,tg:0}; }
 const GAME=window.GAME={
   id:'street-brawl',title:'Street Brawl',titleHTML:'STREET<br>BRAWL',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-SB-1.1 · 2026-10-17',theme:{a:'#ff3b5c',b:'#ffd23f',bg:'#0e0610'},
+  build:'BUILD-SB-1.2 · 2026-10-19',theme:{a:'#ff3b5c',b:'#ffd23f',bg:'#0e0610'},
   w:W,h:H,stages:100,lives:3,livesIcon:'👊',joystick:true,coinPts:40,
+  net:{mode:'coop'},
   abilities:[
     {id:'punch',icon:'👊',name:'PUNCH',cd:0,key:'KeyJ',keyLabel:'J',desc:'FREE — fast punch.'},
     {id:'kick',icon:'🦵',name:'KICK',cd:0,key:'KeyK',keyLabel:'K',desc:'FREE — slower, longer, knocks them back.'},
@@ -389,57 +404,106 @@ const GAME=window.GAME={
   shop:[{id:'f_r',cat:'Fighter',name:'Blue Jacket',cost:0,colors:['#2e7bff'],desc:'Classic.'},{id:'f_w',cat:'Fighter',name:'White Gi',cost:150,colors:['#f4f4f0'],desc:'Karate.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff3b5c,#ffd23f)'}],
   story:`<h3>STREET BRAWL</h3><p>A gang has taken over the block. One fighter, one street, no turning back.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to walk (WASD/arrows on PC). Up and down move along the street.</li><li><b>👊 PUNCH</b> (J) and <b>🦵 KICK</b> (K) in the side bar.</li><li>When an enemy flashes, they're about to hit — step away or hit first!</li><li>Beat every gang wave, then walk right to the end of the street.</li></ul>`,
+  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to walk (WASD/arrows on PC). Up and down move along the street.</li><li><b>👊 PUNCH</b> (J) and <b>🦵 KICK</b> (K) in the side bar.</li><li>When an enemy flashes, they're about to hit — step away or hit first!</li><li>Beat every gang wave, then walk right to the end of the street.</li><li><b>Play together:</b> two fighters share lives and score. The gang goes for whoever is closer. A knocked-out fighter gets back up after 2 seconds — but the team loses a life. Stay close: the street only scrolls as far as the fighter at the back.</li></ul>`,
   tutorial:[{text:'Walk up to the thug and tap 👊 PUNCH or 🦵 KICK!',ev:'ko'},{text:'Walk right → to the end of the street!',ev:'end'}],
   stageIntro:{1:'CLEAN UP THE STREET'},bossName:'THE GANG BOSS!',ending:{"0":["#STREETS","The block is free."],"1":["#CHAMP","Street champion."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ if(id==='rage') return {left:Math.max(0,eff.rage),total:8}; return null; },
-  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}, hit:(k)=>attack(k)}; },
+  abTime(id){ const p=me(); if(id==='rage'&&p) return {left:Math.max(0,p.rage),total:8}; return null; },
+  // single-player has no tap controls (joystick + buttons), so P2 has none either: the guest's sidebar buttons arrive via useAbility2
+  onPointer2(type,x,y){ },
+  _dbg(){ return {get pl(){return pl;}, get pls(){return pls;}, get ens(){return ens;}, get lost(){return lost;}, get done(){return done;}, get cam(){return cam;}, hit:(k)=>attack(pl,k),
+    toEnd:()=>{ wave=waves.length; locked=false; ens=[]; cam=WL-W; pls.forEach(p=>{ p.x=WL-60-p.i*40; }); },
+    get net2(){ return {role:net()&&net().role, p:(pls||[]).map(p=>[Math.round(p.x),Math.round(p.y),p.dead?1:0,Math.ceil(p.hp),p.st]), ens:(ens||[]).length, eh:(ens||[]).reduce((s,e)=>s+e.hp,0), cam:Math.round(cam), done, lives:api.lives}; }}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; stg=n; t=0; done=false; lost=false; eff={rage:-9}; ens=[]; cam=0; wave=0; locked=false; grace=1; goT=0;
-    pl={x:120,y:700,hp:100,face:1,st:'idle',stT:0,combo:0};
-    const tut=a.content===0, m=Math.round(a.dv([3,4,5],6,8));
+  startStage(n,a){ api=a; stg=n; t=0; done=false; lost=false; ens=[]; cam=0; camT=0; wave=0; locked=false; goT=0; goF=false; nid=0; evq=[]; lastHp=null;
+    const N2=!!net(); pl=mkPl(0,N2?150:120,N2?650:700); pls=[pl]; if(N2) pls.push(mkPl(1,90,760));
+    const tut=a.content===0, m=Math.round(a.dv([3,4,5],6,8)*(N2?1.3:1));
     waves=tut?[{x:350,list:['thug']}]:[{x:300,list:Array(m).fill('thug')},{x:1100,list:[...Array(m-1).fill('thug'),'knife','big']},{x:1800,list:a.boss?['boss','thug','knife']:[...Array(m).fill('knife'),'big']}]; },
-  respawn(){ lost=false; pl.hp=100; pl.st='idle'; grace=2.5; ens.forEach(e=>{ e.x+= (e.x<pl.x?-160:160); e.st='walk'; }); },
-  useAbility(id){ if(done||lost) return false;
-    if(id==='punch'||id==='kick'){ return attack(id); }
-    if(id==='spin'){ pl.st='spin'; pl.stT=0.45; ens.forEach(e=>{ if(Math.abs(e.x-pl.x)<130&&Math.abs(e.y-pl.y)<60) hit(e,2,Math.sign(e.x-pl.x)||1); }); api.sfx.boom(); return true; }
-    if(id==='heal'){ pl.hp=Math.min(100,pl.hp+50); api.sfx.pickup(); return true; }
-    eff.rage=8; api.sfx.power(); return true; },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt;
-    if(!lost){ pl.stT-=dt; if(pl.stT<=0&&pl.st!=='idle') pl.st='idle';
-      const d=api.input.dir(), sp=pl.st==='idle'?220:60; if(pl.st!=='hurt'){ pl.x+=d.x*sp*dt; pl.y+=d.y*sp*0.7*dt; if(Math.abs(d.x)>0.2&&pl.st==='idle') pl.face=Math.sign(d.x); }
-      const maxX=locked?cam+W-30:WL-40; pl.x=Math.max(cam+30,Math.min(maxX,pl.x)); pl.y=Math.max(Y0,Math.min(Y1,pl.y));
-      const K=api.input.keys; if(K.Space&&!this._s){ attack('punch'); } this._s=K.Space; }
-    if(!locked&&wave<waves.length&&pl.x>waves[wave].x){ locked=true; const w=waves[wave]; w.list.forEach((k,i)=>{ const side=i%2?-1:1; ens.push(fighter(cam+(side>0?W+60+i*40:-60-i*40),Y0+40+Math.random()*(Y1-Y0-60),k)); }); api.toast(wave===waves.length-1&&api.boss?'BOSS!':'FIGHT!'); }
-    if(!locked) cam+=(Math.max(0,Math.min(WL-W,pl.x-W*0.4))-cam)*Math.min(1,dt*4);
+  respawn(){ if(net()) return; // co-op: the KO'd fighter gets up on its own timer; the street stays as it is
+    lost=false; pl.hp=100; pl.st='idle'; pl.grace=2.5; ens.forEach(e=>{ e.x+= (e.x<pl.x?-160:160); e.st='walk'; }); },
+  netRevive(){ if(!pls) return; pls.forEach(p=>{ if(p.dead) getUp(p); p.hp=100; p.grace=Math.max(p.grace,3); }); },
+  useAbility(id){ return useAb(pl,id); },
+  useAbility2(id){ if(!pls||!pls[1]) return false; return useAb(pls[1],id); },
+  update(dt){ t+=dt; if(done) return; const N2=pls.length>1; pls.forEach(p=>{ if(p.rage>-2) p.rage-=dt; p.grace-=dt; });
+    ctl(pl,api.input.dir(),api.input.keys,dt);
+    if(pls[1]) ctl(pls[1],api.input2.dir(),api.input2.keys,dt);
+    const up=pls.filter(p=>!p.dead), lead=up.length?Math.max(...up.map(p=>p.x)):-1e9;
+    if(!locked&&wave<waves.length&&lead>waves[wave].x){ locked=true; const w=waves[wave]; w.list.forEach((k,i)=>{ const side=i%2?-1:1; const e=fighter(cam+(side>0?W+60+i*40:-60-i*40),Y0+40+Math.random()*(Y1-Y0-60),k); if(N2&&k==='boss'){ e.hp=e.max=Math.round(e.hp*1.3); } ens.push(e); }); T(wave===waves.length-1&&api.boss?'BOSS!':'FIGHT!'); }
+    if(!locked){ let tg; if(N2){ const avg=(pls[0].x+pls[1].x)/2; tg=Math.min(avg-W*0.45,Math.min(pls[0].x,pls[1].x)-40); } else tg=pl.x-W*0.4;
+      cam+=(Math.max(0,Math.min(WL-W,tg))-cam)*Math.min(1,dt*4); }
     const atkW=api.dv([0.55,0.42,0.32],0.26,0.16), dmg=api.dv([8,12,16],20,30);
     ens.forEach(e=>{ e.stT-=dt; e.hitT-=dt;
       if(e.st==='down'){ if(e.stT<=0){ if(e.hp<=0) e.gone=true; else e.st='walk'; } e.x+=e.vx*dt; e.vx*=Math.pow(0.05,dt); return; }
       if(e.st==='hurt'){ e.x+=e.vx*dt; e.vx*=Math.pow(0.05,dt); if(e.stT<=0) e.st='walk'; return; }
-      const dx=pl.x-e.x, dy=pl.y-e.y; e.face=Math.sign(dx)||1; const reach=e.k==='knife'?80:e.k==='big'||e.k==='boss'?95:70;
-      if(e.st==='wind'){ if(e.stT<=0){ e.st='atk'; e.stT=0.25; if(!lost&&grace<=0&&Math.abs(dx)<reach+12&&Math.abs(dy)<40){ const dd=dmg*(e.k==='boss'?1.6:e.k==='big'?1.3:1); pl.hp-=dd; api.sfx.hurt(); api.fx.shake(5); api.fx.burst(pl.x,pl.y-90,'#ffd23f',8,160,.3,2); if(eff.rage<=0){ pl.st='hurt'; pl.stT=0.35; pl.x-=e.face*-30; } if(pl.hp<=0) die(); } } return; }
+      const tg=(e.st==='wind'||e.st==='atk')?(pls[e.tg]||pl):near(e);
+      const dx=tg.x-e.x, dy=tg.y-e.y; e.face=Math.sign(dx)||1; const reach=e.k==='knife'?80:e.k==='big'||e.k==='boss'?95:70;
+      if(e.st==='wind'){ if(e.stT<=0){ e.st='atk'; e.stT=0.25; if(!lost&&!tg.dead&&tg.grace<=0&&Math.abs(dx)<reach+12&&Math.abs(dy)<40){ const dd=dmg*(e.k==='boss'?1.6:e.k==='big'?1.3:1); tg.hp-=dd; api.sfx.hurt(); api.fx.shake(5); api.fx.burst(tg.x-cam,tg.y-90,'#ffd23f',8,160,.3,2); ev('ow',Math.round(tg.x-cam),Math.round(tg.y-90)); if(tg.rage<=0){ tg.st='hurt'; tg.stT=0.35; tg.x-=e.face*-30; } if(tg.hp<=0) die(tg); } } return; }
       if(e.st==='atk'){ if(e.stT<=0) e.st='walk'; return; }
       if(Math.abs(dx)>reach-10||Math.abs(dy)>14){ e.x+=Math.sign(dx)*e.sp*dt*(Math.abs(dx)>reach-10?1:0); e.y+=Math.sign(dy)*e.sp*0.6*dt*(Math.abs(dy)>14?1:0); }
-      e.atkT-=dt; if(Math.abs(dx)<reach&&Math.abs(dy)<30&&e.atkT<=0&&!lost){ e.st='wind'; e.stT=atkW; e.atkT=api.dv([1.6,1.1,0.8],0.6,0.35)+Math.random()*0.6; } });
+      e.atkT-=dt; if(Math.abs(dx)<reach&&Math.abs(dy)<30&&e.atkT<=0&&!lost&&!tg.dead){ e.st='wind'; e.stT=atkW; e.tg=tg.i; e.atkT=api.dv([1.6,1.1,0.8],0.6,0.35)+Math.random()*0.6; } });
     ens.filter(e=>e.gone).forEach(e=>{ api.addScore({thug:100,knife:150,big:300,boss:2000}[e.k]*(1+api.dk*.5),e.x-cam,e.y-100); api.event('ko'); });
     ens=ens.filter(e=>!e.gone);
-    if(locked&&!ens.length){ locked=false; wave++; api.sfx.clear(); if(wave<waves.length||true) api.toast('GO →'); goT=2; }
+    if(locked&&!ens.length){ locked=false; wave++; api.sfx.clear(); ev('sfx','clear'); T('GO →'); goT=2; }
     goT-=dt;
-    if(wave>=waves.length&&pl.x>WL-120&&!done&&!lost){ done=true; api.event('end'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); }
+    if(wave>=waves.length&&lead>WL-120&&!done&&!lost){ done=true; api.event('end'); api.sfx.clear(); api.fx.flash('#fff',.3); ev('clear'); setTimeout(()=>api.stageClear(),900); }
     api.counter('❤️ HEALTH',Math.max(0,Math.ceil(pl.hp)),pl.hp<25?'empty':pl.hp<50?'low':''); },
+  // ===== NET-1 co-op: host -> guest snapshot (small flat arrays) =====
+  netState(){ const R=Math.round, e=[];
+    ens.forEach(o=>e.push(o.id,R(o.x),R(o.y),KINDS.indexOf(o.k),R(o.hp*10),R(o.max),o.face,ST.indexOf(o.st)));
+    return {n:++snapN, c:R(cam),
+      p:pls.map(p=>[R(p.x),R(p.y),Math.max(0,R(p.hp)),p.face,ST.indexOf(p.st),p.dead?Math.max(1,R(p.respT*10)):0,Math.max(0,R(p.grace*10)),Math.max(0,R(p.rage*10))]),
+      e, g:(wave>=waves.length||(!locked&&goT>0))?1:0, d:done?1:0,
+      v:evq.filter(x=>t-x[1]<1.2).slice(-20).map(x=>[x[0],...x.slice(2)])}; },
+  netApply(s){ if(!s||!s.p||!pls) return; if(s.n&&s.n<=snapSeen) return; snapSeen=s.n||snapSeen;
+    s.p.forEach((a,i)=>{ let p=pls[i]; if(!p) p=pls[i]=mkPl(i,a[0],a[1]); setT(p,a[0],a[1]); p.hp=a[2]; p.face=a[3]; p.st=ST[a[4]]||'idle'; p.dead=a[5]>0; p.respT=a[5]/10; p.grace=a[6]/10; p.rage=a[7]>0?a[7]/10:-9; });
+    pl=pls[0]; if(Math.abs(s.c-cam)>300) cam=s.c; camT=s.c; goF=!!s.g; done=!!s.d;
+    const em={}; ens.forEach(o=>em[o.id]=o); const ne=[];
+    for(let i=0;i<s.e.length;i+=8){ const id=s.e[i], k=KINDS[s.e[i+3]]||'thug', B=KB[k]; const o=em[id]||{id,x:s.e[i+1],y:s.e[i+2],col:B.col,sz:B.sz};
+      o.k=k; o.col=B.col; o.sz=B.sz; setT(o,s.e[i+1],s.e[i+2]); o.hp=s.e[i+4]/10; o.max=s.e[i+5]; o.face=s.e[i+6]; o.st=ST[s.e[i+7]]||'walk'; ne.push(o); }
+    ens=ne;
+    const m=me(), h=Math.max(0,Math.ceil(m.hp)); if(h!==lastHp){ lastHp=h; api.counter('❤️ HEALTH',h,h<25?'empty':h<50?'low':''); }
+    (s.v||[]).forEach(a=>{ if(a[0]>evSeen){ evSeen=a[0]; try{ netFx(a); }catch(e){} } }); },
+  netTick(dt){ if(!pls) return; t+=dt; const k=1-Math.exp(-dt*16);
+    const L=o=>{ if(o&&o.tx!==undefined){ o.x+=(o.tx-o.x)*k; o.y+=(o.ty-o.y)*k; } };
+    pls.forEach(p=>{ L(p); p.grace-=dt; if(p.rage>0) p.rage-=dt; if(p.dead) p.respT-=dt; });
+    ens.forEach(L); cam+=(camT-cam)*k; },
   render(c){ const g=c.createLinearGradient(0,0,0,Y0); g.addColorStop(0,'#1a0630'); g.addColorStop(1,'#ff3b5c'); c.fillStyle=g; c.fillRect(0,0,W,Y0);
     c.fillStyle='#ffd23f'; c.beginPath(); c.arc(420-cam*0.05,260,60,0,7); c.fill();
     for(let i=-1;i<12;i++){ const bx=i*260-((cam*0.4)%260), h=180+((i*97+Math.floor(cam*0.4/260)*53)%140+140)%140; c.fillStyle='#120818'; c.fillRect(bx,Y0-h-120,200,h+120); c.fillStyle='rgba(255,210,63,.6)'; for(let wy=Y0-h-100;wy<Y0-20;wy+=30) for(let wx=bx+15;wx<bx+190;wx+=36) if(((wx*7+wy*3)|0)%5) c.fillRect(wx,wy,14,14); }
     for(let i=-1;i<6;i++){ const bx=i*200-(cam%200); c.fillStyle='#2a1a2a'; c.fillRect(bx,Y0-160,180,160); c.fillStyle=['#ff3bd4','#00e5ff','#3bff7a'][((i+Math.floor(cam/200))%3+3)%3]; c.shadowColor=c.fillStyle; c.shadowBlur=14; c.fillRect(bx+20,Y0-140,140,24); c.shadowBlur=0; c.fillStyle='#000'; c.fillRect(bx+60,Y0-90,60,90); }
     c.fillStyle='#3a3440'; c.fillRect(0,Y0,W,H-Y0); c.fillStyle='#4a4450'; for(let i=-1;i<8;i++){ const x=i*100-(cam%100); c.fillRect(x,Y0,4,H-Y0); } c.fillStyle='#ffd23f'; for(let i=-1;i<8;i++){ c.fillRect(i*120-(cam%120),Y1+30,60,6); }
-    if(wave>=waves.length||(!locked&&goT>0)){ if((t*3|0)%2){ c.fillStyle='#ffd23f'; c.font='bold 44px sans-serif'; c.textAlign='right'; c.fillText('GO →',W-30,Y0-20); } }
-    const all=[...ens.map(e=>({o:e,e:true})),{o:pl,e:false}].sort((a,b)=>a.o.y-b.o.y);
-    all.forEach(({o,e})=>{ if(!e&&lost) return; if(!e&&grace>0&&(t*10|0)%2) return; drawMan(c,o.x-cam,o.y,e?o.col:api.cos('Fighter').colors[0],o.face,o.st,e?o.sz:1,e&&o.st==='wind',o);
+    const showGo=isGuest()?goF:(wave>=waves.length||(!locked&&goT>0));
+    if(showGo){ if((t*3|0)%2){ c.fillStyle='#ffd23f'; c.font='bold 44px sans-serif'; c.textAlign='right'; c.fillText('GO →',W-30,Y0-20); } }
+    const N=net();
+    const all=[...ens.map(e=>({o:e,e:true})),...pls.map(p=>({o:p,e:false}))].sort((a,b)=>a.o.y-b.o.y);
+    all.forEach(({o,e})=>{ if(!e&&lost) return; if(!e&&!o.dead&&o.grace>0&&(t*10|0)%2) return;
+      drawMan(c,o.x-cam,o.y,e?o.col:(N?TAGC[o.i]:api.cos('Fighter').colors[0]),o.face,o.dead?'down':o.st,e?o.sz:1,e&&o.st==='wind',o);
       if(e&&o.st!=='down'){ c.fillStyle='#000'; c.fillRect(o.x-cam-25,o.y-150*o.sz,50,6); c.fillStyle='#ff3b3b'; c.fillRect(o.x-cam-25,o.y-150*o.sz,50*Math.max(0,o.hp)/o.max,6); } });
-    if(eff.rage>0&&!lost){ c.strokeStyle='#ff9f1c'; c.lineWidth=3; c.beginPath(); c.ellipse(pl.x-cam,pl.y-60,40,75,0,0,7); c.stroke(); }
+    pls.forEach(p=>{ if(lost||p.dead) return; if(p.rage>0){ c.strokeStyle='#ff9f1c'; c.lineWidth=3; c.beginPath(); c.ellipse(p.x-cam,p.y-60,40,75,0,0,7); c.stroke(); } });
+    if(N) pls.forEach(p=>{ const x=Math.max(50,Math.min(W-50,p.x-cam)), col=TAGC[p.i], s=nm(p.i);
+      c.font='bold 16px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.75)';
+      if(p.dead){ c.globalAlpha=0.6+0.3*Math.sin(t*8); const m='↻ '+s.toUpperCase()+' '+Math.max(0,p.respT).toFixed(1); c.strokeText(m,x,p.y-40); c.fillStyle=col; c.fillText(m,x,p.y-40); c.globalAlpha=1; return; }
+      c.strokeText(s,x,p.y-150); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=8; c.fillText(s,x,p.y-150); c.shadowBlur=0;
+      c.fillStyle='#000'; c.fillRect(x-25,p.y-144,50,5); c.fillStyle=p.hp<25?'#ff3b3b':p.hp<50?'#ffd23f':col; c.fillRect(x-25,p.y-144,50*Math.max(0,p.hp)/100,5); });
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
   attract(c,tt){ c.fillStyle='#0e0610'; c.fillRect(0,0,W,H); drawMan(c,250,600,'#2e7bff',1,(tt*2|0)%2?'punch':'idle',1.5,false,{}); drawMan(c,400,600,'#ff3b5c',-1,'idle',1.5,false,{}); }
 };
+function setT(o,x,y){ if(o.tx===undefined||Math.hypot(x-o.x,y-o.y)>200){ o.x=x; o.y=y; } o.tx=x; o.ty=y; }
+// move one fighter from its own controls. Nobody punches unless that player presses.
+function ctl(p,d,K,dt){
+  if(p.dead){ p.respT-=dt; if(p.respT<=0) getUp(p); return; }
+  if(lost) return;
+  p.stT-=dt; if(p.stT<=0&&p.st!=='idle') p.st='idle';
+  const sp=p.st==='idle'?220:60; if(p.st!=='hurt'){ p.x+=d.x*sp*dt; p.y+=d.y*sp*0.7*dt; if(Math.abs(d.x)>0.2&&p.st==='idle') p.face=Math.sign(d.x); }
+  const maxX=pls.length>1?Math.min(WL-40,cam+W-30):(locked?cam+W-30:WL-40); p.x=Math.max(cam+30,Math.min(maxX,p.x)); p.y=Math.max(Y0,Math.min(Y1,p.y));
+  if(K.Space&&!p.s){ attack(p,'punch'); } p.s=!!K.Space; }
+function getUp(p){ p.dead=false; p.respT=0; p.hp=100; p.st='idle'; p.stT=0; p.grace=2.5;
+  ens.forEach(e=>{ if(e.st!=='down'&&Math.abs(e.x-p.x)<200){ e.x+=(e.x<p.x?-160:160); if(e.st==='wind'||e.st==='atk') e.st='walk'; } });
+  ev('up',Math.round(p.x-cam),Math.round(p.y-60),p.i); }
+function useAb(p,id){ if(done||lost||!p||p.dead) return false;
+  if(id==='punch'||id==='kick'){ return attack(p,id); }
+  if(id==='spin'){ p.st='spin'; p.stT=0.45; ens.forEach(e=>{ if(Math.abs(e.x-p.x)<130&&Math.abs(e.y-p.y)<60) hit(e,2,Math.sign(e.x-p.x)||1,p); }); api.sfx.boom(); ev('sfx','boom'); return true; }
+  if(id==='heal'){ p.hp=Math.min(100,p.hp+50); api.sfx.pickup(); ev('sfx','pickup'); return true; }
+  p.rage=8; api.sfx.power(); ev('sfx','power'); return true; }
 function drawMan(c,x,y,col,f,st,s,warn,o){ c.save(); c.translate(x,y); c.scale(f*s,s);
   c.fillStyle='rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(0,0,26,7,0,0,7); c.fill();
   if(st==='down'){ c.fillStyle=col; c.fillRect(-40,-14,70,14); c.fillStyle='#f0c090'; c.beginPath(); c.arc(38,-8,10,0,7); c.fill(); c.restore(); return; }
@@ -451,11 +515,24 @@ function drawMan(c,x,y,col,f,st,s,warn,o){ c.save(); c.translate(x,y); c.scale(f
   if(st==='punch'||st==='atk') c.lineTo(52,-88); else if(st==='wind') c.lineTo(-14,-80); else c.lineTo(18,-66); c.moveTo(-8,-92); c.lineTo(-16,-66); c.stroke();
   if(st==='punch'||st==='atk'){ c.fillStyle='#fff'; c.beginPath(); c.arc(56,-88,8,0,7); c.fill(); }
   c.restore(); }
-function hit(e,dmg,dir){ if(e.st==='down') return; const d=dmg*(eff.rage>0?2:1); e.hp-=d; api.fx.burst(e.x-cam,e.y-90,'#fff',8,200,.25,3); api.sfx.bump();
-  if(e.hp<=0){ e.st='down'; e.stT=0.9; e.vx=dir*240; api.sfx.boom(); } else if(dmg>=2||e.k!=='boss'){ e.st=dmg>=2?'down':'hurt'; e.stT=dmg>=2?0.8:0.3; e.vx=dir*(dmg>=2?260:90); } }
-function attack(k){ if(done||lost||pl.st==='hurt'||(pl.st!=='idle'&&pl.stT>0.08)) return false; pl.st=k; pl.stT=k==='kick'?0.32:0.18; api.sfx.click();
-  const reach=k==='kick'?100:78; let any=false; ens.forEach(e=>{ const dx=(e.x-pl.x)*pl.face; if(dx>-10&&dx<reach&&Math.abs(e.y-pl.y)<34&&e.st!=='down'){ any=true; hit(e,k==='kick'?2:1,pl.face); } }); return true; }
-function die(){ if(lost||done) return; lost=true; pl.st='down'; api.toast('K.O.!'); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1100); }
+// p = the fighter who threw the hit (rage doubles damage). Fighters never hit each other — only the gang.
+function hit(e,dmg,dir,p){ if(e.st==='down') return; const d=dmg*(p&&p.rage>0?2:1); e.hp-=d; api.fx.burst(e.x-cam,e.y-90,'#fff',8,200,.25,3); api.sfx.bump(); ev('hit',Math.round(e.x-cam),Math.round(e.y-90));
+  if(e.hp<=0){ e.st='down'; e.stT=0.9; e.vx=dir*240; api.sfx.boom(); ev('sfx','boom'); } else if(dmg>=2||e.k!=='boss'){ e.st=dmg>=2?'down':'hurt'; e.stT=dmg>=2?0.8:0.3; e.vx=dir*(dmg>=2?260:90); } }
+function attack(p,k){ if(done||lost||p.dead||p.st==='hurt'||(p.st!=='idle'&&p.stT>0.08)) return false; p.st=k; p.stT=k==='kick'?0.32:0.18; api.sfx.click(); ev('sfx','click');
+  const reach=k==='kick'?100:78; ens.forEach(e=>{ const dx=(e.x-p.x)*p.face; if(dx>-10&&dx<reach&&Math.abs(e.y-p.y)<34&&e.st!=='down'){ hit(e,k==='kick'?2:1,p.face,p); } }); return true; }
+function die(p){ if(!net()){ if(lost||done) return; lost=true; pl.st='down'; api.toast('K.O.!'); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1100); return; }
+  // co-op: this fighter is down for 2 s, the team loses one life, the other keeps fighting
+  if(p.dead||done) return; p.dead=true; p.hp=0; p.st='down'; p.respT=2;
+  T('K.O.! '+nm(p.i).toUpperCase()+' IS DOWN'); api.sfx.hurt(); api.fx.shake(10); ev('ko',p.i);
+  api.loseLife(); }
+function netFx(a){ const k=a[1], F=api.fx, S=api.sfx;
+  if(k==='toast') api.toast(a[2]);
+  else if(k==='sfx'){ if(S[a[2]]) S[a[2]](); }
+  else if(k==='hit'){ S.bump(); F.burst(a[2],a[3],'#fff',8,200,.25,3); }
+  else if(k==='ow'){ S.hurt(); F.shake(5); F.burst(a[2],a[3],'#ffd23f',8,160,.3,2); }
+  else if(k==='ko'){ S.hurt(); F.shake(10); }
+  else if(k==='up'){ F.burst(a[2],a[3],TAGC[a[4]]||'#fff',16,180,.4,3); }
+  else if(k==='clear'){ S.clear(); F.flash('#fff',.3); } }
 })();
 
 </script>
@@ -632,8 +709,8 @@ window.addEventListener('keydown', e => {
   } else if(state==='paused' && (e.code==='Escape'||e.code==='KeyP')) resumeGame();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; if(state==='play') G.onKey && G.onKey(e.code,false); });
-window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play') pauseGame(); });
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play') pauseGame(); });
+window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play'&&!NET.on) pauseGame(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play' && !NET.on) pauseGame(); });
 const Input = {
   keys,
   dir(){
@@ -656,6 +733,7 @@ function onDown(e){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.active&&joy.id===e.pointerId)) netSendRel({e:'ptr',t:'down',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('down', g.x, g.y, e.pointerId, e.pointerType);
 }
 function onMove(e){
@@ -665,12 +743,14 @@ function onMove(e){
     if(m>50){dx=dx/m*50;dy=dy/m*50;} joyEl.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`;
   }
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(G.joystick&&joy.active&&joy.id===e.pointerId) return; if(e.buttons||e.pointerType!=='mouse'){ NET.pmT=(NET.pmT||0); const now=performance.now(); if(now-NET.pmT>50){ NET.pmT=now; netSendFast({e:'ptr',t:'move',x:g.x,y:g.y}); } } return; }
   G.onPointer && G.onPointer('move', g.x, g.y, e.pointerId, e.pointerType, e.buttons);
 }
 function onUp(e){
   if(joy.active && e.pointerId===joy.id){ joy.active=false; joyEl.classList.add('hidden'); }
   if(state!=='play') return;
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
@@ -755,6 +835,7 @@ function useAbility(i){
   if(abLock[i]>0) return;
   const paid = a.cd>0 && !run.tutorial;
   if(paid && have(a)<=0){ toast('NO '+a.name+' LEFT'); SFX.bump(); flashShop(); return; }
+  if(NET.on&&NET.role==='guest'){ if(paid){ P.abil[a.id]=have(a)-1; save(); } abLock[i]=a.cd>0?1:0; netSendRel({e:'ab',id:a.id}); return; }
   if(G.useAbility(a.id)!==false){
     if(paid){ P.abil[a.id]=have(a)-1; save(); if(P.abil[a.id]===0) setTimeout(()=>{ if(state==='play') toast('BUY MORE IN 🛒 SHOP'); },900); }
     abLock[i] = a.cd>0 ? 1 : 0; tutEvent('ab_'+a.id);
@@ -1082,11 +1163,13 @@ function pauseAgain(){ state='play'; pauseGame(); }
 function resumeGame(){ closeModal(); state='play'; last=performance.now(); }
 function endGamePrompt(){
   if(state==='play'){ state='paused'; }
+  if(NET.on){ modal(`<h2>LEAVE THE GAME?</h2><p>This ends the 2-player game for both of you.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>netQuit(), n:resumeGame}); return; }
   if(MP.on){ modal(`<h2>LEAVE THE RACE?</h2><p>You'll drop out of this multiplayer race.</p><button class="big" data-a="y">LEAVE RACE</button><button class="mid" data-a="n">KEEP RACING</button>`, {y:()=>{ mpSend({e:'out'}); mpLeave(); toMenu(); }, n:resumeGame}); return; }
   if(run.tutorial){ modal(`<h2>LEAVE TUTORIAL?</h2><p>You can replay it any time from How to Play.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>{ if(!run.practice){ P.tutDone=true; save(); } toMenu(); }, n:resumeGame}); return; }
   modal(`<h2>END GAME?</h2><p>Your game is saved at the start of <b>Stage ${run.stage}</b>. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
 }
 function stageClear(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(true); return; }
   if(MP.on){ if(run.tutorial) return; mpFinish(true); return; }
   if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
   state='modal'; SFX.clear(); flushCoins();
@@ -1109,6 +1192,7 @@ function nameEntry(title, sub, win){
 }
 function afterRun(){ modal(`<h2>WHAT NEXT?</h2><button class="big" data-a="p">PLAY AGAIN</button><button class="mid abil" data-a="a">⚡ ABILITIES</button><button class="mid" data-a="s">TOP SCORES</button><button class="mid" data-a="m">MAIN MENU</button>`, {p:()=>newGame(run.slot), a:()=>{ toMenu(); abilPanel(); }, s:()=>{ toMenu(); scoresPanel(P.diff); }, m:toMenu}); }
 function gameOver(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(false); return; }
   if(MP.on){ mpFinish(false); return; }
   if(state==='modal' || state==='menu') return; state='modal'; SFX.over(); flushCoins();
   const coins = Math.floor(run.score/500), got=run.coinsStage; P.coins += coins; save();
@@ -1246,8 +1330,8 @@ function frame(now){
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
-    G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt);
-    doomTick(dt); mpTick(dt);
+    if(!(NET.on&&NET.role==='guest')) G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt); netTick(dt);
+    if(!(NET.on&&NET.role==='guest')) doomTick(dt); mpTick(dt);
   } else if(state==='menu' || state==='loading' || state==='ending'){ menuT+=dt; fxUpdate(dt); }
   ctx.save();
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
@@ -1322,11 +1406,15 @@ function mpRoom(){
   if(MP.on) { mpBars(); return; }
   if(!MP.ch) return; const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t).slice(0,3); MP.host = mpHostId()===MP.me;
   const list=ids.map((k,i)=>`<div style="padding:8px 12px;margin:6px 0;border-radius:10px;background:#ffffff14;text-align:left">${['🟦','🟥','🟩'][i]} <b>${esc(MP.players[k].name||'?')}</b>${k===MP.me?' (you)':''}${i===0?' · HOST':''}</div>`).join('');
-  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
-    {s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
+  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host&&G.net&&ids.length===2?`<button class="big" data-a="t" style="background:linear-gradient(90deg,#00e5ff,#ff3bd4)">🎮 PLAY TOGETHER (2P)</button>`:''}${!MP.host&&G.net&&ids.length===2?'<p>🎮 This game has <b>PLAY TOGETHER</b> — the host can start it.</p>':''}${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
+    {t:()=>netPick(),
+     s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
 }
 function mpSend(o){ try{ MP.ch && MP.ch.send({type:'broadcast', event:'m', payload:Object.assign({id:MP.me,name:MP.name},o)}); }catch(e){} }
 function mpMsg(m){
+  if(m.e==='net'){ if(m.n) netRecv(m.n); return; }
+  if(m.e==='rtc'){ if(m.id!==MP.me) netRtcMsg(m); return; }
+  if(m.e==='coop' && !NET.on){ netStart(m.seed,m.stage,m.hn,m.gn,m.diff,m.score); return; }
   if(m.e==='start' && !MP.on){ mpStart(m.seed,m.stage); }
   else if(m.e==='prog'){ MP.prog[m.id]={p:m.p,l:m.l,name:m.name,out:m.out}; mpBars(); }
   else if(m.e==='win' && MP.on && !MP.over){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{p:1}); mpEnd(m.name,false); }
@@ -1375,6 +1463,105 @@ function mpOnMenu(){ if(!mpFirstMenu) return; mpFirstMenu=false; const q=(locati
   setTimeout(()=>{ if(state!=='menu') return; modal(`<h2>${esc(G.title)}</h2><p>How do you want to play?</p><button class="big" data-a="s">▶ SOLO</button><button class="big" data-a="m" style="background:linear-gradient(90deg,#ff3bd4,#ffd23f)">👥 MULTIPLAYER (2–3)</button>`,{s:()=>{}, m:()=>mpMenu()}); },150); }
 
 function mpWaBtn(){}
+
+/* ===== REAL 2-PLAYER (NET-1): one phone hosts the game, the other sends its controls and draws the host's snapshots ===== */
+const NET = { on:false, role:null, peer:null, dc:null, rtcOk:false, sendT:0, lastSnap:null, names:['',''], keys2:{}, k2:{}, inbox:[] };
+const Input2 = { keys: NET.k2, dir(){ let x=0,y=0, k=NET.k2; if(k.ArrowLeft||k.KeyA) x-=1; if(k.ArrowRight||k.KeyD) x+=1; if(k.ArrowUp||k.KeyW) y-=1; if(k.ArrowDown||k.KeyS) y+=1; const j=NET.joy2; if(j&&(Math.abs(j.x)>0.05||Math.abs(j.y)>0.05)){ x=j.x; y=j.y; } return {x,y}; } };
+API.input2 = Input2;
+Object.defineProperty(API,'net',{get(){ return NET.on? {role:NET.role, names:NET.names, mode:(G.net&&G.net.mode)||'coop'} : null; }});
+API.netWin = function(idx){ if(!NET.on||NET.role!=='host') return; netSendRel({e:'nwin',idx}); netResult(idx); };
+function netSendRel(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); return; }catch(e){} } mpSend(Object.assign({e:'net'},{n:o})); }
+function netSendFast(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); }catch(e){} return; } if(NET.fbT<=0){ NET.fbT=0.1; mpSend({e:'net',n:o}); } }
+function netRecv(o){
+  if(o.e==='snap' && NET.role==='guest'){ NET.lastSnap=o; }
+  else if(o.e==='in' && NET.role==='host'){ for(const k in NET.k2) delete NET.k2[k]; Object.assign(NET.k2,o.k||{}); NET.joy2=o.j||null; }
+  else if(o.e==='ptr' && NET.role==='host'){ G.onPointer2 && G.onPointer2(o.t,o.x,o.y); }
+  else if(o.e==='ab' && NET.role==='host'){ G.useAbility2 && G.useAbility2(o.id); }
+  else if(o.e==='nclear' && NET.role==='guest'){ netStageEnd(true); }
+  else if(o.e==='nover' && NET.role==='guest'){ NET.waitPay=false; netGameOver(); }
+  else if(o.e==='ncont' && NET.role==='guest'){ state='modal'; netContinue(); }
+  else if(o.e==='npay' && NET.role==='host'){ netResume(o.name||'P2'); }
+  else if(o.e==='nresume' && NET.role==='guest'){ NET.waitPay=false; closeModal(); state='play'; last=performance.now(); toast('💰 '+(o.payer||'')+' PAID — KEEP GOING!'); }
+  else if(o.e==='nshop' && NET.role==='host'){ netShopTime(); toast('PARTNER IS BUYING GOLD…'); }
+  else if(o.e==='ngive'){ toast('PARTNER GAVE UP — YOU CAN STILL PAY'); }
+  else if(o.e==='nnext' && NET.role==='guest'){ clearTimeout(NET.advT); closeModal(); run.stage=o.stage; Math.random=mpSeeded(o.seed); netBegin(); }
+  else if(o.e==='nwin' && NET.role==='guest'){ netResult(o.idx); }
+  else if(o.e==='nquit'){ netStop(); state='modal'; modal(`<h2>YOUR PARTNER LEFT</h2><p>The 2-player game has ended.</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="m">MENU</button>`,{r:()=>mpRoom(), m:()=>{ mpLeave(); toMenu(); }}); }
+}
+// --- direct phone-to-phone link (WebRTC). If it can't connect in 6 s we fall back to Supabase messages (slower).
+function netRtc(isHost){
+  try{
+    const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]}); NET.peer=pc;
+    pc.onicecandidate=e=>{ if(e.candidate) mpSend({e:'rtc',c:e.candidate}); };
+    const setup=dc=>{ NET.dc=dc; dc.onopen=()=>{ NET.rtcOk=true; toast('⚡ DIRECT LINK'); }; dc.onmessage=m=>{ try{ netRecv(JSON.parse(m.data)); }catch(e){} }; };
+    if(isHost){ setup(pc.createDataChannel('g',{ordered:false,maxRetransmits:0})); pc.createOffer().then(o=>pc.setLocalDescription(o)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }
+    else pc.ondatachannel=e=>setup(e.channel);
+  }catch(e){}
+}
+function netRtcMsg(m){ const pc=NET.peer; if(!pc) return; try{
+  if(m.sdp){ pc.setRemoteDescription(m.sdp).then(()=>{ if(m.sdp.type==='offer') return pc.createAnswer().then(a=>pc.setLocalDescription(a)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }); }
+  else if(m.c){ pc.addIceCandidate(m.c).catch(()=>{}); } }catch(e){} }
+function netPick(){ const ids2=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t); if(ids2.length!==2){ mpRoom(); return; }
+  const sv=(P.coop||{})[G.id]; const go=(stage,diff,score)=>{ const seed=Math.floor(mpRealRandom()*1e9); const hn=MP.players[ids2[0]].name, gn=MP.players[ids2[1]].name; mpSend({e:'coop',seed,stage,hn,gn,diff,score}); netStart(seed,stage,hn,gn,diff,score); };
+  modal(`<h2>🎮 PLAY TOGETHER</h2><p>Play the whole game together, stage 1 to ${G.stages}.</p><p>Difficulty:</p><button class="mid" data-a="e">🟢 BEGINNER — new game</button><button class="mid" data-a="h">🟠 HARD — new game</button><button class="mid" data-a="x">🔴 EXPERT — new game</button>${sv?`<button class="big" data-a="c">▶ CONTINUE TOGETHER · Stage ${sv.stage} · ${DIFFS[sv.diff]}</button>`:''}<button class="mid" data-a="b">◀ BACK</button>`,
+    {e:()=>go(1,0,0), h:()=>go(1,1,0), x:()=>go(1,2,0), c:()=>go(sv.stage,sv.diff,sv.score||0), b:()=>mpRoom()}); }
+function netSave(){ if(NET.role!=='host') return; P.coop=P.coop||{}; P.coop[G.id]={stage:run.stage,diff:P.diff,score:run.score,t:Date.now()}; save(); }
+function netStart(seed,stage,hostName,guestName,diff,score){
+  NET.on=true; NET.role=MP.host?'host':'guest'; NET.names=[hostName,guestName]; NET.fbT=0; NET.lastSnap=null; MP.on=false; MP.coop=true;
+  MP.prevDiff=P.diff; P.diff=diff||0; run.stage=stage; run.score=score||0; run.lives=G.lives; run.extra={}; Math.random=mpSeeded(seed);
+  netRtc(NET.role==='host'); if(window.RMXL) RMXL.setBusy(true);
+  let n=3; const tick=()=>{ modal(`<h2>🎮 PLAY TOGETHER</h2><p><b style="color:#00e5ff">P1 ${esc(hostName)}</b> + <b style="color:#ff3bd4">P2 ${esc(guestName)}</b></p><p>You are <b>${NET.role==='host'?'P1':'P2'}</b> · ${DIFFS[P.diff]} · Stage ${run.stage}</p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); netBegin(); } else setTimeout(tick,1000); }; tick();
+}
+function netBegin(){ beginStage(); }
+function netTick(dt){ // runs every frame while playing together
+  if(!NET.on) return; NET.fbT-=dt; NET.sendT-=dt;
+  if(NET.role==='host'){ if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const s=G.netState?G.netState():{}; netSendFast({e:'snap',s,l:run.lives,sc:run.score}); } }
+  else { if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const k={}; ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS','Space'].forEach(c=>{ if(keys[c]) k[c]=1; }); const d=joy.active?Input.dir():null; netSendFast({e:'in',k,j:d}); }
+    if(NET.lastSnap){ const sn=NET.lastSnap; NET.lastSnap=null; try{ G.netApply&&G.netApply(sn.s); }catch(e){} if(run.lives!==sn.l||run.score!==sn.sc){ run.lives=sn.l; run.score=sn.sc; updHud(); } }
+    G.netTick && G.netTick(dt); }
+}
+function netStageEnd(win){
+  state='modal'; flushCoins();
+  if(!win){ netContinue(); return; }
+  if(NET.role==='host') netSendRel({e:'nclear'});
+  run.stage++; if(NET.role==='host') netSave();
+  if(run.stage>G.stages){ if(NET.role==='host'){ P.coop[G.id]=null; save(); } netQuit('🏆 YOU BEAT ALL '+G.stages+' STAGES TOGETHER!'); return; }
+  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)); P.coins+=coins; save(); updCoins();
+  let n=4; clearTimeout(NET.advT);
+  const tick=()=>{ if(!NET.on) return; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2><p>Great teamwork! +${coins} 🪙 each</p><div class="stat">${run.score.toLocaleString()}</div><p>Stage ${run.stage} starts in <b>${n}</b>…</p><button class="mid" data-a="q">LEAVE (progress saved)</button>`,{q:()=>netQuit()});
+    if(n--<=0){ closeModal(); if(NET.role==='host'){ const seed=Math.floor(mpRealRandom()*1e9); netSendRel({e:'nnext',stage:run.stage,seed}); Math.random=mpSeeded(seed); netBegin(); } }
+    else NET.advT=setTimeout(tick,1000); };
+  tick();
+}
+// out of lives: either player may pay gold to continue (cost grows with stage); nobody pays in 30 s = game over
+function netContCost(){ return Math.round((60 + run.stage*4) * (1 + P.diff*0.5)); }
+function netContinue(){
+  if(NET.role==='host'){ netSendRel({e:'ncont'}); clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },30000); }
+  NET.waitPay=true; netContinueShow();
+}
+function netShopTime(){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },120000); }
+function netContinueShow(){ if(!NET.on||!NET.waitPay) return; const cost=netContCost(), can=P.coins>=cost;
+  modal(`<h2>OUT OF LIVES!</h2><p>Either player can pay to keep going together.</p><button class="big" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙</button><p style="font-size:13px">You have ${P.coins.toLocaleString()} 🪙${can?'':' — not enough'}</p><button class="mid" data-a="s" style="background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+    {s:()=>{ if(NET.role==='host') netShopTime(); else netSendRel({e:'nshop'}); goldStore(()=>netContinueShow(),'🛒 BUY GOLD TO CONTINUE'); },
+     p:()=>{ if(P.coins<cost){ netContinueShow(); return; } P.coins-=cost; save(); updCoins(); if(NET.role==='host') netResume(MP.name); else { netSendRel({e:'npay',name:MP.name}); modal(`<h2>PAID ✔</h2><p>Continuing…</p>`,{}); } }, g:()=>{ netSendRel({e:'ngive'}); if(NET.role==='host'){ clearTimeout(NET.contT); NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } else modal(`<h2>WAITING…</h2><p>Your partner can still pay to continue.</p>`,{}); }});
+}
+function netResume(payer){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.waitPay=false; run.lives=G.lives; updHud(); if(G.netRevive) G.netRevive(); else if(G.respawn) G.respawn(); netSendRel({e:'nresume',payer}); closeModal(); state='play'; last=performance.now(); toast('💰 '+payer+' PAID — KEEP GOING!'); }
+function netGameOver(){ state='modal'; if(NET.role==='host'){ P.coop=P.coop||{}; P.coop[G.id]=null; save(); }
+  modal(`<h2>GAME OVER</h2><p>You reached stage ${run.stage} together.</p><div class="stat">${run.score.toLocaleString()}</div><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netResult(idx){ state='modal'; const meIdx=NET.role==='host'?0:1; const t= idx===meIdx?'🏆 YOU WIN!': idx===-1?'🤝 DRAW!':'🏁 '+esc(NET.names[idx]||'P'+(idx+1))+' WINS!';
+  if(idx===meIdx){ P.coins+=50; save(); }
+  modal(`<h2>${t}</h2><p>${idx===meIdx?'+50 🪙':''}</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NET.peer&&NET.peer.close(); }catch(e){} NET.dc=null; NET.peer=null; NET.rtcOk=false; Math.random=mpRealRandom; P.diff=MP.prevDiff; if(window.RMXL) RMXL.setBusy(false); }
+function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
+
+// ===== GOLD STORE (cash gold packs) — PAY-1. Payments are not switched on yet: PAY.buy() is the ONE place to connect PayFast / Google Play Billing later.
+const PAY = { enabled:false,
+  buy(pack, done){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; } /* later: start PayFast / Play Billing checkout here, then on success: */ P.coins+=pack.gold; save(); updCoins(); toast('+'+pack.gold.toLocaleString()+' 🪙 ADDED'); SFX.coin(); done&&done(); } };
+function goldStore(back, title){
+  const rows=GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':''}</div><button data-gp="${i}" ${PAY.enabled?'':'style="opacity:.75"'}>${g.price}${PAY.enabled?'':' · SOON'}</button></div>`).join('');
+  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>${rows}<p class="note">${PAY.enabled?'Secure payment. Gold is added straight away.':'Gold purchases open soon. You can still earn gold free by playing.'}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); PAY.buy(GOLD_PACKS[+b.dataset.gp], ()=>goldStore(back,title)); }));
+}
 
 
 })();
