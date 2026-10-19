@@ -74,15 +74,15 @@
       if(!two && t.indexOf('MULTIPLAYER (2')>=0 && b.getAttribute('data-a')==='m'){ var s=b.parentNode.querySelector('[data-a="s"]'); if(s){ s.click(); return; } }
       if(two){
         if(t==='👥 MULTIPLAYER (2–3)'){ b.textContent='👥 2 PLAYER — PLAY TOGETHER'; }
-        if(t.indexOf('START RACE')>=0){ b.style.display='none'; }
-        if(t.indexOf('QUICK MATCH')>=0){ b.style.display='none'; }
+        if(t.indexOf('START RACE')>=0&&b.style.display!=='none'){ b.style.display='none'; }
+        if(t.indexOf('QUICK MATCH')>=0&&b.style.display!=='none'){ b.style.display='none'; }
       }
     }
     if(two){ var ps=document.querySelectorAll('p'); for(var j=0;j<ps.length;j++){ var x=ps[j];
       if(x.textContent.indexOf('Race 1 or 2 friends')===0) x.textContent='Play the whole game TOGETHER with 1 friend on 2 phones. Create a room and send the code, or join with a code.';
       if(x.textContent.indexOf('Waiting for the host to start')>=0) x.innerHTML='<b>Waiting for the host to tap PLAY TOGETHER…</b>';
-      if(x.textContent.indexOf('need at least 2')>=0||x.textContent==='3/3 players') x.textContent=x.textContent.replace('/3','/2');
+      if(x.textContent.indexOf('/3 players')>=0) x.textContent=x.textContent.replace('/3 players','/2 players');
     } }
   }
-  new MutationObserver(fix).observe(document.documentElement,{childList:true,subtree:true,characterData:true}); fix();
+  var busy=false; new MutationObserver(function(){ if(busy) return; busy=true; try{ fix(); }finally{ setTimeout(function(){ busy=false; },0); } }).observe(document.documentElement,{childList:true,subtree:true,characterData:true}); fix(); setInterval(fix,600);
 })();
