@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CC-1.11 · 2026-10-17">
+<meta name="build" content="BUILD-CC-1.12 · 2026-10-19">
 <title>Chomp Circuit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-CC-1.11 · 2026-10-17 -->
+<!-- BUILD-CC-1.12 · 2026-10-19 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -370,7 +370,8 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* CHOMP CIRCUIT — maze chase remix (#1) */
+/* CHOMP CIRCUIT — maze chase remix (#1)
+   1.12: real online 2-player CO-OP (NET-1). Host runs the maze for both chompers; guest draws snapshots. */
 (function(){
 const TS=28, C=19, R=21, OY=48;
 function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
@@ -382,7 +383,26 @@ const GTYPES={
   phaser:{name:'Blink',col:'#a066ff'}, slimer:{name:'Goop',col:'#44ff66'}, boss:{name:'OVERLORD',col:'#ff2200'}
 };
 
-let map, dots, dotCount, walls, player, ghosts, slime, t, frightT, freezeT, dashT, magnetT, eatChain, readyT, clearT, api, stageN, dotsEaten, scatterT;
+let map, dots, dotCount, walls, player, pls, ghosts, slime, t, frightT, freezeT, eatChain, readyT, clearT, api, stageN, dotsEaten, scatterT, starts;
+// ---- NET-1 co-op helpers ----
+const TAGC=['#00e5ff','#ff3bd4'], PCOL=[['#00e5ff','#c8faff'],['#ff3bd4','#ffc0f0']];
+const GT=['chaser','ambush','wander','phaser','slimer','boss'], GS=['spawn','normal','fright','dead'];
+let evq=[], evSeq=0, evSeen=0, snapN=0, snapSeen=0, eatLog=[], fullT=-1, blipT=0;
+function net(){ return api&&api.net; }
+function isHost(){ const n=net(); return !!(n&&n.role==='host'); }
+function ev(k,...a){ if(!isHost()) return; evq.push([++evSeq,t,k,...a]); if(evq.length>40) evq.shift(); }
+function T(msg){ api.toast(msg); ev('toast',msg); }
+function pname(i){ const n=net(); return String((n&&n.names[i])||('P'+(i+1))).slice(0,12); }
+function d4(d){ if(!d||(Math.abs(d.x)<0.2&&Math.abs(d.y)<0.2)) return null; if(Math.abs(d.x)>Math.abs(d.y)) return d.x>0?'R':'L'; return d.y>0?'D':'U'; }
+function mkP(i,s){ return {i, sx:s.x, sy:s.y, x:s.x,y:s.y,cx:s.x,cy:s.y,dx:0,dy:0,want:null,face:{x:i?1:-1,y:0},mouth:0,dead:0,dashT:0,magT:0,grace:0}; }
+function startTiles(){
+  if(!net()) return [START];
+  for(let k=1;k<=4;k++) if(pass(START.x-k,START.y)&&pass(START.x+k,START.y)) return [{x:START.x-k,y:START.y},{x:START.x+k,y:START.y}];
+  const seen={}, q=[[START.x,START.y,0]]; seen[START.x+','+START.y]=1;
+  while(q.length){ const [x,y,d]=q.shift(); if(d>=2) return [START,{x,y}]; for(const v of DL){ const nx=x+v.x, ny=y+v.y; if(pass(nx,ny)&&!seen[nx+','+ny]){ seen[nx+','+ny]=1; q.push([nx,ny,d+1]); } } }
+  return [START,START];
+}
+function nearP(o){ let best=null, bd=1e9; for(const p of pls){ if(p.dead>0) continue; const d=Math.hypot(p.x-o.x,p.y-o.y); if(d<bd){ bd=d; best=p; } } return best||player; }
 
 function genMaze(seed){
   const r=rng(seed), m=Array.from({length:R},()=>Array(C).fill(1));
@@ -442,15 +462,17 @@ function ghostSpeed(g){
   return base*(g.type==='boss'?1.06:1)*(g.type==='wander'?0.93:1);
 }
 function resetPositions(){
-  player={x:START.x,y:START.y,cx:START.x,cy:START.y,dx:0,dy:0,want:null,face:{x:-1,y:0},mouth:0,dead:0};
+  const keepMag=player? player.magT||0 : 0;
+  pls=starts.map((s,i)=>mkP(i,s)); player=pls[0]; if(!net()) player.magT=keepMag;
   ghosts.forEach((g,i)=>{ Object.assign(g, makeGhost(g.type, 0.6+i*1.4)); });
-  readyT=1.6; frightT=0; freezeT=0; dashT=0;
+  readyT=1.6; frightT=0; freezeT=0;
 }
 
 const GAME = window.GAME = {
   id:'chomp-circuit', title:'Chomp Circuit', titleHTML:'CHOMP<br>CIRCUIT', tagline:'Neon maze chase · Remix of a classic',
-  build:'BUILD-CC-1.11 · 2026-10-17', theme:{a:'#ffe14a', b:'#20e3ff', bg:'#05040f'},
+  build:'BUILD-CC-1.12 · 2026-10-19', theme:{a:'#ffe14a', b:'#20e3ff', bg:'#05040f'},
   w:C*TS, h:R*TS+OY+8, stages:100, lives:3, livesIcon:'●', joystick:true,
+  net:{mode:'coop'},
   abilities:[
     {id:'dash', icon:'⚡', name:'DASH', cd:5, key:'Digit1', keyLabel:'1', desc:'Speed burst to escape or chase.'},
     {id:'freeze', icon:'❄️', name:'FREEZE', cd:18, key:'Digit2', keyLabel:'2', desc:'Freezes all ghosts for 3 seconds.'},
@@ -475,7 +497,7 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ffe14a,#20e3ff,#ff4fd8)'}
   ],
   story:`<h3>THE CIRCUIT</h3><p>Deep inside an old arcade machine, the power grid is failing. Energy has leaked out into the maze as glowing dots — and the <b>Glitch Ghosts</b> are feeding on it.</p><p>You are <b>CHOMP</b>, the last repair unit. Your job: eat every energy dot, restore the circuit, and survive.</p><h3>THE GLITCH GHOSTS</h3><ul><li><b style="color:#ff3355">Blaze</b> — hunts you directly.</li><li><b style="color:#ff66d9">Vex</b> — cuts you off, aiming where you're going.</li><li><b style="color:#ffaa22">Drift</b> — wanders, then panics and chases.</li><li><b style="color:#a066ff">Blink</b> — teleports close to you.</li><li><b style="color:#44ff66">Goop</b> — leaves sticky slime that slows you down.</li><li><b style="color:#ff2200">OVERLORD</b> — the boss of the circuit. Big, fast, and angry.</li></ul><p>The maze rewires itself every stage. Nothing stays the same for long.</p>`,
-  howto:`<h3>GOAL</h3><p>Eat every glowing dot in the maze to clear the stage. Avoid the ghosts!</p><h3>CONTROLS</h3><ul><li><b>PC:</b> <span class="key">←↑↓→</span> or <span class="key">WASD</span> to move</li><li><b>Phone:</b> put your thumb anywhere and drag in a direction</li><li>Pause: <span class="key">P</span> / <span class="key">Esc</span></li></ul><h3>POWER ORBS</h3><p>The big pulsing orbs in the corners turn ghosts blue. Eat blue ghosts for 200 → 400 → 800 → 1600 points!</p><h3>ABILITIES</h3><ul><li>⚡ <b>DASH</b> <span class="key">1</span> — speed burst</li><li>❄️ <b>FREEZE</b> <span class="key">2</span> — freezes all ghosts for 3 seconds (frozen ghosts can't hurt you)</li><li>🧲 <b>MAGNET</b> <span class="key">3</span> — pulls in nearby dots for 4 seconds</li></ul><h3>DIFFICULTY</h3><p>Easy: slow ghosts, long power time. Hard: faster. Expert: ghosts almost as fast as you, short power time.</p>`,
+  howto:`<h3>GOAL</h3><p>Eat every glowing dot in the maze to clear the stage. Avoid the ghosts!</p><h3>CONTROLS</h3><ul><li><b>PC:</b> <span class="key">←↑↓→</span> or <span class="key">WASD</span> to move</li><li><b>Phone:</b> put your thumb anywhere and drag in a direction</li><li>Pause: <span class="key">P</span> / <span class="key">Esc</span></li></ul><h3>POWER ORBS</h3><p>The big pulsing orbs in the corners turn ghosts blue. Eat blue ghosts for 200 → 400 → 800 → 1600 points!</p><h3>ABILITIES</h3><ul><li>⚡ <b>DASH</b> <span class="key">1</span> — speed burst</li><li>❄️ <b>FREEZE</b> <span class="key">2</span> — freezes all ghosts for 3 seconds (frozen ghosts can't hurt you)</li><li>🧲 <b>MAGNET</b> <span class="key">3</span> — pulls in nearby dots for 4 seconds</li></ul><h3>PLAY TOGETHER</h3><p>Two chompers in the same maze (P1 cyan, P2 pink). Dots eaten by either player count. If one of you gets caught the team loses a life and that chomper comes back after 2 seconds.</p><h3>DIFFICULTY</h3><p>Easy: slow ghosts, long power time. Hard: faster. Expert: ghosts almost as fast as you, short power time.</p>`,
   tutorial:[
     {text:'Move with the <b>arrow keys</b> or <b>WASD</b>.', touch:'Put your thumb <b>anywhere</b> on the screen and <b>drag</b> to move.', ev:'move'},
     {text:'Eat the glowing dots — eat <b>10 dots</b>.', ev:'dot10'},
@@ -487,66 +509,95 @@ const GAME = window.GAME = {
   ],
   stageIntro:{1:'EAT EVERY DOT', 4:'WATCH OUT — BLINK CAN TELEPORT!'}, bossName:'THE OVERLORD WAKES!', ending:{"0": ["#THE CIRCUIT IS RESTORED", "The last glowing dot fades into the grid, and for the first time in years the old arcade machine hums with full power.", "Blaze, Vex, Drift, Blink and Goop scatter into the dark corners of the maze. Without stolen energy, they flicker… and fade.", "Deep in the core, the Overlord's red eye dims one final time.", "Lights ripple up the cabinet. The attract screen blinks back to life. Somewhere, a coin drops into the slot.", "#CHOMP", "The little repair unit rolls to the centre of the maze and rests. One hundred circuits repaired. Not a single dot left behind.", "Kids will play this machine again. They'll never know a tiny yellow hero kept it alive.", "But deep in the wiring, something small and purple blinks…"], "1": ["#THE SIGNAL BENEATH", "With the circuit restored, CHOMP notices something the other repair units never did: the Glitch Ghosts weren't random.", "Every maze they haunted spelled out a pattern — a map leading down, below the motherboard, into a place no schematic shows.", "CHOMP follows it. Past dead capacitors and melted wires, into the cold dark of the forgotten ROM.", "#THE OVERLORD'S SECRET", "There, at the bottom of everything, the Overlord was never a ghost at all. It was the machine's first program — written in 1981 and abandoned when the arcade closed.", "For forty years it has been alone in the dark, eating power just to keep dreaming of players who never came back.", "#A CHOICE", "CHOMP could delete it. One bite, and the machine would be safe forever.", "Instead, CHOMP opens a channel to the high-score table and writes the Overlord's name at the very top.", "The red eye flickers. For the first time in forty years, it feels remembered.", "The ghosts stop attacking. Somewhere in the maze, a new level quietly unlocks."], "2": ["#THE TRUE ENDING", "You did the impossible. On Expert, the Glitch Ghosts were faster than CHOMP itself — and still, not a single dot was left behind.", "The machine noticed. Every chip, every wire, every forgotten line of code in the cabinet stopped to watch.", "#THE CORE", "Past the ROM, past the Overlord's old prison, is a door that no program was ever meant to open: the machine's heart.", "Inside, CHOMP finds every player who ever pressed START. Millions of tiny memories — first games, high scores, birthdays spent at the arcade.", "The Glitch Ghosts were never stealing energy. They were stealing these memories, one by one, so the machine would forget it was ever loved.", "#THE LAST DOT", "In the centre of the heart floats one final dot. The brightest one. The very first coin ever put into the machine.", "CHOMP eats it — and the whole machine remembers everything at once.", "Every ghost turns back into the colour it was born as. Blaze, Vex, Drift, Blink and Goop drift home to the corners of the maze, finally at peace.", "The Overlord's red eye turns gold.", "#LEGEND", "Out in the real world, the old arcade cabinet lights up by itself at midnight.", "The screen shows one line, over and over: THANK YOU, PLAYER ONE.", "Nobody knows who you are. Nobody ever will.", "But the machine will remember you forever.", "And somewhere deep in the circuit, a small yellow repair unit finally gets to rest."]},
 
-  _dbg(){ return {get dots(){return dots;}, get dotCount(){return dotCount;}, set dotCount(v){dotCount=v;}, get player(){return player;}, get ghosts(){return ghosts;}}; },
+  _dbg(){ return {get dots(){return dots;}, get dotCount(){return dotCount;}, set dotCount(v){dotCount=v;}, get player(){return player;}, get pls(){return pls;}, get map(){return map;}, get ghosts(){return ghosts;}, get freezeT(){return freezeT;}, set freezeT(v){freezeT=v;}, get readyT(){return readyT;},
+    get net2(){ return {role:net()&&net().role, p:(pls||[]).map(p=>[+p.x.toFixed(2),+p.y.toFixed(2),p.dead>0?1:0,+p.grace.toFixed(1)]), g:(ghosts||[]).map(g=>[+g.x.toFixed(1),+g.y.toFixed(1),g.st]), dots:dotCount, lives:api.lives}; }}; },
   init(a){ api=a; },
   startStage(n, a){
-    api=a; stageN=a.content; t=0; clearT=0; eatChain=0; dotsEaten=0; slime=[]; magnetT=0; scatterT=0;
+    api=a; stageN=a.content; t=0; clearT=0; eatChain=0; dotsEaten=0; slime=[]; scatterT=0; player=null; evq=[]; eatLog=[]; fullT=-1;
     map=genMaze(n===0? 7771 : 1234 + n*977 + a.diff*13);   // every stage gets its own maze
+    starts=startTiles();
     dots=Array.from({length:R},()=>Array(C).fill(0)); dotCount=0;
     for(let y=0;y<R;y++) for(let x=0;x<C;x++) if(map[y][x]===0){
-      if(Math.abs(x-SPAWN.x)+Math.abs(y-SPAWN.y)<=1 || (x===START.x&&y===START.y)) continue;
+      if(Math.abs(x-SPAWN.x)+Math.abs(y-SPAWN.y)<=1 || (x===START.x&&y===START.y) || starts.some(s=>s.x===x&&s.y===y)) continue;
       dots[y][x]=1; dotCount++;
     }
     [[1,1],[C-2,1],[1,R-2],[C-2,R-2]].forEach(([x,y])=>{ if(map[y][x]===0){ if(!dots[y][x]) dotCount++; dots[y][x]=2; } });
     const types = stageN===0? ['wander'] : stageN===1? (a.level<3? ['chaser','wander'] : ['chaser','ambush','wander']) : stageN===2? (a.level>=140? ['chaser','chaser','ambush','phaser','slimer','ambush'] : a.level>=60? ['chaser','ambush','phaser','slimer','wander'] : ['chaser','ambush','phaser','wander']) : ['boss','ambush','phaser','slimer','chaser'];
+    if(net() && stageN>0) types.push('chaser');   // 2 chompers -> one extra ghost
     ghosts=types.map(tp=>makeGhost(tp,0));
     buildWalls(); resetPositions(); if(n===0) readyT=0.5;
   },
-  respawn(){ resetPositions(); },
-  useAbility(id){
-    if(readyT>0 || player.dead>0) return false;
-    if(id==='dash'){ dashT=1.4; api.sfx.power(); return true; }
-    if(id==='freeze'){ freezeT=3; api.sfx.power(); api.fx.flash('#bff6ff',.3); return true; }
-    if(id==='magnet'){ magnetT=4; api.sfx.pickup(); return true; }
-  },
+  respawn(){ if(net()) return; resetPositions(); },   // co-op: the caught chomper comes back on its own timer
+  netRevive(){ if(!pls) return; pls.forEach(p=>{ if(p.dead>0) respawnP(p); p.grace=Math.max(p.grace,3); }); },
+  useAbility(id){ return useAb(player,id); },
+  useAbility2(id){ if(!pls||!pls[1]) return false; return useAb(pls[1],id); },
+  onPointer2(){ /* chompers steer with the drag joystick (sent as input2) — taps do nothing */ },
   update(dt){
     t+=dt;
     if(clearT>0){ clearT-=dt; if(clearT<=0) api.stageClear(); return; }
     if(readyT>0){ readyT-=dt; return; }
-    if(player.dead>0){ player.dead-=dt; if(player.dead<=0) api.loseLife(); return; }
-    frightT=Math.max(0,frightT-dt); freezeT=Math.max(0,freezeT-dt); dashT=Math.max(0,dashT-dt); magnetT=Math.max(0,magnetT-dt);
+    const N=net();
+    if(!N && player.dead>0){ player.dead-=dt; if(player.dead<=0) api.loseLife(); return; }
+    frightT=Math.max(0,frightT-dt); freezeT=Math.max(0,freezeT-dt);
+    for(const p of pls){ p.dashT=Math.max(0,p.dashT-dt); p.magT=Math.max(0,p.magT-dt); p.grace=Math.max(0,p.grace-dt); }
     scatterT+=dt;
-    api.setActive(0,dashT>0); api.setActive(1,freezeT>0); api.setActive(2,magnetT>0);
-    // player
-    const w=api.input.dir4(); if(w){ player.want=DIRS[w]; }
-    if(player.want && player.want.x===-player.dx && player.want.y===-player.dy && (player.dx||player.dy)){
-      player.cx+=player.dx; player.cy+=player.dy; player.dx=-player.dx; player.dy=-player.dy;
+    api.setActive(0,player.dashT>0); api.setActive(1,freezeT>0); api.setActive(2,player.magT>0);
+    // players (P1 = this phone's controls; P2 = the guest phone's controls in PLAY TOGETHER)
+    for(const p of pls){
+      if(p.dead>0){ p.dead-=dt; if(p.dead<=0) respawnP(p); continue; }
+      movePlayer(p, p.i===0? api.input.dir4() : d4(api.input2.dir()), dt);
     }
-    let spd=7.4*(dashT>0?1.75:1);
-    if(slime.some(s=>s.x===Math.round(player.x)&&s.y===Math.round(player.y))) spd*=0.55;
-    step(player, spd*dt, e=>{
-      if(e.want && pass(e.cx+e.want.x, e.cy+e.want.y)){ e.dx=e.want.x; e.dy=e.want.y; }
-      else if(!pass(e.cx+e.dx, e.cy+e.dy)){ e.dx=0; e.dy=0; }
-    }, e=>eatAt(e.cx,e.cy));
-    if(player.dx||player.dy){ player.face={x:player.dx,y:player.dy}; player.mouth+=dt*14; api.event('move'); }
-    if(dashT>0){ const tc=api.cos('Trail').colors; api.fx.spark(player.x*TS+TS/2, player.y*TS+TS/2+OY, (Math.random()-.5)*40,(Math.random()-.5)*40, tc[Math.floor(Math.random()*tc.length)], .45, 4); }
-    if(magnetT>0){ const px=Math.round(player.x), py=Math.round(player.y);
-      for(let y=py-3;y<=py+3;y++) for(let x=px-3;x<=px+3;x++) if(y>=0&&x>=0&&y<R&&x<C&&dots[y][x]===1 && Math.random()<dt*6) { eatAt(x,y,true); api.fx.spark(x*TS+TS/2,y*TS+TS/2+OY,(px-x)*60,(py-y)*60,'#ffe14a',.3,3); } }
     // ghosts
     for(const g of ghosts) updGhost(g, dt);
     // collisions
-    for(const g of ghosts){
-      if(g.st!=='normal' && g.st!=='fright') continue;
-      const d=Math.hypot(g.x-player.x, g.y-player.y);
-      if(d < (g.big?0.85:0.62)){
-        if(g.st==='fright'){ eatChain++; const pts=200*Math.pow(2,Math.min(eatChain-1,3))*(g.big?3:1); api.addScore(pts, g.x*TS+TS/2, g.y*TS+OY); api.addCoins(1);
-          g.st='dead'; g.timer=3; api.sfx.power(); api.fx.burst(g.x*TS+TS/2,g.y*TS+TS/2+OY,GTYPES[g.type].col,30,260,.7,4); api.fx.shake(5); api.event('eatghost'); }
-        else if(freezeT<=0){ die(); return; }
+    for(const p of pls){
+      if(p.dead>0) continue;
+      for(const g of ghosts){
+        if(g.st!=='normal' && g.st!=='fright') continue;
+        const d=Math.hypot(g.x-p.x, g.y-p.y);
+        if(d < (g.big?0.85:0.62)){
+          if(g.st==='fright'){ eatChain++; const pts=200*Math.pow(2,Math.min(eatChain-1,3))*(g.big?3:1); api.addScore(pts, g.x*TS+TS/2, g.y*TS+OY); api.addCoins(1);
+            g.st='dead'; g.timer=3; api.sfx.power(); api.fx.burst(g.x*TS+TS/2,g.y*TS+TS/2+OY,GTYPES[g.type].col,30,260,.7,4); api.fx.shake(5); api.event('eatghost'); ev('eg',Math.round(g.x*TS+TS/2),Math.round(g.y*TS+TS/2+OY),GT.indexOf(g.type)); }
+          else if(freezeT<=0 && !(p.grace>0)){ if(!N){ die(p); return; } if(api.lives>0){ die(p); break; } }
+        }
       }
     }
-    if(dotCount<=0 && stageN>0){ clearT=1.2; api.sfx.clear(); api.fx.flash('#fff',.4); }
+    if(dotCount<=0 && stageN>0){ clearT=1.2; api.sfx.clear(); api.fx.flash('#fff',.4); ev('clr'); }
     if(dotCount<=0 && stageN===0){ api.stageClear(); }
   },
+  // ===== NET-1 co-op: host -> guest snapshot (positions in 1/100 tile) =====
+  netState(){ const R=Math.round, H=v=>R(v*100);
+    const s={n:++snapN, k:api.stage,
+      p:pls.map(p=>[H(p.x),H(p.y),p.dx,p.dy,p.face.x,p.face.y,p.dead>0?Math.max(1,R(p.dead*10)):0,R(p.grace*10),R(p.dashT*10),R(p.magT*10)]),
+      g:ghosts.map(g=>[H(g.x),H(g.y),GT.indexOf(g.type),GS.indexOf(g.st),g.dx,g.dy,R(Math.max(0,g.timer)*10)]),
+      f:[R(frightT*10),R(freezeT*10),R(readyT*10),clearT>0?1:0],
+      sl:slime.map(o=>[o.x,o.y,R(o.life*10)]),
+      e:eatLog.filter(e=>t-e[0]<1.5).map(e=>e[1]),                     // dots eaten in the last 1.5 s
+      v:evq.filter(x=>t-x[1]<1.2).slice(-20).map(x=>[x[0],...x.slice(2)])};
+    if(eatLog.length>200) eatLog=eatLog.filter(e=>t-e[0]<1.5);
+    if(fullT<0 || t-fullT>=2){ fullT=t; s.D=dots.map(r=>r.join('')).join(''); }   // full dot grid every 2 s
+    return s; },
+  netApply(s){ if(!s||!s.p||!pls||!dots) return; if(s.k!==api.stage) return; if(s.n&&s.n<=snapSeen) return; snapSeen=s.n||snapSeen;
+    s.p.forEach((a,i)=>{ let p=pls[i]; if(!p) p=pls[i]=mkP(i,starts[i]||START); const wasDead=p.dead>0;
+      setT(p,a[0]/100,a[1]/100); p.dx=a[2]; p.dy=a[3]; p.face={x:a[4],y:a[5]}; p.dead=a[6]/10; p.grace=a[7]/10; p.dashT=a[8]/10; p.magT=a[9]/10;
+      if(wasDead&&p.dead<=0){ p.x=p.tx; p.y=p.ty; } });
+    player=pls[0];
+    s.g.forEach((a,i)=>{ let g=ghosts[i]; if(!g) g=ghosts[i]=makeGhost(GT[a[2]]||'chaser',0);
+      g.type=GT[a[2]]||g.type; g.big=g.type==='boss'; const st=GS[a[3]]||'normal'; if(st!==g.st&&(st==='normal'||st==='spawn')){ g.x=a[0]/100; g.y=a[1]/100; }
+      g.st=st; setT(g,a[0]/100,a[1]/100); g.dx=a[4]; g.dy=a[5]; g.timer=a[6]/10; });
+    ghosts.length=s.g.length;
+    frightT=s.f[0]/10; freezeT=s.f[1]/10; readyT=s.f[2]/10;
+    slime=s.sl.map(a=>({x:a[0],y:a[1],life:a[2]/10}));
+    let ate=0;
+    if(s.D){ let n=0; for(let y=0;y<R;y++) for(let x=0;x<C;x++){ const v=+s.D[y*C+x]||0; if(dots[y][x]&&!v) ate++; dots[y][x]=v; if(v) n++; } dotCount=n; }
+    (s.e||[]).forEach(k=>{ const y=Math.floor(k/C), x=k%C; if(dots[y]&&dots[y][x]){ dots[y][x]=0; dotCount--; ate++; } });
+    if(ate&&t-blipT>0.07){ blipT=t; api.sfx.blip(); }
+    const me=pls[1]; if(me){ api.setActive(0,me.dashT>0); api.setActive(1,freezeT>0); api.setActive(2,me.magT>0); }
+    (s.v||[]).forEach(a=>{ if(a[0]>evSeen){ evSeen=a[0]; try{ netFx(a); }catch(e){} } }); },
+  netTick(dt){ if(!pls) return; t+=dt; const k=1-Math.exp(-dt*18);
+    const L=o=>{ if(o&&o.tx!==undefined){ o.x+=(o.tx-o.x)*k; o.y+=(o.ty-o.y)*k; } };
+    pls.forEach(p=>{ L(p); if(p.dx||p.dy) p.mouth+=dt*14; p.grace=Math.max(0,p.grace-dt); p.dashT=Math.max(0,p.dashT-dt); p.magT=Math.max(0,p.magT-dt); if(p.dead>0) p.dead=Math.max(0.01,p.dead-dt); });
+    ghosts.forEach(L); frightT=Math.max(0,frightT-dt); freezeT=Math.max(0,freezeT-dt); readyT=Math.max(0,readyT-dt); },
   render(c){
     c.fillStyle=GAME.theme.bg; c.fillRect(0,0,GAME.w,GAME.h);
     c.save(); c.translate(0,OY);
@@ -565,9 +616,16 @@ const GAME = window.GAME = {
     }
     // ghosts
     for(const g of ghosts) drawGhost(c,g);
-    // player
-    drawPlayer(c);
-    if(magnetT>0){ c.strokeStyle='#ffe14a'; c.globalAlpha=.25+.15*Math.sin(t*10); c.beginPath(); c.arc(player.x*TS+TS/2,player.y*TS+TS/2,TS*3.2,0,Math.PI*2); c.stroke(); c.globalAlpha=1; }
+    // player(s)
+    const N=net();
+    for(const p of pls){
+      if(N && p.dead>0){ c.save(); c.globalAlpha=0.55+0.3*Math.sin(t*8); c.fillStyle=TAGC[p.i]; c.font='bold 15px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('↻ '+Math.max(0,p.dead).toFixed(1),p.sx*TS+TS/2,p.sy*TS+TS/2); c.restore(); continue; }
+      if(!(N && p.grace>0 && Math.sin(t*30)>0.3)) drawPlayer(c,p);
+      if(p.magT>0 && p.dead<=0){ c.strokeStyle=N?TAGC[p.i]:'#ffe14a'; c.globalAlpha=.25+.15*Math.sin(t*10); c.beginPath(); c.arc(p.x*TS+TS/2,p.y*TS+TS/2,TS*3.2,0,Math.PI*2); c.stroke(); c.globalAlpha=1; }
+      if(N && p.dead<=0){ const o=pls[1-p.i], close=p.i===1&&o&&o.dead<=0&&Math.abs(o.x-p.x)<3.2&&Math.abs(o.y-p.y)<1.2;   // P2 tag goes below when the chompers are side by side
+        const nm=pname(p.i), nx=p.x*TS+TS/2, ny=p.y*TS+TS/2+(close? TS*1.05 : -TS*0.72); c.save(); c.font='bold 14px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.8)'; c.strokeText(nm,nx,ny);
+        c.fillStyle=TAGC[p.i]; c.shadowColor=TAGC[p.i]; c.shadowBlur=8; c.fillText(nm,nx,ny); c.restore(); }
+    }
     c.restore();
     if(readyT>0){ c.save(); c.textAlign='center'; c.font='900 30px Orbitron, sans-serif'; c.fillStyle='#ffe14a'; c.shadowColor='#ffe14a'; c.shadowBlur=16; c.fillText('READY!', GAME.w/2, OY+START.y*TS-TS*1.6); c.restore(); }
     if(freezeT>0){ c.fillStyle='rgba(180,240,255,0.06)'; c.fillRect(0,0,GAME.w,GAME.h); }
@@ -584,22 +642,62 @@ function step(e, dist, choose, arrive){
     else { e.x+=e.dx*dist; e.y+=e.dy*dist; dist=0; }
   }
 }
+function setT(o,x,y){ if(o.tx===undefined||Math.hypot(x-o.x,y-o.y)>2.5){ o.x=x; o.y=y; } o.tx=x; o.ty=y; }
+function netFx(a){ const k=a[1], F=api.fx, S=api.sfx;
+  if(k==='toast') api.toast(a[2]);
+  else if(k==='sfx'){ if(S[a[2]]) S[a[2]](); }
+  else if(k==='pw'){ S.power(); F.flash('#20e3ff',.25); F.burst(a[2],a[3],'#fff',24,220,.6,3); }
+  else if(k==='eg'){ S.power(); F.burst(a[2],a[3],(GTYPES[GT[a[4]]]||GTYPES.chaser).col,30,260,.7,4); F.shake(5); }
+  else if(k==='hurt'){ S.hurt(); F.shake(10); F.flash('#f24',.3); F.burst(a[2],a[3],PCOL[a[4]][0],40,300,.9,4); }
+  else if(k==='resp'){ const p=pls&&pls[a[2]]; if(p) F.burst(p.sx*TS+TS/2,p.sy*TS+TS/2+OY,PCOL[a[2]][0],16,180,.4,3); }
+  else if(k==='fz'){ S.power(); F.flash('#bff6ff',.3); }
+  else if(k==='tp'){ S.small(); F.burst(a[2],a[3],'#a066ff',20,200,.5,3); F.burst(a[4],a[5],'#a066ff',20,200,.5,3); }
+  else if(k==='clr'){ S.clear(); F.flash('#fff',.4); } }
 function eatAt(x,y,magnet){
   const d=dots[y]&&dots[y][x]; if(!d) return;
-  dots[y][x]=0; dotCount--; dotsEaten++;
+  dots[y][x]=0; dotCount--; dotsEaten++; if(isHost()) eatLog.push([t,y*C+x]);
   if(d===1){ api.addScore(10, x*TS+TS/2, y*TS+TS/2+OY, true); if(!magnet) api.sfx.blip(); if(dotsEaten>=10) api.event('dot10'); }
   else { api.addScore(50, x*TS+TS/2, y*TS+TS/2+OY, true); frightT=api.dv([8,6,4],2.5,0.8)*(stageN===3?0.8:1); eatChain=0; api.sfx.power(); api.fx.flash('#20e3ff',.25);
-    api.fx.burst(x*TS+TS/2,y*TS+TS/2+OY,'#fff',24,220,.6,3);
+    api.fx.burst(x*TS+TS/2,y*TS+TS/2+OY,'#fff',24,220,.6,3); ev('pw',x*TS+TS/2,y*TS+TS/2+OY);
     ghosts.forEach(g=>{ if(g.st==='normal'){ g.st='fright'; g.dx=-g.dx; g.dy=-g.dy; if(g.dx||g.dy){ g.cx+=-g.dx; g.cy+=-g.dy; } } }); api.event('power'); }
 }
-function die(){ player.dead=1.2; api.sfx.hurt(); api.fx.burst(player.x*TS+TS/2,player.y*TS+TS/2+OY,api.cos('Hero').colors[0],40,300,.9,4); api.fx.shake(10); }
+function die(p){
+  if(!net()){ player.dead=1.2; api.sfx.hurt(); api.fx.burst(player.x*TS+TS/2,player.y*TS+TS/2+OY,api.cos('Hero').colors[0],40,300,.9,4); api.fx.shake(10); return; }
+  // co-op: one shared life lost, this chomper comes back after 2 s; the other chomper and the maze carry on
+  p.dead=2; p.dashT=0; p.magT=0; p.want=null; const bx=Math.round(p.x*TS+TS/2), by=Math.round(p.y*TS+TS/2+OY);
+  api.fx.burst(bx,by,PCOL[p.i][0],40,300,.9,4); ev('hurt',bx,by,p.i);
+  api.loseLife(); if(api.lives>0) T('OUCH! '+pname(p.i).toUpperCase());
+}
+function respawnP(p){ Object.assign(p,{x:p.sx,y:p.sy,cx:p.sx,cy:p.sy,dx:0,dy:0,want:null,dead:0,grace:2,face:{x:p.i?1:-1,y:0}}); ev('resp',p.i); }
+function useAb(p,id){
+  if(readyT>0 || !p || p.dead>0) return false;
+  if(id==='dash'){ p.dashT=1.4; api.sfx.power(); ev('sfx','power'); return true; }
+  if(id==='freeze'){ freezeT=3; api.sfx.power(); api.fx.flash('#bff6ff',.3); ev('fz'); return true; }
+  if(id==='magnet'){ p.magT=4; api.sfx.pickup(); ev('sfx','pickup'); return true; }
+}
+function movePlayer(p, w, dt){
+  if(w){ p.want=DIRS[w]; }
+  if(p.want && p.want.x===-p.dx && p.want.y===-p.dy && (p.dx||p.dy)){
+    p.cx+=p.dx; p.cy+=p.dy; p.dx=-p.dx; p.dy=-p.dy;
+  }
+  let spd=7.4*(p.dashT>0?1.75:1);
+  if(slime.some(s=>s.x===Math.round(p.x)&&s.y===Math.round(p.y))) spd*=0.55;
+  step(p, spd*dt, e=>{
+    if(e.want && pass(e.cx+e.want.x, e.cy+e.want.y)){ e.dx=e.want.x; e.dy=e.want.y; }
+    else if(!pass(e.cx+e.dx, e.cy+e.dy)){ e.dx=0; e.dy=0; }
+  }, e=>eatAt(e.cx,e.cy));
+  if(p.dx||p.dy){ p.face={x:p.dx,y:p.dy}; p.mouth+=dt*14; if(p.i===0) api.event('move'); }
+  if(p.dashT>0){ const tc=(net()&&p.i===1)? PCOL[1] : api.cos('Trail').colors; api.fx.spark(p.x*TS+TS/2, p.y*TS+TS/2+OY, (Math.random()-.5)*40,(Math.random()-.5)*40, tc[Math.floor(Math.random()*tc.length)], .45, 4); }
+  if(p.magT>0){ const px=Math.round(p.x), py=Math.round(p.y);
+    for(let y=py-3;y<=py+3;y++) for(let x=px-3;x<=px+3;x++) if(y>=0&&x>=0&&y<R&&x<C&&dots[y][x]===1 && Math.random()<dt*6) { eatAt(x,y,true); api.fx.spark(x*TS+TS/2,y*TS+TS/2+OY,(px-x)*60,(py-y)*60,'#ffe14a',.3,3); } }
+}
 function ghostTarget(g){
-  const p={x:Math.round(player.x),y:Math.round(player.y)};
+  const tp=nearP(g), p={x:Math.round(tp.x),y:Math.round(tp.y)};
   const corners=[[1,1],[C-2,1],[1,R-2],[C-2,R-2]];
   const scatter = api.dk<2 && (scatterT%26)<5;
   const ci={chaser:1,ambush:0,wander:2,phaser:3,slimer:2,boss:1}[g.type];
   if(scatter && g.type!=='boss') return {x:corners[ci][0],y:corners[ci][1]};
-  if(g.type==='ambush') return {x:p.x+player.face.x*4, y:p.y+player.face.y*4};
+  if(g.type==='ambush') return {x:p.x+tp.face.x*4, y:p.y+tp.face.y*4};
   if(g.type==='wander'){ return Math.hypot(g.x-p.x,g.y-p.y)>7? p : {x:corners[2][0],y:corners[2][1]}; }
   if(g.type==='slimer'){ const k=Math.floor(t/6)%4; return Math.hypot(g.x-p.x,g.y-p.y)<5? p : {x:corners[k][0],y:corners[k][1]}; }
   return p;
@@ -611,8 +709,8 @@ function updGhost(g, dt){
   if(freezeT>0) return;
   // specials
   if(g.st==='normal' && g.type==='phaser'){ g.ab-=dt; if(g.ab<=0){ g.ab=6+Math.random()*3;
-    const cands=[]; for(let y=1;y<R-1;y++) for(let x=1;x<C-1;x++){ if(map[y][x]===0){ const d=Math.abs(x-player.x)+Math.abs(y-player.y); if(d>=5&&d<=8) cands.push([x,y]); } }
-    if(cands.length){ const [x,y]=cands[Math.floor(Math.random()*cands.length)]; api.fx.burst(g.x*TS+TS/2,g.y*TS+TS/2+OY,'#a066ff',20,200,.5,3); g.x=g.cx=x; g.y=g.cy=y; g.dx=g.dy=0; api.fx.burst(x*TS+TS/2,y*TS+TS/2+OY,'#a066ff',20,200,.5,3); api.sfx.small(); } } }
+    const tp=nearP(g); const cands=[]; for(let y=1;y<R-1;y++) for(let x=1;x<C-1;x++){ if(map[y][x]===0){ const d=Math.abs(x-tp.x)+Math.abs(y-tp.y); if(d>=5&&d<=8) cands.push([x,y]); } }
+    if(cands.length){ const [x,y]=cands[Math.floor(Math.random()*cands.length)]; api.fx.burst(g.x*TS+TS/2,g.y*TS+TS/2+OY,'#a066ff',20,200,.5,3); ev('tp',Math.round(g.x*TS+TS/2),Math.round(g.y*TS+TS/2+OY),x*TS+TS/2,y*TS+TS/2+OY); g.x=g.cx=x; g.y=g.cy=y; g.dx=g.dy=0; api.fx.burst(x*TS+TS/2,y*TS+TS/2+OY,'#a066ff',20,200,.5,3); api.sfx.small(); } } }
   if(g.type==='slimer' && g.st==='normal'){ g.ab-=dt; if(g.ab<=0){ g.ab=1.1; const sx=g.cx, sy=g.cy; if(!slime.some(s=>s.x===sx&&s.y===sy)) slime.push({x:sx,y:sy,life:7}); } }
   step(g, ghostSpeed(g)*dt, e=>{
     const opts=DL.filter(d=>pass(e.cx+d.x,e.cy+d.y) && !(d.x===-e.dx && d.y===-e.dy && (e.dx||e.dy)));
@@ -642,11 +740,11 @@ function drawGhost(c,g){
   c.fillStyle='#0a0a30'; for(const s of [-1,1]){ c.beginPath(); c.arc(x+s*r*0.38+g.dx*r*0.12,y-r*0.2+g.dy*r*0.12,r*0.13,0,Math.PI*2); c.fill(); }
   if(g.big){ c.fillStyle='#ffe14a'; c.beginPath(); c.moveTo(x-r*0.6,y-r*0.95); c.lineTo(x-r*0.3,y-r*1.4); c.lineTo(x,y-r*1.0); c.lineTo(x+r*0.3,y-r*1.4); c.lineTo(x+r*0.6,y-r*0.95); c.closePath(); c.fill(); }
 }
-function drawPlayer(c){
-  if(player.dead>0){ return; }
-  const x=player.x*TS+TS/2, y=player.y*TS+TS/2, r=TS*0.45, col=api.cos('Hero').colors;
-  const m=(Math.sin(player.mouth)+1)/2*0.35+0.04, ang=Math.atan2(player.face.y,player.face.x);
-  c.save(); c.shadowColor=col[0]; c.shadowBlur=dashT>0?26:16;
+function drawPlayer(c,p){
+  if(p.dead>0){ return; }
+  const x=p.x*TS+TS/2, y=p.y*TS+TS/2, r=TS*0.45, col=net()? PCOL[p.i] : api.cos('Hero').colors;
+  const m=(Math.sin(p.mouth)+1)/2*0.35+0.04, ang=Math.atan2(p.face.y,p.face.x);
+  c.save(); c.shadowColor=col[0]; c.shadowBlur=p.dashT>0?26:16;
   const gr=c.createRadialGradient(x-r*0.3,y-r*0.3,1,x,y,r); gr.addColorStop(0,col[1]||'#fff'); gr.addColorStop(1,col[0]); c.fillStyle=gr;
   c.beginPath(); c.moveTo(x,y); c.arc(x,y,r,ang+m*Math.PI,ang-m*Math.PI+Math.PI*2); c.closePath(); c.fill(); c.restore();
 }
@@ -826,8 +924,8 @@ window.addEventListener('keydown', e => {
   } else if(state==='paused' && (e.code==='Escape'||e.code==='KeyP')) resumeGame();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; if(state==='play') G.onKey && G.onKey(e.code,false); });
-window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play') pauseGame(); });
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play') pauseGame(); });
+window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play'&&!NET.on) pauseGame(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play' && !NET.on) pauseGame(); });
 const Input = {
   keys,
   dir(){
@@ -850,6 +948,7 @@ function onDown(e){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.active&&joy.id===e.pointerId)) netSendRel({e:'ptr',t:'down',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('down', g.x, g.y, e.pointerId, e.pointerType);
 }
 function onMove(e){
@@ -859,12 +958,14 @@ function onMove(e){
     if(m>50){dx=dx/m*50;dy=dy/m*50;} joyEl.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`;
   }
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(G.joystick&&joy.active&&joy.id===e.pointerId) return; if(e.buttons||e.pointerType!=='mouse'){ NET.pmT=(NET.pmT||0); const now=performance.now(); if(now-NET.pmT>50){ NET.pmT=now; netSendFast({e:'ptr',t:'move',x:g.x,y:g.y}); } } return; }
   G.onPointer && G.onPointer('move', g.x, g.y, e.pointerId, e.pointerType, e.buttons);
 }
 function onUp(e){
   if(joy.active && e.pointerId===joy.id){ joy.active=false; joyEl.classList.add('hidden'); }
   if(state!=='play') return;
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
@@ -949,6 +1050,7 @@ function useAbility(i){
   if(abLock[i]>0) return;
   const paid = a.cd>0 && !run.tutorial;
   if(paid && have(a)<=0){ toast('NO '+a.name+' LEFT'); SFX.bump(); flashShop(); return; }
+  if(NET.on&&NET.role==='guest'){ if(paid){ P.abil[a.id]=have(a)-1; save(); } abLock[i]=a.cd>0?1:0; netSendRel({e:'ab',id:a.id}); return; }
   if(G.useAbility(a.id)!==false){
     if(paid){ P.abil[a.id]=have(a)-1; save(); if(P.abil[a.id]===0) setTimeout(()=>{ if(state==='play') toast('BUY MORE IN 🛒 SHOP'); },900); }
     abLock[i] = a.cd>0 ? 1 : 0; tutEvent('ab_'+a.id);
@@ -1276,11 +1378,13 @@ function pauseAgain(){ state='play'; pauseGame(); }
 function resumeGame(){ closeModal(); state='play'; last=performance.now(); }
 function endGamePrompt(){
   if(state==='play'){ state='paused'; }
+  if(NET.on){ modal(`<h2>LEAVE THE GAME?</h2><p>This ends the 2-player game for both of you.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>netQuit(), n:resumeGame}); return; }
   if(MP.on){ modal(`<h2>LEAVE THE RACE?</h2><p>You'll drop out of this multiplayer race.</p><button class="big" data-a="y">LEAVE RACE</button><button class="mid" data-a="n">KEEP RACING</button>`, {y:()=>{ mpSend({e:'out'}); mpLeave(); toMenu(); }, n:resumeGame}); return; }
   if(run.tutorial){ modal(`<h2>LEAVE TUTORIAL?</h2><p>You can replay it any time from How to Play.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>{ if(!run.practice){ P.tutDone=true; save(); } toMenu(); }, n:resumeGame}); return; }
   modal(`<h2>END GAME?</h2><p>Your game is saved at the start of <b>Stage ${run.stage}</b>. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
 }
 function stageClear(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(true); return; }
   if(MP.on){ if(run.tutorial) return; mpFinish(true); return; }
   if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
   state='modal'; SFX.clear(); flushCoins();
@@ -1303,6 +1407,7 @@ function nameEntry(title, sub, win){
 }
 function afterRun(){ modal(`<h2>WHAT NEXT?</h2><button class="big" data-a="p">PLAY AGAIN</button><button class="mid abil" data-a="a">⚡ ABILITIES</button><button class="mid" data-a="s">TOP SCORES</button><button class="mid" data-a="m">MAIN MENU</button>`, {p:()=>newGame(run.slot), a:()=>{ toMenu(); abilPanel(); }, s:()=>{ toMenu(); scoresPanel(P.diff); }, m:toMenu}); }
 function gameOver(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(false); return; }
   if(MP.on){ mpFinish(false); return; }
   if(state==='modal' || state==='menu') return; state='modal'; SFX.over(); flushCoins();
   const coins = Math.floor(run.score/500), got=run.coinsStage; P.coins += coins; save();
@@ -1440,8 +1545,8 @@ function frame(now){
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
-    G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt);
-    doomTick(dt); mpTick(dt);
+    if(!(NET.on&&NET.role==='guest')) G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt); netTick(dt);
+    if(!(NET.on&&NET.role==='guest')) doomTick(dt); mpTick(dt);
   } else if(state==='menu' || state==='loading' || state==='ending'){ menuT+=dt; fxUpdate(dt); }
   ctx.save();
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
@@ -1516,11 +1621,15 @@ function mpRoom(){
   if(MP.on) { mpBars(); return; }
   if(!MP.ch) return; const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t).slice(0,3); MP.host = mpHostId()===MP.me;
   const list=ids.map((k,i)=>`<div style="padding:8px 12px;margin:6px 0;border-radius:10px;background:#ffffff14;text-align:left">${['🟦','🟥','🟩'][i]} <b>${esc(MP.players[k].name||'?')}</b>${k===MP.me?' (you)':''}${i===0?' · HOST':''}</div>`).join('');
-  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
-    {s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
+  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host&&G.net&&ids.length===2?`<button class="big" data-a="t" style="background:linear-gradient(90deg,#00e5ff,#ff3bd4)">🎮 PLAY TOGETHER (2P)</button>`:''}${!MP.host&&G.net&&ids.length===2?'<p>🎮 This game has <b>PLAY TOGETHER</b> — the host can start it.</p>':''}${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
+    {t:()=>netPick(),
+     s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
 }
 function mpSend(o){ try{ MP.ch && MP.ch.send({type:'broadcast', event:'m', payload:Object.assign({id:MP.me,name:MP.name},o)}); }catch(e){} }
 function mpMsg(m){
+  if(m.e==='net'){ if(m.n) netRecv(m.n); return; }
+  if(m.e==='rtc'){ if(m.id!==MP.me) netRtcMsg(m); return; }
+  if(m.e==='coop' && !NET.on){ netStart(m.seed,m.stage,m.hn,m.gn,m.diff,m.score); return; }
   if(m.e==='start' && !MP.on){ mpStart(m.seed,m.stage); }
   else if(m.e==='prog'){ MP.prog[m.id]={p:m.p,l:m.l,name:m.name,out:m.out}; mpBars(); }
   else if(m.e==='win' && MP.on && !MP.over){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{p:1}); mpEnd(m.name,false); }
@@ -1569,6 +1678,105 @@ function mpOnMenu(){ if(!mpFirstMenu) return; mpFirstMenu=false; const q=(locati
   setTimeout(()=>{ if(state!=='menu') return; modal(`<h2>${esc(G.title)}</h2><p>How do you want to play?</p><button class="big" data-a="s">▶ SOLO</button><button class="big" data-a="m" style="background:linear-gradient(90deg,#ff3bd4,#ffd23f)">👥 MULTIPLAYER (2–3)</button>`,{s:()=>{}, m:()=>mpMenu()}); },150); }
 
 function mpWaBtn(){}
+
+/* ===== REAL 2-PLAYER (NET-1): one phone hosts the game, the other sends its controls and draws the host's snapshots ===== */
+const NET = { on:false, role:null, peer:null, dc:null, rtcOk:false, sendT:0, lastSnap:null, names:['',''], keys2:{}, k2:{}, inbox:[] };
+const Input2 = { keys: NET.k2, dir(){ let x=0,y=0, k=NET.k2; if(k.ArrowLeft||k.KeyA) x-=1; if(k.ArrowRight||k.KeyD) x+=1; if(k.ArrowUp||k.KeyW) y-=1; if(k.ArrowDown||k.KeyS) y+=1; const j=NET.joy2; if(j&&(Math.abs(j.x)>0.05||Math.abs(j.y)>0.05)){ x=j.x; y=j.y; } return {x,y}; } };
+API.input2 = Input2;
+Object.defineProperty(API,'net',{get(){ return NET.on? {role:NET.role, names:NET.names, mode:(G.net&&G.net.mode)||'coop'} : null; }});
+API.netWin = function(idx){ if(!NET.on||NET.role!=='host') return; netSendRel({e:'nwin',idx}); netResult(idx); };
+function netSendRel(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); return; }catch(e){} } mpSend(Object.assign({e:'net'},{n:o})); }
+function netSendFast(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); }catch(e){} return; } if(NET.fbT<=0){ NET.fbT=0.1; mpSend({e:'net',n:o}); } }
+function netRecv(o){
+  if(o.e==='snap' && NET.role==='guest'){ NET.lastSnap=o; }
+  else if(o.e==='in' && NET.role==='host'){ for(const k in NET.k2) delete NET.k2[k]; Object.assign(NET.k2,o.k||{}); NET.joy2=o.j||null; }
+  else if(o.e==='ptr' && NET.role==='host'){ G.onPointer2 && G.onPointer2(o.t,o.x,o.y); }
+  else if(o.e==='ab' && NET.role==='host'){ G.useAbility2 && G.useAbility2(o.id); }
+  else if(o.e==='nclear' && NET.role==='guest'){ netStageEnd(true); }
+  else if(o.e==='nover' && NET.role==='guest'){ NET.waitPay=false; netGameOver(); }
+  else if(o.e==='ncont' && NET.role==='guest'){ state='modal'; netContinue(); }
+  else if(o.e==='npay' && NET.role==='host'){ netResume(o.name||'P2'); }
+  else if(o.e==='nresume' && NET.role==='guest'){ NET.waitPay=false; closeModal(); state='play'; last=performance.now(); toast('💰 '+(o.payer||'')+' PAID — KEEP GOING!'); }
+  else if(o.e==='nshop' && NET.role==='host'){ netShopTime(); toast('PARTNER IS BUYING GOLD…'); }
+  else if(o.e==='ngive'){ toast('PARTNER GAVE UP — YOU CAN STILL PAY'); }
+  else if(o.e==='nnext' && NET.role==='guest'){ clearTimeout(NET.advT); closeModal(); run.stage=o.stage; Math.random=mpSeeded(o.seed); netBegin(); }
+  else if(o.e==='nwin' && NET.role==='guest'){ netResult(o.idx); }
+  else if(o.e==='nquit'){ netStop(); state='modal'; modal(`<h2>YOUR PARTNER LEFT</h2><p>The 2-player game has ended.</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="m">MENU</button>`,{r:()=>mpRoom(), m:()=>{ mpLeave(); toMenu(); }}); }
+}
+// --- direct phone-to-phone link (WebRTC). If it can't connect in 6 s we fall back to Supabase messages (slower).
+function netRtc(isHost){
+  try{
+    const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]}); NET.peer=pc;
+    pc.onicecandidate=e=>{ if(e.candidate) mpSend({e:'rtc',c:e.candidate}); };
+    const setup=dc=>{ NET.dc=dc; dc.onopen=()=>{ NET.rtcOk=true; toast('⚡ DIRECT LINK'); }; dc.onmessage=m=>{ try{ netRecv(JSON.parse(m.data)); }catch(e){} }; };
+    if(isHost){ setup(pc.createDataChannel('g',{ordered:false,maxRetransmits:0})); pc.createOffer().then(o=>pc.setLocalDescription(o)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }
+    else pc.ondatachannel=e=>setup(e.channel);
+  }catch(e){}
+}
+function netRtcMsg(m){ const pc=NET.peer; if(!pc) return; try{
+  if(m.sdp){ pc.setRemoteDescription(m.sdp).then(()=>{ if(m.sdp.type==='offer') return pc.createAnswer().then(a=>pc.setLocalDescription(a)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }); }
+  else if(m.c){ pc.addIceCandidate(m.c).catch(()=>{}); } }catch(e){} }
+function netPick(){ const ids2=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t); if(ids2.length!==2){ mpRoom(); return; }
+  const sv=(P.coop||{})[G.id]; const go=(stage,diff,score)=>{ const seed=Math.floor(mpRealRandom()*1e9); const hn=MP.players[ids2[0]].name, gn=MP.players[ids2[1]].name; mpSend({e:'coop',seed,stage,hn,gn,diff,score}); netStart(seed,stage,hn,gn,diff,score); };
+  modal(`<h2>🎮 PLAY TOGETHER</h2><p>Play the whole game together, stage 1 to ${G.stages}.</p><p>Difficulty:</p><button class="mid" data-a="e">🟢 BEGINNER — new game</button><button class="mid" data-a="h">🟠 HARD — new game</button><button class="mid" data-a="x">🔴 EXPERT — new game</button>${sv?`<button class="big" data-a="c">▶ CONTINUE TOGETHER · Stage ${sv.stage} · ${DIFFS[sv.diff]}</button>`:''}<button class="mid" data-a="b">◀ BACK</button>`,
+    {e:()=>go(1,0,0), h:()=>go(1,1,0), x:()=>go(1,2,0), c:()=>go(sv.stage,sv.diff,sv.score||0), b:()=>mpRoom()}); }
+function netSave(){ if(NET.role!=='host') return; P.coop=P.coop||{}; P.coop[G.id]={stage:run.stage,diff:P.diff,score:run.score,t:Date.now()}; save(); }
+function netStart(seed,stage,hostName,guestName,diff,score){
+  NET.on=true; NET.role=MP.host?'host':'guest'; NET.names=[hostName,guestName]; NET.fbT=0; NET.lastSnap=null; MP.on=false; MP.coop=true;
+  MP.prevDiff=P.diff; P.diff=diff||0; run.stage=stage; run.score=score||0; run.lives=G.lives; run.extra={}; Math.random=mpSeeded(seed);
+  netRtc(NET.role==='host'); if(window.RMXL) RMXL.setBusy(true);
+  let n=3; const tick=()=>{ modal(`<h2>🎮 PLAY TOGETHER</h2><p><b style="color:#00e5ff">P1 ${esc(hostName)}</b> + <b style="color:#ff3bd4">P2 ${esc(guestName)}</b></p><p>You are <b>${NET.role==='host'?'P1':'P2'}</b> · ${DIFFS[P.diff]} · Stage ${run.stage}</p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); netBegin(); } else setTimeout(tick,1000); }; tick();
+}
+function netBegin(){ beginStage(); }
+function netTick(dt){ // runs every frame while playing together
+  if(!NET.on) return; NET.fbT-=dt; NET.sendT-=dt;
+  if(NET.role==='host'){ if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const s=G.netState?G.netState():{}; netSendFast({e:'snap',s,l:run.lives,sc:run.score}); } }
+  else { if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const k={}; ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS','Space'].forEach(c=>{ if(keys[c]) k[c]=1; }); const d=joy.active?Input.dir():null; netSendFast({e:'in',k,j:d}); }
+    if(NET.lastSnap){ const sn=NET.lastSnap; NET.lastSnap=null; try{ G.netApply&&G.netApply(sn.s); }catch(e){} if(run.lives!==sn.l||run.score!==sn.sc){ run.lives=sn.l; run.score=sn.sc; updHud(); } }
+    G.netTick && G.netTick(dt); }
+}
+function netStageEnd(win){
+  state='modal'; flushCoins();
+  if(!win){ netContinue(); return; }
+  if(NET.role==='host') netSendRel({e:'nclear'});
+  run.stage++; if(NET.role==='host') netSave();
+  if(run.stage>G.stages){ if(NET.role==='host'){ P.coop[G.id]=null; save(); } netQuit('🏆 YOU BEAT ALL '+G.stages+' STAGES TOGETHER!'); return; }
+  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)); P.coins+=coins; save(); updCoins();
+  let n=4; clearTimeout(NET.advT);
+  const tick=()=>{ if(!NET.on) return; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2><p>Great teamwork! +${coins} 🪙 each</p><div class="stat">${run.score.toLocaleString()}</div><p>Stage ${run.stage} starts in <b>${n}</b>…</p><button class="mid" data-a="q">LEAVE (progress saved)</button>`,{q:()=>netQuit()});
+    if(n--<=0){ closeModal(); if(NET.role==='host'){ const seed=Math.floor(mpRealRandom()*1e9); netSendRel({e:'nnext',stage:run.stage,seed}); Math.random=mpSeeded(seed); netBegin(); } }
+    else NET.advT=setTimeout(tick,1000); };
+  tick();
+}
+// out of lives: either player may pay gold to continue (cost grows with stage); nobody pays in 30 s = game over
+function netContCost(){ return Math.round((60 + run.stage*4) * (1 + P.diff*0.5)); }
+function netContinue(){
+  if(NET.role==='host'){ netSendRel({e:'ncont'}); clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },30000); }
+  NET.waitPay=true; netContinueShow();
+}
+function netShopTime(){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },120000); }
+function netContinueShow(){ if(!NET.on||!NET.waitPay) return; const cost=netContCost(), can=P.coins>=cost;
+  modal(`<h2>OUT OF LIVES!</h2><p>Either player can pay to keep going together.</p><button class="big" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙</button><p style="font-size:13px">You have ${P.coins.toLocaleString()} 🪙${can?'':' — not enough'}</p><button class="mid" data-a="s" style="background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+    {s:()=>{ if(NET.role==='host') netShopTime(); else netSendRel({e:'nshop'}); goldStore(()=>netContinueShow(),'🛒 BUY GOLD TO CONTINUE'); },
+     p:()=>{ if(P.coins<cost){ netContinueShow(); return; } P.coins-=cost; save(); updCoins(); if(NET.role==='host') netResume(MP.name); else { netSendRel({e:'npay',name:MP.name}); modal(`<h2>PAID ✔</h2><p>Continuing…</p>`,{}); } }, g:()=>{ netSendRel({e:'ngive'}); if(NET.role==='host'){ clearTimeout(NET.contT); NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } else modal(`<h2>WAITING…</h2><p>Your partner can still pay to continue.</p>`,{}); }});
+}
+function netResume(payer){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.waitPay=false; run.lives=G.lives; updHud(); if(G.netRevive) G.netRevive(); else if(G.respawn) G.respawn(); netSendRel({e:'nresume',payer}); closeModal(); state='play'; last=performance.now(); toast('💰 '+payer+' PAID — KEEP GOING!'); }
+function netGameOver(){ state='modal'; if(NET.role==='host'){ P.coop=P.coop||{}; P.coop[G.id]=null; save(); }
+  modal(`<h2>GAME OVER</h2><p>You reached stage ${run.stage} together.</p><div class="stat">${run.score.toLocaleString()}</div><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netResult(idx){ state='modal'; const meIdx=NET.role==='host'?0:1; const t= idx===meIdx?'🏆 YOU WIN!': idx===-1?'🤝 DRAW!':'🏁 '+esc(NET.names[idx]||'P'+(idx+1))+' WINS!';
+  if(idx===meIdx){ P.coins+=50; save(); }
+  modal(`<h2>${t}</h2><p>${idx===meIdx?'+50 🪙':''}</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NET.peer&&NET.peer.close(); }catch(e){} NET.dc=null; NET.peer=null; NET.rtcOk=false; Math.random=mpRealRandom; P.diff=MP.prevDiff; if(window.RMXL) RMXL.setBusy(false); }
+function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
+
+// ===== GOLD STORE (cash gold packs) — PAY-1. Payments are not switched on yet: PAY.buy() is the ONE place to connect PayFast / Google Play Billing later.
+const PAY = { enabled:false,
+  buy(pack, done){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; } /* later: start PayFast / Play Billing checkout here, then on success: */ P.coins+=pack.gold; save(); updCoins(); toast('+'+pack.gold.toLocaleString()+' 🪙 ADDED'); SFX.coin(); done&&done(); } };
+function goldStore(back, title){
+  const rows=GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':''}</div><button data-gp="${i}" ${PAY.enabled?'':'style="opacity:.75"'}>${g.price}${PAY.enabled?'':' · SOON'}</button></div>`).join('');
+  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>${rows}<p class="note">${PAY.enabled?'Secure payment. Gold is added straight away.':'Gold purchases open soon. You can still earn gold free by playing.'}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); PAY.buy(GOLD_PACKS[+b.dataset.gp], ()=>goldStore(back,title)); }));
+}
 
 
 })();
