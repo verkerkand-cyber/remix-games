@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-LT-1.2 · 2026-10-18">
+<meta name="build" content="BUILD-LT-1.4 · 2026-10-18">
 <title>Light Trail</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -313,7 +313,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-LT-1.2 · 2026-10-18 -->
+<!-- BUILD-LT-1.4 · 2026-10-18 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -388,7 +388,7 @@ function pushEv(k,x,y,c){ if(!isNet()||!ev) return; ev.push({i:++evN,t,k,x:Math.
 const ghostOn=b=>(b===me&&eff.ghost>0)||(p2&&b===p2&&eff2&&eff2.ghost>0);
 const GAME=window.GAME={
   id:'light-trail',title:'Light Trail',titleHTML:'LIGHT<br>TRAIL',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-LT-1.2 · 2026-10-18',theme:{a:'#00e5ff',b:'#ff3b5c',bg:'#02040c'},
+  build:'BUILD-LT-1.4 · 2026-10-18',theme:{a:'#00e5ff',b:'#ff3b5c',bg:'#02040c'},
   w:W,h:H,stages:100,lives:3,livesIcon:'🏍️',joystick:false,coinPts:40,
   net:{mode:'versus'},
   abilities:[
@@ -434,7 +434,7 @@ const GAME=window.GAME={
       heads(); }
     const left=bikes.filter(b=>b.ai&&b.alive).length; api.counter('🏍️ RIVALS',left);
     if(!me.alive&&!lost){ lost=true; api.toast('WRECKED!'); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1100); }
-    else if(!left&&!done){ done=true; api.toast('LAST ONE RIDING!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1000); } },
+    else if(!left&&!done&&me.turned){ done=true; api.toast('LAST ONE RIDING!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1000); } },
   /* ---- NET-1: host sends snapshots, guest rebuilds the grid ---- */
   netState(){ if(!eff2||!bikes) return {}; seq++; const s={q:seq,e:ep,r:rnd,w:rw,g:grace>0?1:0,f:Math.max(0,+flash.toFixed(2)),
       b:bikes.map(b=>[b.x,b.y,b.d[0],b.d[1],b.alive?1:0,b.id,b.col,b.h===undefined?-1:b.h,b.jump,ghostOn(b)?1:0]),
@@ -473,7 +473,7 @@ const GAME=window.GAME={
 };
 function keyTurn(K,b){ if(K.ArrowLeft||K.KeyA) turn([-1,0],b); if(K.ArrowRight||K.KeyD) turn([1,0],b); if(K.ArrowUp||K.KeyW) turn([0,-1],b); if(K.ArrowDown||K.KeyS) turn([0,1],b); }
 function ptr(type,x,y,sw,b){ if(type==='down') return {x,y}; if(type==='up'&&sw){ const dx=x-sw.x, dy=y-sw.y; if(Math.hypot(dx,dy)>20) turn(Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)],b); else turn(x<W/2?[b.d[1],-b.d[0]]:[-b.d[1],b.d[0]],b); return null; } return sw; }
-function turn(d,b){ b=b||me; if(!b||!b.alive) return; if(d[0]===-b.d[0]&&d[1]===-b.d[1]) return; b.d=d; }
+function turn(d,b){ b=b||me; if(!b||!b.alive) return; if(d[0]===-b.d[0]&&d[1]===-b.d[1]) return; if(d[0]!==b.d[0]||d[1]!==b.d[1]) b.turned=true; b.d=d; }
 function step(b){ const nx=b.x+b.d[0], ny=b.y+b.d[1];
   if(b.jump>0){ b.jump--; if(nx<0||ny<0||nx>=GW||ny>=GH){ wreck(b); return; } b.x=nx; b.y=ny; if(b.jump===0&&grid[ny][nx]&&grid[ny][nx]!==b.id) wreck(b); else if(!grid[ny][nx]) setCell(nx,ny,b.id); return; }
   if(!free(nx,ny)&&!(ghostOn(b)&&nx>=0&&ny>=0&&nx<GW&&ny<GH)){ wreck(b); return; }
@@ -727,7 +727,7 @@ function onDown(e){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
-  if(NET.on&&NET.role==='guest'){ netSendRel({e:'ptr',t:'down',x:g.x,y:g.y}); return; }
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.active&&joy.id===e.pointerId)) netSendRel({e:'ptr',t:'down',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('down', g.x, g.y, e.pointerId, e.pointerType);
 }
 function onMove(e){
@@ -737,14 +737,14 @@ function onMove(e){
     if(m>50){dx=dx/m*50;dy=dy/m*50;} joyEl.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`;
   }
   const g = toGame(e.clientX, e.clientY);
-  if(NET.on&&NET.role==='guest'){ if(e.buttons||e.pointerType!=='mouse'){ NET.pmT=(NET.pmT||0); const now=performance.now(); if(now-NET.pmT>50){ NET.pmT=now; netSendFast({e:'ptr',t:'move',x:g.x,y:g.y}); } } return; }
+  if(NET.on&&NET.role==='guest'){ if(G.joystick&&joy.active&&joy.id===e.pointerId) return; if(e.buttons||e.pointerType!=='mouse'){ NET.pmT=(NET.pmT||0); const now=performance.now(); if(now-NET.pmT>50){ NET.pmT=now; netSendFast({e:'ptr',t:'move',x:g.x,y:g.y}); } } return; }
   G.onPointer && G.onPointer('move', g.x, g.y, e.pointerId, e.pointerType, e.buttons);
 }
 function onUp(e){
   if(joy.active && e.pointerId===joy.id){ joy.active=false; joyEl.classList.add('hidden'); }
   if(state!=='play') return;
   const g = toGame(e.clientX, e.clientY);
-  if(NET.on&&NET.role==='guest'){ netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
@@ -1325,7 +1325,7 @@ function frame(now){
   if(state==='play'){
     run.time += dt;
     if(!(NET.on&&NET.role==='guest')) G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt); netTick(dt);
-    doomTick(dt); mpTick(dt);
+    if(!(NET.on&&NET.role==='guest')) doomTick(dt); mpTick(dt);
   } else if(state==='menu' || state==='loading' || state==='ending'){ menuT+=dt; fxUpdate(dt); }
   ctx.save();
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
@@ -1401,14 +1401,14 @@ function mpRoom(){
   if(!MP.ch) return; const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t).slice(0,3); MP.host = mpHostId()===MP.me;
   const list=ids.map((k,i)=>`<div style="padding:8px 12px;margin:6px 0;border-radius:10px;background:#ffffff14;text-align:left">${['🟦','🟥','🟩'][i]} <b>${esc(MP.players[k].name||'?')}</b>${k===MP.me?' (you)':''}${i===0?' · HOST':''}</div>`).join('');
   modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host&&G.net&&ids.length===2?`<button class="big" data-a="t" style="background:linear-gradient(90deg,#00e5ff,#ff3bd4)">🎮 PLAY TOGETHER (2P)</button>`:''}${!MP.host&&G.net&&ids.length===2?'<p>🎮 This game has <b>PLAY TOGETHER</b> — the host can start it.</p>':''}${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
-    {t:()=>{ const ids2=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t); if(ids2.length!==2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=1+Math.floor(mpRealRandom()*10); const hn=MP.players[ids2[0]].name, gn=MP.players[ids2[1]].name; mpSend({e:'coop',seed,stage,hn,gn}); netStart(seed,stage,hn,gn); },
+    {t:()=>netPick(),
      s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
 }
 function mpSend(o){ try{ MP.ch && MP.ch.send({type:'broadcast', event:'m', payload:Object.assign({id:MP.me,name:MP.name},o)}); }catch(e){} }
 function mpMsg(m){
   if(m.e==='net'){ if(m.n) netRecv(m.n); return; }
   if(m.e==='rtc'){ if(m.id!==MP.me) netRtcMsg(m); return; }
-  if(m.e==='coop' && !NET.on){ netStart(m.seed,m.stage,m.hn,m.gn); return; }
+  if(m.e==='coop' && !NET.on){ netStart(m.seed,m.stage,m.hn,m.gn,m.diff,m.score); return; }
   if(m.e==='start' && !MP.on){ mpStart(m.seed,m.stage); }
   else if(m.e==='prog'){ MP.prog[m.id]={p:m.p,l:m.l,name:m.name,out:m.out}; mpBars(); }
   else if(m.e==='win' && MP.on && !MP.over){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{p:1}); mpEnd(m.name,false); }
@@ -1472,8 +1472,13 @@ function netRecv(o){
   else if(o.e==='ptr' && NET.role==='host'){ G.onPointer2 && G.onPointer2(o.t,o.x,o.y); }
   else if(o.e==='ab' && NET.role==='host'){ G.useAbility2 && G.useAbility2(o.id); }
   else if(o.e==='nclear' && NET.role==='guest'){ netStageEnd(true); }
-  else if(o.e==='nover' && NET.role==='guest'){ netStageEnd(false); }
-  else if(o.e==='nnext' && NET.role==='guest'){ run.stage=o.stage; Math.random=mpSeeded(o.seed); netBegin(); }
+  else if(o.e==='nover' && NET.role==='guest'){ NET.waitPay=false; netGameOver(); }
+  else if(o.e==='ncont' && NET.role==='guest'){ state='modal'; netContinue(); }
+  else if(o.e==='npay' && NET.role==='host'){ netResume(o.name||'P2'); }
+  else if(o.e==='nresume' && NET.role==='guest'){ NET.waitPay=false; closeModal(); state='play'; last=performance.now(); toast('💰 '+(o.payer||'')+' PAID — KEEP GOING!'); }
+  else if(o.e==='nshop' && NET.role==='host'){ netShopTime(); toast('PARTNER IS BUYING GOLD…'); }
+  else if(o.e==='ngive'){ toast('PARTNER GAVE UP — YOU CAN STILL PAY'); }
+  else if(o.e==='nnext' && NET.role==='guest'){ clearTimeout(NET.advT); closeModal(); run.stage=o.stage; Math.random=mpSeeded(o.seed); netBegin(); }
   else if(o.e==='nwin' && NET.role==='guest'){ netResult(o.idx); }
   else if(o.e==='nquit'){ netStop(); state='modal'; modal(`<h2>YOUR PARTNER LEFT</h2><p>The 2-player game has ended.</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="m">MENU</button>`,{r:()=>mpRoom(), m:()=>{ mpLeave(); toMenu(); }}); }
 }
@@ -1490,11 +1495,16 @@ function netRtc(isHost){
 function netRtcMsg(m){ const pc=NET.peer; if(!pc) return; try{
   if(m.sdp){ pc.setRemoteDescription(m.sdp).then(()=>{ if(m.sdp.type==='offer') return pc.createAnswer().then(a=>pc.setLocalDescription(a)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }); }
   else if(m.c){ pc.addIceCandidate(m.c).catch(()=>{}); } }catch(e){} }
-function netStart(seed,stage,hostName,guestName){
+function netPick(){ const ids2=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t); if(ids2.length!==2){ mpRoom(); return; }
+  const sv=(P.coop||{})[G.id]; const go=(stage,diff,score)=>{ const seed=Math.floor(mpRealRandom()*1e9); const hn=MP.players[ids2[0]].name, gn=MP.players[ids2[1]].name; mpSend({e:'coop',seed,stage,hn,gn,diff,score}); netStart(seed,stage,hn,gn,diff,score); };
+  modal(`<h2>🎮 PLAY TOGETHER</h2><p>Play the whole game together, stage 1 to ${G.stages}.</p><p>Difficulty:</p><button class="mid" data-a="e">🟢 BEGINNER — new game</button><button class="mid" data-a="h">🟠 HARD — new game</button><button class="mid" data-a="x">🔴 EXPERT — new game</button>${sv?`<button class="big" data-a="c">▶ CONTINUE TOGETHER · Stage ${sv.stage} · ${DIFFS[sv.diff]}</button>`:''}<button class="mid" data-a="b">◀ BACK</button>`,
+    {e:()=>go(1,0,0), h:()=>go(1,1,0), x:()=>go(1,2,0), c:()=>go(sv.stage,sv.diff,sv.score||0), b:()=>mpRoom()}); }
+function netSave(){ if(NET.role!=='host') return; P.coop=P.coop||{}; P.coop[G.id]={stage:run.stage,diff:P.diff,score:run.score,t:Date.now()}; save(); }
+function netStart(seed,stage,hostName,guestName,diff,score){
   NET.on=true; NET.role=MP.host?'host':'guest'; NET.names=[hostName,guestName]; NET.fbT=0; NET.lastSnap=null; MP.on=false; MP.coop=true;
-  MP.prevDiff=P.diff; P.diff=0; run.stage=stage; run.score=0; run.lives=G.lives; run.extra={}; Math.random=mpSeeded(seed);
+  MP.prevDiff=P.diff; P.diff=diff||0; run.stage=stage; run.score=score||0; run.lives=G.lives; run.extra={}; Math.random=mpSeeded(seed);
   netRtc(NET.role==='host'); if(window.RMXL) RMXL.setBusy(true);
-  let n=3; const tick=()=>{ modal(`<h2>🎮 PLAY TOGETHER</h2><p><b style="color:#00e5ff">P1 ${esc(hostName)}</b> + <b style="color:#ff3bd4">P2 ${esc(guestName)}</b></p><p>You are <b>${NET.role==='host'?'P1':'P2'}</b></p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); netBegin(); } else setTimeout(tick,1000); }; tick();
+  let n=3; const tick=()=>{ modal(`<h2>🎮 PLAY TOGETHER</h2><p><b style="color:#00e5ff">P1 ${esc(hostName)}</b> + <b style="color:#ff3bd4">P2 ${esc(guestName)}</b></p><p>You are <b>${NET.role==='host'?'P1':'P2'}</b> · ${DIFFS[P.diff]} · Stage ${run.stage}</p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); netBegin(); } else setTimeout(tick,1000); }; tick();
 }
 function netBegin(){ beginStage(); }
 function netTick(dt){ // runs every frame while playing together
@@ -1506,18 +1516,46 @@ function netTick(dt){ // runs every frame while playing together
 }
 function netStageEnd(win){
   state='modal'; flushCoins();
-  if(NET.role==='host') netSendRel({e:win?'nclear':'nover'});
-  if(win){ run.stage++; const seed=Math.floor(mpRealRandom()*1e9);
-    if(run.stage>G.stages){ netQuit('🏆 YOU BEAT ALL STAGES TOGETHER!'); return; }
-    modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2><p>Great teamwork!</p><div class="stat">${run.score.toLocaleString()}</div>${NET.role==='host'?'<button class="big" data-a="n">NEXT STAGE ▶</button>':'<p><b>Waiting for P1 to start the next stage…</b></p>'}<button class="mid" data-a="q">LEAVE</button>`,
-      {n:()=>{ netSendRel({e:'nnext',stage:run.stage,seed}); Math.random=mpSeeded(seed); netBegin(); }, q:()=>netQuit()}); }
-  else modal(`<h2>GAME OVER</h2><p>You reached stage ${run.stage} together.</p><div class="stat">${run.score.toLocaleString()}</div><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()});
+  if(!win){ netContinue(); return; }
+  if(NET.role==='host') netSendRel({e:'nclear'});
+  run.stage++; if(NET.role==='host') netSave();
+  if(run.stage>G.stages){ if(NET.role==='host'){ P.coop[G.id]=null; save(); } netQuit('🏆 YOU BEAT ALL '+G.stages+' STAGES TOGETHER!'); return; }
+  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)); P.coins+=coins; save(); updCoins();
+  let n=4; clearTimeout(NET.advT);
+  const tick=()=>{ if(!NET.on) return; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2><p>Great teamwork! +${coins} 🪙 each</p><div class="stat">${run.score.toLocaleString()}</div><p>Stage ${run.stage} starts in <b>${n}</b>…</p><button class="mid" data-a="q">LEAVE (progress saved)</button>`,{q:()=>netQuit()});
+    if(n--<=0){ closeModal(); if(NET.role==='host'){ const seed=Math.floor(mpRealRandom()*1e9); netSendRel({e:'nnext',stage:run.stage,seed}); Math.random=mpSeeded(seed); netBegin(); } }
+    else NET.advT=setTimeout(tick,1000); };
+  tick();
 }
+// out of lives: either player may pay gold to continue (cost grows with stage); nobody pays in 30 s = game over
+function netContCost(){ return Math.round((60 + run.stage*4) * (1 + P.diff*0.5)); }
+function netContinue(){
+  if(NET.role==='host'){ netSendRel({e:'ncont'}); clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },30000); }
+  NET.waitPay=true; netContinueShow();
+}
+function netShopTime(){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },120000); }
+function netContinueShow(){ if(!NET.on||!NET.waitPay) return; const cost=netContCost(), can=P.coins>=cost;
+  modal(`<h2>OUT OF LIVES!</h2><p>Either player can pay to keep going together.</p><button class="big" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙</button><p style="font-size:13px">You have ${P.coins.toLocaleString()} 🪙${can?'':' — not enough'}</p><button class="mid" data-a="s" style="background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+    {s:()=>{ if(NET.role==='host') netShopTime(); else netSendRel({e:'nshop'}); goldStore(()=>netContinueShow(),'🛒 BUY GOLD TO CONTINUE'); },
+     p:()=>{ if(P.coins<cost){ netContinueShow(); return; } P.coins-=cost; save(); updCoins(); if(NET.role==='host') netResume(MP.name); else { netSendRel({e:'npay',name:MP.name}); modal(`<h2>PAID ✔</h2><p>Continuing…</p>`,{}); } }, g:()=>{ netSendRel({e:'ngive'}); if(NET.role==='host'){ clearTimeout(NET.contT); NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } else modal(`<h2>WAITING…</h2><p>Your partner can still pay to continue.</p>`,{}); }});
+}
+function netResume(payer){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.waitPay=false; run.lives=G.lives; updHud(); if(G.netRevive) G.netRevive(); else if(G.respawn) G.respawn(); netSendRel({e:'nresume',payer}); closeModal(); state='play'; last=performance.now(); toast('💰 '+payer+' PAID — KEEP GOING!'); }
+function netGameOver(){ state='modal'; if(NET.role==='host'){ P.coop=P.coop||{}; P.coop[G.id]=null; save(); }
+  modal(`<h2>GAME OVER</h2><p>You reached stage ${run.stage} together.</p><div class="stat">${run.score.toLocaleString()}</div><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
 function netResult(idx){ state='modal'; const meIdx=NET.role==='host'?0:1; const t= idx===meIdx?'🏆 YOU WIN!': idx===-1?'🤝 DRAW!':'🏁 '+esc(NET.names[idx]||'P'+(idx+1))+' WINS!';
   if(idx===meIdx){ P.coins+=50; save(); }
   modal(`<h2>${t}</h2><p>${idx===meIdx?'+50 🪙':''}</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
 function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NET.peer&&NET.peer.close(); }catch(e){} NET.dc=null; NET.peer=null; NET.rtcOk=false; Math.random=mpRealRandom; P.diff=MP.prevDiff; if(window.RMXL) RMXL.setBusy(false); }
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
+
+// ===== GOLD STORE (cash gold packs) — PAY-1. Payments are not switched on yet: PAY.buy() is the ONE place to connect PayFast / Google Play Billing later.
+const PAY = { enabled:false,
+  buy(pack, done){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; } /* later: start PayFast / Play Billing checkout here, then on success: */ P.coins+=pack.gold; save(); updCoins(); toast('+'+pack.gold.toLocaleString()+' 🪙 ADDED'); SFX.coin(); done&&done(); } };
+function goldStore(back, title){
+  const rows=GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':''}</div><button data-gp="${i}" ${PAY.enabled?'':'style="opacity:.75"'}>${g.price}${PAY.enabled?'':' · SOON'}</button></div>`).join('');
+  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>${rows}<p class="note">${PAY.enabled?'Secure payment. Gold is added straight away.':'Gold purchases open soon. You can still earn gold free by playing.'}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); PAY.buy(GOLD_PACKS[+b.dataset.gp], ()=>goldStore(back,title)); }));
+}
 
 
 })();
