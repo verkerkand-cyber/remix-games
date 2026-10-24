@@ -310,10 +310,69 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 
 .fx.doom{background:#ff3b3b33;border-color:#ff3b3b;color:#ffd0d0}
 
+/* ===== SHELL-LAYOUT-2 (v1.5, Andrew 20 Oct 2026) =====
+   Action buttons (FIRE / JUMP / BOMB…) = big round buttons in #actbar at the bottom of the screen.
+   Consumable abilities + SHOP + PAUSE = compact see-through column (#bar) on the screen edge, middle height.
+   All sizes come from JS (geo()) as CSS variables, so the ⚙️ SETTINGS sliders resize them live. */
+#actbar{display:none}
+#app.lay2 #bar{left:0;top:0;right:auto;bottom:auto;width:var(--cw);height:auto;padding:var(--cp) 0;flex-direction:column;align-items:center;justify-content:flex-start;gap:0;
+  background:color-mix(in srgb,var(--bg) 50%,transparent);border:1px solid color-mix(in srgb,var(--b) 30%,transparent);border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.35)}
+#app.lay2 #abilities{flex-direction:column;align-items:center;gap:calc(var(--nmh) + var(--cg))}
+#app.lay2 #bar .ab{width:var(--cb);height:var(--cb);font-size:calc(var(--cb)*.46);border-width:2px}
+#app.lay2 #bar .ab .nm{bottom:auto;top:calc(100% + 1px);font-size:var(--nmf);line-height:var(--nmh);max-width:calc(var(--cw) + 4px);overflow:hidden;opacity:1;letter-spacing:.02em}
+#app.lay2 #bar .ab .cnt{min-width:calc(var(--cb)*.42);height:calc(var(--cb)*.42);font-size:calc(var(--cb)*.24);right:calc(var(--cb)*-.12);top:calc(var(--cb)*-.12);padding:0 3px}
+#app.lay2 #bar .ab .tm{font-size:calc(var(--cb)*.34)}
+#app.lay2 #bar .ab .kb{font-size:9px;right:-6px;bottom:0}
+#app.lay2 .barbtns{margin-top:calc(var(--nmh) + var(--cg));flex-direction:column;gap:var(--cg)}
+#app.lay2.nocons .barbtns{margin-top:0}
+#app.lay2 .bbtn{width:var(--cb);height:var(--sb);font-size:calc(var(--sb)*.4);border-radius:12px}
+#app.lay2 .bbtn small{display:block;font-size:var(--nmf);margin-top:1px;letter-spacing:.02em}
+#app.lay2 #actbar{display:flex;position:absolute;left:0;top:0;gap:var(--ag);pointer-events:auto;touch-action:none}
+#app.lay2 #actbar .ab{width:var(--as);height:var(--as);flex-direction:column;gap:1px;border-width:3px;font-size:calc(var(--as)*.38);
+  background:radial-gradient(circle at 50% 32%,color-mix(in srgb,var(--b) 38%,rgba(5,4,16,.8)),rgba(5,4,16,.82) 72%);
+  box-shadow:0 0 16px color-mix(in srgb,var(--b) 55%,transparent),inset 0 -5px 12px rgba(0,0,0,.45);transition:transform .06s}
+#app.lay2 #actbar .ab .ic{line-height:1}
+#app.lay2 #actbar .ab .nm{position:static;transform:none;font-size:max(8px,calc(var(--as)*.12));line-height:1.1;opacity:.95;letter-spacing:.03em;max-width:calc(var(--as) - 12px);overflow:hidden;white-space:nowrap}
+#app.lay2 #actbar .ab.ready{animation:none}
+#app.lay2 #actbar .ab.down{transform:scale(.92);background:color-mix(in srgb,var(--b) 60%,#000);box-shadow:0 0 26px var(--b)}
+#app.lay2 #actbar .ab .cnt:empty{display:none}
+#app.lay2 #actbar .ab .cnt{right:-2px;top:-2px}
+#app.lay2 #actbar .ab .kb{right:50%;transform:translateX(50%);bottom:-8px}
+#app.lay2 #actbar .ab .tm{font-size:calc(var(--as)*.3)}
+#mpBars{bottom:calc(var(--actH,0px) + 8px)!important}
+/* settings page */
+.setprevw{display:flex;flex-direction:column;align-items:center;gap:3px}
+.setprevw canvas{border-radius:10px;border:2px solid rgba(255,255,255,.25);background:#000}
+.setprevw small{font-size:9px;letter-spacing:.2em;opacity:.6}
+.setgrp{text-align:left;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid color-mix(in srgb,var(--b) 35%,transparent);display:flex;flex-direction:column;gap:6px}
+.seth{font-size:12px;letter-spacing:.12em;color:var(--b);font-weight:800}
+.seth small{display:block;font-size:10px;letter-spacing:.02em;color:#fff;opacity:.7;font-weight:400;font-family:'Segoe UI',system-ui,sans-serif;margin-top:2px}
+.setl{font-size:11px;letter-spacing:.1em;opacity:.85;display:flex;justify-content:space-between}
+.setl b{color:var(--a)}
+.sl{position:relative;height:36px;touch-action:none;cursor:pointer}
+.sl i{position:absolute;left:14px;right:14px;top:16px;height:5px;border-radius:3px;background:rgba(255,255,255,.15)}
+.sl b{position:absolute;left:14px;top:16px;height:5px;border-radius:3px;width:calc((100% - 28px)*var(--f,0));background:linear-gradient(90deg,var(--a),var(--b))}
+.sl em{position:absolute;top:5px;left:calc(14px + (100% - 28px)*var(--f,0) - 13px);width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 0 10px var(--b);pointer-events:none}
+.slr{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.1em;opacity:.55;margin-top:-4px;padding:0 4px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:10px 3px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);font-size:11px;font-weight:700;letter-spacing:.03em}
+.seg button.on{background:var(--b);color:#050510;border-color:var(--b)}
+.setnote{font-size:12px!important;opacity:.7!important}
+/* the column / action bar background never blocks the game: only the buttons themselves take taps */
+#app.lay2 #bar,#app.lay2 #actbar{pointer-events:none}
+#app.lay2 #bar button,#app.lay2 #actbar button{pointer-events:auto}
+.sethd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sethd .mid{padding:9px 12px;flex:none}
+.setr{display:flex;align-items:center;gap:6px}
+.setr .setl{flex:0 0 86px;flex-direction:column;gap:1px}
+.setr .sl{flex:1}
+.setgrp{gap:5px;padding:8px 10px}
+.mbox .row .mid{font-size:11px;padding:11px 4px}
+
 </style>
 </head>
 <body>
-<!-- BUILD-RY-1.0 · 2026-10-17 -->
+<!-- BUILD-RY-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -333,6 +392,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
         <button id="btnPause" class="bbtn">❚❚<small>PAUSE</small></button>
       </div>
     </div>
+    <div id="actbar"></div>
     <div id="toast"></div>
     <div id="tut" class="hidden"></div>
   </div>
@@ -356,6 +416,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
       <button class="mid casino" id="btnSlots">🎰 DOUBLE UP OR LOSS</button>
       <div class="row"><button class="mid" id="btnShop">🛒 SHOP</button><button class="mid" id="btnScores">🏆 TOP SCORES</button></div>
       <div class="row"><button class="mid" id="btnHow">❔ HOW TO PLAY</button><button class="mid" id="btnStory">📖 STORY</button></div>
+      <button class="mid" id="btnSet">⚙️ SETTINGS</button>
       <div class="gnav"><a id="gPrev" class="gn">◀ <span></span></a><a id="gAll" class="gn all" href="../">🏠 ALL GAMES</a><a id="gNext" class="gn"><span></span> ▶</a></div>
       <div class="ver" id="ver"></div>
     </div>
@@ -575,7 +636,7 @@ function hintDest(m){ if(m.k==='wf'||m.k==='tf'){ const c=hintCards(m)[0]; retur
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.4 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -644,28 +705,72 @@ const SFX = {
 const TOPH = 46, BARS = 84;
 const SIDE = (G.layout!=='top');   // v2: abilities in a column on the right (set G.layout='top' for the old top bar)
 const app = $('#app'), cv = $('#game'), ctx = cv.getContext('2d');
-if(SIDE){ app.classList.remove('lay-top'); app.classList.add('lay-side'); }
+if(SIDE){ app.classList.remove('lay-top'); app.classList.add('lay-side','lay2'); }
 let scale = 1, offX = 0, offY = 0, dpr = 1;
+/* ===== SHELL-LAYOUT-2 (Andrew, 20 Oct 2026) =====
+   ACTION buttons (free cd:0 abilities: FIRE, JUMP, BOMB…) = a big thumb-sized ACTION BAR at the BOTTOM of the screen
+   (bottom-right by default). Consumable abilities + 🛒 SHOP + ❚❚ PAUSE = a compact see-through column on the LEFT edge,
+   in the MIDDLE of the screen, laid over the game's edge, so the game gets the full width. On a tall phone the game sits
+   ABOVE the action bar (nothing covers it); on a wide screen the action bar sits beside the game.
+   Players change sizes / sides / position in ⚙️ SETTINGS. Saved for EVERY game on the site in localStorage 'rmxLayout'. */
+const ACT = SIDE ? G.abilities.map((a,i)=>i).filter(i=>G.abilities[i].cd===0) : [];
+const NCONS = G.abilities.length - ACT.length;
+const LDEF = {cs:1, side:'L', cy:0.5, as:1, ap:'R'};
+function clampN(v,a,b,d){ v=+v; return isFinite(v)? Math.max(a,Math.min(b,v)) : d; }
+function loadLayout(){ let o=null; try{ o=JSON.parse(localStorage.getItem('rmxLayout')); }catch(e){ o=null; } if(!o||typeof o!=='object') o={};
+  return {cs:clampN(o.cs,0.7,1.5,1), side:o.side==='R'?'R':'L', cy:clampN(o.cy,0,1,0.5), as:clampN(o.as,0.7,1.6,1), ap:(o.ap==='L'||o.ap==='C')?o.ap:'R'}; }
+function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY)); }catch(e){} }
+let LAY = loadLayout();
+let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
+try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+// pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
+function geo(W,H,L){
+  const nA=ACT.length, sab=SAB;
+  // action bar: n big round buttons side by side
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
+  let ag=Math.round(as*0.16); const maxAW=W-24;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0, ah=nA? as+14+sab : 0;
+  // game canvas: full width above the action bar, or (wide screens, bar on a side) beside it, whichever is bigger
+  let sc=Math.min(W/G.w, (H-ah)/G.h), mode='below';
+  if(nA && L.ap!=='C'){ const sc2=Math.min((W-2*(aw+16))/G.w, H/G.h); if(sc2>sc){ sc=sc2; mode='beside'; } }
+  if(!nA) mode='none';
+  const cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy= mode==='below'? Math.max(0,(H-ah-ch)/2) : (H-ch)/2;
+  const ax= L.ap==='L'? 12 : L.ap==='C'? (W-aw)/2 : W-12-aw, ay=H-8-sab-as;
+  // ability column: never over the top strip, never over the action bar
+  const T0=Math.max(8,cy)+62; let B0=H-8-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((W<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.78), cp=6, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
+}
+let GEO=null;
+function applyLayout(W,H){
+  const g=GEO=geo(W,H,LAY);
+  scale=g.sc; offX=g.cx; offY=g.cy; const cw=g.cw, ch=g.ch;
+  cv.style.width = cw+'px'; cv.style.height = ch+'px'; cv.style.left = offX+'px'; cv.style.top = offY+'px';
+  cv.width = Math.round(cw*dpr); cv.height = Math.round(ch*dpr);
+  const bar=$('#bar'), ab=$('#actbar'), top=$('#hudTop'), tut=$('#tut'), tst=$('#toast'), c=g.col, a=g.act;
+  bar.style.left=c.x+'px'; bar.style.top=c.y+'px'; bar.style.height='';
+  [['--cb',c.cb],['--nmh',c.nmh],['--nmf',c.nmf],['--cg',c.cg],['--sb',c.sb],['--cp',c.cp],['--cw',c.w]].forEach(([k,v])=>bar.style.setProperty(k,v+'px'));
+  ab.style.left=a.x+'px'; ab.style.top=a.y+'px'; ab.style.setProperty('--as',a.s+'px'); ab.style.setProperty('--ag',a.g+'px');
+  app.classList.toggle('nocons', NCONS===0);
+  document.documentElement.style.setProperty('--actH', (a.n? H-a.y : 0)+'px');   // race bars (#mpBars) sit above the action bar
+  top.style.left=offX+'px'; top.style.top=offY+'px'; top.style.width=cw+'px';
+  // tutorial box: across the game, but beside the ability column so it never hides those buttons
+  let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
+  tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
+  tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+}
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
   dpr = Math.min(window.devicePixelRatio||1, 2);
-  if(SIDE){
-    // v3 (Andrew, 15 Oct 2026): ability column sits on the LEFT, right next to the game (never on top of it).
-    // Score / lives / gold / counter / running ability timers float as a see-through strip across the TOP of the game.
-    const sw = W<=420? 80 : 88, aw = W-sw, ah = H-4;
-    scale = Math.min(aw/G.w, ah/G.h);
-    const cw = G.w*scale, ch = G.h*scale, gx = (W-(sw+cw))/2;
-    offX = gx+sw; offY = (H-ch)/2;
-    cv.style.width = cw+'px'; cv.style.height = ch+'px'; cv.style.left = offX+'px'; cv.style.top = offY+'px';
-    cv.width = Math.round(cw*dpr); cv.height = Math.round(ch*dpr);
-    const bar=$('#bar'), top=$('#hudTop'), tut=$('#tut'), tst=$('#toast');
-    const bh=Math.max(ch, Math.min(H, 520)), by=Math.max(0, Math.min(offY, H-bh));
-    bar.style.left=gx+'px'; bar.style.top=by+'px'; bar.style.height=bh+'px';
-    top.style.left=offX+'px'; top.style.top=offY+'px'; top.style.width=cw+'px';
-    tut.style.left=(offX+8)+'px'; tut.style.width=(cw-16)+'px'; tut.style.top=(offY+58)+'px';
-    tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
-    return;
-  }
+  if(SIDE){ applyLayout(W,H); return; }
   const ay = TOPH+BARS, aw = W, ah = H-ay-6;
   scale = Math.min(aw/G.w, ah/G.h);
   const cw = G.w*scale, ch = G.h*scale; offX = (aw-cw)/2; offY = ay+(ah-ch)/2;
@@ -747,8 +852,8 @@ window.addEventListener('keydown', e => {
   } else if(state==='paused' && (e.code==='Escape'||e.code==='KeyP')) resumeGame();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; if(state==='play') G.onKey && G.onKey(e.code,false); });
-window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play') pauseGame(); });
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play') pauseGame(); });
+window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play'&&!NET.on) pauseGame(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play' && !NET.on) pauseGame(); });
 const Input = {
   keys,
   dir(){
@@ -764,13 +869,14 @@ const Input = {
 function onDown(e){
   audioInit();
   if(state!=='play') return;
-  if(e.target.closest && e.target.closest('button,#tut,#bar,#hudTop')) return;
+  if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
   if(G.joystick && e.pointerType!=='mouse' && !joy.active){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.active&&joy.id===e.pointerId)) netSendRel({e:'ptr',t:'down',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('down', g.x, g.y, e.pointerId, e.pointerType);
 }
 function onMove(e){
@@ -780,12 +886,14 @@ function onMove(e){
     if(m>50){dx=dx/m*50;dy=dy/m*50;} joyEl.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`;
   }
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(G.joystick&&joy.active&&joy.id===e.pointerId) return; if(e.buttons||e.pointerType!=='mouse'){ NET.pmT=(NET.pmT||0); const now=performance.now(); if(now-NET.pmT>50){ NET.pmT=now; netSendFast({e:'ptr',t:'move',x:g.x,y:g.y}); } } return; }
   G.onPointer && G.onPointer('move', g.x, g.y, e.pointerId, e.pointerType, e.buttons);
 }
 function onUp(e){
   if(joy.active && e.pointerId===joy.id){ joy.active=false; joyEl.classList.add('hidden'); }
   if(state!=='play') return;
   const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
@@ -856,21 +964,42 @@ const API = {
 G.api = API;
 
 /* ---------- HUD + ability bar ---------- */
-const hudEl=$('#hud'), abWrap=$('#abilities');
-G.abilities.forEach((a,i)=>{
-  const b=document.createElement('button'); b.className='ab'; b.title=a.name+(a.desc?' — '+a.desc:'');
+const hudEl=$('#hud'), abWrap=$('#abilities'), actWrap=$('#actbar');
+/* Action buttons (layout 2): holding one = holding its keyboard key (e.g. FIRE = Space), so hold-to-fire games keep
+   firing while your thumb stays on it. Many games also edge-detect that key and call useAbility() themselves; while the
+   button is held that 2nd call is ignored, so one press is still exactly ONE action (a tap works exactly as before). */
+const held={};   // ability id -> Set of pointer ids holding its action button
+let shellUse=false, blockedN=0;
+const gameUse=G.useAbility;
+G.useAbility=function(id){ if(!shellUse && held[id] && held[id].size){ blockedN++; return false; } return gameUse.apply(this, arguments); };
+function holdOn(a, pid){ const s=held[a.id]||(held[a.id]=new Set()); s.add(pid); if(a.key) keys[a.key]=true; }
+function holdOff(a, pid){ const s=held[a.id]; if(!s) return; if(pid===undefined) s.clear(); else s.delete(pid); if(!s.size && a.key) keys[a.key]=false; }
+function releaseHolds(){ ACT.forEach(i=>{ const a=G.abilities[i]; holdOff(a); abEls[i].classList.remove('down'); }); }
+const abEls=G.abilities.map((a,i)=>{
+  const isAct=ACT.includes(i);
+  const b=document.createElement('button'); b.className='ab'+(isAct?' act':''); b.title=a.name+(a.desc?' — '+a.desc:'');
   b.innerHTML=`<span class="ic">${a.icon}</span><div class="cnt"></div><div class="kb">${a.keyLabel||''}</div><div class="nm">${a.name}</div><div class="tm"></div>`;
-  b.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); audioInit(); useAbility(i); if(G.onAbilityDown) G.onAbilityDown(a.id); });
-  b.addEventListener('pointerup', e=>{ e.stopPropagation(); if(G.onAbilityUp) G.onAbilityUp(a.id); });
-  abWrap.appendChild(b);
+  b.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); audioInit();
+    if(isAct){ try{ b.setPointerCapture(e.pointerId); }catch(_){} b.classList.add('down'); if(state==='play') holdOn(a, e.pointerId); }
+    useAbility(i); if(G.onAbilityDown) G.onAbilityDown(a.id); });
+  b.addEventListener('pointerup', e=>{ e.stopPropagation(); if(isAct){ holdOff(a, e.pointerId); b.classList.remove('down'); } if(G.onAbilityUp) G.onAbilityUp(a.id); });
+  if(isAct){ const off=e=>{ if(held[a.id]&&held[a.id].has(e.pointerId)){ holdOff(a, e.pointerId); b.classList.remove('down'); if(G.onAbilityUp) G.onAbilityUp(a.id); } };
+    b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off); }
+  (isAct?actWrap:abWrap).appendChild(b); return b;
 });
-const abEls=[...abWrap.children];
+// long ability names (e.g. THUNDER BUBBLE) shrink to fit their button instead of being cut off
+function fitNames(){ if(!SIDE || hudEl.classList.contains('hidden')) return;
+  abEls.forEach(b=>{ const n=b.querySelector('.nm'); n.style.fontSize=''; const mw=n.clientWidth, sw=n.scrollWidth;
+    if(mw>0 && sw>mw+1){ const fs=parseFloat(getComputedStyle(n).fontSize)||9; n.style.fontSize=Math.max(6, fs*mw/sw*0.97)+'px'; } }); }
+window.addEventListener('resize', fitNames);
 function useAbility(i){
   if(state!=='play') return; const a=G.abilities[i];
   if(abLock[i]>0) return;
   const paid = a.cd>0 && !run.tutorial;
   if(paid && have(a)<=0){ toast('NO '+a.name+' LEFT'); SFX.bump(); flashShop(); return; }
-  if(G.useAbility(a.id)!==false){
+  if(NET.on&&NET.role==='guest'){ if(paid){ P.abil[a.id]=have(a)-1; save(); } abLock[i]=a.cd>0?1:0; netSendRel({e:'ab',id:a.id}); return; }
+  let used; shellUse=true; try{ used=G.useAbility(a.id); } finally{ shellUse=false; }
+  if(used!==false){
     if(paid){ P.abil[a.id]=have(a)-1; save(); if(P.abil[a.id]===0) setTimeout(()=>{ if(state==='play') toast('BUY MORE IN 🛒 SHOP'); },900); }
     abLock[i] = a.cd>0 ? 1 : 0; tutEvent('ab_'+a.id);
   }
@@ -882,7 +1011,7 @@ function updAbilities(dt){
     if(abLock[i]>0) abLock[i]=Math.max(0,abLock[i]-dt);
     const el=abEls[i], cnt=el.querySelector('.cnt');
     let label, empty=false;
-    if(a.cd===0) label = abBadge[i]!==null ? abBadge[i] : '∞';
+    if(a.cd===0) label = abBadge[i]!==null ? abBadge[i] : (SIDE ? '' : '∞');   // big action buttons: no ∞ badge (shown only when the game sets one)
     else if(run.tutorial) label='FREE';
     else { const h=have(a); label=h; empty=h<=0; }
     if(cnt.textContent!==String(label)) cnt.textContent=label;
@@ -944,7 +1073,7 @@ function tutFinish(){
   if(!run.tutorial) return;
   run.tutorial=false; $('#tut').classList.add('hidden'); P.tutDone=true; save(); SFX.clear();
   if(run.practice){ modal(`<h2>TUTORIAL DONE</h2><p>You're ready. Head back to the menu and start a new game.</p><button class="big" data-a="menu">MAIN MENU</button>`, {menu:toMenu}); return; }
-  modal(`<h2>TUTORIAL COMPLETE</h2><p>Nice work! Now the real game begins.</p><p>Abilities were free in the tutorial. From now on you have <b>1 of each</b>. Collect 🪙 gold while you play and buy more in the 🛒 SHOP.</p><p><b>Stage 1</b> — ${DIFFS[P.diff]}</p><button class="big" data-a="go">START STAGE 1</button>`, {go:()=>{ run.stage=1; run.score=0; run.lives=G.lives; run.extra={}; writeSlot(); beginStage(); }});
+  modal(`<h2>TUTORIAL COMPLETE</h2><p>Nice work! Now the real game begins.</p><p>Abilities were free in the tutorial. From now on you have <b>1 of each</b>. Collect 🪙 gold while you play and buy more in the 🛒 SHOP.</p><p><b>Stage 1</b> — ${DIFFS[P.diff]}</p><button class="big" data-a="go">START STAGE 1</button>`, {go:()=>{ run.stage=1; run.score=0; run.lives=startLives(); run.extra={}; writeSlot(); beginStage(); }});
 }
 
 /* ---------- screens ---------- */
@@ -1015,7 +1144,7 @@ function contactModal(){
 
 function toMenu(){
   flushCoins();
-  state='menu'; hudEl.classList.add('hidden'); $('#tut').classList.add('hidden'); closeModal(); show('#screen-menu');
+  state='menu'; releaseHolds(); hudEl.classList.add('hidden'); $('#tut').classList.add('hidden'); closeModal(); show('#screen-menu');
   run.tutorial=false; run.practice=false; joy.active=false; joyEl.classList.add('hidden');
   renderMenu(); mpOnMenu();
 }
@@ -1034,7 +1163,7 @@ function panel(title, html, onBack){
   show('#screen-panel'); $('#pTitle').textContent=title; const st=$('#pBody').scrollTop; $('#pBody').innerHTML=html; $('#pBody').scrollTop=(title===$('#pTitle').dataset.last)?st:0; $('#pTitle').dataset.last=title;
   $('#pBack').onclick = ()=>{ SFX.click(); (onBack||toMenu)(); };
 }
-const HOW_BUTTONS = ()=>`<h3>ABILITIES &amp; GOLD</h3><ul><li>You start every new game with <b>1 of each</b> ability. The number on each button is how many you have left.</li><li>Collect <b>🪙 gold</b> while you play: coins pop out when you score and fly to your gold counter. Clearing a stage gives bonus gold.</li><li>Spend gold in the <b>🛒 SHOP</b> button during a stage (it pauses the game), after each stage, or from <b>⚡ ABILITIES</b> on the main menu.</li>${G.abilities.some(a=>a.cd===0)?'<li>'+G.abilities.filter(a=>a.cd===0).map(a=>a.icon+' '+a.name).join(', ')+' is part of the game and never runs out.</li>':''}</ul><h3>IN-GAME BUTTONS</h3><ul><li><b>Top bar</b> — score, stage, lives, gold, and END (save &amp; exit)</li><li><b>Ability bar</b> (just under the top bar) — abilities, 🛒 SHOP and ❚❚ PAUSE</li></ul>`;
+const HOW_BUTTONS = ()=>`<h3>ABILITIES &amp; GOLD</h3><ul><li>You start every new game with <b>1 of each</b> ability. The number on each button is how many you have left.</li><li>Collect <b>🪙 gold</b> while you play: coins pop out when you score and fly to your gold counter. Clearing a stage gives bonus gold.</li><li>Spend gold in the <b>🛒 SHOP</b> button during a stage (it pauses the game), after each stage, or from <b>⚡ ABILITIES</b> on the main menu.</li>${G.abilities.some(a=>a.cd===0)?'<li>'+G.abilities.filter(a=>a.cd===0).map(a=>a.icon+' '+a.name).join(', ')+' is part of the game and never runs out.</li>':''}</ul><h3>IN-GAME BUTTONS</h3><ul><li><b>Top bar</b> — score, stage, lives, gold, and END (save &amp; exit)</li>${SIDE ? (ACT.length?'<li><b>Action buttons</b> (big, bottom of the screen) — '+ACT.map(i=>G.abilities[i].icon+' '+G.abilities[i].name).join(', ')+'. Hold one down to keep doing it.</li>':'')+'<li><b>Ability column</b> (side of the screen) — abilities, 🛒 SHOP and ❚❚ PAUSE</li><li><b>⚙️ SETTINGS</b> (main menu or pause) — make the buttons bigger or smaller and move them</li>' : '<li><b>Ability bar</b> (just under the top bar) — abilities, 🛒 SHOP and ❚❚ PAUSE</li>'}</ul>`;
 // ONE save only (no slot screen). NEW GAME starts straight away (asks first if it would wipe a saved game); CONTINUE goes straight back in.
 function savedIdx(){ let b=-1; P.slots.forEach((s,i)=>{ if(s&&(b<0||s.t>P.slots[b].t)) b=i; }); return b; }
 $('#btnNew').addEventListener('click', ()=>{ SFX.click(); const i=savedIdx();
@@ -1047,6 +1176,7 @@ $('#btnStory').addEventListener('click', ()=>{ SFX.click(); panel('STORY', G.sto
 $('#btnShop').addEventListener('click', ()=>{ SFX.click(); shopPanel(); });
 $('#btnAbil').addEventListener('click', ()=>{ SFX.click(); abilPanel(); });
 $('#btnSlots').addEventListener('click', ()=>{ SFX.click(); slotsPanel(); });
+$('#btnSet').addEventListener('click', ()=>{ SFX.click(); settingsModal(null); });
 
 function slotPicker(mode){
   let h = `<p style="margin-bottom:12px;opacity:.8">${mode==='new'?'Choose a save slot for your new game. Your progress saves at the start of every stage.':'Pick a saved game to continue from the start of the stage you reached.'}</p>`;
@@ -1167,7 +1297,7 @@ function dblCollect(){ if(sPend<=0) return; P.coins+=sPend; sMsg(`Collected ${sP
 /* ---------- game flow ---------- */
 function writeSlot(){ P.slots[run.slot] = {stage:run.stage, score:run.score, lives:run.lives, diff:P.diff, t:Date.now(), extra:run.extra}; save(); }
 function newGame(i){
-  run.slot=i; run.stage=1; run.score=0; run.lives=G.lives; run.extra={started:Date.now()}; writeSlot();
+  run.slot=i; run.stage=1; run.score=0; run.lives=startLives(); run.extra={started:Date.now()}; writeSlot();
   starterKit();
   if(!P.tutDone) startTutorial(false); else beginStage();
 }
@@ -1187,21 +1317,23 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
 function pauseGame(){
-  if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden');
-  modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
-    {r:resumeGame, shop:()=>{ flushCoins(); shopModal(pauseAgain,'◀ BACK'); }, s:()=>{P.sound=!P.sound;save();pauseAgain();}, h:()=>{ modal(`<h2>HOW TO PLAY</h2><div style="text-align:left;max-height:50vh;overflow:auto;font-family:Segoe UI,sans-serif;font-size:14px">${G.howto}${HOW_BUTTONS()}</div><button class="big" data-a="b">BACK</button>`, {b:pauseAgain}); }, e:endGamePrompt});
+  if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
+  modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
+    {r:resumeGame, shop:()=>{ flushCoins(); shopModal(pauseAgain,'◀ BACK'); }, s:()=>{P.sound=!P.sound;save();pauseAgain();}, set:()=>settingsModal(pauseAgain), h:()=>{ modal(`<h2>HOW TO PLAY</h2><div style="text-align:left;max-height:50vh;overflow:auto;font-family:Segoe UI,sans-serif;font-size:14px">${G.howto}${HOW_BUTTONS()}</div><button class="big" data-a="b">BACK</button>`, {b:pauseAgain}); }, e:endGamePrompt});
 }
 function pauseAgain(){ state='play'; pauseGame(); }
 function resumeGame(){ closeModal(); state='play'; last=performance.now(); }
 function endGamePrompt(){
   if(state==='play'){ state='paused'; }
+  if(NET.on){ modal(`<h2>LEAVE THE GAME?</h2><p>This ends the 2-player game for both of you.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>netQuit(), n:resumeGame}); return; }
   if(MP.on){ modal(`<h2>LEAVE THE RACE?</h2><p>You'll drop out of this multiplayer race.</p><button class="big" data-a="y">LEAVE RACE</button><button class="mid" data-a="n">KEEP RACING</button>`, {y:()=>{ mpSend({e:'out'}); mpLeave(); toMenu(); }, n:resumeGame}); return; }
   if(run.tutorial){ modal(`<h2>LEAVE TUTORIAL?</h2><p>You can replay it any time from How to Play.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>{ if(!run.practice){ P.tutDone=true; save(); } toMenu(); }, n:resumeGame}); return; }
   modal(`<h2>END GAME?</h2><p>Your game is saved at the start of <b>Stage ${run.stage}</b>. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
 }
 function stageClear(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(true); return; }
   if(MP.on){ if(run.tutorial) return; mpFinish(true); return; }
   if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
   state='modal'; SFX.clear(); flushCoins();
@@ -1224,6 +1356,7 @@ function nameEntry(title, sub, win){
 }
 function afterRun(){ modal(`<h2>WHAT NEXT?</h2><button class="big" data-a="p">PLAY AGAIN</button><button class="mid abil" data-a="a">⚡ ABILITIES</button><button class="mid" data-a="s">TOP SCORES</button><button class="mid" data-a="m">MAIN MENU</button>`, {p:()=>newGame(run.slot), a:()=>{ toMenu(); abilPanel(); }, s:()=>{ toMenu(); scoresPanel(P.diff); }, m:toMenu}); }
 function gameOver(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(false); return; }
   if(MP.on){ mpFinish(false); return; }
   if(state==='modal' || state==='menu') return; state='modal'; SFX.over(); flushCoins();
   const coins = Math.floor(run.score/500), got=run.coinsStage; P.coins += coins; save();
@@ -1361,8 +1494,8 @@ function frame(now){
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
-    G.update(dt, API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt);
-    doomTick(dt); mpTick(dt);
+    if(!(NET.on&&NET.role==='guest')) G.update(dt*assistScale(), API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt); netTick(dt);
+    if(!(NET.on&&NET.role==='guest')) doomTick(dt); mpTick(dt);
   } else if(state==='menu' || state==='loading' || state==='ending'){ menuT+=dt; fxUpdate(dt); }
   ctx.save();
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
@@ -1402,6 +1535,69 @@ function doomLimit(){ if(P.diff!==2||run.tutorial||run.stage<4) return Infinity;
 function doomTick(dt){ if(run.tutorial||run.doom===undefined||run.doom===Infinity||!isFinite(run.doom)) return;
   if(run.doom>0){ run.doom-=dt; if(run.doom<=0){ run.doom=0; run.doomPend=1.2; } return; }
   run.doomPend-=dt; if(run.doomPend<=0){ toast('⏳ EXPERT CLOCK RAN OUT!'); run.doom=doomLimit(); run.doomPend=0; API.loseLife(); } }
+/* ---------- BEGINNER ASSIST (Andrew, 20 Oct 2026) ----------
+   BEGINNER (difficulty 0) stages 1-10 run in gentle slow motion: the game's dt is x0.65 on stage 1, rising evenly to
+   x1.0 at stage 11. Beginner games also start with 2 extra lives. Never on HARD / EXPERT, never in the tutorial, never
+   in a multiplayer RACE. In PLAY TOGETHER only the host runs the game, so it is applied there once (the guest just draws).
+   The Expert clock, ability cooldowns, coins and effects keep real time. */
+function assistScale(){ if(P.diff!==0 || run.tutorial || MP.on || !(run.stage>=1) || run.stage>10) return 1; return 0.65 + (run.stage-1)*0.035; }
+function startLives(){ return G.lives + (P.diff===0 && !MP.on ? 2 : 0); }
+
+/* ---------- ⚙️ SETTINGS (main menu + pause): button sizes and positions, shared by every game (localStorage 'rmxLayout') ---------- */
+function settingsModal(back){
+  const AN=ACT.map(i=>G.abilities[i].icon+' '+G.abilities[i].name).join(', ');
+  const seg=(k,opts)=>`<div class="seg" data-k="${k}">${opts.map(([v,t])=>`<button data-v="${v}">${t}</button>`).join('')}</div>`;
+  const sl=(id,min,max)=>`<div class="sl" id="${id}" data-min="${min}" data-max="${max}"><i></i><b></b><em></em></div>`;
+  modal(`<div class="sethd"><h2>⚙️ SETTINGS</h2><button class="mid" data-a="b">✔ DONE</button></div>
+    <div class="setprevw"><canvas id="setPrev"></canvas><small>LIVE PREVIEW</small></div>
+    <div class="setgrp"><div class="seth">ABILITY BUTTONS <small>+ 🛒 SHOP + ❚❚ PAUSE</small></div>
+      <div class="setr"><div class="setl">SIZE <b id="vCs"></b></div>${sl('sCs',70,150)}</div>
+      ${seg('side',[['L','◀ LEFT'],['R','RIGHT ▶']])}
+      <div class="setr"><div class="setl">POSITION <b id="vCy"></b></div>${sl('sCy',0,100)}</div></div>
+    <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
+      <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
+      ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+    <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
+    <p class="setnote">Used in every Remix Arcade game.</p>
+    <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
+  const m=$('#modal');
+  const SL={sCs:['cs',v=>v/100,v=>Math.round(v*100)], sCy:['cy',v=>v/100,v=>Math.round(v*100)], sAs:['as',v=>v/100,v=>Math.round(v*100)]};
+  function paint(){
+    $('#vCs').textContent=Math.round(LAY.cs*100)+'%'; $('#vAs').textContent=Math.round(LAY.as*100)+'%';
+    $('#vCy').textContent= LAY.cy<0.2?'TOP': LAY.cy>0.8?'BOTTOM': Math.abs(LAY.cy-0.5)<0.1?'MIDDLE': LAY.cy<0.5?'HIGHER':'LOWER';
+    Object.keys(SL).forEach(id=>{ const el=$('#'+id), mn=+el.dataset.min, mx=+el.dataset.max, v=SL[id][2](LAY[SL[id][0]]), f=(v-mn)/(mx-mn); el.style.setProperty('--f', Math.max(0,Math.min(1,f))); });
+    m.querySelectorAll('.seg').forEach(s=>s.querySelectorAll('button').forEach(b=>b.classList.toggle('on', LAY[s.dataset.k]===b.dataset.v)));
+    $('#setSnd').textContent=P.sound?'🔊 SOUND ON':'🔇 SOUND OFF';
+    drawPreview($('#setPrev'));
+  }
+  function changed(){ saveLayout(); resize(); fitNames(); paint(); }
+  Object.keys(SL).forEach(id=>{ const el=$('#'+id), mn=+el.dataset.min, mx=+el.dataset.max, step=id==='sCy'?5:5;
+    const at=e=>{ const r=el.getBoundingClientRect(), f=Math.max(0,Math.min(1,(e.clientX-r.left-14)/(r.width-28))); let v=Math.round((mn+f*(mx-mn))/step)*step; const k=SL[id][0], nv=SL[id][1](v); if(LAY[k]!==nv){ LAY[k]=nv; changed(); } };
+    el.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); try{ el.setPointerCapture(e.pointerId); }catch(_){} el._d=true; at(e); });
+    el.addEventListener('pointermove', e=>{ if(el._d){ e.stopPropagation(); at(e); } });
+    const up=e=>{ if(el._d){ el._d=false; SFX.click(); } }; el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); });
+  m.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); SFX.click(); LAY[b.parentNode.dataset.k]=b.dataset.v; changed(); }));
+  $('#setSnd').addEventListener('click', ()=>{ P.sound=!P.sound; save(); audioInit(); SFX.click(); paint(); });
+  $('#setReset').addEventListener('click', ()=>{ SFX.click(); LAY=Object.assign({},LDEF); changed(); });
+  paint();
+}
+function renderMenuSafe(){ if(state==='menu') renderMenu(); }
+// small picture of the phone screen with the real geometry: game, top strip, ability column, action buttons
+function drawPreview(c){
+  if(!c) return; const W=window.innerWidth, H=window.innerHeight, g=geo(W,H,LAY);
+  const pw=Math.round(Math.min(150, 150*W/H)), ph=Math.round(pw*H/W), k=pw/W, d=Math.min(window.devicePixelRatio||1,2);
+  c.width=pw*d; c.height=ph*d; c.style.width=pw+'px'; c.style.height=ph+'px';
+  const x=c.getContext('2d'); x.setTransform(d,0,0,d,0,0); x.fillStyle='#000'; x.fillRect(0,0,pw,ph);
+  x.fillStyle=G.theme.bg; x.fillRect(g.cx*k,g.cy*k,g.cw*k,g.ch*k); x.strokeStyle=G.theme.a; x.lineWidth=1; x.strokeRect(g.cx*k+.5,g.cy*k+.5,g.cw*k-1,g.ch*k-1);
+  x.fillStyle='rgba(255,255,255,.18)'; x.fillRect(g.cx*k,g.cy*k,g.cw*k,34*k);
+  x.fillStyle='rgba(255,255,255,.35)'; x.font='bold '+Math.max(7,Math.round(g.cw*k*0.08))+'px sans-serif'; x.textAlign='center'; x.fillText('GAME', (g.cx+g.cw/2)*k, (g.cy+g.ch/2)*k);
+  const C=g.col; x.fillStyle='rgba(20,16,40,.75)'; x.strokeStyle=G.theme.b; x.beginPath(); x.rect(C.x*k,C.y*k,C.w*k,C.h*k); x.fill(); x.stroke();
+  let y=C.y+C.cp; x.fillStyle=G.theme.b;
+  for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
+  x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
+}
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
 const MP = { on:false, ch:null, sb:null, me:null, name:'', room:'', host:false, players:{}, prog:{}, seed:0, stage:1, t0:0, n0:null, over:false, sendT:0, prevDiff:0, rnd:null };
 function mpEsc(s){ let d=0; return String(s).replace(/[^A-Za-z0-9 _-]/g,'').replace(/[0-9]/g,c=>(++d<=2?c:'')).slice(0,10); } /*SAFE-NAME*/
@@ -1437,11 +1633,15 @@ function mpRoom(){
   if(MP.on) { mpBars(); return; }
   if(!MP.ch) return; const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t).slice(0,3); MP.host = mpHostId()===MP.me;
   const list=ids.map((k,i)=>`<div style="padding:8px 12px;margin:6px 0;border-radius:10px;background:#ffffff14;text-align:left">${['🟦','🟥','🟩'][i]} <b>${esc(MP.players[k].name||'?')}</b>${k===MP.me?' (you)':''}${i===0?' · HOST':''}</div>`).join('');
-  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
-    {s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
+  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host&&G.net&&ids.length===2?`<button class="big" data-a="t" style="background:linear-gradient(90deg,#00e5ff,#ff3bd4)">🎮 PLAY TOGETHER (2P)</button>`:''}${!MP.host&&G.net&&ids.length===2?'<p>🎮 This game has <b>PLAY TOGETHER</b> — the host can start it.</p>':''}${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
+    {t:()=>netPick(),
+     s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
 }
 function mpSend(o){ try{ MP.ch && MP.ch.send({type:'broadcast', event:'m', payload:Object.assign({id:MP.me,name:MP.name},o)}); }catch(e){} }
 function mpMsg(m){
+  if(m.e==='net'){ if(m.n) netRecv(m.n); return; }
+  if(m.e==='rtc'){ if(m.id!==MP.me) netRtcMsg(m); return; }
+  if(m.e==='coop' && !NET.on){ netStart(m.seed,m.stage,m.hn,m.gn,m.diff,m.score); return; }
   if(m.e==='start' && !MP.on){ mpStart(m.seed,m.stage); }
   else if(m.e==='prog'){ MP.prog[m.id]={p:m.p,l:m.l,name:m.name,out:m.out}; mpBars(); }
   else if(m.e==='win' && MP.on && !MP.over){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{p:1}); mpEnd(m.name,false); }
@@ -1491,11 +1691,110 @@ function mpOnMenu(){ if(!mpFirstMenu) return; mpFirstMenu=false; const q=(locati
 
 function mpWaBtn(){}
 
+/* ===== REAL 2-PLAYER (NET-1): one phone hosts the game, the other sends its controls and draws the host's snapshots ===== */
+const NET = { on:false, role:null, peer:null, dc:null, rtcOk:false, sendT:0, lastSnap:null, names:['',''], keys2:{}, k2:{}, inbox:[] };
+const Input2 = { keys: NET.k2, dir(){ let x=0,y=0, k=NET.k2; if(k.ArrowLeft||k.KeyA) x-=1; if(k.ArrowRight||k.KeyD) x+=1; if(k.ArrowUp||k.KeyW) y-=1; if(k.ArrowDown||k.KeyS) y+=1; const j=NET.joy2; if(j&&(Math.abs(j.x)>0.05||Math.abs(j.y)>0.05)){ x=j.x; y=j.y; } return {x,y}; } };
+API.input2 = Input2;
+Object.defineProperty(API,'net',{get(){ return NET.on? {role:NET.role, names:NET.names, mode:(G.net&&G.net.mode)||'coop'} : null; }});
+API.netWin = function(idx){ if(!NET.on||NET.role!=='host') return; netSendRel({e:'nwin',idx}); netResult(idx); };
+function netSendRel(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); return; }catch(e){} } mpSend(Object.assign({e:'net'},{n:o})); }
+function netSendFast(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); }catch(e){} return; } if(NET.fbT<=0){ NET.fbT=0.1; mpSend({e:'net',n:o}); } }
+function netRecv(o){
+  if(o.e==='snap' && NET.role==='guest'){ NET.lastSnap=o; }
+  else if(o.e==='in' && NET.role==='host'){ for(const k in NET.k2) delete NET.k2[k]; Object.assign(NET.k2,o.k||{}); NET.joy2=o.j||null; }
+  else if(o.e==='ptr' && NET.role==='host'){ G.onPointer2 && G.onPointer2(o.t,o.x,o.y); }
+  else if(o.e==='ab' && NET.role==='host'){ G.useAbility2 && G.useAbility2(o.id); }
+  else if(o.e==='nclear' && NET.role==='guest'){ netStageEnd(true); }
+  else if(o.e==='nover' && NET.role==='guest'){ NET.waitPay=false; netGameOver(); }
+  else if(o.e==='ncont' && NET.role==='guest'){ state='modal'; netContinue(); }
+  else if(o.e==='npay' && NET.role==='host'){ netResume(o.name||'P2'); }
+  else if(o.e==='nresume' && NET.role==='guest'){ NET.waitPay=false; closeModal(); state='play'; last=performance.now(); toast('💰 '+(o.payer||'')+' PAID — KEEP GOING!'); }
+  else if(o.e==='nshop' && NET.role==='host'){ netShopTime(); toast('PARTNER IS BUYING GOLD…'); }
+  else if(o.e==='ngive'){ toast('PARTNER GAVE UP — YOU CAN STILL PAY'); }
+  else if(o.e==='nnext' && NET.role==='guest'){ clearTimeout(NET.advT); closeModal(); run.stage=o.stage; Math.random=mpSeeded(o.seed); netBegin(); }
+  else if(o.e==='nwin' && NET.role==='guest'){ netResult(o.idx); }
+  else if(o.e==='nquit'){ netStop(); state='modal'; modal(`<h2>YOUR PARTNER LEFT</h2><p>The 2-player game has ended.</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="m">MENU</button>`,{r:()=>mpRoom(), m:()=>{ mpLeave(); toMenu(); }}); }
+}
+// --- direct phone-to-phone link (WebRTC). If it can't connect in 6 s we fall back to Supabase messages (slower).
+function netRtc(isHost){
+  try{
+    const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]}); NET.peer=pc;
+    pc.onicecandidate=e=>{ if(e.candidate) mpSend({e:'rtc',c:e.candidate}); };
+    const setup=dc=>{ NET.dc=dc; dc.onopen=()=>{ NET.rtcOk=true; toast('⚡ DIRECT LINK'); }; dc.onmessage=m=>{ try{ netRecv(JSON.parse(m.data)); }catch(e){} }; };
+    if(isHost){ setup(pc.createDataChannel('g',{ordered:false,maxRetransmits:0})); pc.createOffer().then(o=>pc.setLocalDescription(o)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }
+    else pc.ondatachannel=e=>setup(e.channel);
+  }catch(e){}
+}
+function netRtcMsg(m){ const pc=NET.peer; if(!pc) return; try{
+  if(m.sdp){ pc.setRemoteDescription(m.sdp).then(()=>{ if(m.sdp.type==='offer') return pc.createAnswer().then(a=>pc.setLocalDescription(a)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }); }
+  else if(m.c){ pc.addIceCandidate(m.c).catch(()=>{}); } }catch(e){} }
+function netPick(){ const ids2=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t); if(ids2.length!==2){ mpRoom(); return; }
+  const sv=(P.coop||{})[G.id]; const go=(stage,diff,score)=>{ const seed=Math.floor(mpRealRandom()*1e9); const hn=MP.players[ids2[0]].name, gn=MP.players[ids2[1]].name; mpSend({e:'coop',seed,stage,hn,gn,diff,score}); netStart(seed,stage,hn,gn,diff,score); };
+  modal(`<h2>🎮 PLAY TOGETHER</h2><p>Play the whole game together, stage 1 to ${G.stages}.</p><p>Difficulty:</p><button class="mid" data-a="e">🟢 BEGINNER — new game</button><button class="mid" data-a="h">🟠 HARD — new game</button><button class="mid" data-a="x">🔴 EXPERT — new game</button>${sv?`<button class="big" data-a="c">▶ CONTINUE TOGETHER · Stage ${sv.stage} · ${DIFFS[sv.diff]}</button>`:''}<button class="mid" data-a="b">◀ BACK</button>`,
+    {e:()=>go(1,0,0), h:()=>go(1,1,0), x:()=>go(1,2,0), c:()=>go(sv.stage,sv.diff,sv.score||0), b:()=>mpRoom()}); }
+function netSave(){ if(NET.role!=='host') return; P.coop=P.coop||{}; P.coop[G.id]={stage:run.stage,diff:P.diff,score:run.score,t:Date.now()}; save(); }
+function netStart(seed,stage,hostName,guestName,diff,score){
+  NET.on=true; NET.role=MP.host?'host':'guest'; NET.names=[hostName,guestName]; NET.fbT=0; NET.lastSnap=null; MP.on=false; MP.coop=true;
+  MP.prevDiff=P.diff; P.diff=diff||0; run.stage=stage; run.score=score||0; run.lives=startLives(); run.extra={}; Math.random=mpSeeded(seed);
+  netRtc(NET.role==='host'); if(window.RMXL) RMXL.setBusy(true);
+  let n=3; const tick=()=>{ modal(`<h2>🎮 PLAY TOGETHER</h2><p><b style="color:#00e5ff">P1 ${esc(hostName)}</b> + <b style="color:#ff3bd4">P2 ${esc(guestName)}</b></p><p>You are <b>${NET.role==='host'?'P1':'P2'}</b> · ${DIFFS[P.diff]} · Stage ${run.stage}</p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); netBegin(); } else setTimeout(tick,1000); }; tick();
+}
+function netBegin(){ beginStage(); }
+function netTick(dt){ // runs every frame while playing together
+  if(!NET.on) return; NET.fbT-=dt; NET.sendT-=dt;
+  if(NET.role==='host'){ if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const s=G.netState?G.netState():{}; netSendFast({e:'snap',s,l:run.lives,sc:run.score}); } }
+  else { if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const k={}; ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS','Space'].forEach(c=>{ if(keys[c]) k[c]=1; }); const d=joy.active?Input.dir():null; netSendFast({e:'in',k,j:d}); }
+    if(NET.lastSnap){ const sn=NET.lastSnap; NET.lastSnap=null; try{ G.netApply&&G.netApply(sn.s); }catch(e){} if(run.lives!==sn.l||run.score!==sn.sc){ run.lives=sn.l; run.score=sn.sc; updHud(); } }
+    G.netTick && G.netTick(dt); }
+}
+function netStageEnd(win){
+  state='modal'; flushCoins();
+  if(!win){ netContinue(); return; }
+  if(NET.role==='host') netSendRel({e:'nclear'});
+  run.stage++; if(NET.role==='host') netSave();
+  if(run.stage>G.stages){ if(NET.role==='host'){ P.coop[G.id]=null; save(); } netQuit('🏆 YOU BEAT ALL '+G.stages+' STAGES TOGETHER!'); return; }
+  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)); P.coins+=coins; save(); updCoins();
+  let n=4; clearTimeout(NET.advT);
+  const tick=()=>{ if(!NET.on) return; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2><p>Great teamwork! +${coins} 🪙 each</p><div class="stat">${run.score.toLocaleString()}</div><p>Stage ${run.stage} starts in <b>${n}</b>…</p><button class="mid" data-a="q">LEAVE (progress saved)</button>`,{q:()=>netQuit()});
+    if(n--<=0){ closeModal(); if(NET.role==='host'){ const seed=Math.floor(mpRealRandom()*1e9); netSendRel({e:'nnext',stage:run.stage,seed}); Math.random=mpSeeded(seed); netBegin(); } }
+    else NET.advT=setTimeout(tick,1000); };
+  tick();
+}
+// out of lives: either player may pay gold to continue (cost grows with stage); nobody pays in 30 s = game over
+function netContCost(){ return Math.round((60 + run.stage*4) * (1 + P.diff*0.5)); }
+function netContinue(){
+  if(NET.role==='host'){ netSendRel({e:'ncont'}); clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },30000); }
+  NET.waitPay=true; netContinueShow();
+}
+function netShopTime(){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },120000); }
+function netContinueShow(){ if(!NET.on||!NET.waitPay) return; const cost=netContCost(), can=P.coins>=cost;
+  modal(`<h2>OUT OF LIVES!</h2><p>Either player can pay to keep going together.</p><button class="big" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙</button><p style="font-size:13px">You have ${P.coins.toLocaleString()} 🪙${can?'':' — not enough'}</p><button class="mid" data-a="s" style="background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+    {s:()=>{ if(NET.role==='host') netShopTime(); else netSendRel({e:'nshop'}); goldStore(()=>netContinueShow(),'🛒 BUY GOLD TO CONTINUE'); },
+     p:()=>{ if(P.coins<cost){ netContinueShow(); return; } P.coins-=cost; save(); updCoins(); if(NET.role==='host') netResume(MP.name); else { netSendRel({e:'npay',name:MP.name}); modal(`<h2>PAID ✔</h2><p>Continuing…</p>`,{}); } }, g:()=>{ netSendRel({e:'ngive'}); if(NET.role==='host'){ clearTimeout(NET.contT); NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } else modal(`<h2>WAITING…</h2><p>Your partner can still pay to continue.</p>`,{}); }});
+}
+function netResume(payer){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.waitPay=false; run.lives=G.lives; updHud(); if(G.netRevive) G.netRevive(); else if(G.respawn) G.respawn(); netSendRel({e:'nresume',payer}); closeModal(); state='play'; last=performance.now(); toast('💰 '+payer+' PAID — KEEP GOING!'); }
+function netGameOver(){ state='modal'; if(NET.role==='host'){ P.coop=P.coop||{}; P.coop[G.id]=null; save(); }
+  modal(`<h2>GAME OVER</h2><p>You reached stage ${run.stage} together.</p><div class="stat">${run.score.toLocaleString()}</div><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netResult(idx){ state='modal'; const meIdx=NET.role==='host'?0:1; const t= idx===meIdx?'🏆 YOU WIN!': idx===-1?'🤝 DRAW!':'🏁 '+esc(NET.names[idx]||'P'+(idx+1))+' WINS!';
+  if(idx===meIdx){ P.coins+=50; save(); }
+  modal(`<h2>${t}</h2><p>${idx===meIdx?'+50 🪙':''}</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NET.peer&&NET.peer.close(); }catch(e){} NET.dc=null; NET.peer=null; NET.rtcOk=false; Math.random=mpRealRandom; P.diff=MP.prevDiff; if(window.RMXL) RMXL.setBusy(false); }
+function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
+
+// ===== GOLD STORE (cash gold packs) — PAY-1. Payments are not switched on yet: PAY.buy() is the ONE place to connect PayFast / Google Play Billing later.
+const PAY = { enabled:false,
+  buy(pack, done){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; } /* later: start PayFast / Play Billing checkout here, then on success: */ P.coins+=pack.gold; save(); updCoins(); toast('+'+pack.gold.toLocaleString()+' 🪙 ADDED'); SFX.coin(); done&&done(); } };
+function goldStore(back, title){
+  const rows=GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':''}</div><button data-gp="${i}" ${PAY.enabled?'':'style="opacity:.75"'}>${g.price}${PAY.enabled?'':' · SOON'}</button></div>`).join('');
+  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>${rows}<p class="note">${PAY.enabled?'Secure payment. Gold is added straight away.':'Gold purchases open soon. You can still earn gold free by playing.'}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); PAY.buy(GOLD_PACKS[+b.dataset.gp], ()=>goldStore(back,title)); }));
+}
+
 
 })();
 
 /* ---------- Arcade navigation (15 Oct 2026): ◀ previous game · 🏠 all games · next game ▶ on the main menu ---------- */
-(function(){ const ORDER=[['chomp-circuit','Chomp Circuit'],['sky-shield','Sky Shield'],['star-hijack','Star Hijack'],['blast-grid','Blast Grid'],['prism-cut','Prism Cut'],['neon-flip','Neon Flip'],['snack-stack','Snack Stack'],['colour-pour','Colour Pour'],['brick-blitz','Brick Blitz'],['bubble-burst','Bubble Burst'],['taxi-rank-jam','Taxi Rank Jam'],['rock-storm','Rock Storm'],['gem-swap','Gem Swap'],['bug-blaster','Bug Blaster'],['block-blast','Block Blast'],['neon-serpent','Neon Serpent'],['bolt-jam','Bolt Jam'],['deep-dig','Deep Dig'],['road-hopper','Road Hopper'],['sky-raider','Sky Raider'],['cube-hop','Cube Hop'],['sky-joust','Sky Joust'],['robo-riot','Robo Riot'],['tube-blaster','Tube Blaster'],['dungeon-dash','Dungeon Dash'],['street-brawl','Street Brawl'],['fist-clash','Fist Clash'],['coast-racer','Coast Racer'],['moon-drop','Moon Drop'],['sky-ace','Sky Ace'],['moon-buggy','Moon Buggy'],['ice-push','Ice Push'],['burger-drop','Burger Drop'],['cherry-dig','Cherry Dig'],['flag-rally','Flag Rally'],['sky-strike','Sky Strike'],['maze-bots','Maze Bots'],['cave-run','Cave Run'],['shake-bar','Shake Bar'],['light-trail','Light Trail'],['road-agent','Road Agent'],['temple-kick','Temple Kick'],['pop-dino','Pop Dino'],['mega-smash','Mega Smash'],['paper-route','Paper Route'],['marble-rush','Marble Rush'],['ring-king','Ring King'],['gold-runner','Gold Runner'],['wing-dash','Wing Dash'],['fruit-slash','Fruit Slash'],['cloud-jumper','Cloud Jumper'],['tower-stack','Tower Stack'],['rail-rush','Rail Rush'],['pixel-crossing','Pixel Crossing'],['sling-smash','Sling Smash'],['helix-drop','Helix Drop'],['color-gate','Color Gate'],['merge-mania','Merge Mania'],['royal-solitaire','Royal Solitaire'],['mine-field','Mine Field'],['number-grid','Number Grid'],['word-hunt','Word Hunt'],['spider-deck','Spider Deck'],['pixel-logic','Pixel Logic'],['slide-puzzle','Slide Puzzle'],['crate-push','Crate Push'],['rock-digger','Rock Digger'],['pipe-flow','Pipe Flow'],['marble-chain','Marble Chain'],['garden-guard','Garden Guard'],['candy-rope','Candy Rope'],['hill-rider','Hill Rider']];
+(function(){ const ORDER=[['chomp-circuit','Chomp Circuit'],['sky-shield','Sky Shield'],['star-hijack','Star Hijack'],['blast-grid','Blast Grid'],['prism-cut','Prism Cut'],['neon-flip','Neon Flip'],['snack-stack','Snack Stack'],['colour-pour','Colour Pour'],['brick-blitz','Brick Blitz'],['bubble-burst','Bubble Burst'],['taxi-rank-jam','Taxi Rank Jam'],['rock-storm','Rock Storm'],['gem-swap','Gem Swap'],['bug-blaster','Bug Blaster'],['block-blast','Block Blast'],['neon-serpent','Neon Serpent'],['bolt-jam','Bolt Jam'],['deep-dig','Deep Dig'],['road-hopper','Road Hopper'],['sky-raider','Sky Raider'],['cube-hop','Cube Hop'],['sky-joust','Sky Joust'],['robo-riot','Robo Riot'],['tube-blaster','Tube Blaster'],['dungeon-dash','Dungeon Dash'],['street-brawl','Street Brawl'],['fist-clash','Fist Clash'],['coast-racer','Coast Racer'],['moon-drop','Moon Drop'],['sky-ace','Sky Ace'],['moon-buggy','Moon Buggy'],['ice-push','Ice Push'],['burger-drop','Burger Drop'],['cherry-dig','Cherry Dig'],['flag-rally','Flag Rally'],['sky-strike','Sky Strike'],['maze-bots','Maze Bots'],['cave-run','Cave Run'],['shake-bar','Shake Bar'],['light-trail','Light Trail'],['road-agent','Road Agent'],['temple-kick','Temple Kick'],['pop-dino','Pop Dino'],['mega-smash','Mega Smash'],['paper-route','Paper Route'],['marble-rush','Marble Rush'],['ring-king','Ring King'],['gold-runner','Gold Runner'],['wing-dash','Wing Dash'],['fruit-slash','Fruit Slash'],['cloud-jumper','Cloud Jumper'],['tower-stack','Tower Stack'],['rail-rush','Rail Rush'],['pixel-crossing','Pixel Crossing'],['sling-smash','Sling Smash'],['helix-drop','Helix Drop'],['color-gate','Color Gate'],['merge-mania','Merge Mania'],['royal-solitaire','Royal Solitaire'],['mine-field','Mine Field'],['number-grid','Number Grid'],['word-hunt','Word Hunt'],['spider-deck','Spider Deck'],['pixel-logic','Pixel Logic'],['slide-puzzle','Slide Puzzle'],['crate-push','Crate Push'],['rock-digger','Rock Digger'],['pipe-flow','Pipe Flow'],['marble-chain','Marble Chain'],['garden-guard','Garden Guard'],['candy-rope','Candy Rope'],['hill-rider','Hill Rider'],['jayden-kong','Jayden Kong']];
   const nav=document.querySelector('.gnav'); if(!nav) return;
   function show(L){ const i=L.findIndex(g=>g[0]===window.GAME.id); if(i<0){ return false; }
     const p=L[(i-1+L.length)%L.length], n=L[(i+1)%L.length];
