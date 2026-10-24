@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-GS-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-GS-1.2 · 2026-10-24">
 <title>Gem Swap</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,47 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
 
 </style>
 </head>
 <body>
-<!-- BUILD-GS-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-GS-1.2 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,28 +467,48 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* GEM SWAP — match-3 remix (#27) — PROTOTYPE: 3 test stages */
+/* GEM SWAP — match-3 remix (#27). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1) + RACE mode.
+   GS-1.2 (24 Oct): wide 1280x720 world, board centred and clear of the ability column (left) and the bottom-right
+   button zone; matched gems FLASH before they vanish; cascades run in update() (no timers); Beginner 1-10 much easier. */
 (function(){
-const W=600, H=900, N=8, CS=70, OX=(W-N*CS)/2, OY=150;
-const GC=['#ff3b5c','#2ec4ff','#ffe14a','#3bff7a','#c45cff','#ff9a2e','#f0f0ff'];
-let api,t,g,sel,anim,done,lost,moves,moveLimit,target,score2,nC,hammer,hintT,hintMv,falling;
+const W=1280, H=720, GC=['#ff3b5c','#2ec4ff','#ffe14a','#3bff7a','#c45cff','#ff9a2e','#f0f0ff'];
+const FLASH=0.5, FALL=0.24;
+let api,t,g,N,CS=76,OX,OY,sel,done,lost,moves,moveLimit,target,score2,nC,hammer,hintT,hintMv;
+let phase,phT,flashSet,chain,drop,cartP;
+const easy=()=>api.diff===0&&api.level<=10;   // Beginner stages 1-10 (+ tutorial): extra gentle
+// race mode: the shell's race bars sit at the bottom-centre of the screen -> use a slightly smaller board that ends above them
+function raceOn(){ try{ const b=document.getElementById('mpBars'); return !!(b&&b.style.display!=='none'&&b.childElementCount); }catch(e){ return false; } }
+function layout(){ const r=N===8&&raceOn(); CS= r? 66 : 76; OX=Math.round((W-N*CS)/2); OY= N===8? (r? 92 : 96) : 244; }   // 8x8 solo: x 336-944, y 96-704; race: x 376-904, y 92-620
 function rnd(n){ return Math.floor(Math.random()*n); }
 function matches(){ const m=new Set();
   for(let y=0;y<N;y++) for(let x=0;x<N-2;x++){ const v=g[y][x]; if(v>=0 && v===g[y][x+1] && v===g[y][x+2]) [0,1,2].forEach(k=>m.add(y*N+x+k)); }
   for(let x=0;x<N;x++) for(let y=0;y<N-2;y++){ const v=g[y][x]; if(v>=0 && v===g[y+1][x] && v===g[y+2][x]) [0,1,2].forEach(k=>m.add((y+k)*N+x)); }
   return m; }
-function fill(){ g=[]; for(let y=0;y<N;y++){ g.push([]); for(let x=0;x<N;x++){ let v; do{ v=rnd(nC); } while((x>1&&g[y][x-1]===v&&g[y][x-2]===v)||(y>1&&g[y-1][x]===v&&g[y-2][x]===v)); g[y].push(v); } } if(!findMove()) fill(); }
+// board comes ONLY from Math.random -> in a race (shell seeds Math.random) both players get the same board
+function fill(){ for(let tries=0;tries<50;tries++){ g=[]; for(let y=0;y<N;y++){ g.push([]); for(let x=0;x<N;x++){ let v; do{ v=rnd(nC); } while((x>1&&g[y][x-1]===v&&g[y][x-2]===v)||(y>1&&g[y-1][x]===v&&g[y-2][x]===v)); g[y].push(v); } } if(findMove()) break; }
+  drop=g.map(r=>r.map(()=>0)); }
 function swap(a,b){ const t=g[a.y][a.x]; g[a.y][a.x]=g[b.y][b.x]; g[b.y][b.x]=t; }
 function findMove(){ for(let y=0;y<N;y++) for(let x=0;x<N;x++) for(const [dx,dy] of [[1,0],[0,1]]){ const b={x:x+dx,y:y+dy}; if(b.x>=N||b.y>=N) continue; swap({x,y},b); const ok=matches().size>0; swap({x,y},b); if(ok) return [{x,y},b]; } return null; }
-function resolve(chain){ const m=matches(); if(!m.size){ if(!findMove()){ api.toast('NO MOVES — SHUFFLE!'); fill(); } return; }
-  m.forEach(i=>{ const x=i%N,y=Math.floor(i/N); api.fx.burst(OX+x*CS+CS/2,OY+y*CS+CS/2,GC[g[y][x]],6,160,.4,3); g[y][x]=-1; });
-  const pts=m.size*10*chain; score2+=m.size; api.addScore(pts*(1+api.dk*0.5),W/2,OY-20); api.sfx[chain>1?'clear':'small'](); api.event('match');
-  for(let x=0;x<N;x++){ const col=[]; for(let y=N-1;y>=0;y--) if(g[y][x]>=0) col.push(g[y][x]); for(let y=N-1,k=0;y>=0;y--,k++) g[y][x]= k<col.length? col[k] : rnd(nC); }
-  falling=0.25; setTimeout(()=>resolve(chain+1),260); }
+function cx(x){ return OX+x*CS+CS/2; } function cy(y){ return OY+y*CS+CS/2; }
+// matched gems light up first (phase 'flash'), THEN vanish and the column falls (phase 'fall'), then look for chains
+function startFlash(set,ch){ flashSet=set; chain=ch; phase='flash'; phT=FLASH; sel=null; api.sfx.blip(); }
+function clearFlash(){ let n=0;
+  flashSet.forEach(i=>{ const x=i%N,y=Math.floor(i/N); if(g[y][x]<0) return; api.fx.burst(cx(x),cy(y),GC[g[y][x]],8,190,.45,3); g[y][x]=-1; n++; });
+  score2+=n; const pts=n*10*chain; api.addScore(pts*(1+api.dk*0.5),W/2,OY+20); api.sfx[chain>1?'clear':'small'](); api.event('match');
+  if(chain>1) api.fx.text(W/2,OY+60,'CHAIN x'+chain,'#ffe14a',26);
+  drop=g.map(r=>r.map(()=>0));
+  for(let x=0;x<N;x++){ const col=[]; for(let y=N-1;y>=0;y--) if(g[y][x]>=0) col.push({v:g[y][x],y}); let nNew=0;
+    for(let y=N-1,k=0;y>=0;y--,k++){ if(k<col.length){ g[y][x]=col[k].v; drop[y][x]=y-col[k].y; } else { g[y][x]=rnd(nC); nNew++; drop[y][x]=0; } }
+    for(let y=0;y<nNew;y++) drop[y][x]=nNew; }
+  flashSet=null; phase='fall'; phT=FALL; }
+function afterFall(){ drop=g.map(r=>r.map(()=>0)); const m=matches();
+  if(m.size){ startFlash(m,chain+1); return; }
+  phase='idle'; if(!findMove()){ api.toast('NO MOVES — SHUFFLE!'); fill(); } }
+function tryMove(a,b){ if(phase!=='idle'||done||lost) return false; swap(a,b); const m=matches(); if(!m.size){ swap(a,b); api.sfx.bump(); return false; } moves++; startFlash(m,1); return true; }
 const GAME = window.GAME = {
   id:'gem-swap', title:'Gem Swap', titleHTML:'GEM<br>SWAP', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-GS-1.1 · 2026-10-17', theme:{a:'#c45cff', b:'#ffe14a', bg:'#120a24'},
-  w:W, h:H, stages:100,  lives:3, livesIcon:'💎', joystick:false, coinPts:40,
+  build:'BUILD-GS-1.2 · 2026-10-24', theme:{a:'#c45cff', b:'#ffe14a', bg:'#120a24'},
+  landscape:true, race:true, w:W, h:H, stages:100,  lives:3, livesIcon:'💎', joystick:false, coinPts:40,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a good swap.'},
     {id:'hammer', icon:'🔨', name:'HAMMER', cd:15, key:'Digit2', keyLabel:'2', desc:'Next tap smashes any gem.'},
@@ -462,50 +518,89 @@ const GAME = window.GAME = {
   shop:[{id:'g_jewel',cat:'Gems',name:'Jewels',cost:0,colors:[0],desc:'Classic gems.'},{id:'b_vel',cat:'Board',name:'Velvet',cost:0,colors:['#120a24','#2a1450'],desc:'Purple velvet.'},{id:'b_sea',cat:'Board',name:'Lagoon',cost:180,colors:['#021a2a','#0b4a6a'],desc:'Blue lagoon.'}],
   premium:[{name:'Ultimate Pack', price:'$3', desc:'Everything in the shop.', swatch:'linear-gradient(90deg,#c45cff,#ffe14a)'}],
   story:`<h3>THE GEM MINE</h3><p>Swap gems to line up 3 or more and fill the mine cart before you run out of moves.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>Tap a gem, then tap a gem next to it to swap.</li><li>Line up <b>3 or more</b> of the same to clear them.</li><li>Collect the target number of gems before your moves run out.</li></ul>`,
-  tutorial:[{text:'Tap a gem, then a gem next to it, to make a line of 3.', ev:'match'},{text:'Collect gems to fill the target!', time:6}],
-  stageIntro:{1:'COLLECT THE GEMS'}, bossName:'GEM RUSH!', ending:{"0":["#RICH","The cart is full."],"1":["#RICHER","The mine is yours."],"2":["#LEGEND","Impossible. You did it."]},
-  _dbg(){ return {get g(){return g;}, find:()=>findMove(), swap:(a,b)=>tryMove(a,b), get lost(){return lost;}}; },
-  abTime(id){ if(id==='hint') return {left:Math.max(0,hintT),total:3}; if(id==='hammer'&&hammer) return {left:1,total:1,label:'TAP'}; return null; },
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Phone:</b> tap a gem, then tap a gem next to it to swap. PC: click a gem, then click its neighbour.</li><li>Line up <b>3 or more</b> of the same — they <b>flash white</b>, then vanish.</li><li>Collect the target number of gems (the cart on the right) before your moves run out.</li><li>Abilities on the left (PC keys 1-4): 💡 HINT, 🔨 HAMMER, 🔀 SHUFFLE, ➕ +5 MOVES.</li><li>👥 <b>RACE A FRIEND:</b> you both get the same board — first to fill the cart wins.</li></ul>`,
+  tutorial:[{text:'Click a gem, then the gem next to it, to make a line of 3.',touch:'Tap a gem, then tap the gem next to it, to make a line of 3.',ev:'match'},
+    {text:'Flashing gems are about to vanish! Make another line of 3.',ev:'match'},{text:'Fill the cart before your moves run out. Stuck? Use 💡 HINT.',time:5}],
+  stageIntro:{1:'LINE UP 3 GEMS'}, bossName:'GEM RUSH!', ending:{"0":["#RICH","The cart is full."],"1":["#RICHER","The mine is yours."],"2":["#LEGEND","Impossible. You did it."]},
+  _dbg(){ return {get g(){return g;}, get N(){return N;}, get phase(){return phase;}, get flash(){return flashSet?[...flashSet]:null;}, get done(){return done;}, get score(){return score2;}, get target(){return target;},
+    get movesLeft(){return moveLimit-moves;}, board:{get OX(){return OX;},get OY(){return OY;},get CS(){return CS;}}, find:()=>findMove(), swap:(a,b)=>tryMove(a,b), get lost(){return lost;}}; },
+  abTime(id){ if(id==='hint'&&hintT>0) return {left:Math.max(0,hintT),total:3}; if(id==='hammer'&&hammer) return {left:1,total:1,label:'TAP'}; return null; },
   init(a){ api=a; },
-  startStage(n,a){ api=a; this._n=n; t=0; sel=null; done=false; lost=false; moves=0; score2=0; hammer=false; hintT=0; falling=0;
-    nC = n===0? 4 : Math.min(7, Math.round(a.dv([5,6,6.6],7,7)));
-    target = n===0? 15 : Math.round(a.dv([45,70,90],110,200));
-    moveLimit = n===0? 99 : Math.max(5, Math.round(a.dv([24,20,17],14,6)));
+  startStage(n,a){ api=a; this._n=n; t=0; sel=null; done=false; lost=false; moves=0; score2=0; hammer=false; hintT=0; hintMv=null; phase='idle'; phT=0; flashSet=null; chain=1; cartP=0;
+    N = a.content===0? 6 : 8;
+    layout();     // tutorial 6x6 board sits lower (the tutorial box is above it)
+    if(a.content===0){ nC=4; target=12; moveLimit=99; }
+    else if(easy()){ const L=a.level; nC= L<=5? 4 : 5; target=14+L*2; moveLimit=30; }
+    else { nC=Math.min(7, Math.round(a.dv([5,6,6.6],7,7))); target=Math.round(a.dv([40,70,90],110,200)); moveLimit=Math.max(5, Math.round(a.dv([26,20,17],14,6))); }
+    if(a.boss){ target=Math.round(target*1.3); moveLimit+=4; }
     fill(); },
   respawn(){ this.startStage(this._n, api); },
   stageBonus(){ return Math.max(0,moveLimit-moves)*60; },
   useAbility(id){ if(done||lost) return false;
-    if(id==='hint'){ hintMv=findMove(); hintT=3; return !!hintMv; }
-    if(id==='hammer'){ hammer=true; api.toast('TAP A GEM TO SMASH'); return true; }
-    if(id==='shuffle'){ fill(); api.sfx.power(); return true; }
-    if(id==='moves'){ moveLimit+=5; api.sfx.power(); return true; } },
-  onPointer(type,x,y){ if(type!=='down'||done||lost||falling>0) return;
+    if(id==='hint'){ if(phase!=='idle') return false; hintMv=findMove(); hintT=3; return !!hintMv; }
+    if(id==='hammer'){ if(hammer) return false; hammer=true; sel=null; return true; }
+    if(id==='shuffle'){ if(phase!=='idle') return false; fill(); sel=null; api.sfx.power(); return true; }
+    if(id==='moves'){ moveLimit+=5; api.sfx.power(); api.fx.text(OX-100,300,'+5 MOVES','#3bff7a',22); return true; } },
+  onPointer(type,x,y){ if(type!=='down'||done||lost||phase!=='idle') return;
     const gx=Math.floor((x-OX)/CS), gy=Math.floor((y-OY)/CS); if(gx<0||gy<0||gx>=N||gy>=N) return;
-    if(hammer){ hammer=false; g[gy][gx]=-2; api.sfx.boom(); for(let yy=gy;yy>0;yy--) g[yy][gx]=g[yy-1][gx]; g[0][gx]=rnd(nC); resolve(1); return; }
+    if(hammer){ hammer=false; api.sfx.boom(); api.fx.shake(6); startFlash(new Set([gy*N+gx]),1); phT=0.25; return; }
     if(!sel){ sel={x:gx,y:gy}; api.sfx.blip(); return; }
-    if(Math.abs(sel.x-gx)+Math.abs(sel.y-gy)!==1){ sel={x:gx,y:gy}; return; }
-    tryMove(sel,{x:gx,y:gy}); sel=null; },
-  update(dt){ t+=dt; if(hintT>0) hintT-=dt; if(falling>0) falling-=dt; if(done||lost) return;
+    if(sel.x===gx&&sel.y===gy){ sel=null; return; }
+    if(Math.abs(sel.x-gx)+Math.abs(sel.y-gy)!==1){ sel={x:gx,y:gy}; api.sfx.blip(); return; }
+    const a=sel; sel=null; tryMove(a,{x:gx,y:gy}); },
+  update(dt){ t+=dt; layout(); if(hintT>0) hintT-=dt; cartP+=(Math.min(1,score2/target)-cartP)*Math.min(1,dt*6);
+    if(phase!=='idle'){ phT-=dt; if(phT<=0){ if(phase==='flash') clearFlash(); else afterFall(); } }
+    if(done||lost) return;
     api.counter('💎 GEMS', Math.min(score2,target)+'/'+target, moveLimit-moves<=3?'low':'');
-    if(score2>=target && falling<=0){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); }
-    else if(api.content>0 && moves>=moveLimit && falling<=0){ lost=true; api.toast('OUT OF MOVES!'); api.sfx.hurt(); setTimeout(()=>{ lost=false; api.loseLife(); },900); } },
+    if(phase!=='idle') return;
+    if(score2>=target){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>{ if(done) api.stageClear(); },900); }
+    else if(api.content>0 && moves>=moveLimit){ lost=true; api.toast('OUT OF MOVES!'); api.sfx.hurt(); setTimeout(()=>{ if(lost){ lost=false; api.loseLife(); } },900); } },
   render(c){ const bg=api.cos('Board').colors; const gr=c.createLinearGradient(0,0,0,H); gr.addColorStop(0,bg[0]); gr.addColorStop(1,bg[1]); c.fillStyle=gr; c.fillRect(0,0,W,H);
-    c.fillStyle='rgba(255,255,255,0.8)'; c.font='bold 18px Orbitron, sans-serif'; c.textAlign='center'; c.fillText(`GEMS ${Math.min(score2,target)}/${target}    MOVES ${Math.max(0,moveLimit-moves)}`,W/2,90);
-    c.fillStyle='rgba(0,0,0,0.3)'; c.fillRect(OX-6,OY-6,N*CS+12,N*CS+12);
-    for(let y=0;y<N;y++) for(let x=0;x<N;x++){ if((x+y)%2){ c.fillStyle='rgba(255,255,255,0.04)'; c.fillRect(OX+x*CS,OY+y*CS,CS,CS); } const v=g[y][x]; if(v<0) continue; gem(c,OX+x*CS+CS/2,OY+y*CS+CS/2,v,(sel&&sel.x===x&&sel.y===y)); }
-    if(hintT>0&&hintMv) hintMv.forEach(p=>{ c.strokeStyle='#fff45a'; c.lineWidth=4; c.globalAlpha=0.5+0.5*Math.sin(t*10); c.strokeRect(OX+p.x*CS+3,OY+p.y*CS+3,CS-6,CS-6); c.globalAlpha=1; }); },
-  attract(c,tt){ c.fillStyle='#120a24'; c.fillRect(0,0,W,H); for(let i=0;i<24;i++) gem(c,(i*97)%W,(i*131+tt*50)%H,i%7,false); }
+    // left panel (x 140-320: right of the ability column)
+    const px=230, T= N===8? 0 : 116, CH= N===8? 230 : 170;   // tutorial: panels sit below the tutorial box
+    c.textAlign='center'; c.fillStyle='rgba(0,0,0,0.28)'; rr(c,148,120+T,164,300,16); c.fill();
+    c.save(); c.translate(0,T); c.font='bold 15px Orbitron, sans-serif'; c.fillStyle='rgba(255,255,255,0.65)'; c.fillText('MOVES',px,152);
+    const ml=Math.max(0,moveLimit-moves), low=api.content>0&&ml<=3; c.font='bold 54px Orbitron, sans-serif'; c.fillStyle=low?(Math.sin(t*8)>0?'#ff3b5c':'#fff'):'#fff'; c.shadowColor=low?'#ff3b5c':'#c45cff'; c.shadowBlur=14;
+    c.fillText(api.content===0?'∞':ml,px,212); c.shadowBlur=0;
+    c.font='bold 15px Orbitron, sans-serif'; c.fillStyle='rgba(255,255,255,0.65)'; c.fillText('GEMS',px,262);
+    c.font='bold 30px Orbitron, sans-serif'; c.fillStyle='#ffe14a'; c.fillText(Math.min(score2,target)+'/'+target,px,302);
+    if(hammer){ c.font='bold 17px Orbitron, sans-serif'; c.fillStyle=Math.sin(t*8)>0?'#ffe14a':'#fff'; c.fillText('🔨 TAP A GEM',px,360); c.fillText('TO SMASH',px,384); }
+    else if(api.boss){ c.font='bold 17px Orbitron, sans-serif'; c.fillStyle='#ff9a2e'; c.fillText('⚡ GEM RUSH',px,372); }
+    c.restore();
+    // right: the mine cart filling up (x 975-1185, y 110-470, above the bottom-right button zone)
+    const RT=120+T, CB=RT+30+CH; c.fillStyle='rgba(0,0,0,0.28)'; rr(c,1000,RT,160,CH+100,16); c.fill();
+    c.strokeStyle='#ffe14a'; c.lineWidth=3; c.shadowColor='#ffe14a'; c.shadowBlur=10; rr(c,1040,RT+30,80,CH,10); c.stroke(); c.shadowBlur=0;
+    const fh=(CH-4)*cartP; if(fh>1){ const fg=c.createLinearGradient(0,CB-2-fh,0,CB-2); fg.addColorStop(0,'#c45cff'); fg.addColorStop(1,'#ffe14a'); c.fillStyle=fg; rr(c,1042,CB-2-fh,76,fh,Math.min(8,fh/2)); c.fill(); }
+    for(let i=0;i<Math.floor(cartP*CH/38);i++) gemShape(c,1060+(i%2)*40,CB-20-i*36,i%nC,13);
+    c.font='bold 15px Orbitron, sans-serif'; c.fillStyle='rgba(255,255,255,0.75)'; c.fillText('CART '+Math.round(cartP*100)+'%',1080,CB+40);
+    // board
+    c.fillStyle='rgba(0,0,0,0.3)'; rr(c,OX-8,OY-8,N*CS+16,N*CS+16,12); c.fill();
+    const fallK= phase==='fall'? Math.max(0,phT/FALL) : 0, fl= phase==='flash'? flashSet : null;
+    c.save(); c.beginPath(); c.rect(OX-8,OY-8,N*CS+16,N*CS+16); c.clip();
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){ if((x+y)%2){ c.fillStyle='rgba(255,255,255,0.045)'; c.fillRect(OX+x*CS,OY+y*CS,CS,CS); } }
+    if(fl){ const on=Math.floor((FLASH-phT)*14)%2===0; fl.forEach(i=>{ const x=i%N,y=Math.floor(i/N); c.fillStyle=on?'rgba(255,255,255,0.55)':'rgba(255,240,120,0.3)'; c.shadowColor='#fff'; c.shadowBlur=24; rr(c,OX+x*CS+3,OY+y*CS+3,CS-6,CS-6,12); c.fill();
+      c.strokeStyle='#fff'; c.lineWidth=3; c.stroke(); c.shadowBlur=0; }); }
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const v=g[y][x]; if(v<0) continue; const off=drop[y][x]*CS*fallK*fallK;
+      const inF=fl&&fl.has(y*N+x), s=inF? 1.08+0.14*Math.sin((FLASH-phT)*40) : (sel&&sel.x===x&&sel.y===y)?1.12:1;
+      gem(c,cx(x),cy(y)-off,v,sel&&sel.x===x&&sel.y===y,s,inF); }
+    c.restore();
+    if(sel){ c.strokeStyle='#fff'; c.lineWidth=3; c.globalAlpha=0.6+0.4*Math.sin(t*8); rr(c,OX+sel.x*CS+2,OY+sel.y*CS+2,CS-4,CS-4,10); c.stroke(); c.globalAlpha=1; }
+    if(hintT>0&&hintMv&&phase==='idle') hintMv.forEach(p=>{ c.strokeStyle='#fff45a'; c.lineWidth=4; c.globalAlpha=0.5+0.5*Math.sin(t*10); c.strokeRect(OX+p.x*CS+3,OY+p.y*CS+3,CS-6,CS-6); c.globalAlpha=1; });
+    if(hammer){ c.strokeStyle='#ffe14a'; c.lineWidth=3; c.globalAlpha=0.4+0.3*Math.sin(t*8); rr(c,OX-8,OY-8,N*CS+16,N*CS+16,12); c.stroke(); c.globalAlpha=1; } },
+  attract(c,tt){ c.fillStyle='#120a24'; c.fillRect(0,0,W,H); for(let i=0;i<40;i++) gem(c,(i*197)%W,(i*131+tt*50)%H,i%7,false,1,false); }
 };
-function gem(c,x,y,v,s){ const r=CS*0.36*(s?1.12:1); c.save(); c.translate(x,y); c.shadowColor=GC[v]; c.shadowBlur=s?20:8; c.beginPath();
+function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function gemShape(c,x,y,v,r){ c.save(); c.translate(x,y); c.beginPath(); const sides=[6,4,8,3,5,6,4][v]; for(let i=0;i<sides;i++){ const a=i/sides*Math.PI*2-Math.PI/2; i?c.lineTo(Math.cos(a)*r,Math.sin(a)*r):c.moveTo(Math.cos(a)*r,Math.sin(a)*r); } c.closePath();
+  c.fillStyle=GC[v]; c.shadowColor=GC[v]; c.shadowBlur=8; c.fill(); c.restore(); }
+function gem(c,x,y,v,s,k,hot){ const r=CS*0.36*(k||1); c.save(); c.translate(x,y); c.shadowColor=hot?'#fff':GC[v]; c.shadowBlur=hot?28:s?20:8; c.beginPath();
   const sides=[6,4,8,3,5,6,4][v]; for(let i=0;i<sides;i++){ const a=i/sides*Math.PI*2-Math.PI/2; i?c.lineTo(Math.cos(a)*r,Math.sin(a)*r):c.moveTo(Math.cos(a)*r,Math.sin(a)*r); } c.closePath();
-  const g2=c.createRadialGradient(-r*0.3,-r*0.3,2,0,0,r); g2.addColorStop(0,'#fff'); g2.addColorStop(0.35,GC[v]); g2.addColorStop(1,'#111'); c.fillStyle=g2; c.fill(); c.restore(); }
-function tryMove(a,b){ swap(a,b); if(!matches().size){ swap(a,b); api.sfx.bump(); return false; } moves++; resolve(1); return true; }
+  const g2=c.createRadialGradient(-r*0.3,-r*0.3,2,0,0,r); g2.addColorStop(0,'#fff'); g2.addColorStop(hot?0.55:0.35,GC[v]); g2.addColorStop(1,hot?GC[v]:'#111'); c.fillStyle=g2; c.fill();
+  if(hot){ c.strokeStyle='#fff'; c.lineWidth=3; c.stroke(); } c.restore(); }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -592,8 +687,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -618,6 +731,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -635,6 +771,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -741,7 +881,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -765,6 +905,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -814,8 +956,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1186,7 +1328,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1360,6 +1502,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1370,10 +1513,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1390,7 +1546,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1426,7 +1582,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1465,6 +1621,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
