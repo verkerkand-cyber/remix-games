@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CP-1.4 · 2026-10-17">
+<meta name="build" content="BUILD-CP-1.5 · 2026-10-24">
 <title>Colour Pour</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,47 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
 
 </style>
 </head>
 <body>
-<!-- BUILD-CP-1.4 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-CP-1.5 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,11 +467,13 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* COLOUR POUR — water sort remix (#22), classic look */
+/* COLOUR POUR — water sort remix (#22), classic look. LANDSCAPE (SHELL-LANDSCAPE-1, 1280x720) + RACE mode:
+   tubes sit in wide rows clear of the ability column (left) and the bottom-right button corner; stages are built from
+   Math.random, which the shell seeds in a race, so both players get the SAME puzzle. */
 (function(){
-const W=600, H=900, CAP=4, UH=44, TWD=58, THT=CAP*UH+26;
+const W=1280, H=720, CAP=4, UH=44, TWD=58, THT=CAP*UH+26;
 const COLS=['#e8453c','#f39c1f','#f5d63a','#8bd13f','#1fa65a','#2ec4d6','#2f6fe0','#8e4fd8','#f06bb3','#8a5a34','#9aa3ad','#f4f4f4','#0f6b73','#c21e6e'];
-let api, stageN, t, tubes, hidden, sel, anim, hist, moves, moveLimit, timeLeft, timeMax, done, lost, hintT, hintMv, stuckT, extraUsed, solLen, doneTubes, revealAll;
+let api, GAP=100, stageN, t, tubes, hidden, sel, anim, hist, moves, moveLimit, timeLeft, timeMax, done, lost, hintT, hintMv, stuckT, extraUsed, solLen, doneTubes, revealAll;
 
 function rng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let x=Math.imul(s^s>>>15,1|s); x=x+Math.imul(x^x>>>7,61|x)^x; return ((x^x>>>14)>>>0)/4294967296; }; }
 
@@ -470,9 +508,11 @@ function solve(start, limit){
 
 /* ---------- stage generation ---------- */
 function makeStage(n,a){
-  const R=rng(n===0?99:n*104729+a.diff*7+3), L=a.level, boss=a.boss;
-  const nC = n===0? 3 : Math.min(12, 4 + Math.floor(L/10) + (boss?1:0) + (a.dk>2.5?1:0));
-  const empt = 2;
+  // Math.random: the shell seeds it with the same number on every phone in a RACE -> identical puzzle for everyone
+  const R= n===0? rng(99) : Math.random, L=a.level, boss=a.boss, beg=a.diff===0;
+  const nC = n===0? 3 : beg? (L<=3? 3 : L<=10? 4 : Math.min(12, 4 + Math.floor((L-5)/10) + (boss?1:0)))
+                         : Math.min(12, 4 + Math.floor(L/10) + (boss?1:0) + (a.dk>2.5?1:0));
+  const empt = beg && L<=5 && n>0 ? 3 : 2;      // Beginner 1-5: a spare third empty tube
   let best=null;
   for(let tries=0; tries<30 && !best; tries++){
     const bag=[]; for(let c=0;c<nC;c++) for(let k=0;k<CAP;k++) bag.push(c);
@@ -488,7 +528,7 @@ function makeStage(n,a){
   }
   tubes=best.ts; solLen=best.sol.length;
   // hidden layers ("?") from level 25: only the colour on top of each tube is visible
-  const hidP = n===0? 0 : L>=25? Math.min(0.75, (L-20)/140) + (boss?0.1:0) : 0;
+  const hidP = n===0||(beg&&L<40)? 0 : L>=25? Math.min(0.75, (L-20)/140) + (boss?0.1:0) : 0;
   hidden=tubes.map(tb=>tb.map((_,i)=> i<tb.length-1 && R()<hidP));
   // move limit from level 35, timer from level 20 (tight on Hard, brutal on Expert)
   moveLimit = (n===0 || L<35)? 0 : Math.ceil(solLen * a.dv([2.6,1.7,1.3], 1.25, 1.0)) + 2;
@@ -496,19 +536,23 @@ function makeStage(n,a){
   timeMax = (n===0 || L<20)? 0 : Math.round(nC*secsPerColour + 12);
   timeLeft=timeMax;
 }
+/* LANDSCAPE layout: keep clear of the HUD strip (top ~90), the ability column (left ~150), the bottom-right button
+   corner (x>980 & y>520) and the race bars (bottom-centre, y>650). Up to 9 tubes = one row across the middle;
+   more = two rows, both ending before x=1000 so the lower row never reaches the bottom-right corner. */
+const LX=150, RX1=1130, RX2=1000, ROW1=[296], ROW2=[150,420];
 function layout(){
-  const n=tubes.length, perRow = n<=6? n : Math.ceil(n/Math.ceil(n/7)), rows=Math.ceil(n/perRow);
-  const gapX = Math.min(84, (W-40)/perRow), rowH = Math.min(290, (H-140)/rows);
+  const n=tubes.length, two=n>9, perRow= two? Math.ceil(n/2) : n, rx= two? RX2 : RX1, cx=(LX+rx)/2;
+  GAP=Math.min(two?104:116, (rx-LX)/perRow);
   const out=[]; for(let i=0;i<n;i++){ const r=Math.floor(i/perRow), cIdx=i%perRow, inRow=Math.min(perRow, n-r*perRow);
-    const x = W/2 + (cIdx-(inRow-1)/2)*gapX - TWD/2, y = 130 + r*rowH + (rowH-THT)/2; out.push({x,y}); }
+    out.push({x: cx + (cIdx-(inRow-1)/2)*GAP - TWD/2, y:(two?ROW2:ROW1)[r]}); }
   return out;
 }
 let POS=[];
 
 const GAME = window.GAME = {
   id:'colour-pour', title:'Colour Pour', titleHTML:'COLOUR<br>POUR', tagline:'Sort the colours · Pour it right',
-  build:'BUILD-CP-1.4 · 2026-10-17', theme:{a:'#2ec4d6', b:'#f06bb3', bg:'#0c1022'},
-  w:W, h:H, stages:100, lives:3, livesIcon:'💧', joystick:false, coinPts:50,
+  build:'BUILD-CP-1.5 · 2026-10-24', theme:{a:'#2ec4d6', b:'#f06bb3', bg:'#0c1022'},
+  landscape:true, race:true, w:W, h:H, stages:100, lives:3, livesIcon:'💧', joystick:false, coinPts:50,
   abilities:[
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a good next pour.'},
     {id:'undo', icon:'↩️', name:'UNDO', cd:10, key:'Digit2', keyLabel:'2', desc:'Takes back your last pour (doesn\'t cost a move).'},
@@ -529,7 +573,7 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#2ec4d6,#f06bb3)'}
   ],
   story:`<h3>THE COLOUR FACTORY</h3><p>Deep in the city stands the old Colour Factory, where every colour in the world is made. Last night a clumsy robot tripped over a cable, and every tank in the factory got mixed together!</p><p>You're the new night-shift chemist. Pour the colours back into their own tubes before the morning trucks arrive to deliver the world's colours.</p><h3>THE RULES</h3><p>You can only pour a colour onto the <b>same colour</b>, or into an <b>empty tube</b>. Each tube holds 4 layers.</p>`,
-  howto:`<h3>GOAL</h3><p>Sort the liquids so every tube holds <b>one colour</b> (or is empty).</p><h3>HOW TO PLAY</h3><ul><li>Tap a tube to pick it up, then tap another tube to <b>pour</b>.</li><li>You can only pour onto the <b>same colour</b> or into an <b>empty</b> tube.</li><li>Each tube holds <b>4</b> layers.</li><li>❓ <b>Hidden layers</b> show their colour when they reach the top.</li><li>Harder stages have a <b>move limit</b> and a <b>timer</b>.</li><li>If you run out of moves, time, or get stuck, you lose a life and try again.</li></ul><h3>ABILITIES</h3><ul><li>💡 <b>HINT</b> <span class="key">1</span> — shows a good pour</li><li>↩️ <b>UNDO</b> <span class="key">2</span> — takes back your last pour</li><li>👁️ <b>REVEAL</b> <span class="key">3</span> — shows hidden colours</li><li>🧪 <b>+TUBE</b> <span class="key">4</span> — adds an empty tube</li></ul>`,
+  howto:`<h3>GOAL</h3><p>Sort the liquids so every tube holds <b>one colour</b> (or is empty).</p><h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>Tap a tube to pick it up, then tap another tube to <b>pour</b>.</li><li>You can only pour onto the <b>same colour</b> or into an <b>empty</b> tube.</li><li>Each tube holds <b>4</b> layers.</li><li>❓ <b>Hidden layers</b> show their colour when they reach the top.</li><li>Harder stages have a <b>move limit</b> and a <b>timer</b>.</li><li>If you run out of moves, time, or get stuck, you lose a life and try again.</li><li>PC: click the tubes with the mouse; keys 1-4 for the abilities.</li></ul><h3>RACE A FRIEND</h3><p>Both of you get the <b>same puzzle</b> — the first to sort every colour wins.</p><h3>ABILITIES</h3><ul><li>💡 <b>HINT</b> <span class="key">1</span> — shows a good pour</li><li>↩️ <b>UNDO</b> <span class="key">2</span> — takes back your last pour</li><li>👁️ <b>REVEAL</b> <span class="key">3</span> — shows hidden colours</li><li>🧪 <b>+TUBE</b> <span class="key">4</span> — adds an empty tube</li></ul>`,
   tutorial:[
     {text:'Tap a tube to pick it up.', ev:'select'},
     {text:'Now tap another tube to <b>pour</b>. You can pour onto the <b>same colour</b> or into an <b>empty</b> tube.', ev:'pour'},
@@ -542,24 +586,24 @@ const GAME = window.GAME = {
   bossName:'MEGA MIX!',
   ending:{"0":["#THE MORNING TRUCKS","The last tube clicks into place just as the sun comes up over the city.","The factory doors roll open. Truck after truck drives out, carrying the world's colours: red for the roses, blue for the sky, yellow for the taxis.","The clumsy robot hands you a slightly dented coffee mug. It says: BEST CHEMIST.","#NIGHT SHIFT","You yawn, stretch, and hang up your lab coat.","The world is colourful again. Nobody knows it was you.","But the robot does."],"1":["#THE MISSING COLOUR","Sorting the tanks, you notice something strange. There's one tank the factory map doesn't show. It's hidden behind the boiler room, and it's glowing.","Inside is a colour nobody has ever seen. It isn't red or blue or anything in between.","The factory's founder hid it there fifty years ago, because she couldn't find a way to bottle it safely.","#THE POUR","You try. And try. A hundred tubes, a hundred mixes. Finally, on the last pour, the new colour settles perfectly into its own glass.","#A NEW COLOUR","The next morning a new crayon appears in every box in the country. Kids fight over it. Painters cry when they see it.","The founder's old notebook gets one last line, in your handwriting:","\"Bottled it. — The Night Shift.\""],"2":["#THE TRUE ENDING","Expert mode was never meant to be finished. Hidden colours everywhere. Barely any moves. A clock that runs out before most people read the tubes.","You finished it a hundred times.","#THE COLOUR STORM","That night, a storm rolls over the city. But this is no ordinary storm: lightning strikes the factory's main tank, and every colour in the world begins to drain away.","Grass turns grey. The ocean turns grey. The sunset turns grey.","The only thing still in colour is the tube rack in front of you.","#THE LAST POUR","You pour faster than you have ever poured. Red back to the roses. Blue back to the sky. Green back to every leaf on every tree.","The storm fights back with every pour, mixing the colours faster than you can sort them.","But you have done this a hundred times on Expert. You know every trick.","#DAWN","At sunrise, the last drop falls into place. Colour floods back across the city like a wave.","People run into the streets. A rainbow stretches over the factory, brighter than any rainbow in history.","#LEGEND","The factory renames its most famous colour after you.","Every paint tin in the world now carries your name in tiny letters on the label.","And every night, the clumsy robot leaves one tube unsorted on your bench, just for fun."]},
 
-  _dbg(){ return {get tubes(){return tubes;}, get moves(){return moves;}, get moveLimit(){return moveLimit;}, get timeLeft(){return timeLeft;}, get hidden(){return hidden;}, pour:(i,j)=>tryPour(i,j), solve:()=>solve(tubes,40000)}; },
+  _dbg(){ return {get tubes(){return tubes;}, get moves(){return moves;}, get moveLimit(){return moveLimit;}, get timeLeft(){return timeLeft;}, get hidden(){return hidden;}, get pos(){return POS;}, get sel(){return sel;}, get anim(){return anim;}, pour:(i,j)=>tryPour(i,j), hint:()=>nextHint(), solve:()=>solve(tubes,40000)}; },
   init(a){ api=a; },
   startStage(n,a){
-    api=a; stageN=a.content; this._n=n; t=0; sel=-1; anim=null; hist=[]; moves=0; done=false; lost=false; hintT=0; hintMv=null; stuckT=0; extraUsed=0; revealAll=false;
+    api=a; stageN=a.content; this._n=n; t=0; sel=-1; anim=null; hist=[]; moves=0; done=false; lost=false; hintT=0; hintMv=null; plan=null; stuckT=0; extraUsed=0; revealAll=false;
     makeStage(n,a); POS=layout(); doneTubes=new Set(tubes.map((tb,i)=>complete(tb)?i:-1).filter(i=>i>=0));
   },
   respawn(){ this.startStage(this._n, api); },
   stageBonus(){ return Math.round(timeLeft*15) + (moveLimit? Math.max(0,moveLimit-moves)*40 : 0); },
   useAbility(id){
     if(done||lost||anim) return false;
-    if(id==='hint'){ const sol=solve(tubes, 30000); if(!sol||!sol.length) { api.toast('NO SOLUTION — TRY UNDO'); return false; } hintMv=sol[0]; hintT=3; api.sfx.pickup(); return true; }
+    if(id==='hint'){ const mv=nextHint(); if(!mv) { api.toast('NO SOLUTION — TRY UNDO'); return false; } hintMv=mv; hintT=3; api.sfx.pickup(); return true; }
     if(id==='undo'){ const h=hist.pop(); if(!h) return false; tubes=h.tubes; hidden=h.hidden; moves=h.moves; POS=layout(); doneTubes=new Set(tubes.map((tb,i)=>complete(tb)?i:-1).filter(i=>i>=0)); sel=-1; stuckT=0; api.sfx.bump(); return true; }
     if(id==='reveal'){ if(!hidden.some(h=>h.some(Boolean))) return false; revealAll=true; hidden=hidden.map(h=>h.map(()=>false)); api.sfx.power(); api.fx.flash('#ffffff',.2); return true; }
     if(id==='tube'){ if(extraUsed>=2) { api.toast('MAX 2 EXTRA TUBES'); return false; } extraUsed++; tubes.push([]); hidden.push([]); POS=layout(); stuckT=0; api.sfx.power(); return true; }
   },
   onPointer(type,x,y){
     if(type!=='down' || done || lost || anim) return;
-    let hit=-1; POS.forEach((p,i)=>{ if(x>=p.x-12 && x<=p.x+TWD+12 && y>=p.y-40 && y<=p.y+THT+14) hit=i; });
+    const mx=Math.max(8,(GAP-TWD)/2-2); let hit=-1; POS.forEach((p,i)=>{ if(x>=p.x-mx && x<=p.x+TWD+mx && y>=p.y-44 && y<=p.y+THT+16) hit=i; });
     if(hit<0){ sel=-1; return; }
     if(sel<0){ if(tubes[hit].length && !complete(tubes[hit])){ sel=hit; api.sfx.blip(); api.event('select'); } else api.sfx.bump(); return; }
     if(sel===hit){ sel=-1; return; }
@@ -570,10 +614,9 @@ const GAME = window.GAME = {
     if(anim){ anim.t+=dt/anim.dur; if(anim.t>=1){ finishPour(); } }
     if(stageN>0 && !done && !lost){
       if(timeMax>0){ timeLeft=Math.max(0,timeLeft-dt); if(timeLeft<=0) lose('TIME UP!'); }
-      const lbl = moveLimit? '🧪 MOVES' : timeMax? '⏱ TIME' : '🧪 MOVES';
-      const val = moveLimit? (moveLimit-moves)+' left' : timeMax? fmt(timeLeft) : moves+'';
-      const lv = moveLimit? (moveLimit-moves<=2?'empty':moveLimit-moves<=6?'low':'') : timeMax? (timeLeft<10?'empty':timeLeft<25?'low':'') : '';
-      api.counter(lbl, val, lv);
+      // a NUMBER that counts down to 0 -> the race bars show everyone's progress; moves / clock are drawn on the board
+      const left=colsLeft(), lv = moveLimit&&moveLimit-moves<=2 || timeMax&&timeLeft<10 ? 'empty' : moveLimit&&moveLimit-moves<=6 || timeMax&&timeLeft<25 ? 'low' : '';
+      api.counter('🎨 TO SORT', left, lv);
       // stuck: no legal pours left
       if(!anim && !anyMove()){ stuckT+=dt; if(stuckT>0.2 && stuckT-dt<=0.2) api.toast('NO MOVES — UNDO OR +TUBE'); if(stuckT>6) lose('STUCK!'); } else stuckT=0;
     }
@@ -584,10 +627,12 @@ const GAME = window.GAME = {
     c.save(); c.globalAlpha=0.06; c.strokeStyle='#fff'; for(let x=0;x<W;x+=40){ c.beginPath(); c.moveTo(x,0); c.lineTo(x,H); c.stroke(); } for(let y=0;y<H;y+=40){ c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); } c.restore();
     // shelf lines
     const rowsY=[...new Set(POS.map(p=>Math.round(p.y)))];
-    rowsY.forEach(y=>{ c.fillStyle='rgba(0,0,0,0.35)'; c.fillRect(20,y+THT+6,W-40,10); c.fillStyle='rgba(255,255,255,0.12)'; c.fillRect(20,y+THT+6,W-40,2); });
-    if(timeMax>0){ const f=timeLeft/timeMax; c.fillStyle='rgba(255,255,255,0.1)'; c.fillRect(30,96,W-60,8); c.fillStyle=f<0.2?'#ff3b3b':f<0.4?'#ffe14a':'#2ec4d6'; c.fillRect(30,96,(W-60)*f,8); }
-    c.font='bold 16px Orbitron, sans-serif'; c.textAlign='center'; c.fillStyle='rgba(255,255,255,0.75)';
-    c.fillText(moveLimit? `MOVES ${moves} / ${moveLimit}` : `MOVES ${moves}`, W/2, 80);
+    rowsY.forEach(y=>{ const xs=POS.filter(p=>Math.round(p.y)===y).map(p=>p.x), x0=Math.min(...xs)-GAP/2+TWD/2-10, x1=Math.max(...xs)+GAP/2+TWD/2+10;
+      c.fillStyle='rgba(0,0,0,0.35)'; c.fillRect(x0,y+THT+6,x1-x0,10); c.fillStyle='rgba(255,255,255,0.12)'; c.fillRect(x0,y+THT+6,x1-x0,2); });
+    const ix=POS.length>9? (LX+RX2)/2 : (LX+RX1)/2;
+    if(timeMax>0){ const f=timeLeft/timeMax, bw=420; c.fillStyle='rgba(255,255,255,0.1)'; c.fillRect(ix-bw/2,112,bw,8); c.fillStyle=f<0.2?'#ff3b3b':f<0.4?'#ffe14a':'#2ec4d6'; c.fillRect(ix-bw/2,112,bw*f,8); }
+    if(stageN>0){ c.font='bold 18px Orbitron, sans-serif'; c.textAlign='center'; c.fillStyle='rgba(255,255,255,0.8)';
+      c.fillText((moveLimit? `MOVES ${moves} / ${moveLimit}` : `MOVES ${moves}`) + (timeMax? `   ⏱ ${fmt(timeLeft)}` : ''), ix, 102); }
     tubes.forEach((tb,i)=>{ if(anim && i===anim.from) return; drawTube(c,i,POS[i].x,POS[i].y - (i===sel?34:0),0,gl); });
     if(anim) drawPourAnim(c,gl);
     if(hintT>0 && hintMv){ [hintMv[0],hintMv[1]].forEach((i,k)=>{ const p=POS[i]; c.strokeStyle=k?'#1fff8a':'#fff45a'; c.lineWidth=4; c.globalAlpha=0.5+0.5*Math.sin(t*10); c.strokeRect(p.x-8,p.y-12,TWD+16,THT+22); c.globalAlpha=1; });
@@ -596,9 +641,16 @@ const GAME = window.GAME = {
   },
   attract(c,tt){
     c.fillStyle='#0c1022'; c.fillRect(0,0,W,H);
-    for(let i=0;i<6;i++){ const x=80+i*90, y=300+Math.sin(tt*1.2+i)*30; c.save(); c.translate(x,y); c.rotate(Math.sin(tt+i)*0.15); for(let k=0;k<4;k++){ c.fillStyle=COLS[(i*3+k)%COLS.length]; c.fillRect(-TWD/2+5, THT/2-16-(k+1)*UH, TWD-10, UH); } c.strokeStyle='rgba(255,255,255,0.8)'; c.lineWidth=3; tubePath(c,-TWD/2,-THT/2); c.stroke(); c.restore(); }
+    for(let i=0;i<6;i++){ const x=W/2+(i-2.5)*150, y=H/2+Math.sin(tt*1.2+i)*30; c.save(); c.translate(x,y); c.rotate(Math.sin(tt+i)*0.15); for(let k=0;k<4;k++){ c.fillStyle=COLS[(i*3+k)%COLS.length]; c.fillRect(-TWD/2+5, THT/2-16-(k+1)*UH, TWD-10, UH); } c.strokeStyle='rgba(255,255,255,0.8)'; c.lineWidth=3; tubePath(c,-TWD/2,-THT/2); c.stroke(); c.restore(); }
   }
 };
+/* HINT follows ONE solution plan step by step (re-solving after every pour could send the player back and forth forever) */
+let plan=null;
+function nextHint(){ const k=JSON.stringify(tubes);
+  if(!plan||plan.key!==k||!plan.mv.length){ const sol=solve(tubes,30000); if(!sol||!sol.length){ plan=null; return null; } plan={mv:sol.slice()}; }
+  const mv=plan.mv.shift(), ns=tubes.map(x=>x.slice()), amt=Math.min(topRun(ns[mv[0]]), CAP-ns[mv[1]].length); for(let q=0;q<amt;q++) ns[mv[1]].push(ns[mv[0]].pop());
+  plan.key=JSON.stringify(ns); return mv; }
+function colsLeft(){ const n=new Set(); tubes.forEach(tb=>tb.forEach(x=>n.add(x))); let k=n.size; tubes.forEach(tb=>{ if(complete(tb)) k--; }); return k; }
 function fmt(s){ s=Math.ceil(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 function anyMove(){ for(let i=0;i<tubes.length;i++){ const a=tubes[i]; if(!a.length||complete(a)) continue; for(let j=0;j<tubes.length;j++){ if(i!==j && canPour(a,tubes[j]) && !( !tubes[j].length && topRun(a)===a.length)) return true; } } return false; }
 function tryPour(i,j){
@@ -616,7 +668,7 @@ function finishPour(){
   moves++; api.event('pour');
   if(complete(tubes[to]) && !doneTubes.has(to)){ doneTubes.add(to); const p=POS[to]; api.addScore(50*(1+api.dk*0.5), p.x+TWD/2, p.y-10); api.sfx.clear(); api.fx.burst(p.x+TWD/2,p.y+20,COLS[tubes[to][0]],28,240,.8,3); api.event('full'); }
   else api.sfx.small();
-  if(solved(tubes)){ done=true; api.fx.flash('#fff',.4); for(let i=0;i<6;i++) api.fx.burst(Math.random()*W,200+Math.random()*500,COLS[i],22,260,1,3); setTimeout(()=>api.stageClear(),1000); return; }
+  if(solved(tubes)){ done=true; api.fx.flash('#fff',.4); for(let i=0;i<6;i++) api.fx.burst(LX+Math.random()*(RX1-LX),180+Math.random()*360,COLS[i],22,260,1,3); setTimeout(()=>api.stageClear(),1000); return; }
   if(moveLimit && moves>=moveLimit && !solved(tubes)) lose('OUT OF MOVES!');
 }
 function lose(msg){ if(lost||done) return; lost=true; anim=null; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>{ lost=false; api.loseLife(); },900); }
@@ -669,7 +721,7 @@ function drawPourAnim(c,gl){
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -756,8 +808,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -782,6 +852,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -799,6 +892,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -905,7 +1002,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -929,6 +1026,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -978,8 +1077,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1350,7 +1449,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1524,6 +1623,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1534,10 +1634,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1554,7 +1667,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1590,7 +1703,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1629,6 +1742,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
