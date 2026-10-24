@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-FR-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-FR-1.2 · 2026-10-24">
 <title>Flag Rally</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,44 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
 
 </style>
 </head>
 <body>
-<!-- BUILD-FR-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-FR-1.2 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,89 +464,122 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* FLAG RALLY — Rally-X remix (#49). 100 stages. Race round the city maze, grab every flag, smoke out the chasing cars. */
+/* FLAG RALLY — Rally-X remix (#49). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1): a wide city maze seen sideways.
+   The car ONLY drives while the player holds the stick / arrow keys (no auto-drive). Grab every flag, smoke out the chasers. */
 (function(){
-const W=600,H=900,T=60,MW=21,MH=27;
-let api,t,map,car,ens,flags,rocks,smoke,fuel,done,lost,eff,grace,cam,want,swipe,smokeCD;
+const W=1280,H=720,T=64,MW=31,MH=17,SX=16,SY=16,CY=390;
+const SPOTS=[[0,0],[30,0],[16,0],[0,8],[30,8],[8,0],[24,0],[0,16],[30,16]];
+let api,t,map,car,ens,flags,rocks,smoke,fuel,done,lost,eff,grace,cam,mouse,mdir,smokeCD,rockT,ox,oy;
+const easy=()=>api.diff===0&&api.level<=5;              // Beginner stages 1-5 (+ tutorial): extra gentle
 const free=(i,j)=>i>=0&&j>=0&&i<MW&&j<MH&&!map[j][i];
+const isRock=(i,j)=>rocks.some(r=>r.i===i&&r.j===j);
+const pfree=(i,j)=>free(i,j)&&!(easy()&&isRock(i,j));     // Beginner 1-5: rocks are simple roadblocks, never a crash
+const D4=[[1,0],[-1,0],[0,1],[0,-1]];
+function reach(block){ const seen=new Set([SY*MW+SX]), q=[[SX,SY]]; while(q.length){ const [x,y]=q.pop(); D4.forEach(([dx,dy])=>{ const i=x+dx,j=y+dy; if(free(i,j)&&!(block&&block(i,j))&&!seen.has(j*MW+i)){ seen.add(j*MW+i); q.push([i,j]); } }); } return seen; }
 function build(a){ map=[...Array(MH)].map((_,j)=>[...Array(MW)].map((_,i)=>(i%2===1&&j%2===1)?1:0)); // city blocks
-  for(let k=0;k<Math.round(MW*MH*0.08);k++){ const i=1+Math.floor(Math.random()*(MW-2)), j=1+Math.floor(Math.random()*(MH-2)); if((i+j)%2===1) map[j][i]=1; }
-  // make sure everything connected: flood from start, unblock walls touching unreachable roads
-  const st=[10,24]; map[24][10]=0; map[23][10]=0; map[22][10]=0; for(let pass=0;pass<4;pass++){ const seen=new Set([st[1]*MW+st[0]]), q=[st]; while(q.length){ const [x,y]=q.pop(); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{ const i=x+dx,j=y+dy; if(free(i,j)&&!seen.has(j*MW+i)){ seen.add(j*MW+i); q.push([i,j]); } }); }
-    for(let j=0;j<MH;j++) for(let i=0;i<MW;i++) if(!map[j][i]&&!seen.has(j*MW+i)){ const nb=[[1,0],[-1,0],[0,1],[0,-1]].find(([dx,dy])=>map[j+dy]&&map[j+dy][i+dx]===1&&(i+dx)%2+(j+dy)%2<2); if(nb) map[j+nb[1]][i+nb[0]]=0; } }
-  flags=[]; const nf=a.content===0?3:10; while(flags.length<nf){ const i=Math.floor(Math.random()*MW), j=Math.floor(Math.random()*MH); if(free(i,j)&&Math.abs(i-10)+Math.abs(j-24)>4&&!flags.some(f=>f.i===i&&f.j===j)) flags.push({i,j,s:flags.length===0}); }
-  rocks=[]; const nr=a.content===0?0:Math.round(a.dv([3,6,9],11,16)); while(rocks.length<nr){ const i=Math.floor(Math.random()*MW), j=Math.floor(Math.random()*MH); if(free(i,j)&&!flags.some(f=>f.i===i&&f.j===j)&&Math.abs(i-10)+Math.abs(j-24)>5) rocks.push({i,j}); } }
+  const wf=a.content===0?0.01:easy()?0.03:0.08;             // Beginner: hardly any dead ends — wide open streets
+  for(let k=0;k<Math.round(MW*MH*wf);k++){ const i=1+Math.floor(Math.random()*(MW-2)), j=1+Math.floor(Math.random()*(MH-2)); if((i+j)%2===1) map[j][i]=1; }
+  for(let pass=0;pass<4;pass++){ const seen=reach();          // everything connected: unblock walls touching unreachable roads
+    for(let j=0;j<MH;j++) for(let i=0;i<MW;i++) if(!map[j][i]&&!seen.has(j*MW+i)){ const nb=D4.find(([dx,dy])=>map[j+dy]&&map[j+dy][i+dx]===1&&(i+dx)%2+(j+dy)%2<2); if(nb) map[j+nb[1]][i+nb[0]]=0; } }
+  const roads=reach().size, nearSpot=(i,j)=>SPOTS.some(s=>Math.abs(s[0]-i)+Math.abs(s[1]-j)<2)||Math.abs(i-SX)+Math.abs(j-SY)<5;
+  rocks=[]; const nr=a.content===0?0:easy()?Math.min(3,a.level-1):Math.round(a.dv([3,6,9],11,16)); let tries=0;
+  while(rocks.length<nr&&tries++<400){ const i=Math.floor(Math.random()*MW), j=Math.floor(Math.random()*MH); if(!free(i,j)||isRock(i,j)||nearSpot(i,j)) continue;
+    rocks.push({i,j}); if(reach(isRock).size!==roads-rocks.length) rocks.pop(); }  // a rock may never cut off part of the city
+  flags=[]; const nf=a.content===0?3:easy()?6:10; tries=0;
+  while(flags.length<nf&&tries++<2000){ const i=Math.floor(Math.random()*MW), j=Math.floor(Math.random()*MH); if(free(i,j)&&!isRock(i,j)&&Math.abs(i-SX)+Math.abs(j-SY)>4&&!flags.some(f=>f.i===i&&f.j===j)) flags.push({i,j,s:flags.length===0}); } }
+function placeEnemies(){ ens.forEach((e,k)=>{ const s=SPOTS[k%SPOTS.length]; e.i=s[0]; e.j=s[1]; e.a=0; e.d=[0,1]; e.x=e.i*T+T/2; e.y=e.j*T+T/2; }); }
 const GAME=window.GAME={
   id:'flag-rally',title:'Flag Rally',titleHTML:'FLAG<br>RALLY',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-FR-1.1 · 2026-10-17',theme:{a:'#2e7bff',b:'#ffd23f',bg:'#081020'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🚙',joystick:false,coinPts:40,
+  build:'BUILD-FR-1.2 · 2026-10-24',theme:{a:'#2e7bff',b:'#ffd23f',bg:'#081020'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🚙',joystick:true,coinPts:40,
   abilities:[
-    {id:'smoke',icon:'💨',name:'SMOKE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — drop a smoke cloud behind you. Chasers that drive into it spin out. Uses a little fuel.'},
+    {id:'smoke',icon:'💨',name:'SMOKE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — HOLD to drop smoke clouds behind you. Chasers that drive into it spin out. Uses a little fuel.'},
     {id:'radar',icon:'📡',name:'RADAR',cd:15,key:'Digit1',keyLabel:'1',desc:'Big arrows point to every flag for 8 seconds.'},
     {id:'nitro',icon:'🚀',name:'NITRO',cd:15,key:'Digit2',keyLabel:'2',desc:'Top speed for 5 seconds.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit3',keyLabel:'3',desc:'6 seconds of safety from chasers and rocks.'},
     {id:'fuel',icon:'⛽',name:'REFUEL',cd:20,key:'Digit4',keyLabel:'4',desc:'+50% fuel.'}],
   shop:[{id:'r_b',cat:'Car',name:'Blue Racer',cost:0,colors:['#2e7bff'],desc:'Classic.'},{id:'r_g',cat:'Car',name:'Green Racer',cost:150,colors:['#3bff7a'],desc:'Lime.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#2e7bff,#ffd23f)'}],
-  story:`<h3>FLAG RALLY</h3><p>The city rally is on. Ten flags are hidden in the streets, and the red gang cars want them back.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Swipe</b> (or arrow keys) to turn at the next corner. Your car never stops.</li><li>Grab all the 🚩 flags. The ⭐ SPECIAL flag doubles every flag after it.</li><li>Red cars chase you — drop <b>💨 SMOKE</b> (SPACE) to spin them out. Avoid the rocks.</li><li>Watch your fuel — flags left at the end count as bonus fuel points.</li></ul>`,
-  tutorial:[{text:'Swipe to turn. Grab the flags 🚩!',ev:'flag'},{text:'Get every flag!',time:5}],
-  stageIntro:{1:'GRAB EVERY FLAG'},bossName:'GANG BOSS RALLY!',ending:{"0":["#CHAMP","Rally champion."],"1":["#LEGEND","King of the streets."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ if(id==='smoke'&&smokeCD>0) return {left:smokeCD,total:0.8}; const tot={radar:8,nitro:5,shield:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pl(){return car;}, get ens(){return ens;}, get lost(){return lost;}, get flags(){return flags;}}; },
+  story:`<h3>FLAG RALLY</h3><p>The city rally is on. Flags are hidden in the streets, and the red gang cars want them back.</p>`,
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> hold the stick to drive — push the way you want to go. Let go and your car <b>stops</b>. PC: arrow keys or WASD (hold to drive).</li><li><b>Right thumb:</b> HOLD <b>💨 SMOKE</b> to drop smoke behind you (PC: hold SPACE). Chasers that hit it spin out.</li><li>Grab all the 🚩 flags. The ⭐ SPECIAL flag doubles every flag after it. The map (top right) shows where they are.</li><li>Red cars chase you — don't let them catch you. Avoid the rocks.</li><li>Watch your ⛽ fuel — left-over fuel is bonus points. Empty = slow car.</li><li>Every 10th stage: the purple gang boss cars join the chase.</li></ul>`,
+  tutorial:[{text:'Hold the <b>arrow keys</b> to drive — let go and you stop. Grab a flag 🚩!',touch:'<b>Left thumb:</b> hold the stick to drive — let go and you stop. Grab a flag 🚩!',ev:'flag'},
+    {text:'Press <b>SPACE</b> to drop 💨 SMOKE — chasers spin out in it.',touch:'Tap <b>💨 SMOKE</b> (right thumb) — chasers spin out in it.',ev:'ab_smoke'},{text:'Get every flag!',time:5}],
+  stageIntro:{1:'HOLD THE STICK TO DRIVE'},bossName:'GANG BOSS RALLY!',ending:{"0":["#CHAMP","Rally champion."],"1":["#LEGEND","King of the streets."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ if(id==='smoke'&&smokeCD>0) return {left:smokeCD,total:0.8}; const tot={radar:8,nitro:5,shield:6}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return {get pl(){return car;}, get ens(){return ens;}, get lost(){return lost;}, get done(){return done;}, get flags(){return flags;}, get rocks(){return rocks;}, get fuel(){return fuel;}, free, pfree, T}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=2; smokeCD=0; eff={radar:-9,nitro:-9,shield:-9}; build(a); smoke=[]; fuel=100; want=null; this._mult=1;
-    car={i:10,j:24,x:10*T+T/2,y:24*T+T/2,d:[0,-1],a:0}; cam={x:car.x,y:car.y};
-    ens=[]; const ne=a.content===0?1:Math.round(a.dv([2,3,4],5,7)); for(let k=0;k<ne+(a.boss?2:0);k++){ const i=[0,20,10,0,20,10,4,16][k%8], j=[0,0,0,12,12,26,26,26][k%8]; ens.push({i,j,x:i*T+T/2,y:j*T+T/2,d:[0,1],a:0,spin:1.5+k*0.5,boss:a.boss&&k>=ne}); } },
-  respawn(){ lost=false; grace=2.5; car={i:10,j:24,x:10*T+T/2,y:24*T+T/2,d:[0,-1],a:0}; ens.forEach(e=>e.spin=2); fuel=Math.max(fuel,40); },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=easy()?3:2; smokeCD=0; rockT=0; eff={radar:-9,nitro:-9,shield:-9}; build(a); smoke=[]; fuel=100; mouse=null; mdir=null; this._mult=1;
+    car={i:SX,j:SY,x:SX*T+T/2,y:SY*T+T/2,d:[0,-1],a:0,v:0}; cam={x:car.x,y:car.y}; camOff();
+    const ne=a.content===0?1:easy()?(a.level<=3?1:2):Math.round(a.dv([2,3,4],5,7));
+    ens=[]; for(let k=0;k<ne+(a.boss?2:0);k++) ens.push({d:[0,1],a:0,spin:(easy()?3:1.5)+k*0.6,boss:a.boss&&k>=ne}); placeEnemies(); },
+  respawn(){ lost=false; grace=easy()?3.5:2.5; car={i:SX,j:SY,x:SX*T+T/2,y:SY*T+T/2,d:[0,-1],a:0,v:0}; placeEnemies(); ens.forEach(e=>e.spin=easy()?3:2); smoke=[]; fuel=Math.max(fuel,40); },
   stageBonus(){ return Math.round(fuel)*20; },
-  useAbility(id){ if(done||lost) return false;
-    if(id==='smoke'){ if(smokeCD>0) return false; smokeCD=0.8; smoke.push({x:car.x-car.d[0]*30,y:car.y-car.d[1]*30,l:3}); fuel=Math.max(0,fuel-1.5); api.sfx.small(); return true; }
+  useAbility(id){ if(done||lost) return false; if(id==='smoke') return true;   // smoke is HOLD-to-drop, handled in update()
     if(id==='fuel'){ fuel=Math.min(150,fuel+50); api.sfx.power(); return true; }
     eff[id]={radar:8,nitro:5,shield:6}[id]; api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(done||lost) return; if(type==='down') swipe={x,y}; else if(type==='up'&&swipe){ const dx=x-swipe.x, dy=y-swipe.y; if(Math.hypot(dx,dy)>20) want=Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)]; else this.useAbility('smoke'); swipe=null; } },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; if(smokeCD>0) smokeCD-=dt; if(lost) return;
-    const K=api.input.keys; if(K.ArrowLeft||K.KeyA) want=[-1,0]; if(K.ArrowRight||K.KeyD) want=[1,0]; if(K.ArrowUp||K.KeyW) want=[0,-1]; if(K.ArrowDown||K.KeyS) want=[0,1]; if(K.Space&&!this._s) this.useAbility('smoke'); this._s=K.Space;
-    const sp=(fuel>0?1:0.45)*(eff.nitro>0?7.5:5); mover(car,dt*sp,()=>{ if(want&&free(car.i+want[0],car.j+want[1])){ car.d=want; } else if(!free(car.i+car.d[0],car.j+car.d[1])){ const alt=[[car.d[1],car.d[0]],[-car.d[1],-car.d[0]],[-car.d[0],-car.d[1]]].find(d=>free(car.i+d[0],car.j+d[1])); car.d=alt; } });
-    fuel=Math.max(0,fuel-dt*api.dv([1.2,1.6,2],2.3,3));
-    flags.forEach(f=>{ if(!f.got&&f.i===car.i&&f.j===car.j&&car.a<0.5){ f.got=true; if(f.s){ this._mult=2; api.toast('⭐ SPECIAL FLAG! ×2'); } api.addScore(100*this._mult*(flags.filter(x=>x.got).length),f.i*T,f.j*T-cam.y+H/2); api.sfx.pickup(); api.event('flag'); } });
-    rocks.forEach(r=>{ if(grace<=0&&eff.shield<=0&&r.i===car.i&&r.j===car.j&&car.a>0.3&&car.a<0.7) die('HIT A ROCK!'); });
+  onPointer(type,x,y,id,pt){ if(pt==='touch'||pt==='pen') return;   // phones drive with the shell's joystick; a mouse drags from where you press
+    if(type==='down'){ mouse={x,y}; mdir=null; } else if(type==='move'&&mouse){ const dx=x-mouse.x, dy=y-mouse.y, m=Math.hypot(dx,dy); mdir=m>18?{x:dx/m,y:dy/m}:null; } else if(type==='up'){ mouse=null; mdir=null; } },
+  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; rockT-=dt; if(smokeCD>0) smokeCD-=dt; if(lost) return;
+    const K=api.input.keys;
+    drive(dt);
+    if(K.Space&&smokeCD<=0){ smokeCD=0.8; smoke.push({x:car.x-car.d[0]*34,y:car.y-car.d[1]*34,l:3}); fuel=Math.max(0,fuel-1.5); api.sfx.small(); }
+    fuel=Math.max(0,fuel-dt*api.dv([1.2,1.6,2],2.3,3)*(easy()?0.6:1)*(car.v>0?1:0.25));
+    flags.forEach(f=>{ if(!f.got&&Math.hypot(f.i*T+T/2-car.x,f.j*T+T/2-car.y)<T*0.5){ f.got=true; if(f.s){ this._mult=2; api.toast('⭐ SPECIAL FLAG! ×2'); } api.addScore(100*this._mult*(flags.filter(x=>x.got).length),f.i*T+T/2+ox,f.j*T+oy); api.sfx.pickup(); api.fx.burst(f.i*T+T/2+ox,f.j*T+T/2+oy,f.s?'#ffd23f':'#ff3b3b',14,160,.4,3); api.event('flag'); } });
+    if(!easy()) rocks.forEach(r=>{ if(grace<=0&&eff.shield<=0&&Math.hypot(r.i*T+T/2-car.x,r.j*T+T/2-car.y)<T*0.42) die('HIT A ROCK!'); });
     smoke.forEach(s=>s.l-=dt); smoke=smoke.filter(s=>s.l>0);
-    const es=api.dv([4,4.8,5.6],6.2,7.4);
-    ens.forEach(e=>{ if(e.spin>0){ e.spin-=dt; return; } mover(e,dt*es*(e.boss?1.1:1),()=>{ const opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(d=>free(e.i+d[0],e.j+d[1])&&!(d[0]===-e.d[0]&&d[1]===-e.d[1])); if(!opts.length){ e.d=[-e.d[0],-e.d[1]]; return; }
-        opts.sort((A,B)=>Math.hypot(e.i+A[0]-car.i,e.j+A[1]-car.j)-Math.hypot(e.i+B[0]-car.i,e.j+B[1]-car.j)); e.d=Math.random()<api.dv([0.7,0.82,0.92],0.95,0.98)?opts[0]:opts[Math.floor(Math.random()*opts.length)]; });
-      smoke.forEach(s=>{ if(Math.hypot(e.x-s.x,e.y-s.y)<36){ e.spin=2.5; api.addScore(50,undefined,undefined,true); } });
-      if(grace<=0&&eff.shield<=0&&Math.hypot(e.x-car.x,e.y-car.y)<T*0.55) die('CRASHED INTO A CHASER!'); });
-    cam.x+=(car.x-cam.x)*Math.min(1,dt*6); cam.y+=(car.y-cam.y)*Math.min(1,dt*6);
+    const es=easy()?(api.content===0?2.4:2.8+api.level*0.1):api.dv([4,4.8,5.6],6.2,7.4), aim=easy()?0.6:api.dv([0.7,0.82,0.92],0.95,0.98);
+    ens.forEach(e=>{ if(e.spin>0){ e.spin-=dt; return; } mover(e,dt*es*(e.boss?1.1:1),()=>{ const opts=D4.filter(d=>free(e.i+d[0],e.j+d[1])&&!(d[0]===-e.d[0]&&d[1]===-e.d[1])); if(!opts.length){ e.d=[-e.d[0],-e.d[1]]; return; }
+        opts.sort((A,B)=>Math.hypot(e.i+A[0]-car.i,e.j+A[1]-car.j)-Math.hypot(e.i+B[0]-car.i,e.j+B[1]-car.j)); e.d=Math.random()<aim?opts[0]:opts[Math.floor(Math.random()*opts.length)]; });
+      smoke.forEach(s=>{ if(e.spin<=0&&Math.hypot(e.x-s.x,e.y-s.y)<44){ e.spin=2.5; api.addScore(50,e.x+ox,e.y+oy,true); api.event('spin'); } });
+      if(grace<=0&&eff.shield<=0&&e.spin<=0&&Math.hypot(e.x-car.x,e.y-car.y)<T*0.55) die('CRASHED INTO A CHASER!'); });
+    cam.x+=(car.x-cam.x)*Math.min(1,dt*6); cam.y+=(car.y-cam.y)*Math.min(1,dt*6); camOff();
     const left=flags.filter(f=>!f.got).length; api.counter('🚩 FLAGS',left+' · ⛽'+Math.ceil(fuel)+'%',fuel<15?'empty':fuel<30?'low':'');
     if(!left&&!done){ done=true; api.toast('ALL FLAGS!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); } },
-  render(c){ c.fillStyle='#081020'; c.fillRect(0,0,W,H); const ox=W/2-cam.x, oy=H/2-cam.y+60;
+  render(c){ c.fillStyle='#081020'; c.fillRect(0,0,W,H); camOff();
     c.save(); c.translate(ox,oy);
     for(let j=0;j<MH;j++) for(let i=0;i<MW;i++){ const x=i*T,y=j*T; if(x+ox<-T||x+ox>W||y+oy<-T||y+oy>H) continue;
-      if(map[j][i]){ c.fillStyle='#1a3a2a'; c.fillRect(x+3,y+3,T-6,T-6); c.fillStyle='#2a5a3a'; c.fillRect(x+8,y+8,T-16,T-16); c.fillStyle='rgba(255,210,63,.6)'; c.fillRect(x+14,y+14,6,6); c.fillRect(x+T-20,y+T-22,6,6); }
+      if(map[j][i]){ c.fillStyle='#1a3a2a'; c.fillRect(x+3,y+3,T-6,T-6); c.fillStyle='#2a5a3a'; c.fillRect(x+9,y+9,T-18,T-18); c.fillStyle='rgba(255,210,63,.6)'; c.fillRect(x+15,y+15,7,7); c.fillRect(x+T-22,y+T-24,7,7); }
       else { c.fillStyle='#24283a'; c.fillRect(x,y,T,T); c.fillStyle='rgba(255,255,255,.08)'; c.fillRect(x+T/2-2,y+T/2-2,4,4); } }
-    c.strokeStyle='#2e7bff'; c.lineWidth=4; c.strokeRect(0,0,MW*T,MH*T);
-    rocks.forEach(r=>{ c.fillStyle='#8a8a9a'; c.beginPath(); c.arc(r.i*T+T/2,r.j*T+T/2,18,0,7); c.fill(); c.fillStyle='#6a6a7a'; c.beginPath(); c.arc(r.i*T+T/2-5,r.j*T+T/2-5,7,0,7); c.fill(); });
-    flags.forEach(f=>{ if(f.got) return; const x=f.i*T+T/2,y=f.j*T+T/2; c.fillStyle='#fff'; c.fillRect(x-2,y-18,3,32); c.fillStyle=f.s?'#ffd23f':'#ff3b3b'; c.beginPath(); c.moveTo(x+1,y-18); c.lineTo(x+20,y-11); c.lineTo(x+1,y-4); c.fill(); });
-    smoke.forEach(s=>{ c.fillStyle=`rgba(220,220,230,${s.l/3*0.7})`; c.beginPath(); c.arc(s.x,s.y,26+(3-s.l)*6,0,7); c.fill(); });
-    ens.forEach(e=>drawCar(c,e.x,e.y,e.d,e.boss?'#b14bff':'#ff3b3b',e.spin>0?t*12:0));
-    if(!lost&&(grace<=0||(t*10|0)%2)){ drawCar(c,car.x,car.y,car.d,api.cos('Car').colors[0],0); if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(car.x,car.y,30,0,7); c.stroke(); } }
+    c.shadowColor='#2e7bff'; c.shadowBlur=12; c.strokeStyle='#2e7bff'; c.lineWidth=4; c.strokeRect(0,0,MW*T,MH*T); c.shadowBlur=0;
+    rocks.forEach(r=>{ const x=r.i*T+T/2,y=r.j*T+T/2; c.fillStyle='#8a8a9a'; c.beginPath(); c.arc(x,y,20,0,7); c.fill(); c.fillStyle='#6a6a7a'; c.beginPath(); c.arc(x-6,y-6,8,0,7); c.fill(); });
+    flags.forEach(f=>{ if(f.got) return; const x=f.i*T+T/2,y=f.j*T+T/2+Math.sin(t*3+f.i)*2; c.fillStyle='#fff'; c.fillRect(x-2,y-20,3,36); c.shadowColor=f.s?'#ffd23f':'#ff3b3b'; c.shadowBlur=14; c.fillStyle=f.s?'#ffd23f':'#ff3b3b'; c.beginPath(); c.moveTo(x+1,y-20); c.lineTo(x+23,y-12); c.lineTo(x+1,y-4); c.fill(); c.shadowBlur=0; });
+    smoke.forEach(s=>{ c.fillStyle=`rgba(220,220,230,${s.l/3*0.7})`; c.beginPath(); c.arc(s.x,s.y,28+(3-s.l)*7,0,7); c.fill(); });
+    ens.forEach(e=>drawCar(c,e.x,e.y,e.d,e.boss?'#b14bff':'#ff3b3b',e.spin>0&&t>0.1?t*12:0));
+    if(!lost&&(grace<=0||(t*10|0)%2)){ drawCar(c,car.x,car.y,car.d,api.cos('Car').colors[0],0); if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(car.x,car.y,34,0,7); c.stroke(); } }
     c.restore();
-    if(eff.radar>0) flags.forEach(f=>{ if(f.got) return; const dx=f.i*T+T/2-car.x, dy=f.j*T+T/2-car.y, a=Math.atan2(dy,dx); if(Math.hypot(dx,dy)<280) return; c.save(); c.translate(W/2+Math.cos(a)*200,H/2+60+Math.sin(a)*200); c.rotate(a); c.fillStyle=f.s?'#ffd23f':'#ff3b3b'; c.beginPath(); c.moveTo(18,0); c.lineTo(-10,-10); c.lineTo(-10,10); c.fill(); c.restore(); });
-    // minimap
-    const mx=W-118, my=110, s=5; c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(mx-4,my-4,MW*s+8,MH*s+8);
-    flags.forEach(f=>{ if(!f.got){ c.fillStyle=f.s?'#ffd23f':'#ff3b3b'; c.fillRect(mx+f.i*s,my+f.j*s,s,s); } }); ens.forEach(e=>{ c.fillStyle='#ff9f1c'; c.fillRect(mx+e.x/T*s-2,my+e.y/T*s-2,4,4); }); c.fillStyle='#fff'; c.fillRect(mx+car.x/T*s-2,my+car.y/T*s-2,5,5);
+    const px=car.x+ox, py=car.y+oy;
+    if(eff.radar>0) flags.forEach(f=>{ if(f.got) return; const dx=f.i*T+T/2-car.x, dy=f.j*T+T/2-car.y, a=Math.atan2(dy,dx); if(Math.hypot(dx,dy)<300) return; c.save(); c.translate(px+Math.cos(a)*170,py+Math.sin(a)*170); c.rotate(a); c.fillStyle=f.s?'#ffd23f':'#ff3b3b'; c.beginPath(); c.moveTo(20,0); c.lineTo(-11,-11); c.lineTo(-11,11); c.fill(); c.restore(); });
+    // minimap (top right, under the HUD strip)
+    const s=6, mw=MW*s, mx=W-mw-24, my=86; c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(mx-5,my-5,mw+10,MH*s+10); c.strokeStyle='rgba(46,123,255,.7)'; c.lineWidth=2; c.strokeRect(mx-5,my-5,mw+10,MH*s+10);
+    c.fillStyle='rgba(255,255,255,.07)'; for(let j=0;j<MH;j++) for(let i=0;i<MW;i++) if(!map[j][i]) c.fillRect(mx+i*s,my+j*s,s,s);
+    flags.forEach(f=>{ if(!f.got){ c.fillStyle=f.s?'#ffd23f':'#ff3b3b'; c.fillRect(mx+f.i*s,my+f.j*s,s,s); } }); ens.forEach(e=>{ c.fillStyle='#ff9f1c'; c.fillRect(mx+e.x/T*s-2,my+e.y/T*s-2,4,4); }); c.fillStyle='#fff'; c.fillRect(mx+car.x/T*s-3,my+car.y/T*s-3,6,6);
+    if(!lost&&car.v<=0&&t<6&&!done){ c.fillStyle='rgba(255,255,255,.85)'; c.font='bold 22px sans-serif'; c.textAlign='center'; c.fillText((api.input.touch||(window.matchMedia&&matchMedia('(pointer: coarse)').matches))?'HOLD THE STICK TO DRIVE':'HOLD AN ARROW KEY TO DRIVE',px,py-54); c.textAlign='left'; }
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#081020'; c.fillRect(0,0,W,H); drawCar(c,300+Math.sin(tt)*120,450,[1,0],'#2e7bff',0); }
+  attract(c,tt){ c.fillStyle='#081020'; c.fillRect(0,0,W,H); c.fillStyle='#24283a'; c.fillRect(0,300,W,128); for(let x=0;x<W;x+=160){ c.fillStyle='#2a5a3a'; c.fillRect(x+20,180,120,100); c.fillRect(x+20,448,120,100); }
+    drawCar(c,640+Math.sin(tt)*360,364,[Math.cos(tt)>=0?1:-1,0],'#2e7bff',0); drawCar(c,640+Math.sin(tt-0.9)*360,364,[Math.cos(tt-0.9)>=0?1:-1,0],'#ff3b3b',0); }
 };
-function mover(o,step,decide){ if(o.a===0) decide(); if(o.d&&free(o.i+o.d[0],o.j+o.d[1])){ o.a+=step; while(o.a>=1){ o.a-=1; o.i+=o.d[0]; o.j+=o.d[1]; decide(); if(!o.d||!free(o.i+o.d[0],o.j+o.d[1])){ o.a=0; break; } } } else o.a=0; if(!o.d) o.d=[0,-1]; o.x=(o.i+o.d[0]*o.a)*T+T/2; o.y=(o.j+o.d[1]*o.a)*T+T/2; }
-function drawCar(c,x,y,d,col,spin){ c.save(); c.translate(x,y); c.rotate(Math.atan2(d[1],d[0])+Math.PI/2+spin); c.fillStyle='#111'; c.fillRect(-14,-14,6,10); c.fillRect(8,-14,6,10); c.fillRect(-14,6,6,10); c.fillRect(8,6,6,10); c.fillStyle=col; c.fillRect(-11,-18,22,36); c.fillStyle='#bfefff'; c.fillRect(-8,-12,16,8); c.fillStyle='rgba(255,255,255,.4)'; c.fillRect(-2,-18,4,36); c.restore(); }
-function die(msg){ if(lost||done) return; lost=true; api.toast(msg); api.fx.burst(W/2,H/2+60,'#ff9f1c',30,240,.6,3); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1000); }
+// the player's car: moves ONLY while the stick / arrow keys / mouse drag are held — let go and it stops dead
+function drive(dt){ const Dn=api.input.dir(); let x=Dn.x,y=Dn.y; if(mdir){ x=mdir.x; y=mdir.y; }
+  if(Math.max(Math.abs(x),Math.abs(y))<0.3){ car.v=0; setPos(car); return; }
+  const hz=Math.abs(x)>=Math.abs(y), prim=hz?[Math.sign(x),0]:[0,Math.sign(y)], sec=hz?(Math.abs(y)>0.3?[0,Math.sign(y)]:null):(Math.abs(x)>0.3?[Math.sign(x),0]:null);
+  if(car.a>0&&prim[0]===-car.d[0]&&prim[1]===-car.d[1]){ car.i+=car.d[0]; car.j+=car.d[1]; car.a=1-car.a; car.d=prim; }   // U-turn mid-street
+  const sp=(fuel>0?1:0.45)*(eff.nitro>0?7.5:5); car.v=Math.min(sp,car.v+sp*dt*6); let step=car.v*dt, g=0;
+  while(step>0&&g++<6){
+    if(car.a===0){ const back=car.d[0]===-prim[0]&&car.d[1]===-prim[1]; const nd=[prim,sec,back?null:car.d].filter(Boolean).find(d=>pfree(car.i+d[0],car.j+d[1]));
+      if(!nd){ car.v=0; if(easy()&&isRock(car.i+prim[0],car.j+prim[1])&&rockT<=0){ rockT=2; api.toast('ROCK! DRIVE AROUND IT'); api.sfx.bump(); } break; } car.d=nd; }
+    const room=1-car.a; if(step<room){ car.a+=step; step=0; } else { step-=room; car.a=0; car.i+=car.d[0]; car.j+=car.d[1]; } }
+  setPos(car); }
+// view follows the car but stops near the city edge, so the screen stays full of streets (not empty space)
+function camOff(){ ox=Math.round(Math.max(W-MW*T-200,Math.min(300,W/2-cam.x))); oy=Math.round(Math.max(H-MH*T-140,Math.min(90,CY-cam.y))); }
+function setPos(o){ o.x=(o.i+o.d[0]*o.a)*T+T/2; o.y=(o.j+o.d[1]*o.a)*T+T/2; }
+function mover(o,step,decide){ if(o.a===0) decide(); if(o.d&&free(o.i+o.d[0],o.j+o.d[1])){ o.a+=step; while(o.a>=1){ o.a-=1; o.i+=o.d[0]; o.j+=o.d[1]; decide(); if(!o.d||!free(o.i+o.d[0],o.j+o.d[1])){ o.a=0; break; } } } else o.a=0; if(!o.d) o.d=[0,-1]; setPos(o); }
+function drawCar(c,x,y,d,col,spin){ c.save(); c.translate(x,y); c.scale(1.25,1.25); c.rotate(Math.atan2(d[1],d[0])+Math.PI/2+spin); c.fillStyle='#111'; c.fillRect(-14,-14,6,10); c.fillRect(8,-14,6,10); c.fillRect(-14,6,6,10); c.fillRect(8,6,6,10); c.shadowColor=col; c.shadowBlur=10; c.fillStyle=col; c.fillRect(-11,-18,22,36); c.shadowBlur=0; c.fillStyle='#bfefff'; c.fillRect(-8,-12,16,8); c.fillStyle='rgba(255,255,255,.4)'; c.fillRect(-2,-18,4,36); c.restore(); }
+function die(msg){ if(lost||done) return; lost=true; car.v=0; api.toast(msg); api.fx.burst(car.x+ox,car.y+oy,'#ff9f1c',30,240,.6,3); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1000); }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -600,8 +666,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -626,6 +710,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -643,6 +750,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -749,7 +860,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -773,6 +884,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -822,8 +935,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1194,7 +1307,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1368,6 +1481,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1378,10 +1492,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1398,7 +1525,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1434,7 +1561,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1473,6 +1600,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
