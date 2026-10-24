@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-WH-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-WH-1.1 · 2026-10-24">
 <title>Word Hunt</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,47 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
 
 </style>
 </head>
 <body>
-<!-- BUILD-WH-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-WH-1.1 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,137 +467,190 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* WORD HUNT — five-letter word-guess remix. 100 stages. Find the hidden word in a handful of tries: tiles flip green, yellow or grey. */
+/* WORD HUNT — word-search remix. 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1): a grid of letters in the middle, the words to
+   find listed on the right. Drag across a word (or tap its first letter, then its last letter). Puzzles come only from
+   Math.random inside startStage, so a RACE (shell MP-1, seeded) gives both players the identical grid.
+   Layout keeps clear of: top HUD strip (y<80), ability column (left edge), action button (bottom-right), and the race bars
+   (moved by this file into a reserved slot of the right panel while racing). */
 (function(){
-const W=600,H=900,KY=622,KH=72,KG=8,BY=100;
-const W4='ableacrearcharmyauntbabybackbakeballbandbankbarnbathbeadbeanbearbeefbellbeltbestbirdboatbodybonebookbootbowlbushcakecalfcalmcampcardcarecartcavechefchincityclayclubcoatcoincoldcookcoolcorncrabcrewcubedarkdawndeerdeskdicedishdivedockdoordovedowndrumduckdusteacheasteasyechoedgefarmfastfernfilmfirefishflagfoamfoldfoodfootforkfrogfuelgamegategiftglowgoalgoldgolfgoodgowngrinhairhalfhallhandharphawkheatherbherohillhomehookhopehornhugeideaironjazzjumpkindkingkitekneelakelamblamplandlaneleaflimelionlistloaflocklongloudluckmailmaskmealmilkmintmoonmossnestnoteovenpackpagepalmparkpathpearpineplanplayplumpondpoolrainriceringroadrockroofroperoserubysailsaltsandsealseedshipshoesilksingsnowsoapsongsoupstarswimtailtenttidetreetriptunavasewavewindwingwolfwoodyardyarnzerozone',W5='aboutaboveactoracuteadaptadmitadoptadultafteragainagentagreeaheadalarmalbumalertalikealiveallowalonealongalteramazeamongangleangryankleappleapplyapronarenaarguearisearmorarrowasideassetatlasatticaudioavoidawakeawardawarebaconbadgebagelbakerbasicbasinbatchbeachbeardbeastbeginbeingbenchberrybirchbirthblackbladeblameblankblastblazeblendblessblindblinkblockbloomblushboardboastbonusboostboothboundbrainbrakebrandbravebreadbreakbrickbridebriefbringbriskbroadbroombrownbrushbuildbunchburstbuyercabincablecamelcandycanoecargocarolcarrycatchcausecedarchainchairchalkchampcharmchartchasecheapcheckcheekcheerchesschestchickchiefchildchillchirpchoirchordcivicclaimclampclasscleanclearclerkclickcliffclimbclockcloseclothcloudclowncoachcoastcocoacolorcometcomiccoralcouchcountcourtcovercraftcranecrashcratecrawlcrazycreamcreekcrispcrosscrowdcrowncrumbcrustcubiccurlycurvecycledailydairydaisydancedealtdelaydepthdiarydizzydodgedoingdoughdraftdraindramadrankdreamdressdrieddriftdrilldrinkdrivedwarfeagereagleearlyeartheaseleightelbowelderelectemptyenjoyenterentryequalerroressayeventeveryexactexistextrafablefaintfairyfaithfalsefancyfeastfenceferryfetchfeverfieldfifthfiftyfinalfirstflakeflameflashfleetflockfloodfloorflourfluidflutefocusfoggyforceforgeforthfortyforumfoundframefreshfrontfrostfruitfudgefullyfunnygiantgivenglassglobegloryglovegoosegracegradegraingrandgrantgrapegraphgraspgrassgreatgreengreetgrillgrindgroangroupgroveguardguessguestguidehabithappyharshhastehatchhavenheartheavyhedgehellohippohobbyhoneyhorsehotelhousehumanhumorhurryidealiglooimageindexinnerinputissueivoryjellyjeweljointjollyjudgejuicejumbokayakkebabknackkneadkneelknifeknockknownkoalalabellaborlargelaserlaterlaughlayerlearnlemonlevellightlilaclimitlinenliverllamalocallodgelogiclooseluckylunarlunchmagicmajormakermangomaplemarchmatchmayormedalmelonmerrymetalmetermightminceminorminusmirthmixermodelmoneymonthmoosemotormountmousemouthmoviemuddymusicnavalnervenevernewernightninjanoblenoisenorthnovelnursenylonoceanofferoftenoliveonionoperaorbitorderorganotterouterowneroxidepaintpandapanelpaperpartypastapatchpausepeacepeachpearlpedalpennyperchphonephotopianopiecepilotpinchpizzaplaceplainplaneplantplateplazaplumppointpolarporchpouchpowerpresspriceprideprimeprintprizeproofproudprunepupilpuppypursequackqueenquestquickquietquiltquitequotaquoteradarradiorainyraiserallyranchrangerapidravenreachreactreadyrealmrelaxrelayreplyrhymeriderridgerightrinseriverroastrobinrobotrockyroostrougeroughroundrouteroyalrugbyrulerrustysaladsandysaucescalescarfscenescentsconescoopscorescoutscrapscrewsevenshadeshakeshapesharesharksharpsheepsheetshelfshellshineshinyshirtshockshoreshortshoutshrubsightsilkysillysinceskateskillskirtskunkslatesleepsliceslideslopesmartsmellsmilesmokesnacksnailsnakesneaksnoresnowysolarsolidsolvesorrysoundsouthspacespadesparesparkspeakspeedspellspendspicespikespinespoonsportspraysquadstackstaffstagestairstampstandstarestartstatesteamsteelsteepstickstillstingstonestoolstormstorystovestrawstripstudystuffstylesugarsunnysuperswampswarmsweepsweetswiftswingswordsyruptabletasteteachteethtempothankthemetherethickthingthinkthirdthumbtigertighttimertoasttodaytokentoothtopictorchtotaltouchtoughtoweltowertracetracktradetrailtraintreattrendtrialtribetricktrucktrulytrunktrusttruthtuliptutortwicetwistuncleunderunityuntilupperupseturbanusualvalidvaluevaporvaultvenueversevideovigorvisitvitalvividvocalvoicewagonwaistwatchwaterwhalewheatwheelwherewhichwhilewhirlwhitewholewidthwittywomanworldworryworthwouldwristwriteyachtyearnyeastyieldyoungyouthzebrazesty',W6='actionadmireanimalansweranchorarriveartistautumnbananabarrelbasketbeaverbottlebridgebrightbubblebucketbutterbuttoncameracandlecarpetcarrotcastlecattlecentercheesecherrycirclecitiescleverclosetcobwebcookiecoppercornercottoncousincrayoncruisedancerdesertdinnerdoctordragondrawerdrivereasilyeffortelevenengineescapefamilyfarmerfatherfingerflowerforestfriendfrozengardengingerglidergoldengentleguitarhammerhelmethikinghonestislandjacketjigsawjunglekettlekittenladderlaunchlizardlocketmagnetmarketmeadowmellowmirrormonkeymothermuseumneedlenumberorangeoysterpacketpaddleparadeparrotpencilpepperperiodpicklepillowplanetplentypocketpotatopuzzlerabbitrescueribbonrocketsaddlesalmonschoolseasonshadowsilversingersistersmoothspiritspringsquarestreamstreetsummersunsettabletteapottempletickettimbertomatotravelturtlevelvetviolinwalletwalnutwindowwinterwizardwonderyellow',EASY=['happy','smile','house','beach','pizza','apple','music','candy','water','green'];
-const LISTS={4:split(W4,4),5:split(W5,5),6:split(W6,6)};
-const KROWS=['QWERTYUIOP','ASDFGHJKL','>ZXCVBNM<'];
-const GREEN='#2ee87a',YEL='#ffc83d',GREY='#3a3f5a';
-let api,t,L,word,rows,cur,maxTries,extra,keySt,removed,revealed,solved,goal,done,lost,busy,nextT,clock,limit,timed,bossClock,shakeT,failWord,used,bg,lastUpd=0,bounce,pressK;
-function split(s,n){ const a=[]; for(let i=0;i<s.length;i+=n) a.push(s.substr(i,n)); return a; }
+const W=1280,H=720;
+const GX0=285,GX1=885,GB=700;            // grid area (centre band — never under the side controls)
+const LX=212;                            // left info strip centre (clock / found) — kept above y=520
+const RX0=900,RX1=1268;                  // right word-list panel — ends above the action button zone (y<520)
+const sp=s=>s.split(' ');
+const E3=sp('cat dog sun hat bus pig cow bed cup egg fox hen jam map owl pen red toy zoo bee ant box car ice key sky bat');
+const E4=sp('ball bear bird boat book cake duck fish frog kite lion milk moon nest rain ring ship shoe snow star tree farm door hand game king lamp');
+const W3=E3.concat(sp('fan hug jar leg mud nut pot rug web cap den fig gum ink kid lid mop oak pea ram saw tap tin wig bag bun bug dot elf gem hop hut jet kit log mix nap paw pin pup rat tub yam zip'));
+const W4=E4.concat(sp('bake band bank barn bath bean bell belt boot bowl cave chef city clay coat coin cook corn crab dark dawn deer desk dish dock drum dust easy echo fern film fire flag foam fork fuel gate gift glow goal gold golf hair hawk hero hill home hope horn idea iron jazz jump lake lamb leaf lime list loaf lock mail mask mint moss note oven page palm park path pear pine play plum pond pool rice road rock roof rope rose ruby sail salt sand seed silk sing soap song soup tail tent tide trip tuna vase wave wind wing wolf wood yard yarn zero'));
+const W5=sp('apple beach candy happy house music pizza smile water green about angle arrow bacon badge baker berry blaze bloom board brave bread brick brush cabin camel canoe chair chalk charm chess chick cloud clown coast cocoa comet coral crown daisy dance dream eagle earth feast fence field flame flute frost fruit giant glass globe grape grass heart honey horse igloo jelly jewel juice kayak knife koala laser lemon light llama lunar lunch magic mango maple melon money moose mouse ninja ocean olive onion orbit otter panda paper party peach pearl piano pilot plant plate polar puppy queen quilt radio raven river robin robot salad scarf shark sheep shell skate snail snake space spoon stamp steam stone storm sugar sunny swing table tiger toast tooth torch tower train tulip uncle vapor wagon whale wheat wheel zebra');
+const W6=sp('animal anchor artist autumn banana barrel basket beaver bottle bridge bubble bucket butter button camera candle carpet carrot castle cheese cherry circle cookie copper cotton crayon desert dinner doctor dragon engine forest friend garden ginger guitar hammer helmet island jacket jungle kettle kitten ladder lizard magnet meadow mirror monkey number orange oyster paddle parade parrot pencil pepper pickle pillow planet pocket potato puzzle rabbit ribbon rocket saddle salmon school shadow silver spring square stream summer sunset teapot ticket tomato turtle velvet violin walnut window winter wizard yellow');
+const W7=sp('rainbow dolphin kitchen blanket chicken popcorn monster pumpkin unicorn giraffe penguin octopus volcano library picture teacher holiday morning thunder balloon cabbage captain compass diamond blossom crystal feather lantern mermaid pancake pyramid sandbox seagull snowman');
+const W8=sp('elephant sandwich dinosaur mountain umbrella treasure notebook airplane football sunshine starfish backpack keyboard hedgehog kangaroo squirrel flamingo pinecone lollipop');
+const LISTS={3:W3,4:W4,5:W5,6:W6,7:W7,8:W8};
+const DIRS=[[0,1],[1,0],[1,1],[-1,1],[0,-1],[-1,0],[-1,-1],[1,-1]];   // dr,dc
+const PAL=['#2ee87a','#ffc83d','#3db8ff','#ff5ec4','#ff8a3d','#b07cff','#5ef0e0','#ff5a6a','#c6f04a','#ffa0d0','#7ab8ff','#f0e05e'];
+const FILL='ABCDEFGHIKLMNOPRSTUWY';
+let api,t,N,grid,words,found,lines,sel,anchor,drag,cursor,kbd,miss,hint,flashW,freezeT,clock,limit,timed,done,lost,bg,shakeT,lastBars=0,raceOn=false;
 function R(a,b){ return a+Math.random()*(b-a); }
+const easy=()=>api&&api.diff===0&&api.level<=5;
 const GAME=window.GAME={
   id:'word-hunt',title:'Word Hunt',titleHTML:'WORD<br>HUNT',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-WH-1.0 · 2026-10-17',theme:{a:'#2ee87a',b:'#ffc83d',bg:'#0c0820'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'📖',joystick:false,coinPts:40,
+  build:'BUILD-WH-1.1 · 2026-10-24',theme:{a:'#2ee87a',b:'#ffc83d',bg:'#0c0820'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'📖',joystick:false,coinPts:40,
   abilities:[
-    {id:'clear',icon:'🧹',name:'CLEAR ROW',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — wipe the letters you have typed in this row and start it again.'},
-    {id:'reveal',icon:'🔎',name:'REVEAL LETTER',cd:15,key:'Digit1',keyLabel:'1',desc:'Shows one letter of the hidden word in its right spot.'},
-    {id:'remove',icon:'🚫',name:'REMOVE KEYS',cd:12,key:'Digit2',keyLabel:'2',desc:'Greys out 5 keys whose letters are NOT in the word.'},
-    {id:'extra',icon:'➕',name:'EXTRA TRY',cd:20,key:'Digit3',keyLabel:'3',desc:'Adds one more row of guesses for this word (up to 2 per word).'}],
+    {id:'cancel',icon:'✋',name:'CANCEL',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — drop the letter you picked and start your line again.'},
+    {id:'first',icon:'🔎',name:'FIRST LETTER',cd:15,key:'Digit1',keyLabel:'1',desc:'Circles the first letter of a word you have not found yet (5 seconds).'},
+    {id:'show',icon:'💡',name:'SHOW WORD',cd:25,key:'Digit2',keyLabel:'2',desc:'Lights up a whole hidden word for 3 seconds — then you still have to swipe it.'},
+    {id:'freeze',icon:'❄️',name:'FREEZE CLOCK',cd:20,key:'Digit3',keyLabel:'3',desc:'Stops the clock for 8 seconds.'}],
   shop:[{id:'t_n',cat:'Tiles',name:'Neon Green',cost:0,colors:['#2ee87a'],desc:'Classic.'},{id:'t_b',cat:'Tiles',name:'Electric Blue',cost:150,colors:['#3db8ff'],desc:'Cool and calm.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#2ee87a,#ffc83d)'}],
-  story:`<h3>WORD HUNT</h3><p>The Word Vault has scrambled its secret words. Crack them one by one — every right guess lights another tile green.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>Guess the hidden word. Type a word and press <b>ENTER</b>.</li><li><b style="color:#2ee87a">GREEN</b> = right letter, right spot. <b style="color:#ffc83d">YELLOW</b> = in the word, wrong spot. <b>GREY</b> = not in the word.</li><li><b>Phone:</b> tap the keys at the bottom. <b>PC:</b> type on your keyboard, ENTER to guess, BACKSPACE to delete.</li><li><b>CLEAR ROW</b> (SPACE) wipes your typing. Abilities on PC: 1 reveal, 2 remove keys, 3 extra try.</li><li>Run out of tries (or time) and you lose a life — then you get a new word. Solve the number of words shown at the top.</li><li>Later stages use 4- and 6-letter words, fewer tries and a clock. Every 10th stage is a SPEED ROUND.</li></ul>`,
-  tutorial:[{text:'Type any 5-letter word with the keys below, then tap ⏎ ENTER!',ev:'guess'},{text:'GREEN = right spot. YELLOW = wrong spot. Use the clues and guess again!',ev:'guess2'},{text:'Find the word!',time:5}],
-  stageIntro:{1:'GUESS THE HIDDEN WORD'},bossName:'SPEED ROUND!',ending:{"0":["#UNLOCKED","The Word Vault is open."],"1":["#WORDSMITH","No word can hide from you."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ return null; },
-  _dbg(){ return {get word(){return word;}, get rows(){return rows;}, get cur(){return cur;}, get solved(){return solved;}, get goal(){return goal;}, get lost(){return lost;}, get done(){return done;}, get busy(){return busy;}, get clock(){return clock;}, get maxTries(){return maxTries;}, get L(){return L;},
-    type:s=>{ for(const ch of s) typeKey(ch.toUpperCase()); }, lists:LISTS}; },
-  init(a){ api=a; mkBg(); L=5; word='HAPPY'; rows=[]; cur=''; maxTries=6; extra=0; keySt={}; removed=new Set(); revealed=new Set(); used=new Set(); bounce=-1; pressK={}; },
-  startStage(n,a){ api=a; t=0; done=false; lost=false; solved=0; bossClock=false; const Lv=a.level, tut=a.content===0;
-    goal=tut?1:a.boss?Math.round(a.dv([3,4,5],5,6)):Lv<=5?1:Lv<=25?2:3;
-    timed=!tut&&(a.boss||a.diff===2||(a.content===2&&Lv>=10));
-    if(a.boss){ bossClock=true; limit=Math.round(goal*a.dv([110,75,50],40,24)); clock=limit; }
-    newWord(); },
-  respawn(){ lost=false; if(bossClock&&clock<=0) clock=limit; newWord(); },
-  stageBonus(){ return solved*50+(timed?Math.max(0,clock|0)*3:0); },
+  story:`<h3>WORD HUNT</h3><p>The Word Vault has hidden its secret words in a jumble of letters. Find every one before the clock runs out!</p>`,
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>The words to find are listed on the <b>right</b>. They are hidden in the letter grid — in a straight line.</li><li><b>Phone:</b> put your finger on the first letter and <b>slide</b> to the last letter, then let go. Or <b>tap</b> the first letter, then <b>tap</b> the last letter.</li><li><b>PC:</b> drag with the mouse (or click first + last letter). Or move with the <b>arrow keys</b> and press <b>ENTER</b> on the first and last letter.</li><li>Found words light up and get ticked off the list. Find them all to clear the stage.</li><li>Beginner starts with tiny grids and short words going → and ↓. Later words also go diagonally and backwards.</li><li>If the clock runs out you lose a life (your found words stay). Every 10th stage is a SPEED HUNT.</li><li><b>✋ CANCEL</b> (SPACE) drops a picked letter. Abilities on PC: 1 first letter, 2 show word, 3 freeze clock.</li></ul>`,
+  tutorial:[{text:'Find <b>CAT</b>! Click the C and drag to the T (or click C, then click T).',touch:'Find <b>CAT</b>! Put your finger on the C and <b>slide</b> to the T.',ev:'found'},
+    {text:'Great! The list on the right shows what is left. Find another word!',ev:'found2'},{text:'Find the last word!',time:5}],
+  stageIntro:{1:'SLIDE ACROSS THE WORDS'},bossName:'SPEED HUNT!',ending:{"0":["#UNLOCKED","The Word Vault is open."],"1":["#WORD HUNTER","No word can hide from you."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ if(id==='first'&&hint) return {left:Math.max(0,hint.t),total:5}; if(id==='show'&&flashW) return {left:Math.max(0,flashW.t),total:3}; if(id==='freeze'&&freezeT>0) return {left:freezeT,total:8}; return null; },
+  _dbg(){ return {get N(){return N;}, get grid(){return grid;}, get words(){return words;}, get found(){return found;}, get done(){return done;}, get lost(){return lost;}, get clock(){return clock;}, get limit(){return limit;}, get timed(){return timed;},
+    geo:()=>geo(), cellXY:(r,c)=>{ const g=geo(); return {x:g.x0+(c+.5)*g.cs,y:g.y0+(r+.5)*g.cs}; }, sig:()=>grid.map(r=>r.join('')).join('/')+'|'+words.map(w=>w.w).join(','), lists:LISTS}; },
+  init(a){ api=a; mkBg(); N=5; grid=[]; words=[]; found=0; lines=[]; cursor={r:0,c:0}; },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; sel=null; anchor=null; drag=false; kbd=false; miss=null; hint=null; flashW=null; freezeT=0; shakeT=0; lines=[]; found=0;
+    const Lv=a.level, tut=a.content===0, D=a.diff;
+    // ---- size, words, lengths, directions (Beginner very gentle early on) ----
+    if(tut) N=5; else if(D===0&&Lv<=3) N=5; else if(D===0&&Lv<=7) N=6; else if(D===0&&Lv<=12) N=7; else N=Math.max(7,Math.min(12,Math.round(a.dv([7.2,10,12],12,12))));
+    let nW= tut?3 : (D===0&&Lv<=3)?3 : (D===0&&Lv<=7)?4 : Math.min(11,Math.round(a.dv([4.6,8,10],11,12)));
+    if(a.boss) nW=Math.min(13,nW+(D===0&&Lv<=12?1:2));
+    let lo=3, hi= tut?3 : (D===0&&Lv<=5)?3 : (D===0&&Lv<=12)?4 : Math.round(a.dv([5,7,8],8,8));
+    if(Lv>=40) lo=4; if(Lv>=110) lo=5; hi=Math.min(hi,N,8); lo=Math.min(lo,hi);
+    let nd= (tut||Lv<=2)?1 : Lv<=12?2 : Lv<=34?3 : Lv<=59?4 : Lv<=89?6 : 8;
+    const kid=tut||(D===0&&Lv<=12);
+    gen(nW,lo,hi,nd,kid,tut?'cat':null);
+    timed=!tut; limit=0;
+    if(timed){ limit=Math.round(nW*a.dv([75,32,20],12,8)+N*3); if(a.boss) limit=Math.round(limit*0.75); if(D===0&&Lv<=5) limit=Math.max(limit,300); else if(D===0&&Lv<=12) limit=Math.max(limit,200); }
+    clock=limit; cursor={r:0,c:0}; api.counter(a.boss?'⚡ SPEED WORDS':'🔍 WORDS LEFT',words.length); },
+  respawn(){ lost=false; clock=limit; sel=null; anchor=null; drag=false; miss=null; },
+  stageBonus(){ return found*30+(timed?Math.max(0,clock|0)*2:0); },
   useAbility(id){ if(done||lost) return false;
-    if(id==='clear'){ if(busy>0) return false; cur=''; api.sfx.blip(); api.event('clear'); return true; }
-    if(busy>0||nextT>0) return false;
-    if(id==='reveal'){ const known=new Set(revealed); rows.forEach(r=>r.res.forEach((v,k)=>{ if(v===2) known.add(k); })); const opt=[...Array(L).keys()].filter(k=>!known.has(k));
-      if(!opt.length){ api.toast('ALL LETTERS ALREADY FOUND'); return false; } const k=opt[Math.random()*opt.length|0]; revealed.add(k); keySt[word[k]]=3;
-      api.toast(`LETTER ${k+1} IS ${word[k]}`); api.sfx.power(); const g=geo(); api.fx.burst(g.x0+k*(g.ts+g.gap)+g.ts/2,g.ry(rows.length)+g.ts/2,GREEN,20,220,.6,3); return true; }
-    if(id==='remove'){ const opt=[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter(ch=>!word.includes(ch)&&keySt[ch]!==1&&!removed.has(ch));
-      if(!opt.length){ api.toast('NO KEYS LEFT TO REMOVE'); return false; } for(let i=0;i<5&&opt.length;i++){ removed.add(opt.splice(Math.random()*opt.length|0,1)[0]); }
-      api.sfx.power(); api.fx.flash('#888',.15); return true; }
-    if(id==='extra'){ if(extra>=2){ api.toast('MAX 2 EXTRA TRIES PER WORD'); return false; } extra++; maxTries++; api.toast('+1 TRY!'); api.sfx.power(); return true; }
+    if(id==='cancel'){ if(!anchor&&!sel) return false; anchor=null; sel=null; drag=false; api.sfx.blip(); return true; }
+    const left=words.filter(w=>!w.f); if(!left.length) return false; const w=left[Math.random()*left.length|0];
+    if(id==='first'){ hint={w,t:5}; api.sfx.power(); api.toast('🔎 IT STARTS WITH '+w.w[0]); return true; }
+    if(id==='show'){ flashW={w,t:3}; api.sfx.power(); api.fx.flash('#fff',.12); return true; }
+    if(id==='freeze'){ if(!timed){ api.toast('NO CLOCK ON THIS STAGE'); return false; } freezeT=8; api.sfx.power(); api.fx.flash('#7ad8ff',.2); api.toast('❄️ CLOCK FROZEN'); return true; }
     return false; },
-  onPointer(type,x,y){ if(type==='up'||type==='move') return; for(const k of keys()) if(x>=k.x&&x<k.x+k.w&&y>=k.y&&y<k.y+k.h){ pressK[k.ch]=0.15; typeKey(k.ch); return; } },
-  update(dt){ t+=dt; lastUpd=performance.now(); for(const k in pressK) pressK[k]-=dt; shakeT-=dt;
-    rows.forEach(r=>r.ft+=dt); if(bounce>=0) bounce+=dt;
+  onPointer(type,x,y){ if(done||lost) return;
+    if(type==='down'){ const h=hit(x,y,0); if(!h) return; kbd=false; api.event('tap');
+      if(anchor&&(anchor.r!==h.r||anchor.c!==h.c)){ const s=snapCell(anchor,h); if(s){ check(anchor.r,anchor.c,s.r,s.c); anchor=null; sel=null; return; } }
+      drag=true; sel={r0:h.r,c0:h.c,r1:h.r,c1:h.c}; api.sfx.blip(); return; }
+    if(!drag||!sel) return;
+    if(type==='move'){ const e=snapXY(sel.r0,sel.c0,x,y); sel.r1=e.r; sel.c1=e.c; return; }
+    if(type==='up'){ drag=false; const e=snapXY(sel.r0,sel.c0,x,y); sel.r1=e.r; sel.c1=e.c;
+      if(sel.r1===sel.r0&&sel.c1===sel.c0){ anchor=(anchor&&anchor.r===sel.r0&&anchor.c===sel.c0)?null:{r:sel.r0,c:sel.c0}; sel=null; return; }
+      check(sel.r0,sel.c0,sel.r1,sel.c1); sel=null; anchor=null; } },
+  onKey(code,down){ if(!down||done||lost) return; const mv={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]}[code];
+    if(mv){ kbd=true; cursor.r=Math.max(0,Math.min(N-1,cursor.r+mv[0])); cursor.c=Math.max(0,Math.min(N-1,cursor.c+mv[1])); return; }
+    if(code==='Enter'||code==='NumpadEnter'){ kbd=true; if(!anchor){ anchor={r:cursor.r,c:cursor.c}; api.sfx.blip(); return; }
+      if(anchor.r===cursor.r&&anchor.c===cursor.c){ anchor=null; return; }
+      const dr=cursor.r-anchor.r, dc=cursor.c-anchor.c; if(dr&&dc&&Math.abs(dr)!==Math.abs(dc)){ api.toast('STRAIGHT LINES ONLY'); return; }
+      check(anchor.r,anchor.c,cursor.r,cursor.c); anchor=null; } },
+  update(dt){ t+=dt; shakeT-=dt; if(miss){ miss.t-=dt; if(miss.t<=0) miss=null; }
+    if(hint){ hint.t-=dt; if(hint.t<=0||hint.w.f) hint=null; } if(flashW){ flashW.t-=dt; if(flashW.t<=0||flashW.w.f) flashW=null; }
+    if(t-lastBars>0.4){ lastBars=t; placeBars(); }
     if(done||lost) return;
-    if(busy>0){ busy-=dt; if(busy<=0) resolve(); return; }
-    if(nextT>0){ nextT-=dt; if(nextT<=0) newWord(); return; }
-    if(timed){ clock-=dt; if(clock<=0){ clock=0; fail('⏰ TIME UP!'); } }
-    api.counter(api.boss?'⚡ SPEED WORDS':'📝 WORDS LEFT',goal-solved,timed&&clock<15?'low':''); },
-  render(c){ const tc=api.cos('Tiles').colors[0]; drawBg(c); const g=geo(); c.textAlign='center'; c.textBaseline='middle';
-    for(let r=g.first;r<g.first+g.vis;r++){ const row=rows[r], y=g.ry(r); let ox=0; if(r===rows.length&&shakeT>0) ox=Math.sin(shakeT*60)*10*shakeT/0.4;
-      for(let k=0;k<L;k++){ let x=g.x0+k*(g.ts+g.gap)+ox, ch='', st=-1, sy=1, by=0;
-        if(row){ ch=row.g[k]; const lt=row.ft-k*0.22; const p=Math.max(0,Math.min(1,lt/0.32)); sy=Math.abs(Math.cos(p*Math.PI)); if(p>0.5) st=row.res[k];
-          if(row.win&&bounce>=0){ const bt=bounce-k*0.09; if(bt>0&&bt<0.4) by=-Math.sin(bt/0.4*Math.PI)*22; } }
-        else if(r===rows.length){ ch=cur[k]||''; }
-        const cx=x+g.ts/2, cy=y+g.ts/2+by; c.save(); c.translate(cx,cy); c.scale(1,Math.max(0.04,sy));
-        const fill=st===2?tc:st===1?YEL:st===0?GREY:'rgba(20,16,48,.9)';
-        c.fillStyle=fill; if(st>0){ c.shadowColor=fill; c.shadowBlur=16; } rr(c,-g.ts/2,-g.ts/2,g.ts,g.ts,8); c.fill(); c.shadowBlur=0;
-        if(st<0){ c.strokeStyle=ch?'#b9a6ff':(r===rows.length&&!lost&&!done?'rgba(185,166,255,.45)':'rgba(185,166,255,.18)'); c.lineWidth=ch?3:2; rr(c,-g.ts/2,-g.ts/2,g.ts,g.ts,8); c.stroke(); }
-        if(!ch&&r===rows.length&&revealed.has(k)){ c.fillStyle='rgba(46,232,122,.45)'; c.font=`bold ${g.ts*.55|0}px sans-serif`; c.fillText(word[k],0,2); c.fillStyle=GREEN; c.fillRect(-g.ts*.3,g.ts*.32,g.ts*.6,3); }
-        if(ch){ c.fillStyle=st===1?'#2a1a00':'#fff'; c.font=`bold ${g.ts*.55|0}px sans-serif`; c.fillText(ch,0,2); }
-        c.restore(); } }
-    // status line
-    const sy=g.ry(g.first+g.vis)+14; const ly=Math.max(sy,KY-34); c.font='bold 22px sans-serif';
-    c.textAlign='left'; c.fillStyle='rgba(255,255,255,.55)'; c.fillText(`TRY ${Math.min(rows.length+1,maxTries)}/${maxTries}`,40,ly);
-    c.textAlign='center'; c.fillStyle='#b9a6ff'; c.fillText(`${L} LETTERS`,W/2,ly);
-    if(timed){ c.textAlign='right'; const low=clock<15; c.fillStyle=low&&Math.floor(t*4)%2?'#ff3b5a':'#fff'; const m=Math.floor(Math.max(0,clock)/60),s=Math.floor(Math.max(0,clock)%60); c.fillText('⏱ '+m+':'+String(s).padStart(2,'0'),W-40,ly);
-      c.fillStyle='rgba(255,255,255,.1)'; c.fillRect(40,ly+16,W-80,4); c.fillStyle=low?'#ff3b5a':YEL; c.fillRect(40,ly+16,(W-80)*Math.max(0,clock)/limit,4); }
-    // keyboard
-    keys().forEach(k=>{ const st=keySt[k.ch], rm=removed.has(k.ch)&&st===undefined, pr=(pressK[k.ch]||0)>0, sp=k.ch==='>'||k.ch==='<';
-      let fill=st===3||st===2?tc:st===1?YEL:st===0||rm?'#1c1a30':'#4a3f8a'; if(pr) fill='#fff';
-      c.fillStyle=fill; if(st>=1||sp){ c.shadowColor=sp?'#b9a6ff':fill; c.shadowBlur=pr?20:8; } rr(c,k.x,k.y,k.w,k.h,9); c.fill(); c.shadowBlur=0;
-      if(sp){ c.strokeStyle='#b9a6ff'; c.lineWidth=2; rr(c,k.x,k.y,k.w,k.h,9); c.stroke(); }
-      c.fillStyle=pr?'#000':st===1?'#2a1a00':st===0||rm?'rgba(255,255,255,.25)':'#fff'; c.font=k.ch==='>'?'bold 17px sans-serif':sp?'bold 24px sans-serif':'bold 28px sans-serif';
-      c.fillText(k.ch==='>'?'ENTER':k.ch==='<'?'⌫':k.ch,k.x+k.w/2,k.y+k.h/2+2); });
+    if(timed){ if(freezeT>0) freezeT-=dt; else clock-=dt; if(clock<=0){ clock=0; fail(); } }
+    api.counter(api.boss?'⚡ SPEED WORDS':'🔍 WORDS LEFT',words.length-found,timed&&clock<15?'low':''); },
+  render(c){ const tc=api.cos('Tiles').colors[0]; drawBg(c); const g=geo(), cs=g.cs; c.textAlign='center'; c.textBaseline='middle';
+    // grid panel
+    c.save(); c.fillStyle='rgba(16,12,44,.88)'; c.strokeStyle=api.boss&&!done?'#ff5ec4':tc; c.lineWidth=3; c.shadowColor=c.strokeStyle; c.shadowBlur=18; rr(c,g.x0-12,g.y0-12,g.side+24,g.side+24,18); c.fill(); c.stroke(); c.restore();
+    for(let r=0;r<N;r++) for(let k=0;k<N;k++){ if((r+k)%2){ c.fillStyle='rgba(185,166,255,.05)'; c.fillRect(g.x0+k*cs,g.y0+r*cs,cs,cs); } }
+    // found words (capsules), the word lit by SHOW WORD, a wrong try, the line being drawn
+    lines.forEach(L=>cap(c,g,L,L.col,.42,0));
+    if(flashW){ const w=flashW.w; cap(c,g,{r0:w.r,c0:w.c,r1:w.r+w.dr*(w.w.length-1),c1:w.c+w.dc*(w.w.length-1)},'#fff',.18+.14*Math.sin(t*10),1); }
+    if(miss) cap(c,g,miss,'#ff3b5a',.5*miss.t/0.45,Math.sin(miss.t*70)*5*miss.t);
+    if(sel) cap(c,g,sel,tc,.55,0);
+    if(anchor){ const p=cxy(g,anchor.r,anchor.c); c.save(); c.strokeStyle=tc; c.lineWidth=4; c.shadowColor=tc; c.shadowBlur=14; c.fillStyle='rgba(46,232,122,.25)'; c.beginPath(); c.arc(p.x,p.y,cs*.42,0,Math.PI*2); c.fill(); c.stroke(); c.restore(); }
+    if(hint){ const p=cxy(g,hint.w.r,hint.w.c), k=1+.12*Math.sin(t*8); c.save(); c.strokeStyle=YEL; c.lineWidth=5; c.shadowColor=YEL; c.shadowBlur=20; c.beginPath(); c.arc(p.x,p.y,cs*.5*k,0,Math.PI*2); c.stroke(); c.restore(); }
+    if(kbd){ c.save(); c.strokeStyle='#fff'; c.setLineDash([6,5]); c.lineWidth=3; rr(c,g.x0+cursor.c*cs+3,g.y0+cursor.r*cs+3,cs-6,cs-6,8); c.stroke(); c.restore(); }
+    c.font=`900 ${cs*.56|0}px "Segoe UI",sans-serif`;
+    for(let r=0;r<N;r++) for(let k=0;k<N;k++){ const p=cxy(g,r,k); c.fillStyle='#fff'; c.shadowColor='#b9a6ff'; c.shadowBlur=6; c.fillText(grid[r][k],p.x,p.y+cs*.03); } c.shadowBlur=0;
+    // left strip: clock + found
+    const ly=api.tutorial?300:250;
+    if(timed){ const low=clock<15&&!freezeT, sec=Math.max(0,Math.ceil(clock)), s=Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
+      c.font='bold 22px sans-serif'; c.fillStyle=freezeT>0?'#7ad8ff':'rgba(255,255,255,.6)'; c.fillText(freezeT>0?'❄️ FROZEN':'⏱ TIME',LX,ly);
+      c.font='900 52px sans-serif'; c.fillStyle=freezeT>0?'#7ad8ff':low&&Math.floor(t*4)%2?'#ff3b5a':'#fff'; c.fillText(s,LX,ly+48);
+      c.fillStyle='rgba(255,255,255,.12)'; rr(c,LX-60,ly+86,120,10,5); c.fill(); c.fillStyle=low?'#ff3b5a':freezeT>0?'#7ad8ff':YEL; rr(c,LX-60,ly+86,120*Math.max(0,clock)/limit,10,5); c.fill(); }
+    c.font='bold 22px sans-serif'; c.fillStyle='rgba(255,255,255,.6)'; c.fillText('FOUND',LX,ly+140); c.font='900 46px sans-serif'; c.fillStyle=tc; c.fillText(found+' / '+words.length,LX,ly+184);
+    // right panel: the words to find (big and clear; found ones ticked and crossed out)
+    const top=api.tutorial?262:92, bot=raceOn?288:520, n=words.length, cols=n>5||(raceOn&&n>3)?2:1, rows=Math.ceil(n/cols), cw=(RX1-RX0-20)/cols;
+    c.save(); c.fillStyle='rgba(16,12,44,.88)'; c.strokeStyle='rgba(185,166,255,.5)'; c.lineWidth=2; rr(c,RX0,top,RX1-RX0,bot-top,16); c.fill(); c.stroke(); c.restore();
+    c.font='bold 19px sans-serif'; c.fillStyle='#b9a6ff'; c.fillText('FIND THESE WORDS',(RX0+RX1)/2,top+24);
+    const maxL=Math.max(...words.map(w=>w.w.length)), rh=Math.min(58,(bot-top-52)/rows), fs=Math.min(40,rh*.8,(cw-26)/(maxL*.7));
+    words.forEach((w,i)=>{ const col=cols===1?0:Math.floor(i/rows), row=cols===1?i:i%rows, x=RX0+10+cw*col+cw/2, y=top+50+rh*row+rh/2;
+      c.font=`900 ${fs|0}px "Segoe UI",sans-serif`; c.fillStyle=w.f?w.col:'#fff'; c.globalAlpha=w.f?.75:1; c.fillText(w.w,x,y);
+      if(w.f){ const tw=c.measureText(w.w).width; c.strokeStyle=w.col; c.lineWidth=3; c.beginPath(); c.moveTo(x-tw/2-4,y); c.lineTo(x+tw/2+4,y); c.stroke(); c.font=`bold ${fs*.6|0}px sans-serif`; c.fillText('✓',x-tw/2-16,y); }
+      c.globalAlpha=1; });
     c.textBaseline='alphabetic';
-    if(lost&&failWord){ c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(0,0,W,H); c.fillStyle='rgba(30,10,40,.95)'; c.strokeStyle='#ff3b5a'; c.lineWidth=3; c.shadowColor='#ff3b5a'; c.shadowBlur=20; rr(c,60,330,480,190,18); c.fill(); c.stroke(); c.shadowBlur=0;
-      c.fillStyle='#fff'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.fillText('THE WORD WAS',W/2,380); const ts=54, x0=W/2-(failWord.length*(ts+6)-6)/2;
-      [...failWord].forEach((ch,k)=>{ c.fillStyle=tc; rr(c,x0+k*(ts+6),410,ts,ts,8); c.fill(); c.fillStyle='#fff'; c.font='bold 32px sans-serif'; c.fillText(ch,x0+k*(ts+6)+ts/2,448); }); } },
-  attract(c,tt){ mkBg(); t=tt; drawBg(c); const s='WORDHUNT', ts=62; c.textAlign='center'; c.textBaseline='middle';
-    for(let i=0;i<8;i++){ const r=i<4?0:1, k=i%4, x=W/2-2*(ts+8)+k*(ts+8)+ts/2, y=360+r*(ts+12); const p=(tt*0.8+i*0.12)%3, sy=p<0.3?Math.abs(Math.cos(p/0.3*Math.PI)):1, col=p>0.15||p>=0.3?[GREEN,YEL,GREEN,GREY][(i+(tt|0))%4]:'#1a1440';
-      c.save(); c.translate(x,y); c.scale(1,Math.max(.05,sy)); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=18; rr(c,-ts/2,-ts/2,ts,ts,8); c.fill(); c.shadowBlur=0; c.fillStyle='#fff'; c.font='bold 36px sans-serif'; c.fillText(s[i],0,2); c.restore(); }
+    if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); c.fillStyle='#ff3b5a'; c.font='900 60px sans-serif'; c.textAlign='center'; c.fillText('⏰ TIME UP!',W/2,H/2); } },
+  attract(c,tt){ mkBg(); t=tt; drawBg(c); const s='WORDHUNT', ts=96; c.textAlign='center'; c.textBaseline='middle';
+    c.save(); c.globalAlpha=.5; c.strokeStyle=PAL[(tt|0)%PAL.length]; c.lineWidth=80; c.lineCap='round'; c.shadowColor=c.strokeStyle; c.shadowBlur=20; c.beginPath(); c.moveTo(W/2-3.5*(ts+10),360); c.lineTo(W/2-0.5*(ts+10),360); c.stroke(); c.restore();
+    for(let i=0;i<8;i++){ const y=360; const p=(tt*0.8+i*0.12)%3, sy=p<0.3?Math.abs(Math.cos(p/0.3*Math.PI)):1, col=PAL[(i+(tt|0))%4];
+      c.save(); c.translate(W/2+(i-3.5)*(ts+10),y); c.scale(1,Math.max(.05,sy)); c.fillStyle='rgba(16,12,44,.9)'; c.strokeStyle=col; c.lineWidth=4; c.shadowColor=col; c.shadowBlur=18; rr(c,-ts/2,-ts/2,ts,ts,12); c.fill(); c.stroke(); c.shadowBlur=0; c.fillStyle='#fff'; c.font='900 58px sans-serif'; c.fillText(s[i],0,3); c.restore(); }
     c.textBaseline='alphabetic'; }
 };
-/* in the tutorial the help box covers the top, so only 3 rows show (lower down) and they scroll */
-function geo(){ const gap=8, tut=api&&api.tutorial, vis=tut?3:maxTries, y0=tut?350:BY, ts=Math.min(72,(KY-60-y0-(vis-1)*gap)/vis,(W-60-(L-1)*gap)/L);
-  const first=Math.max(0,Math.min(rows.length-(vis-1),maxTries-vis)); return {ts,gap,vis,first,x0:(W-(L*ts+(L-1)*gap))/2,y0,ry:r=>y0+(r-first)*(ts+gap)}; }
-function keys(){ const out=[], kw=52, g=6; KROWS.forEach((row,ri)=>{ const ws=[...row].map(ch=>ch==='>'||ch==='<'?79:kw); const tot=ws.reduce((a,b)=>a+b,0)+(ws.length-1)*g; let x=(W-tot)/2;
-  [...row].forEach((ch,i)=>{ out.push({ch,x,y:KY+ri*(KH+KG),w:ws[i],h:KH}); x+=ws[i]+g; }); }); return out; }
-function newWord(){ const Lv=api.level, tut=api.content===0;
-  L=5; if(!tut&&!api.boss&&api.content===2&&Lv>=15) L=api.stage%4===0?4:api.stage%4===2?6:5;
-  maxTries=(api.diff===2||(api.content===2&&Lv>=100))?5:6; extra=0;
-  const list=tut?EASY:LISTS[L]; let w; let n=0; do{ w=list[Math.random()*list.length|0]; n++; }while(used.has(w)&&n<60); used.add(w); word=w.toUpperCase();
-  rows=[]; cur=''; keySt={}; removed=new Set(); revealed=new Set(); busy=0; nextT=0; bounce=-1; failWord=null; shakeT=0;
-  if(timed&&!bossClock){ limit=Math.round(api.dv([150,110,80],60,35)*(L===6?1.2:1)); clock=limit; } }
-function typeKey(ch){ if(done||lost||busy>0||nextT>0) return;
-  if(ch==='>'||ch==='ENTER') return submit(); if(ch==='<'||ch==='BACKSPACE'){ if(cur.length){ cur=cur.slice(0,-1); api.sfx.blip(); } return; }
-  if(/^[A-Z]$/.test(ch)&&cur.length<L){ cur+=ch; api.sfx.blip(); } }
-function submit(){ if(cur.length<L){ shakeT=0.4; api.toast('NOT ENOUGH LETTERS'); api.sfx.bump(); return; }
-  if(!/[AEIOUY]/.test(cur)){ shakeT=0.4; api.toast('NEEDS A VOWEL'); api.sfx.bump(); return; }
-  const res=new Array(L).fill(0), pool={}; for(let k=0;k<L;k++){ if(cur[k]===word[k]) res[k]=2; else pool[word[k]]=(pool[word[k]]||0)+1; }
-  for(let k=0;k<L;k++) if(res[k]!==2&&pool[cur[k]]>0){ res[k]=1; pool[cur[k]]--; }
-  rows.push({g:cur,res,ft:0,win:cur===word}); cur=''; busy=L*0.22+0.4; api.sfx.click(); api.event('guess'); if(rows.length>=2) api.event('guess2'); }
-function resolve(){ const row=rows[rows.length-1]; [...row.g].forEach((ch,k)=>{ const v=row.res[k]===2?2:row.res[k]===1?1:0; const old=keySt[ch]; if(old===undefined||(old!==3&&v>old)) keySt[ch]=v; if(old===3) keySt[ch]=3; });
-  const g=geo(), y=g.ry(rows.length-1)+g.ts/2;
-  if(row.win){ solved++; bounce=0; const left=maxTries-rows.length; api.addScore(100*(left+1)*(1+api.dk*.5),W/2,y); api.addCoins(Math.min(3,left));
-    api.fx.burst(W/2,y,GREEN,40,380,.8,4); api.fx.burst(W/2,y,YEL,20,300,.7,3); api.sfx.clear();
-    if(solved>=goal){ done=true; api.counter(api.boss?'⚡ SPEED WORDS':'📝 WORDS LEFT',0); api.toast(api.boss?'SPEED ROUND BEATEN!':['GENIUS!','BRILLIANT!','SUPERB!','NICE ONE!','PHEW!','JUST IN TIME!','SAVED!','SAVED!'][Math.min(7,rows.length-1)]); setTimeout(()=>api.stageClear(),1500); }
-    else { api.toast(['GENIUS!','BRILLIANT!','SUPERB!','NICE ONE!','GOOD!','PHEW!','SAVED!','SAVED!'][Math.min(7,rows.length-1)]+' NEXT WORD'); nextT=1.5; } return; }
-  row.res.forEach((v,k)=>{ if(v===2) api.fx.burst(g.x0+k*(g.ts+g.gap)+g.ts/2,y,GREEN,4,120,.4,2); });
-  if(rows.length>=maxTries) fail('OUT OF TRIES!'); }
-function fail(msg){ if(lost||done) return; lost=true; failWord=word; api.toast(msg); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>api.loseLife(),2000); }
-function mkBg(){ if(bg) return; bg=[]; for(let i=0;i<30;i++) bg.push({x:R(0,W),y:R(0,H),v:R(6,22),ch:String.fromCharCode(65+(Math.random()*26|0)),s:R(18,40),a:R(.04,.1)}); }
+const YEL='#ffc83d';
+/* grid geometry: centre band, square cells (max 96). In the tutorial the help box covers the top, so everything sits lower. */
+function geo(){ const top=api&&api.tutorial?262:92, side=Math.min(GX1-GX0,GB-top,N*96), cs=side/N; return {x0:(GX0+GX1)/2-side/2,y0:top+(GB-top-side)/2,cs,side}; }
+function cxy(g,r,c){ return {x:g.x0+(c+.5)*g.cs,y:g.y0+(r+.5)*g.cs}; }
+function hit(x,y){ const g=geo(), m=g.cs*.35; if(x<g.x0-m||y<g.y0-m||x>g.x0+g.side+m||y>g.y0+g.side+m) return null; return {r:Math.max(0,Math.min(N-1,Math.floor((y-g.y0)/g.cs))),c:Math.max(0,Math.min(N-1,Math.floor((x-g.x0)/g.cs)))}; }
+/* a finger never needs to be exact: the line snaps to the nearest of 8 directions and stays inside the grid */
+function snapXY(r0,c0,x,y){ const g=geo(), p=cxy(g,r0,c0), dx=(x-p.x)/g.cs, dy=(y-p.y)/g.cs; if(Math.hypot(dx,dy)<0.5) return {r:r0,c:c0};
+  const a=Math.round(Math.atan2(dy,dx)/(Math.PI/4)), d=[[0,1],[1,1],[1,0],[1,-1],[0,-1],[-1,-1],[-1,0],[-1,1]][(a+8)%8];
+  let len=Math.round(d[0]&&d[1]?(Math.abs(dx)+Math.abs(dy))/2:Math.max(Math.abs(dx),Math.abs(dy)));
+  while(len>0&&(r0+d[0]*len<0||r0+d[0]*len>=N||c0+d[1]*len<0||c0+d[1]*len>=N)) len--; return {r:r0+d[0]*len,c:c0+d[1]*len}; }
+function snapCell(a,b){ const p=cxy(geo(),b.r,b.c); return snapXY(a.r,a.c,p.x,p.y); }
+function check(r0,c0,r1,c1){ const dr=Math.sign(r1-r0), dc=Math.sign(c1-c0), n=Math.max(Math.abs(r1-r0),Math.abs(c1-c0))+1; let s='';
+  for(let i=0;i<n;i++) s+=grid[r0+dr*i][c0+dc*i]; const rv=[...s].reverse().join('');
+  const w=words.find(w=>!w.f&&(w.w===s||w.w===rv)); const g=geo();
+  if(!w){ if(n>=2){ miss={r0,c0,r1,c1,t:.45}; api.sfx.bump(); } return; }
+  w.f=true; found++; const col=PAL[(found-1)%PAL.length]; w.col=col; lines.push({r0,c0,r1,c1,col});
+  for(let i=0;i<n;i++){ const p=cxy(g,r0+dr*i,c0+dc*i); api.fx.burst(p.x,p.y,col,8,200,.5,3); }
+  const m=cxy(g,(r0+r1)/2,(c0+c1)/2); api.addScore((40+w.w.length*20)*(1+api.dk*.5),m.x,m.y); api.sfx.clear(); api.event('found'); if(found>=2) api.event('found2');
+  api.counter(api.boss?'⚡ SPEED WORDS':'🔍 WORDS LEFT',words.length-found);
+  if(found>=words.length){ done=true; api.fx.flash(col,.25); api.toast(api.boss?'SPEED HUNT BEATEN!':'ALL WORDS FOUND!'); setTimeout(()=>api.stageClear(),1300); }
+  else api.fx.text(m.x,m.y-30,['GREAT!','NICE!','FOUND IT!','SUPER!','YES!'][found%5],col,30); }
+function fail(){ if(lost||done) return; lost=true; api.toast('⏰ TIME UP!'); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>api.loseLife(),1500); }
+/* puzzle generator — ONLY Math.random, all at stage start (race = same seed = same grid on every phone) */
+function gen(nW,lo,hi,nd,kid,force){
+  for(let att=0;att<60;att++){
+    const g=Array.from({length:N},()=>Array(N).fill('')), out=[], pool=[];
+    for(let L=lo;L<=hi;L++){ const src=kid?(L===3?E3:L===4?E4:LISTS[L]):LISTS[L]; src.forEach(w=>{ if(w.length===L) pool.push(w); }); }
+    if(force){ pool.splice(pool.indexOf(force),1); pool.unshift(force); }
+    let guard=0;
+    while(out.length<nW&&guard++<400&&pool.length){ const w=pool.splice(force&&!out.length?0:Math.random()*pool.length|0,1)[0].toUpperCase();
+      if(out.some(o=>o.w.includes(w)||w.includes(o.w))) continue; const p=place(g,w,nd,kid); if(p){ p.w=w; p.f=false; out.push(p); } }
+    if(out.length<nW) continue;
+    for(let r=0;r<N;r++) for(let k=0;k<N;k++) if(!g[r][k]) g[r][k]=FILL[Math.random()*FILL.length|0];
+    grid=g; words=out; return; }
+  grid=Array.from({length:N},()=>Array(N).fill('A')); words=[]; }   // (never reached with these sizes)
+function place(g,w,nd,kid){ const L=w.length;
+  for(let k=0;k<150;k++){ const d=DIRS[Math.random()<.45?0:Math.random()*nd|0], dr=d[0], dc=d[1];
+    const r=Math.random()*N|0, c=Math.random()*N|0, re=r+dr*(L-1), ce=c+dc*(L-1); if(re<0||re>=N||ce<0||ce>=N) continue;
+    let ok=true; for(let i=0;i<L&&ok;i++){ const v=g[r+dr*i][c+dc*i]; if(v&&(kid||v!==w[i])) ok=false; } if(!ok) continue;
+    for(let i=0;i<L;i++) g[r+dr*i][c+dc*i]=w[i]; return {r,c,dr,dc}; }
+  return null; }
+function cap(c,g,L,col,a,ox){ const p=cxy(g,L.r0,L.c0), q=cxy(g,L.r1,L.c1); c.save(); c.globalAlpha=Math.max(0,a); c.strokeStyle=col; c.lineCap='round'; c.lineWidth=g.cs*.78; c.shadowColor=col; c.shadowBlur=12;
+  c.beginPath(); c.moveTo(p.x+ox,p.y); c.lineTo(q.x+ox+(p.x===q.x&&p.y===q.y?.01:0),q.y); c.stroke(); c.restore(); }
+/* RACE: the shell's progress bars sit bottom-centre — that would be over the grid. Park them in the right panel's free slot. */
+function placeBars(){ const el=document.getElementById('mpBars'), on=!!(el&&el.style.display!=='none'&&el.innerHTML); raceOn=on; if(!on) return;
+  const cv=document.getElementById('game'); if(!cv) return; const b=cv.getBoundingClientRect(), k=b.width/W; const S=(p,v)=>el.style.setProperty(p,v,'important');
+  S('left',(b.left+(RX0+20)*k)+'px'); S('top',(b.top+300*k)+'px'); S('bottom','auto'); S('transform','none'); S('flex-direction','column'); S('max-width',((RX1-RX0)*k)+'px'); }
+function mkBg(){ if(bg) return; bg=[]; for(let i=0;i<34;i++) bg.push({x:R(0,W),y:R(0,H),v:R(6,22),ch:String.fromCharCode(65+(Math.random()*26|0)),s:R(18,40),a:R(.04,.09)}); }
 function drawBg(c){ const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0c0820'); g.addColorStop(1,api&&api.boss&&!done?'#3a0a2a':'#1a1040'); c.fillStyle=g; c.fillRect(0,0,W,H);
   c.textAlign='center'; bg.forEach(b=>{ const y=((b.y-t*b.v)%H+H)%H; c.globalAlpha=b.a; c.fillStyle='#b9a6ff'; c.font=`bold ${b.s|0}px sans-serif`; c.fillText(b.ch,b.x,y); }); c.globalAlpha=1; }
-function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
-/* physical keyboard: letters, ENTER, BACKSPACE. Caught first so B (shop) and P (pause) type letters while you play. */
-window.addEventListener('keydown',e=>{ if(performance.now()-lastUpd>300||e.ctrlKey||e.metaKey||e.altKey) return; const tg=e.target; if(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA')) return;
-  const m=/^Key([A-Z])$/.exec(e.code); if(m){ e.stopImmediatePropagation(); e.preventDefault(); if(!e.repeat) typeKey(m[1]); return; }
-  if(e.code==='Enter'||e.code==='NumpadEnter'){ e.preventDefault(); if(!e.repeat) typeKey('>'); } else if(e.code==='Backspace'){ e.preventDefault(); typeKey('<'); } },true);
+function rr(c,x,y,w,h,r){ r=Math.min(r,w/2,h/2); c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -648,8 +737,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -674,6 +781,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -691,6 +821,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -797,7 +931,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -821,6 +955,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -870,8 +1006,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1242,7 +1378,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1416,6 +1552,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1426,10 +1563,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1446,7 +1596,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1482,7 +1632,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1521,6 +1671,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
