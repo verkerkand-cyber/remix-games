@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-MB-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-MB-1.2 · 2026-10-24">
 <title>Moon Buggy</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,44 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
 
 </style>
 </head>
 <body>
-<!-- BUILD-MB-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-MB-1.2 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,17 +464,21 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* MOON BUGGY — Moon Patrol remix (#45). 100 stages. Jump the craters, blast the rocks and UFOs, reach the checkpoint. */
+/* MOON BUGGY — Moon Patrol remix (#45). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1): the moon highway runs left to right,
+   you see far ahead. HOLD FIRE to shoot (no auto-fire), JUMP the craters and rocks, drive into the checkpoint flag AHEAD of you. */
 (function(){
-const W=600,H=900,GY=720;
-let api,t,bx,by,vy,dist,goal,obs,ufos,bombs,shots,done,lost,eff,fireT,grace,spawnD,scroll,cpFlash,jumpQ;
-function spd(){ return api.dv([220,270,320],360,440)*(eff.nitro>0?1.6:1); }
+const W=1280,H=720,GY=500,BX=330;
+let api,t,bx,by,vy,dist,goal,obs,ufos,bombs,shots,done,lost,eff,fireT,grace,spawnD,scroll,jumpQ,boss,lastCrater,bumpT,wPrev;
+const easy=()=>api.diff===0&&api.level<=5;              // Beginner stages 1-5 (+ tutorial): extra gentle
+function spd(){ return (easy()?210:api.dv([240,300,350],390,460))*(eff.nitro>0?1.6:1); }
+function bossAt(){ return goal-1100; }                    // boss stages: the mothership blocks the road before the flag
 const GAME=window.GAME={
   id:'moon-buggy',title:'Moon Buggy',titleHTML:'MOON<br>BUGGY',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-MB-1.1 · 2026-10-17',theme:{a:'#b14bff',b:'#3dffd8',bg:'#0a0418'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🚙',joystick:false,coinPts:40,
+  build:'BUILD-MB-1.2 · 2026-10-24',theme:{a:'#b14bff',b:'#3dffd8',bg:'#0a0418'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🚙',joystick:false,coinPts:40,
   abilities:[
-    {id:'jump',icon:'⤴️',name:'JUMP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — jump. Or tap anywhere on the game.'},
+    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — HOLD to fire forward and up. Your guns only shoot while you hold it.'},
+    {id:'jump',icon:'⤴️',name:'JUMP',cd:0,key:'ArrowUp',keyLabel:'↑',desc:'FREE — jump over craters and rocks.'},
     {id:'hover',icon:'🛸',name:'HOVER',cd:18,key:'Digit1',keyLabel:'1',desc:'Float over craters and rocks for 4 seconds.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'Bombs and rocks can\'t hurt you for 6 seconds.'},
     {id:'nitro',icon:'🚀',name:'NITRO',cd:15,key:'Digit3',keyLabel:'3',desc:'Race ahead at top speed for 4 seconds.'},
@@ -449,77 +486,101 @@ const GAME=window.GAME={
   shop:[{id:'b_p',cat:'Buggy',name:'Purple Buggy',cost:0,colors:['#b14bff'],desc:'Classic.'},{id:'b_o',cat:'Buggy',name:'Orange Buggy',cost:200,colors:['#ff9f1c'],desc:'Bright.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#b14bff,#3dffd8)'}],
   story:`<h3>MOON BUGGY</h3><p>Patrol the moon highway from checkpoint to checkpoint. Craters, boulders and alien saucers stand in your way.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap</b> anywhere (or SPACE / ↑) to JUMP over craters and rocks.</li><li>Your buggy fires forward AND up by itself — shoot rocks and UFOs.</li><li>Reach the checkpoint flag to clear the stage.</li></ul>`,
-  tutorial:[{text:'Tap to JUMP over the crater!',ev:'jump'},{text:'Reach the checkpoint flag!',time:5}],
-  stageIntro:{1:'REACH THE CHECKPOINT'},bossName:'SAUCER SWARM!',ending:{"0":["#PATROL","The highway is safe."],"1":["#CAPTAIN","Captain of the moon patrol."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={hover:4,shield:6,nitro:4}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pl(){return {x:bx,y:by};}, get lost(){return lost;}, get dist(){return dist;}, get obs(){return obs;}}; },
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Right thumb:</b> tap <b>⤴️ JUMP</b> to jump over craters and rocks (or tap anywhere on the moon). PC: ↑ or W.</li><li><b>Right thumb:</b> HOLD <b>🔫 FIRE</b> to shoot forward and up (PC: hold SPACE). Your guns only fire while you hold it.</li><li>Shoot the 🪨 rocks or jump them. Shoot the 🛸 saucers before they bomb you.</li><li>The 🏁 checkpoint flag comes towards you from the right — drive into it to clear the stage.</li><li>Every 10th stage: shoot down the MOTHERSHIP with your up-gun.</li></ul>`,
+  tutorial:[{text:'Press <b>↑</b> (or W) to JUMP over the crater!',touch:'Tap <b>⤴️ JUMP</b> to jump over the crater!',ev:'jump'},
+    {text:'<b>HOLD SPACE</b> to fire — blast the rock!',touch:'<b>HOLD 🔫 FIRE</b> to blast the rock!',ev:'rock'},{text:'Drive into the 🏁 checkpoint flag ahead!',time:5}],
+  stageIntro:{1:'JUMP ⤴️ + HOLD 🔫 FIRE'},bossName:'THE MOTHERSHIP!',ending:{"0":["#PATROL","The highway is safe."],"1":["#CAPTAIN","Captain of the moon patrol."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ const tot={hover:4,shield:6,nitro:4}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return {get pl(){return {x:bx,y:by,vy};}, get lost(){return lost;}, get done(){return done;}, get dist(){return dist;}, get goal(){return goal;}, get obs(){return obs;}, get ufos(){return ufos;}, get bombs(){return bombs;}, get boss(){return boss;}, get shots(){return shots;}, GY, get flagX(){return bx+(goal-dist);} }; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={hover:-9,shield:-9,nitro:-9}; bx=150; by=GY; vy=0; dist=0; scroll=0; cpFlash=0; jumpQ=false;
-    goal=a.content===0?2600:Math.round(a.dv([5000,6500,8000],9500,12000)); obs=[]; ufos=[]; bombs=[]; shots=[]; fireT=0; grace=1.5; spawnD=700; },
-  respawn(){ lost=false; by=GY; vy=0; grace=2.5; obs=obs.filter(o=>o.x>bx+300); bombs=[]; },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={hover:-9,shield:-9,nitro:-9}; bx=BX; by=GY; vy=0; dist=0; scroll=0; jumpQ=false; boss=null; lastCrater=false; bumpT=0; wPrev=false;
+    goal=a.content===0?3000:Math.round(easy()?3600+a.level*200:a.dv([5000,6500,8000],9500,12000)); obs=[]; ufos=[]; bombs=[]; shots=[]; fireT=0; grace=1.5; spawnD=a.content===0?500:700; },
+  respawn(){ lost=false; by=GY; vy=0; jumpQ=false; grace=2.5; bombs=[]; obs=obs.filter(o=>o.x>bx+500);
+    if(!boss){ dist=Math.max(0,dist-1000); if(!obs.some(o=>o.x<W+60)){ obs.push({k:'crater',x:W+40,w:easy()?56:api.dv([60,80,100],110,130)}); spawnD=api.dv([600,450,360],300,260); } } },  // death costs ground + a crater comes for you
   stageBonus(){ return 500; },
-  useAbility(id){ if(done||lost) return false; if(id==='jump'){ jump(); return true; }
-    if(id==='laser'){ obs.forEach(o=>{ if(o.k==='rock') o.gone=true; }); ufos.forEach(u=>u.hp=0); bombs=[]; api.fx.flash('#3dffd8',.4); api.sfx.boom(); return true; }
+  useAbility(id){ if(done||lost) return false; if(id==='fire') return true; if(id==='jump'){ jump(); return true; }
+    if(id==='laser'){ obs.forEach(o=>{ if(o.k==='rock') o.gone=true; }); ufos.forEach(u=>u.hp=0); bombs=[]; if(boss&&!boss.dead) boss.hp=Math.max(1,boss.hp-Math.ceil(boss.max*0.25)); api.fx.flash('#3dffd8',.4); api.sfx.boom(); return true; }
     eff[id]={hover:4,shield:6,nitro:4}[id]; api.sfx.power(); return true; },
-  onPointer(type){ if(type==='down') jump(); },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; if(lost) return;
-    const K=api.input.keys; if((K.ArrowUp||K.KeyW)&&!this._u) jump(); this._u=K.ArrowUp||K.KeyW;
-    const v=spd(); dist+=v*dt; scroll+=v*dt;
-    // spawn obstacles ahead
-    spawnD-=v*dt; if(spawnD<=0&&dist<goal-600){ const gap=api.dv([520,420,330],280,220); spawnD=gap*(0.7+Math.random()*0.7);
-      const r=Math.random(); if(api.content===0||r<0.5) obs.push({k:'crater',x:W+40,w:api.content===0?60:api.dv([60,80,100],110,130)}); else obs.push({k:'rock',x:W+40,hp:Math.random()<0.3?2:1,s:22+Math.random()*12}); }
-    const uRate=api.boss?api.dv([1,1.5,2],2.5,3.5):(api.level>=3?api.dv([0.12,0.3,0.5],0.7,1.1):0);
-    if(Math.random()<dt*uRate&&ufos.length<(api.boss?8:4)) ufos.push({x:W+30,y:180+Math.random()*220,vx:-(60+Math.random()*80),t:Math.random()*5,hp:1,dropT:1+Math.random()*2});
-    obs.forEach(o=>{ o.x-=v*dt; if(o.x<-150) o.gone=true; });
+  onPointer(type){ if(type==='down') jump(); },              // tapping the moon also jumps (never fires)
+  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; bumpT-=dt; if(lost) return;
+    const K=api.input.keys; if(K.KeyW&&!wPrev) jump(); wPrev=!!K.KeyW;
+    const bossOn=boss&&!boss.dead, v=spd(); scroll+=v*dt; if(!bossOn) dist+=v*dt;
+    // spawn ground hazards ahead (never near the flag, never during the boss)
+    if(!bossOn) spawnD-=v*dt;
+    if(spawnD<=0&&dist<goal-1300&&!(api.boss&&dist>bossAt()-1300)){
+      const gap=easy()?820:api.dv([620,480,380],320,260), r=Math.random();
+      const crater=api.content===0||easy()?!lastCrater:(lastCrater?r<0.35:r<0.6); lastCrater=crater;
+      if(crater){ const w=api.content===0||easy()?50+Math.random()*12:api.dv([60,80,100],110,130); obs.push({k:'crater',x:W+40,w}); spawnD=Math.max(gap*(0.75+Math.random()*0.6),300+w); }
+      else { obs.push({k:'rock',x:W+40,hp:!easy()&&Math.random()<api.dv([0.2,0.35,0.5],0.6,0.7)?2:1,s:easy()?20+Math.random()*6:22+Math.random()*12}); spawnD=Math.max(gap*(0.75+Math.random()*0.6),320); } }
+    const uRate=bossOn?api.dv([0.25,0.5,0.8],1,1.4):(api.content===0?0:api.level>=3?(easy()?0.08:api.dv([0.15,0.32,0.5],0.7,1.1)):0);
+    if(Math.random()<dt*uRate&&ufos.length<(bossOn?3:easy()?1:4)) ufos.push({x:W+30,y:150+Math.random()*190,vx:-(60+Math.random()*80),t:Math.random()*5,hp:1,dropT:1.5+Math.random()*2});
+    obs.forEach(o=>{ o.x-=v*dt; if(o.x<-200) o.gone=true; });
     // buggy physics
-    const g=eff.hover>0?0:2000; if(eff.hover>0) by+=(GY-120-by)*Math.min(1,dt*4); vy+=g*dt; by+=vy*dt; if(eff.hover<=0&&by>=GY){ by=GY; vy=0; if(jumpQ){ jumpQ=false; jump(); } }
-    // collisions with ground hazards
+    const g=eff.hover>0?0:(easy()?1800:2000); if(eff.hover>0) by+=(GY-130-by)*Math.min(1,dt*4); vy+=g*dt; by+=vy*dt; if(eff.hover<=0&&by>=GY){ by=GY; vy=0; if(jumpQ){ jumpQ=false; jump(); } }
     const onGround=by>=GY-1&&eff.hover<=0;
     obs.forEach(o=>{ if(o.gone) return;
-      if(o.k==='crater'&&onGround&&bx+20>o.x&&bx-20<o.x+o.w) die('INTO A CRATER!');
-      if(o.k==='rock'&&Math.abs(o.x-bx)<o.s+20&&by>GY-o.s*1.6&&eff.hover<=0){ if(eff.shield>0){ o.gone=true; api.sfx.bump(); } else die('HIT A ROCK!'); } });
-    // guns: forward and up
-    fireT-=dt; if(fireT<=0){ fireT=0.22; shots.push({x:bx+40,y:by-26,vx:700,vy:0}); shots.push({x:bx,y:by-40,vx:0,vy:-650}); api.sfx.shoot(); }
+      if(o.k==='crater'&&onGround&&(easy()?bx>o.x+10&&bx<o.x+o.w-10:bx+20>o.x&&bx-20<o.x+o.w)) die('INTO A CRATER!');
+      if(o.k==='rock'&&Math.abs(o.x-bx)<o.s+20&&by>GY-o.s*1.6&&eff.hover<=0){
+        if(eff.shield>0){ o.gone=true; api.sfx.bump(); api.fx.burst(o.x,GY-20,'#b8a080',12,200,.4,3); }
+        else if(easy()){ o.gone=true; dist=Math.max(0,dist-400); api.fx.burst(o.x,GY-20,'#b8a080',12,200,.4,3); api.sfx.bump(); api.fx.shake(5); if(bumpT<=0){ bumpT=2; api.toast('BUMP! JUMP OR SHOOT THE ROCKS'); } }   // gentle: push back, no life lost
+        else die('HIT A ROCK!'); } });
+    // guns: ONLY while FIRE (Space) is held — forward and up
+    fireT-=dt; if(K.Space&&fireT<=0){ fireT=0.18; shots.push({x:bx+46,y:by-28,vx:900,vy:0},{x:bx-4,y:by-64,vx:0,vy:-760}); api.sfx.shoot(); }
     shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt;
-      obs.forEach(o=>{ if(!s.hit&&o.k==='rock'&&!o.gone&&s.vy===0&&Math.abs(s.x-o.x)<o.s&&s.y>GY-o.s*2){ s.hit=true; if(--o.hp<=0){ o.gone=true; api.addScore(80,o.x,GY-30); api.fx.burst(o.x,GY-20,'#b8a080',12,200,.4,3); api.sfx.small(); } } });
-      ufos.forEach(u=>{ if(!s.hit&&u.hp>0&&Math.abs(s.x-u.x)<24&&Math.abs(s.y-u.y)<16){ s.hit=true; u.hp=0; } }); });
-    shots=shots.filter(s=>!s.hit&&s.x<W+20&&s.y>0);
-    const bomb=api.dv([1,0.75,0.55],0.45,0.3);
-    ufos.forEach(u=>{ u.t+=dt; u.x+=u.vx*dt; u.y+=Math.sin(u.t*3)*40*dt; if(u.x<-40) u.gone=true; u.dropT-=dt; if(u.dropT<=0&&u.x>bx-40&&u.x<W){ u.dropT=bomb*(1+Math.random()); bombs.push({x:u.x,y:u.y+10,vx:(bx-u.x)*0.4,vy:80}); }
+      obs.forEach(o=>{ if(!s.hit&&o.k==='rock'&&!o.gone&&s.vy===0&&Math.abs(s.x-o.x)<o.s&&s.y>GY-o.s*2-10){ s.hit=true; if(--o.hp<=0){ o.gone=true; api.addScore(80,o.x,GY-30); api.fx.burst(o.x,GY-20,'#b8a080',14,220,.4,3); api.sfx.small(); api.event('rock'); } else api.fx.burst(s.x,s.y,'#fff6a0',5,120,.2,2); } });
+      ufos.forEach(u=>{ if(!s.hit&&u.hp>0&&Math.abs(s.x-u.x)<28&&Math.abs(s.y-u.y)<20){ s.hit=true; u.hp=0; } });
+      bombs.forEach(b=>{ if(!s.hit&&!b.gone&&Math.abs(s.x-b.x)<16&&Math.abs(s.y-b.y)<26){ s.hit=true; b.gone=true; api.addScore(30,b.x,b.y); api.fx.burst(b.x,b.y,'#ff9f1c',8,140,.3,2); } });   // bombs can be shot down
+      if(bossOn&&!s.hit&&Math.abs(s.x-boss.x)<95&&Math.abs(s.y-boss.y)<34){ s.hit=true; boss.hp--; api.fx.burst(s.x,s.y,'#fff6a0',5,140,.2,2); api.sfx.small();
+        if(boss.hp<=0){ boss.dead=true; api.addScore(4000,boss.x,boss.y); api.fx.burst(boss.x,boss.y,'#3dffd8',70,380,.9,4); api.fx.flash('#fff',.3); api.sfx.boom(); api.toast('MOTHERSHIP DOWN! DRIVE TO THE FLAG!'); ufos.forEach(u=>u.hp=0); bombs=[]; } } });
+    shots=shots.filter(s=>!s.hit&&s.x<W+20&&s.y>60);
+    const bomb=easy()?1.6:api.dv([1.1,0.75,0.55],0.45,0.3);
+    ufos.forEach(u=>{ u.t+=dt; u.x+=u.vx*dt; u.y+=Math.sin(u.t*3)*40*dt; if(u.x<-40) u.gone=true; u.dropT-=dt; if(u.dropT<=0&&u.x>bx-40&&u.x<bx+700){ u.dropT=bomb*(1+Math.random()); bombs.push({x:u.x,y:u.y+10,vx:(bx-u.x)*0.4,vy:80}); }
       if(u.hp<=0&&!u.gone){ u.gone=true; api.addScore(150*(1+api.dk*.5),u.x,u.y); api.fx.burst(u.x,u.y,'#3dffd8',16,220,.5,3); api.sfx.boom(); } });
     ufos=ufos.filter(u=>!u.gone);
+    // MOTHERSHIP boss: sweeps back and forth over you; only the up-gun reaches it
+    if(api.boss&&!boss&&dist>=bossAt()){ boss={x:W+160,y:175,hp:Math.round(api.diff===0&&api.level<=10?12:api.dv([16,22,30],40,60)),max:0,t:0,dropT:1.5}; boss.max=boss.hp; api.toast('THE MOTHERSHIP! SHOOT IT FROM BELOW!'); }
+    if(boss&&!boss.dead){ boss.t+=dt; const tx=bx+260+Math.sin(boss.t*0.55)*360; boss.x+=(tx-boss.x)*Math.min(1,dt*(boss.t<3?1.2:2.5)); boss.y=175+Math.sin(boss.t*1.7)*18;
+      boss.dropT-=dt; if(boss.dropT<=0&&boss.x<W){ boss.dropT=api.dv([1.8,1.3,1],0.8,0.6)*(0.8+Math.random()*0.5); bombs.push({x:boss.x,y:boss.y+30,vx:(bx-boss.x)*0.5,vy:60}); } }
     bombs.forEach(b=>{ b.vy+=300*dt; b.x+=b.vx*dt; b.y+=b.vy*dt; if(b.y>GY+10){ b.gone=true; api.fx.burst(b.x,GY,'#ff9f1c',6,120,.3,2); }
-      if(!b.gone&&Math.abs(b.x-bx)<26&&Math.abs(b.y-(by-20))<24){ b.gone=true; if(eff.shield<=0) die('BOMBED!'); } }); bombs=bombs.filter(b=>!b.gone);
+      if(!b.gone&&Math.abs(b.x-bx)<30&&Math.abs(b.y-(by-24))<26){ b.gone=true; if(eff.shield<=0) die('BOMBED!'); } }); bombs=bombs.filter(b=>!b.gone);
     obs=obs.filter(o=>!o.gone);
-    if(dist>=goal&&!done){ done=true; api.toast('CHECKPOINT!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); }
-    api.counter('🏁 TO GO',Math.max(0,Math.ceil((goal-dist)/50))+'m'); },
+    if(dist>=goal&&!done){ done=true; api.toast('CHECKPOINT!'); api.sfx.clear(); api.fx.flash('#fff',.3); api.fx.burst(bx+30,GY-110,'#ffd23f',30,260,.6,3); setTimeout(()=>api.stageClear(),900); }
+    if(bossOn) api.counter('🛸 MOTHERSHIP',Math.ceil(boss.hp/boss.max*100)+'%'); else api.counter('🏁 TO GO',Math.max(0,Math.ceil((goal-dist)/50))+'m'); },
   render(c){ const g=c.createLinearGradient(0,0,0,GY); g.addColorStop(0,'#0a0418'); g.addColorStop(1,'#3a1060'); c.fillStyle=g; c.fillRect(0,0,W,H);
-    c.fillStyle='#2e7bff'; c.beginPath(); c.arc(470,190,46,0,7); c.fill(); c.fillStyle='#3bff7a'; c.beginPath(); c.arc(455,180,16,0,7); c.arc(490,205,10,0,7); c.fill();
-    for(let i=0;i<60;i++){ c.fillStyle='rgba(255,255,255,.5)'; c.fillRect(((i*97-scroll*0.05)%W+W)%W,(i*53)%500,2,2); }
-    c.fillStyle='#2a1a4a'; c.beginPath(); c.moveTo(0,GY); for(let x=0;x<=W;x+=30) c.lineTo(x,GY-160-Math.abs(Math.sin((x+scroll*0.2)*0.006))*120); c.lineTo(W,GY); c.fill();
-    c.fillStyle='#3a2a5a'; c.beginPath(); c.moveTo(0,GY); for(let x=0;x<=W;x+=20) c.lineTo(x,GY-60-Math.abs(Math.sin((x+scroll*0.5)*0.012))*60); c.lineTo(W,GY); c.fill();
-    c.fillStyle='#6a5a7a'; c.fillRect(0,GY,W,H-GY); c.fillStyle='#4a3a5a'; for(let x=-((scroll)%60);x<W;x+=60) c.fillRect(x,GY+20,30,6);
-    obs.forEach(o=>{ if(o.k==='crater'){ c.fillStyle='#0a0418'; c.beginPath(); c.moveTo(o.x,GY); c.quadraticCurveTo(o.x+o.w/2,GY+70,o.x+o.w,GY); c.fill(); c.fillRect(o.x,GY,o.w,12); }
-      else { c.fillStyle=o.hp>1?'#8a7a6a':'#a8987a'; c.beginPath(); c.arc(o.x,GY-o.s*0.7,o.s,Math.PI,0); c.lineTo(o.x+o.s,GY); c.lineTo(o.x-o.s,GY); c.fill(); } });
-    const fx=W-((goal-dist)>0? Math.min(W+100,(goal-dist)*1+bx) : bx+60); if(goal-dist<W){ c.fillStyle='#fff'; c.fillRect(fx,GY-120,4,120); c.fillStyle=(t*4|0)%2?'#ffd23f':'#ff3b5c'; c.fillRect(fx+4,GY-120,40,26); }
-    ufos.forEach(u=>{ c.fillStyle='#3dffd8'; c.shadowColor='#3dffd8'; c.shadowBlur=12; c.beginPath(); c.ellipse(u.x,u.y,24,9,0,0,7); c.fill(); c.fillStyle='#b14bff'; c.beginPath(); c.arc(u.x,u.y-5,9,Math.PI,0); c.fill(); c.shadowBlur=0; });
-    c.fillStyle='#ff9f1c'; bombs.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,6,0,7); c.fill(); });
-    c.fillStyle='#fff6a0'; shots.forEach(s=>c.fillRect(s.x-3,s.y-3,s.vx?12:4,s.vx?4:12));
-    if(!lost&&(grace<=0||(t*10|0)%2)){ const col=api.cos('Buggy').colors[0], y=by; c.fillStyle=col; c.fillRect(bx-34,y-38,68,18); c.fillRect(bx-14,y-52,30,16); c.fillStyle='#3dffd8'; c.fillRect(bx-8,y-48,16,8);
-      c.fillStyle='#ddd'; c.fillRect(bx-2,y-62,4,12); [-24,0,24].forEach(o=>{ c.fillStyle='#222'; c.beginPath(); c.arc(bx+o,y-12,11,0,7); c.fill(); c.fillStyle='#888'; c.beginPath(); c.arc(bx+o,y-12,4,0,7); c.fill(); });
-      if(eff.hover>0){ c.fillStyle='rgba(61,255,216,.5)'; c.fillRect(bx-30,y,60,6+Math.random()*10); } if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(bx,y-28,46,0,7); c.stroke(); } }
-    c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(20,H-60,W-40,10); c.fillStyle='#3dffd8'; c.fillRect(20,H-60,(W-40)*Math.min(1,dist/goal),10);
+    for(let i=0;i<110;i++){ c.fillStyle='rgba(255,255,255,'+(.3+(i%4)*.15)+')'; c.fillRect(((i*397+(i%7)*61-scroll*0.05)%W+W)%W,80+(i*131+(i%5)*37)%340,2,2); }
+    c.fillStyle='#2e7bff'; c.shadowColor='#2e7bff'; c.shadowBlur=30; c.beginPath(); c.arc(1080,170,52,0,7); c.fill(); c.shadowBlur=0; c.fillStyle='#3bff7a'; c.beginPath(); c.arc(1062,158,18,0,7); c.arc(1100,186,11,0,7); c.fill();
+    c.fillStyle='#2a1a4a'; c.beginPath(); c.moveTo(0,GY); for(let x=0;x<=W;x+=30) c.lineTo(x,GY-140-Math.abs(Math.sin((x+scroll*0.2)*0.005))*110); c.lineTo(W,GY); c.fill();
+    c.fillStyle='#3a2a5a'; c.beginPath(); c.moveTo(0,GY); for(let x=0;x<=W;x+=20) c.lineTo(x,GY-50-Math.abs(Math.sin((x+scroll*0.5)*0.01))*55); c.lineTo(W,GY); c.fill();
+    const sg=c.createLinearGradient(0,GY,0,H); sg.addColorStop(0,'#7a6a8a'); sg.addColorStop(1,'#3a2a4a'); c.fillStyle=sg; c.fillRect(0,GY,W,H-GY);
+    c.fillStyle='#b14bff'; c.shadowColor='#b14bff'; c.shadowBlur=10; c.fillRect(0,GY,W,3); c.shadowBlur=0;
+    c.fillStyle='#4a3a5a'; for(let x=-((scroll)%80);x<W;x+=80) c.fillRect(x,GY+26,40,6); for(let x=-((scroll*1.3)%140);x<W;x+=140){ c.beginPath(); c.ellipse(x+40,GY+90,26,7,0,0,7); c.fill(); }
+    obs.forEach(o=>{ if(o.k==='crater'){ c.fillStyle='#0a0418'; c.beginPath(); c.moveTo(o.x,GY); c.quadraticCurveTo(o.x+o.w/2,GY+80,o.x+o.w,GY); c.fill(); c.fillRect(o.x,GY,o.w,14); c.strokeStyle='#ff3b5c'; c.lineWidth=2; c.beginPath(); c.moveTo(o.x-4,GY); c.lineTo(o.x+o.w+4,GY); c.stroke(); }
+      else { c.fillStyle=o.hp>1?'#8a7a6a':'#b8a88a'; c.beginPath(); c.arc(o.x,GY-o.s*0.7,o.s,Math.PI,0); c.lineTo(o.x+o.s,GY); c.lineTo(o.x-o.s,GY); c.fill(); c.fillStyle='rgba(0,0,0,.2)'; c.beginPath(); c.arc(o.x+o.s*0.3,GY-o.s*0.5,o.s*0.3,0,7); c.fill(); } });
+    // checkpoint flag: lives at distance=goal, so it always appears from the RIGHT and comes to you
+    const fx=done?bx+34:bx+34+(goal-dist); if(fx<W+60&&!(boss&&!boss.dead)){ c.fillStyle='#fff'; c.fillRect(fx,GY-140,5,140); c.fillStyle=(t*4|0)%2?'#ffd23f':'#ff3b5c'; c.shadowColor='#ffd23f'; c.shadowBlur=16; c.beginPath(); c.moveTo(fx+5,GY-140); c.lineTo(fx+60,GY-124); c.lineTo(fx+5,GY-106); c.fill(); c.shadowBlur=0;
+      c.fillStyle='rgba(255,210,63,.25)'; c.fillRect(fx-6,GY-2,17,6); c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillStyle='#ffd23f'; c.fillText('CHECKPOINT',fx+20,GY-152); }
+    if(boss&&!boss.dead){ c.save(); c.translate(boss.x,boss.y); c.shadowColor='#ff3bd4'; c.shadowBlur=24; c.fillStyle='#5a2a8a'; c.beginPath(); c.ellipse(0,0,100,26,0,0,7); c.fill(); c.fillStyle='#3dffd8'; c.beginPath(); c.arc(0,-14,34,Math.PI,0); c.fill(); c.shadowBlur=0;
+      for(let i=-3;i<=3;i++){ c.fillStyle=((t*6+i)|0)%2?'#ffd23f':'#ff3bd4'; c.beginPath(); c.arc(i*26,6,5,0,7); c.fill(); } c.restore();
+      c.fillStyle='#000'; c.fillRect(boss.x-70,boss.y-62,140,8); c.fillStyle='#ff3bd4'; c.fillRect(boss.x-70,boss.y-62,140*boss.hp/boss.max,8); }
+    ufos.forEach(u=>{ c.fillStyle='#3dffd8'; c.shadowColor='#3dffd8'; c.shadowBlur=12; c.beginPath(); c.ellipse(u.x,u.y,26,10,0,0,7); c.fill(); c.fillStyle='#b14bff'; c.beginPath(); c.arc(u.x,u.y-5,10,Math.PI,0); c.fill(); c.shadowBlur=0; });
+    c.fillStyle='#ff9f1c'; bombs.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,7,0,7); c.fill(); });
+    c.fillStyle='#fff6a0'; c.shadowColor='#fff6a0'; c.shadowBlur=8; shots.forEach(s=>c.fillRect(s.x-3,s.y-3,s.vx?14:4,s.vx?4:14)); c.shadowBlur=0;
+    if(!lost&&(grace<=0||(t*10|0)%2)){ const col=api.cos('Buggy').colors[0], y=by; c.fillStyle=col; c.shadowColor=col; c.shadowBlur=14; c.fillRect(bx-36,y-40,72,20); c.fillRect(bx-14,y-56,32,17); c.shadowBlur=0; c.fillStyle='#3dffd8'; c.fillRect(bx-7,y-52,18,9);
+      c.fillStyle='#ddd'; c.fillRect(bx-6,y-68,4,14); c.fillRect(bx+34,y-34,14,4); [-25,0,25].forEach(o=>{ c.fillStyle='#222'; c.beginPath(); c.arc(bx+o,y-12,12,0,7); c.fill(); c.fillStyle='#888'; c.beginPath(); c.arc(bx+o,y-12,4,0,7); c.fill(); });
+      if(api.input.keys.Space&&!done){ c.fillStyle='rgba(255,240,150,.9)'; c.beginPath(); c.arc(bx+50,y-32,4+Math.random()*3,0,7); c.arc(bx-4,y-70,4+Math.random()*3,0,7); c.fill(); }
+      if(eff.hover>0){ c.fillStyle='rgba(61,255,216,.5)'; c.fillRect(bx-30,y,60,6+Math.random()*10); } if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(bx,y-28,50,0,7); c.stroke(); } }
+    c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(300,H-16,W-640,8); c.fillStyle='#3dffd8'; c.fillRect(300,H-16,(W-640)*Math.min(1,dist/goal),8); c.fillStyle='#ffd23f'; c.fillRect(W-344,H-22,4,18);
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#0a0418'; c.fillRect(0,0,W,H); c.fillStyle='#b14bff'; c.fillRect(260,500+Math.sin(tt*4)*20,80,20); }
+  attract(c,tt){ c.fillStyle='#0a0418'; c.fillRect(0,0,W,H); c.fillStyle='#7a6a8a'; c.fillRect(0,GY,W,H-GY); c.fillStyle='#b14bff'; const y=GY-Math.max(0,Math.sin(tt*3))*90; c.fillRect(BX-36,y-40,72,20); c.fillRect(BX-14,y-56,32,17);
+    c.fillStyle='#222'; [-25,0,25].forEach(o=>{ c.beginPath(); c.arc(BX+o,y-12,12,0,7); c.fill(); }); }
 };
-function jump(){ if(done||lost) return; if(by>=GY-1&&eff.hover<=0){ vy=-api.dv([780,760,740],730,720); api.sfx.blip(); api.event('jump'); } else if(by>GY-40) jumpQ=true; }
+function jump(){ if(done||lost) return; if(by>=GY-1&&eff.hover<=0){ vy=easy()?-820:-api.dv([790,760,740],730,720); api.sfx.blip(); api.event('jump'); } else if(by>GY-50) jumpQ=true; }
 function die(msg){ if(lost||done||grace>0) return; if(eff.shield>0&&msg!=='INTO A CRATER!') return; lost=true; api.toast(msg); api.fx.burst(bx,by-20,'#b14bff',36,260,.7,3); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1000); }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -606,8 +667,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -632,6 +711,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -649,6 +751,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -755,7 +861,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -779,6 +885,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -828,8 +936,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1200,7 +1308,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1374,6 +1482,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1384,10 +1493,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1404,7 +1526,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1440,7 +1562,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1479,6 +1601,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
