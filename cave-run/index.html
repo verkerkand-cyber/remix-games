@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CV-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-CV-1.2 · 2026-10-25">
 <title>Cave Run</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,47 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
 
 </style>
 </head>
 <body>
-<!-- BUILD-CV-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-CV-1.2 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,84 +467,157 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* CAVE RUN — Scramble remix (#52). 100 stages. Fly the cave, bomb fuel tanks to keep flying, dodge rockets, blow up the base. */
+/* CAVE RUN — cave-flyer remix (#52). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1): the cave scrolls right to left and you see
+   far ahead. HOLD FIRE to shoot (no auto-fire), BOMB the fuel tanks to keep flying, dodge rockets and saucers, bomb the base.
+   v1.2 fix "player just dies": the old touch-drag steering used ONE shared anchor for every finger, so a 2nd finger (tapping
+   to bomb) made the ship jump hundreds of pixels into the wall. Now phones steer with the shell joystick only (a mouse may drag,
+   per-pointer, speed-limited) — the ship can never teleport. Rockets only launch AHEAD of you after a visible warning,
+   saucers are visible for 2+ s before they reach you, and every death is logged with its cause (_dbg().deaths). */
 (function(){
-const W=600,H=900,TOP=110,SEG=20;
-let api,t,sh,shots,bombs,gt,rockets,ufos,ceil,floor,scroll,dist,goal,fuel,done,lost,eff,grace,fireT,bombCD,mouse,base;
-function genCol(x){ const k=x/SEG, rough=api.dv([0.4,0.6,0.8],0.9,1.1);
-  const c=TOP+40+Math.abs(Math.sin(k*0.07)*120+Math.sin(k*0.19)*60*rough), f=H-80-Math.abs(Math.sin(k*0.05+1)*160+Math.sin(k*0.23)*70*rough);
-  const gap=api.dv([420,360,300],270,230); return {c:Math.min(c,f-gap),f}; }
+const W=1280,H=720,SEG=20,PX0=330,PXMIN=300,PXMAX=700;
+let api,t,sh,shots,bombs,gt,rockets,ufos,flak,scroll,dist,goal,fuel,done,lost,eff,grace,fireT,bombCD,mouse,base,seekT,edgeT,P,rng,gtX,deaths,maxStep,lastPos,warnT;
+const easy=()=>api.content===0||(api.diff===0&&api.level<=5);   // Beginner 1-5 + tutorial: walls push you back
+const beg10=()=>api.diff===0&&api.level<=10;
+function mulberry(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let q=Math.imul(a^a>>>15,1|a); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }; }
+/* terrain: pure function of world x + the stage's phases (from Math.random at stage start → race = same cave) */
+function genCol(x){ const k=x/SEG;
+  const cy=380+P.A*(0.7*Math.sin(k*0.04+P.p1)+0.3*Math.sin(k*0.11+P.p2)), s=Math.sin(k*0.09+P.p3);
+  const up=s>0?P.stal*Math.pow(s,6):0, dn=s<0?P.stal*Math.pow(-s,6):0;
+  return {c:cy-P.gap/2+up, f:cy+P.gap/2-dn}; }
 function terrainAt(wx){ const i=Math.floor(wx/SEG); const a=genCol(i*SEG), b=genCol((i+1)*SEG), fr=(wx-i*SEG)/SEG; return {c:a.c+(b.c-a.c)*fr,f:a.f+(b.f-a.f)*fr}; }
+function genTargets(upto){ while(gtX<upto){ const r=rng(); gt.push({wx:gtX,k:r<(beg10()?0.6:0.45)?'fuel':'rocket',st:0,w:0,vis:0}); gtX+=P.sp*(0.7+rng()*0.6); } }
 const GAME=window.GAME={
   id:'cave-run',title:'Cave Run',titleHTML:'CAVE<br>RUN',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-CV-1.1 · 2026-10-17',theme:{a:'#ff9f1c',b:'#00e5ff',bg:'#0a0610'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🚀',joystick:false,coinPts:40,
+  build:'BUILD-CV-1.2 · 2026-10-25',theme:{a:'#ff9f1c',b:'#00e5ff',bg:'#0a0610'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🚀',joystick:true,coinPts:40,
   abilities:[
-    {id:'bomb',icon:'💣',name:'BOMB',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — drop a bomb. Bomb ⛽ fuel tanks to refuel and 🚀 rockets before they launch.'},
+    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — HOLD to fire your laser forward. It only fires while you hold it.'},
+    {id:'bomb',icon:'💣',name:'BOMB',cd:0,key:'KeyX',keyLabel:'X',desc:'FREE — drop bombs (hold for one every half second). Bomb ⛽ fuel tanks to refuel and 🚀 rockets before they launch.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit1',keyLabel:'1',desc:'6 seconds of safety — even scraping the cave walls.'},
     {id:'slow',icon:'🐌',name:'SLOW-MO',cd:18,key:'Digit2',keyLabel:'2',desc:'The cave scrolls at half speed for 6 seconds.'},
     {id:'fuel',icon:'⛽',name:'REFUEL',cd:20,key:'Digit3',keyLabel:'3',desc:'+40% fuel.'}],
   shop:[{id:'s_w',cat:'Ship',name:'White Jet',cost:0,colors:['#e8f0ff'],desc:'Classic.'},{id:'s_o',cat:'Ship',name:'Orange Jet',cost:150,colors:['#ff9f1c'],desc:'Hot.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff9f1c,#00e5ff)'}],
   story:`<h3>CAVE RUN</h3><p>The enemy base is hidden at the end of a long, twisting cave. You'll need every drop of fuel — and every bomb — to get there.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> up/down/left/right to fly (arrow keys on PC). Your laser fires by itself.</li><li>Tap <b>💣 BOMB</b> (SPACE) or tap the game to drop bombs on the ground.</li><li>Your FUEL runs out all the time — bomb the ⛽ tanks to refill it.</li><li>Don't touch the cave walls. Reach the end (and on boss stages, bomb the base).</li></ul>`,
-  tutorial:[{text:'Drag to fly. Tap to drop a bomb on the ⛽ fuel tank!',ev:'tank'},{text:'Fly to the end of the cave!',time:5}],
-  stageIntro:{1:'FLY THE CAVE · KEEP FUELLED'},bossName:'THE ENEMY BASE!',ending:{"0":["#THROUGH","You made it through."],"1":["#ACE","Cave ace."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={shield:6,slow:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pl(){return sh;}, get lost(){return lost;}, get fuel(){return fuel;}}; },
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick flies your jet up/down/forward/back. PC: arrow keys or WASD (or drag with the mouse).</li><li><b>Right thumb:</b> HOLD <b>🔫 FIRE</b> to shoot (PC: hold SPACE). Tap or hold <b>💣 BOMB</b> to drop bombs (PC: X).</li><li>Your ⛽ FUEL (top-left gauge) runs down all the time — bomb or shoot the green FUEL tanks to refill it.</li><li>🚀 Rockets on the ground flash red before they launch — bomb them first or fly away. 🛸 Saucers fly at you — shoot them.</li><li>Don't touch the cave walls. Reach the end — every 10th stage, bomb the enemy base.</li></ul>`,
+  tutorial:[{text:'Fly with the arrow keys. <b>HOLD SPACE</b> to fire — shoot the 🛸 saucer coming at you!',touch:'Left thumb flies. <b>HOLD 🔫 FIRE</b> to shoot the 🛸 saucer coming at you!',ev:'kill'},
+    {text:'Press <b>X</b> to drop a bomb on a green ⛽ FUEL tank!',touch:'Tap <b>💣 BOMB</b> to drop a bomb on a green ⛽ FUEL tank!',ev:'tank'},{text:'Fly to the end of the cave!',time:5}],
+  stageIntro:{1:'HOLD 🔫 FIRE · BOMB ⛽ TANKS'},bossName:'THE ENEMY BASE!',ending:{"0":["#THROUGH","You made it through."],"1":["#ACE","Cave ace."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ const tot={shield:6,slow:6}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return {get pl(){return sh;}, get lost(){return lost;}, get done(){return done;}, get fuel(){return fuel;}, get dist(){return dist;}, get goal(){return goal;}, get scroll(){return scroll;},
+    get gt(){return gt;}, get shots(){return shots;}, get rockets(){return rockets;}, get ufos(){return ufos;}, get flak(){return flak;}, get base(){return base;}, get deaths(){return deaths;}, get maxStep(){return maxStep;},
+    terrainAt, sig(){ return [P.p1,P.p2,P.p3].map(v=>v.toFixed(5)).join(',')+'|'+gt.slice(0,8).map(g=>g.k[0]+Math.round(g.wx)).join(','); }}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=2; bombCD=0; eff={shield:-9,slow:-9}; shots=[]; bombs=[]; gt=[]; rockets=[]; ufos=[]; scroll=0; dist=0; fuel=100; fireT=0; mouse=null; base=null;
-    goal=a.content===0?3500:Math.round(a.dv([7000,9000,11000],13000,16000));
-    for(let x=W;x<goal;x+=api.dv([260,220,180],160,130)*(0.7+Math.random()*0.6)){ const r=Math.random(); gt.push({wx:x,k:r<0.45?'fuel':'rocket',st:0}); }
-    const T0=terrainAt(120); sh={x:120,y:(T0.c+T0.f)/2}; },
-  respawn(){ lost=false; grace=2.5; const T0=terrainAt(scroll+120); sh.x=120; sh.y=(T0.c+T0.f)/2; fuel=Math.max(fuel,60); rockets=[]; },
+  startStage(n,a){ api=a; rng=mulberry(Math.floor(Math.random()*2147483647));   // the ONLY randomness the stage layout uses
+    t=0; done=false; lost=false; grace=2; bombCD=0; edgeT=0; warnT=0; eff={shield:-9,slow:-9}; shots=[]; bombs=[]; gt=[]; rockets=[]; ufos=[]; flak=[]; scroll=0; dist=0; fuel=100; fireT=0; mouse=null; base=null; deaths=[]; maxStep=0;
+    const gap=a.dv([300,240,200],185,165)+(beg10()?30+(10-a.level)*5:0)+(a.content===0?40:0);
+    P={p1:rng()*6.283,p2:rng()*6.283,p3:rng()*6.283,gap,A:Math.min(a.dv([80,130,160],170,180),284-gap/2),stal:beg10()||a.content===0?0:a.dv([20,50,70],80,90),sp:a.dv([300,240,190],170,140)};
+    goal=a.content===0?3000:Math.round(a.dv([7000,9000,11000],13000,16000)); gtX=W+200; genTargets(W*2);
+    seekT=a.content===0?6:3.5; const T0=terrainAt(PX0); sh={x:PX0,y:(T0.c+T0.f)/2}; lastPos={x:sh.x,y:sh.y}; },
+  respawn(){ lost=false; grace=2.5; if(!base) dist=Math.max(0,dist-1000); const T0=terrainAt(scroll+PX0); sh.x=PX0; sh.y=(T0.c+T0.f)/2; lastPos={x:sh.x,y:sh.y}; fuel=Math.max(fuel,60);
+    rockets=[]; flak=[]; ufos=ufos.filter(u=>u.x>sh.x+600); seekT=Math.max(seekT,2); mouse=null; },
   stageBonus(){ return Math.round(fuel*15); },
-  useAbility(id){ if(done||lost) return false; if(id==='bomb') return drop(); if(id==='fuel'){ fuel=Math.min(100,fuel+40); api.sfx.power(); return true; } eff[id]={shield:6,slow:6}[id]; api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(type==='down'){ mouse={x,y,px:sh.x,py:sh.y,t:t}; } else if(type==='move'&&mouse){ sh.x=Math.max(40,Math.min(W*0.7,mouse.px+(x-mouse.x)*1.2)); sh.y=mouse.py+(y-mouse.y)*1.2; } else if(type==='up'&&mouse){ if(t-mouse.t<0.25&&Math.hypot(x-mouse.x,y-mouse.y)<15) drop(); mouse=null; } },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; bombCD-=dt; if(lost) return;
-    const v=api.dv([150,180,210],240,290)*(eff.slow>0?0.5:1); if(!base||base.dead) { scroll+=v*dt; dist+=v*dt; }
-    const d=api.input.dir(); sh.x=Math.max(40,Math.min(W*0.7,sh.x+d.x*280*dt)); sh.y+=d.y*300*dt; if(api.input.keys.Space&&!this._s) drop(); this._s=api.input.keys.Space;
-    fuel-=dt*api.dv([3.2,4,4.8],5.4,6.5); if(fuel<=0){ fuel=0; sh.y+=160*dt; }
-    const T0=terrainAt(scroll+sh.x); if((sh.y-14<T0.c||sh.y+12>T0.f)){ if(eff.shield>0||grace>0) sh.y=Math.max(T0.c+16,Math.min(T0.f-14,sh.y)); else { die(fuel<=0?'OUT OF FUEL!':'HIT THE CAVE!'); return; } }
-    fireT-=dt; if(fireT<=0){ fireT=0.18; shots.push({x:sh.x+24,y:sh.y}); api.sfx.shoot(); }
-    shots.forEach(s=>{ s.x+=800*dt; const T=terrainAt(scroll+s.x); if(s.y<T.c||s.y>T.f) s.gone=true; });
-    bombs.forEach(b=>{ b.vy+=700*dt; b.x+=b.vx*dt-v*dt*0.0; b.y+=b.vy*dt; const T=terrainAt(scroll+b.x); if(b.y>=T.f-4){ b.gone=true; api.fx.burst(b.x,T.f,'#ff9f1c',10,160,.3,2); hitGround(b.x+scroll); } });
-    // ground targets & rockets
-    gt.forEach(g=>{ if(g.dead) return; const sx=g.wx-scroll; if(sx<-40) { g.dead=true; return; } if(g.k==='rocket'&&g.st===0&&sx<sh.x+api.dv([140,220,300],340,420)&&sx>sh.x-20&&Math.random()<dt*api.dv([0.8,1.4,2],2.6,3.5)){ g.st=1; rockets.push({wx:g.wx,y:terrainAt(g.wx).f-20,vy:-api.dv([150,200,250],290,360)}); g.dead=true; }
-      shots.forEach(s=>{ const T=terrainAt(g.wx); if(!s.gone&&Math.abs(s.x-sx)<18&&Math.abs(s.y-(T.f-18))<20){ s.gone=true; kill(g,sx,T.f-18); } }); });
-    rockets.forEach(r=>{ r.y+=r.vy*dt; const sx=r.wx-scroll; shots.forEach(s=>{ if(!s.gone&&Math.abs(s.x-sx)<14&&Math.abs(s.y-r.y)<22){ s.gone=true; r.gone=true; api.addScore(80,sx,r.y,true); api.fx.burst(sx,r.y,'#ff3b3b',10,180,.3,2); api.sfx.small(); } });
-      if(!r.gone&&grace<=0&&eff.shield<=0&&Math.abs(sx-sh.x)<18&&Math.abs(r.y-sh.y)<22) die('HIT BY A ROCKET!'); if(r.y<TOP-40||sx<-30) r.gone=true; });
-    if(api.level>=4&&Math.random()<dt*api.dv([0.2,0.45,0.7],0.9,1.3)) ufos.push({x:W+20,y:sh.y+(Math.random()-.5)*200,t:0});
-    ufos.forEach(u=>{ u.t+=dt; u.x-=(v+90)*dt; u.y+=Math.sin(u.t*4)*80*dt; shots.forEach(s=>{ if(!s.gone&&Math.abs(s.x-u.x)<18&&Math.abs(s.y-u.y)<14){ s.gone=true; u.gone=true; api.addScore(100,u.x,u.y,true); api.fx.burst(u.x,u.y,'#00e5ff',12,180,.3,2); api.sfx.small(); } }); if(!u.gone&&grace<=0&&eff.shield<=0&&Math.hypot(u.x-sh.x,u.y-sh.y)<22) die('HIT A SAUCER!'); if(u.x<-30) u.gone=true; });
-    shots=shots.filter(s=>!s.gone&&s.x<W+20); bombs=bombs.filter(b=>!b.gone); rockets=rockets.filter(r=>!r.gone); ufos=ufos.filter(u=>!u.gone); gt=gt.filter(g=>!g.dead);
-    // end of the cave
-    if(dist>=goal&&!base){ if(api.boss){ base={wx:scroll+W-120,hp:Math.round(api.dv([4,6,8],9,12)),max:0}; base.max=base.hp; api.toast('BOMB THE BASE!'); } else win(); }
-    api.counter('⛽ FUEL',Math.ceil(fuel)+'%',fuel<15?'empty':fuel<30?'low':''); },
-  render(c){ c.fillStyle='#0a0610'; c.fillRect(0,0,W,H); for(let i=0;i<50;i++){ c.fillStyle='rgba(255,255,255,.4)'; c.fillRect(((i*131-scroll*0.1)%W+W)%W,TOP+(i*71)%600,2,2); }
-    c.fillStyle='#3a1a2a'; c.beginPath(); c.moveTo(0,0); for(let x=0;x<=W;x+=10) c.lineTo(x,terrainAt(scroll+x).c); c.lineTo(W,0); c.fill();
-    c.beginPath(); c.moveTo(0,H); for(let x=0;x<=W;x+=10) c.lineTo(x,terrainAt(scroll+x).f); c.lineTo(W,H); c.fill();
-    c.strokeStyle='#ff9f1c'; c.lineWidth=3; c.shadowColor='#ff9f1c'; c.shadowBlur=10; c.beginPath(); for(let x=0;x<=W;x+=10){ const y=terrainAt(scroll+x).c; x?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); c.beginPath(); for(let x=0;x<=W;x+=10){ const y=terrainAt(scroll+x).f; x?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); c.shadowBlur=0;
-    gt.forEach(g=>{ const sx=g.wx-scroll; if(sx>W+30) return; const y=terrainAt(g.wx).f; if(g.k==='fuel'){ c.fillStyle='#3bff7a'; c.fillRect(sx-14,y-30,28,30); c.fillStyle='#000'; c.font='bold 11px sans-serif'; c.textAlign='center'; c.fillText('FUEL',sx,y-12); } else { c.fillStyle='#ddd'; c.beginPath(); c.moveTo(sx,y-40); c.lineTo(sx+8,y-20); c.lineTo(sx+8,y); c.lineTo(sx-8,y); c.lineTo(sx-8,y-20); c.fill(); c.fillStyle='#ff3b3b'; c.fillRect(sx-8,y-10,16,4); } });
-    if(base&&!base.dead){ const sx=base.wx-scroll, y=terrainAt(base.wx).f; c.fillStyle='#5a5a7a'; c.fillRect(sx-50,y-60,100,60); c.fillStyle=(t*6|0)%2?'#ff3bd4':'#ffd23f'; c.beginPath(); c.arc(sx,y-60,18,Math.PI,0); c.fill(); c.fillStyle='#000'; c.fillRect(sx-50,y-90,100,6); c.fillStyle='#ff3bd4'; c.fillRect(sx-50,y-90,100*base.hp/base.max,6); }
-    rockets.forEach(r=>{ const sx=r.wx-scroll; c.fillStyle='#ddd'; c.fillRect(sx-6,r.y-20,12,30); c.fillStyle='#ff9f1c'; c.beginPath(); c.moveTo(sx-6,r.y+10); c.lineTo(sx,r.y+24+Math.random()*10); c.lineTo(sx+6,r.y+10); c.fill(); });
-    ufos.forEach(u=>{ c.fillStyle='#00e5ff'; c.beginPath(); c.ellipse(u.x,u.y,18,7,0,0,7); c.fill(); });
-    c.fillStyle='#ffd23f'; bombs.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,6,0,7); c.fill(); }); c.fillStyle='#00e5ff'; shots.forEach(s=>c.fillRect(s.x-8,s.y-2,16,4));
-    if(!lost&&(grace<=0||(t*10|0)%2)){ const col=api.cos('Ship').colors[0]; c.fillStyle=col; c.beginPath(); c.moveTo(sh.x+26,sh.y); c.lineTo(sh.x-18,sh.y-12); c.lineTo(sh.x-12,sh.y); c.lineTo(sh.x-18,sh.y+12); c.fill(); c.fillStyle='#ff9f1c'; c.beginPath(); c.moveTo(sh.x-14,sh.y-5); c.lineTo(sh.x-26-Math.random()*10,sh.y); c.lineTo(sh.x-14,sh.y+5); c.fill();
-      if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(sh.x,sh.y,30,0,7); c.stroke(); } }
-    c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(20,H-30,W-40,8); c.fillStyle='#ff9f1c'; c.fillRect(20,H-30,(W-40)*Math.min(1,dist/goal),8);
+  useAbility(id){ if(done||lost) return false; if(id==='fire') return true; if(id==='bomb') return drop();
+    if(id==='fuel'){ fuel=Math.min(100,fuel+40); api.sfx.power(); return true; } eff[id]={shield:6,slow:6}[id]; api.sfx.power(); return true; },
+  onPointer(type,x,y,id,pt){ if(pt==='touch'||pt==='pen') return;   // phones steer with the shell joystick; only a mouse drags
+    if(type==='down') mouse={id,x,y,t,tx:sh.x,ty:sh.y,px:sh.x,py:sh.y,moved:false};
+    else if(type==='move'&&mouse&&mouse.id===id){ mouse.tx=Math.max(PXMIN,Math.min(PXMAX,mouse.px+(x-mouse.x))); mouse.ty=Math.max(80,Math.min(H-40,mouse.py+(y-mouse.y))); if(Math.hypot(x-mouse.x,y-mouse.y)>12) mouse.moved=true; }
+    else if(type==='up'&&mouse&&mouse.id===id){ if(!mouse.moved&&t-mouse.t<0.3) drop(); mouse=null; } },
+  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; bombCD-=dt; edgeT-=dt; warnT-=dt; if(lost) return;
+    const v=api.dv([150,190,220],250,290)*(eff.slow>0?0.5:1), K=api.input.keys; if(!base||base.dead){ scroll+=v*dt; dist+=v*dt; } genTargets(scroll+W+300);
+    // steering: joystick / keys, or a mouse drag (speed-limited — never a jump)
+    const d=api.input.dir(); let mx=d.x*300*dt, my=d.y*380*dt;
+    if(mouse&&mouse.moved){ const dx=mouse.tx-sh.x, dy=mouse.ty-sh.y, m=Math.hypot(dx,dy), lim=520*dt; if(m>lim){ mx=dx/m*lim; my=dy/m*lim; } else { mx=dx; my=dy; } }
+    sh.x=Math.max(PXMIN,Math.min(PXMAX,sh.x+mx)); sh.y+=my;
+    fuel-=dt*(beg10()?2.2:api.dv([3,4,4.8],5.4,6.5)); if(fuel<=0){ fuel=0; sh.y+=120*dt; }
+    if(fuel<25&&fuel>0&&warnT<=0){ warnT=4; api.toast('⛽ LOW FUEL — BOMB A TANK!'); }
+    // walls: test the ship's nose, middle and tail against the same terrain that is drawn
+    let hitC=false, hitF=false; for(const ox of [-18,0,26]){ const T=terrainAt(scroll+sh.x+ox), hh=ox===26?4:12; if(sh.y-hh<T.c) hitC=true; if(sh.y+hh>T.f) hitF=true; }
+    if(hitC||hitF){ const T=terrainAt(scroll+sh.x);
+      if(fuel<=0&&hitF&&eff.shield<=0&&grace<=0){ die('OUT OF FUEL!','fuel',{vis:99}); return; }
+      if(eff.shield>0||grace>0||easy()){ sh.y=hitC?Math.max(sh.y,T.c+18):sh.y; sh.y=hitF?Math.min(sh.y,T.f-18):sh.y; if(hitC&&hitF) sh.y=(T.c+T.f)/2;
+        if(easy()&&grace<=0&&eff.shield<=0&&edgeT<=0){ edgeT=2; api.toast('MIND THE CAVE WALLS!'); api.sfx.bump&&api.sfx.bump(); } }
+      else { die('HIT THE CAVE!','wall',{vis:99}); return; } }
+    const step=Math.hypot(sh.x-lastPos.x,sh.y-lastPos.y)/Math.max(dt,1e-3); if(step>maxStep) maxStep=step; lastPos={x:sh.x,y:sh.y};
+    // laser: ONLY while FIRE (Space) is held
+    fireT-=dt; if(K.Space&&fireT<=0){ fireT=0.14; shots.push({x:sh.x+30,y:sh.y}); api.sfx.shoot(); }
+    if(K.KeyX&&bombCD<=0) drop();
+    shots.forEach(s=>{ s.x+=1000*dt; const T=terrainAt(scroll+s.x); if(s.y<T.c||s.y>T.f) s.gone=true; });
+    bombs.forEach(b=>{ b.vy+=700*dt; b.x+=b.vx*dt; b.y+=b.vy*dt; const T=terrainAt(scroll+b.x); if(b.y>=T.f-4){ b.gone=true; api.fx.burst(b.x,T.f,'#ff9f1c',10,160,.3,2); hitGround(b.x+scroll); } });
+    // ground targets: rockets warn (shake + red light) and only launch AHEAD of you and on screen
+    const reach=api.dv([380,520,640],700,760), warn=beg10()?1.0:api.dv([0.8,0.6,0.5],0.45,0.4), rate=api.content===0?0:api.dv([0.5,1.2,1.8],2.4,3.2);
+    gt.forEach(g=>{ if(g.dead) return; const sx=g.wx-scroll; if(sx<-60){ g.dead=true; return; } if(sx<W) g.vis+=dt;
+      if(g.k==='rocket'){ if(g.st===0&&sx>sh.x+140&&sx<Math.min(W-60,sh.x+reach)&&Math.random()<dt*rate){ g.st=1; g.w=warn; }
+        if(g.st===1){ g.w-=dt; if(g.w<=0){ g.dead=true; rockets.push({wx:g.wx,y:terrainAt(g.wx).f-26,vy:-api.dv([170,230,280],320,380),vis:g.vis}); api.sfx.small&&api.sfx.small(); } } }
+      const T=terrainAt(g.wx); shots.forEach(s=>{ if(!s.gone&&!g.dead&&Math.abs(s.x-sx)<20&&Math.abs(s.y-(T.f-22))<26){ s.gone=true; kill(g,sx,T.f-22); } }); });
+    rockets.forEach(r=>{ r.y+=r.vy*dt; r.vis+=dt; const sx=r.wx-scroll;
+      shots.forEach(s=>{ if(!s.gone&&!r.gone&&Math.abs(s.x-sx)<16&&Math.abs(s.y-r.y)<28){ s.gone=true; r.gone=true; api.addScore(80,sx,r.y,true); api.fx.burst(sx,r.y,'#ff3b3b',10,180,.3,2); api.sfx.small(); } });
+      if(!r.gone&&grace<=0&&eff.shield<=0&&Math.abs(sx-sh.x)<22&&Math.abs(r.y-sh.y)<28) die('HIT BY A ROCKET!','rocket',r); if(!r.gone&&r.y-30<terrainAt(r.wx).c){ r.gone=true; api.fx.burst(sx,r.y-30,'#ff9f1c',8,140,.3,2); } if(sx<-30) r.gone=true; });
+    // saucers: random ones (from stage 4) + one that always comes for YOU (no hands = no win)
+    seekT-=dt; if(seekT<=0&&!base&&dist<goal-400){ seekT=api.content===0?7:api.dv([6.5,4.5,3.5],3,2.5); spawnUfo(sh.y,true); }
+    if(api.level>=4&&api.content!==0&&!(base&&beg10())&&Math.random()<dt*api.dv([0.15,0.4,0.6],0.8,1.1)) spawnUfo(sh.y+(Math.random()-.5)*260,false);
+    const track=api.dv([35,60,90],110,130);
+    ufos.forEach(u=>{ u.t+=dt; u.x-=(v+u.sp)*dt; if(u.x<W) u.vis+=dt; if(u.seek&&u.x>sh.x) u.y+=Math.sign(sh.y-u.y)*Math.min(Math.abs(sh.y-u.y),track*dt); else u.y+=Math.sin(u.t*3)*50*dt;
+      const T=terrainAt(scroll+u.x); u.y=Math.max(T.c+22,Math.min(T.f-22,u.y));
+      shots.forEach(s=>{ if(!s.gone&&!u.gone&&Math.abs(s.x-u.x)<24&&Math.abs(s.y-u.y)<18){ s.gone=true; u.gone=true; api.addScore(100,u.x,u.y,true); api.fx.burst(u.x,u.y,'#00e5ff',12,180,.3,2); api.sfx.small(); api.event('kill'); } });
+      if(!u.gone&&grace<=0&&eff.shield<=0&&Math.hypot(u.x-sh.x,u.y-sh.y)<28) die('HIT A SAUCER!','ufo',u); if(u.x<-40) u.gone=true; });
+    // end of the cave / the base (boss)
+    if(dist>=goal&&!base){ if(api.boss){ base={wx:scroll+880,hp:Math.round(api.dv([4,6,8],9,12)),max:0,cool:2.5,glow:0}; base.max=base.hp; api.toast('BOMB THE BASE!'); } else win(); }
+    if(base&&!base.dead){ base.cool-=dt; const bx=base.wx-scroll, by=terrainAt(base.wx).f-80;
+      if(base.cool<0.6) base.glow=1-base.cool/0.6; if(base.cool<=0){ base.cool=beg10()?3.4:api.dv([2.8,1.9,1.4],1.15,0.9); base.glow=0; const dx=sh.x-bx, dy=sh.y-by, m=Math.hypot(dx,dy)||1, sp=beg10()?150:api.dv([200,260,320],360,400); flak.push({x:bx,y:by,vx:dx/m*sp,vy:dy/m*sp,vis:0.6}); } }
+    flak.forEach(f=>{ f.x+=f.vx*dt; f.y+=f.vy*dt; f.vis+=dt; const T=terrainAt(scroll+f.x); if(f.y<T.c||f.y>T.f||f.x<-20||f.x>W+20) f.gone=true;
+      shots.forEach(s=>{ if(!s.gone&&!f.gone&&Math.abs(s.x-f.x)<14&&Math.abs(s.y-f.y)<14){ s.gone=true; f.gone=true; api.fx.burst(f.x,f.y,'#ffd23f',6,120,.2,2); } });
+      if(!f.gone&&grace<=0&&eff.shield<=0&&Math.hypot(f.x-sh.x,f.y-sh.y)<22) die('HIT BY FLAK!','flak',f); });
+    shots=shots.filter(s=>!s.gone&&s.x<W+20); bombs=bombs.filter(b=>!b.gone&&b.x<W+40); rockets=rockets.filter(r=>!r.gone); ufos=ufos.filter(u=>!u.gone); gt=gt.filter(g=>!g.dead); flak=flak.filter(f=>!f.gone);
+    if(base&&!base.dead) api.counter('🏭 BASE',base.hp); else api.counter('🏁 TO GO',Math.max(0,Math.ceil((goal-dist)/50))); },
+  render(c){ const bg=c.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#140818'); bg.addColorStop(1,'#0a0610'); c.fillStyle=bg; c.fillRect(0,0,W,H);
+    for(let i=0;i<70;i++){ c.fillStyle=i%5?'rgba(255,255,255,.35)':'rgba(255,159,28,.5)'; c.fillRect(((i*197-scroll*(i%3?0.1:0.25))%W+W)%W,90+(i*71)%560,2,2); }
+    const rock=c.createLinearGradient(0,0,0,H); rock.addColorStop(0,'#4a1f36'); rock.addColorStop(0.5,'#2a1020'); rock.addColorStop(1,'#4a1f36'); c.fillStyle=rock;
+    c.beginPath(); c.moveTo(0,0); for(let x=0;x<=W;x+=8) c.lineTo(x,terrainAt(scroll+x).c); c.lineTo(W,0); c.fill();
+    c.beginPath(); c.moveTo(0,H); for(let x=0;x<=W;x+=8) c.lineTo(x,terrainAt(scroll+x).f); c.lineTo(W,H); c.fill();
+    c.strokeStyle='#ff9f1c'; c.lineWidth=3; c.shadowColor='#ff9f1c'; c.shadowBlur=12;
+    for(const key of ['c','f']){ c.beginPath(); for(let x=0;x<=W;x+=8){ const y=terrainAt(scroll+x)[key]; x?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); } c.shadowBlur=0;
+    gt.forEach(g=>{ const sx=g.wx-scroll; if(sx>W+40) return; const y=terrainAt(g.wx).f;
+      if(g.k==='fuel'){ c.shadowColor='#3bff7a'; c.shadowBlur=10; c.fillStyle='#3bff7a'; c.fillRect(sx-18,y-38,36,38); c.shadowBlur=0; c.fillStyle='#0a2a12'; c.font='bold 13px sans-serif'; c.textAlign='center'; c.fillText('FUEL',sx,y-15); }
+      else { const sk=g.st===1?(Math.random()-.5)*4:0, x=sx+sk; c.fillStyle='#ddd'; c.beginPath(); c.moveTo(x,y-50); c.lineTo(x+10,y-26); c.lineTo(x+10,y); c.lineTo(x-10,y); c.lineTo(x-10,y-26); c.fill();
+        const on=g.st===1&&(t*12|0)%2; c.fillStyle=on?'#ff2020':'#8a1a1a'; if(on){ c.shadowColor='#ff2020'; c.shadowBlur=18; } c.fillRect(x-10,y-14,20,6); c.shadowBlur=0;
+        if(g.st===1){ c.fillStyle='#ff4040'; c.font='bold 22px sans-serif'; c.textAlign='center'; c.fillText('!',x,y-58); } } });
+    if(base&&!base.dead){ const sx=base.wx-scroll, y=terrainAt(base.wx).f; c.fillStyle='#5a5a7a'; c.fillRect(sx-70,y-70,140,70); c.fillStyle='#3a3a55'; c.fillRect(sx-70,y-70,140,10);
+      c.fillStyle=(t*6|0)%2?'#ff3bd4':'#ffd23f'; c.shadowColor='#ff3bd4'; c.shadowBlur=10+base.glow*25; c.beginPath(); c.arc(sx,y-70,22+base.glow*6,Math.PI,0); c.fill(); c.shadowBlur=0;
+      c.fillStyle='#000'; c.fillRect(sx-70,y-110,140,8); c.fillStyle='#ff3bd4'; c.fillRect(sx-70,y-110,140*base.hp/base.max,8); }
+    rockets.forEach(r=>{ const sx=r.wx-scroll; c.fillStyle='#eee'; c.fillRect(sx-8,r.y-26,16,39); c.fillStyle='#ff3b3b'; c.beginPath(); c.moveTo(sx-8,r.y-26); c.lineTo(sx,r.y-38); c.lineTo(sx+8,r.y-26); c.fill();
+      c.fillStyle='#ff9f1c'; c.shadowColor='#ff9f1c'; c.shadowBlur=14; c.beginPath(); c.moveTo(sx-8,r.y+13); c.lineTo(sx,r.y+30+Math.random()*12); c.lineTo(sx+8,r.y+13); c.fill(); c.shadowBlur=0; });
+    ufos.forEach(u=>{ c.shadowColor=u.seek?'#ff3bd4':'#00e5ff'; c.shadowBlur=14; c.fillStyle=u.seek?'#ff7be6':'#00e5ff'; c.beginPath(); c.ellipse(u.x,u.y,24,9,0,0,7); c.fill(); c.fillStyle='rgba(220,250,255,.8)'; c.beginPath(); c.ellipse(u.x,u.y-7,10,8,0,Math.PI,0); c.fill(); c.shadowBlur=0;
+      c.fillStyle=(t*8|0)%2?'#fff':'#ffd23f'; for(const o of [-14,0,14]) c.fillRect(u.x+o-2,u.y-1,4,3); });
+    flak.forEach(f=>{ c.fillStyle='#ffd23f'; c.shadowColor='#ff9f1c'; c.shadowBlur=12; c.beginPath(); c.arc(f.x,f.y,8,0,7); c.fill(); c.shadowBlur=0; });
+    c.fillStyle='#ffd23f'; bombs.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,7,0,7); c.fill(); }); c.fillStyle='#7df9ff'; c.shadowColor='#00e5ff'; c.shadowBlur=8; shots.forEach(s=>c.fillRect(s.x-10,s.y-2,20,4)); c.shadowBlur=0;
+    if(sh&&!lost&&(grace<=0||(t*10|0)%2)){ const col=api.cos('Ship').colors[0]; c.save(); c.translate(sh.x,sh.y); c.scale(1.3,1.3); c.shadowColor=col; c.shadowBlur=10; c.fillStyle=col; c.beginPath(); c.moveTo(22,0); c.lineTo(-16,-11); c.lineTo(-10,0); c.lineTo(-16,11); c.fill(); c.shadowBlur=0;
+      c.fillStyle='#00e5ff'; c.fillRect(0,-3,8,4); c.fillStyle='#ff9f1c'; c.beginPath(); c.moveTo(-12,-4); c.lineTo(-22-Math.random()*8,0); c.lineTo(-12,4); c.fill(); c.restore();
+      if(api.input.keys.Space&&!done){ c.fillStyle='rgba(180,250,255,.9)'; c.beginPath(); c.arc(sh.x+30,sh.y,4+Math.random()*3,0,7); c.fill(); }
+      if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(sh.x,sh.y,38,0,7); c.stroke(); }
+      if(fuel<25&&(t*4|0)%2){ c.fillStyle=fuel<=0?'#ff3b3b':'#ffd23f'; c.font='bold 16px sans-serif'; c.textAlign='center'; c.fillText(fuel<=0?'NO FUEL!':'LOW FUEL',sh.x,sh.y-34); } }
+    // fuel gauge (top-left, under the HUD strip) + progress bar (bottom centre, between the thumbs)
+    if(fuel!==undefined){ const fx=110,fy=84,fw=240; c.fillStyle='rgba(0,0,0,.55)'; c.fillRect(fx-4,fy-4,fw+82,24); c.fillStyle=fuel<25?'#ff3b3b':fuel<50?'#ffd23f':'#3bff7a'; c.fillRect(fx+74,fy,fw*fuel/100,16);
+      c.strokeStyle='rgba(255,255,255,.5)'; c.lineWidth=1; c.strokeRect(fx+74,fy,fw,16); c.fillStyle='#fff'; c.font='bold 14px sans-serif'; c.textAlign='left'; c.fillText('⛽ FUEL',fx,fy+13); }
+    c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(300,H-16,W-600,8); c.fillStyle='#ff9f1c'; c.fillRect(300,H-16,(W-600)*Math.min(1,(dist||0)/(goal||1)),8);
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#0a0610'; c.fillRect(0,0,W,H); c.fillStyle='#e8f0ff'; c.beginPath(); c.moveTo(330,450); c.lineTo(280,435); c.lineTo(280,465); c.fill(); }
+  attract(c,tt){ c.fillStyle='#0a0610'; c.fillRect(0,0,W,H); c.fillStyle='#3a1a2a'; const top=x=>150+Math.sin(x*0.006+tt)*50, bot=x=>570+Math.sin(x*0.005+tt*0.8+2)*50;
+    c.beginPath(); c.moveTo(0,0); for(let x=0;x<=W;x+=20) c.lineTo(x,top(x)); c.lineTo(W,0); c.fill(); c.beginPath(); c.moveTo(0,H); for(let x=0;x<=W;x+=20) c.lineTo(x,bot(x)); c.lineTo(W,H); c.fill();
+    c.fillStyle='#e8f0ff'; c.save(); c.translate(500,360+Math.sin(tt*1.5)*60); c.scale(2,2); c.beginPath(); c.moveTo(22,0); c.lineTo(-16,-11); c.lineTo(-10,0); c.lineTo(-16,11); c.fill(); c.restore(); }
 };
-function drop(){ if(done||lost||bombCD>0) return false; bombCD=0.45; bombs.push({x:sh.x,y:sh.y+10,vx:80,vy:60}); api.sfx.blip(); return true; }
-function kill(g,sx,y){ if(g.dead) return; g.dead=true; if(g.k==='fuel'){ fuel=Math.min(100,fuel+api.dv([22,18,15],13,10)); api.toast('+FUEL'); api.event('tank'); api.sfx.pickup(); } api.addScore(g.k==='fuel'?150:100,sx,y); api.fx.burst(sx,y,g.k==='fuel'?'#3bff7a':'#ff3b3b',14,200,.4,3); }
-function hitGround(wx){ gt.forEach(g=>{ if(!g.dead&&Math.abs(g.wx-wx)<26) kill(g,g.wx-scroll,terrainAt(g.wx).f-18); }); if(base&&!base.dead&&Math.abs(base.wx-wx)<55){ base.hp--; api.fx.flash('#ff3bd4',.15); api.sfx.boom(); if(base.hp<=0){ base.dead=true; api.addScore(5000,base.wx-scroll,terrainAt(base.wx).f-60); api.fx.burst(base.wx-scroll,terrainAt(base.wx).f-60,'#ff3bd4',80,400,.9,4); win(); } } }
+function spawnUfo(y,seek){ const T=terrainAt(scroll+W+30); ufos.push({x:W+30,y:Math.max(T.c+30,Math.min(T.f-30,y)),t:0,seek,sp:seek?api.dv([40,70,90],110,130):90,vis:0}); }
+function drop(){ if(done||lost||bombCD>0) return false; bombCD=0.45; bombs.push({x:sh.x,y:sh.y+12,vx:200,vy:60}); api.sfx.blip(); return true; }
+function kill(g,sx,y){ if(g.dead) return; g.dead=true; if(g.k==='fuel'){ fuel=Math.min(100,fuel+(beg10()?28:api.dv([22,18,15],13,10))); api.toast('+FUEL'); api.event('tank'); api.sfx.pickup(); } api.addScore(g.k==='fuel'?150:100,sx,y); api.fx.burst(sx,y,g.k==='fuel'?'#3bff7a':'#ff3b3b',14,200,.4,3); }
+function hitGround(wx){ gt.forEach(g=>{ if(!g.dead&&Math.abs(g.wx-wx)<32) kill(g,g.wx-scroll,terrainAt(g.wx).f-22); });
+  if(base&&!base.dead&&Math.abs(base.wx-wx)<75){ base.hp--; api.fx.flash('#ff3bd4',.15); api.sfx.boom(); if(base.hp<=0){ base.dead=true; flak=[]; api.addScore(5000,base.wx-scroll,terrainAt(base.wx).f-60); api.fx.burst(base.wx-scroll,terrainAt(base.wx).f-60,'#ff3bd4',80,400,.9,4); win(); } } }
 function win(){ if(done) return; done=true; api.toast('THROUGH THE CAVE!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1000); }
-function die(msg){ if(lost||done) return; lost=true; api.toast(msg); api.fx.burst(sh.x,sh.y,'#ff9f1c',40,300,.7,3); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1000); }
+function die(msg,cause,src){ if(lost||done) return; lost=true; deaths.push({cause,vis:+(src&&src.vis||0).toFixed(2),x:Math.round(sh.x),y:Math.round(sh.y),dist:Math.round(dist),t:+t.toFixed(1)});
+  api.toast(msg); api.fx.burst(sh.x,sh.y,'#ff9f1c',40,300,.7,3); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1000); }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -595,8 +704,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -621,6 +748,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -638,6 +788,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -744,7 +898,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -768,6 +922,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -817,8 +973,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1189,7 +1345,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1363,6 +1519,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1373,10 +1530,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1393,7 +1563,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1429,7 +1599,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1468,6 +1638,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
