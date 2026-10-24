@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CJ-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-CJ-1.1 · 2026-10-25">
 <title>Cloud Jumper</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,47 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
 
 </style>
 </head>
 <body>
-<!-- BUILD-CJ-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-CJ-1.1 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,196 +467,222 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* CLOUD JUMPER — Doodle-Jump-style remix (#57). 100 stages. Bounce from cloud to cloud, steer, shoot the sky monsters, reach the finish line. */
+/* CLOUD JUMPER — Doodle-Jump-style remix (#57). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1): a wide sky.
+   YOU jump: the frog never bounces by himself. Left thumb stick walks/steers, right thumb ⬆️ JUMP (and ⭐ SHOOT).
+   Line up under the next cloud, then jump. A storm rises from below, so standing still is never safe.
+   Race (MP-1): the whole stage is built at stage start from ONE Math.random() seed -> every phone gets the same sky. */
 (function(){
-const W=600,H=900,GRAV=1900,JUMP=1080,SPRING=1750;
-let api,t,p,plats,mons,shots,bombs,camY,topGen,goalY,startY,done,lost,eff,grace,steer,ptr,shootCD,boss,lock,stars,clouds,best,squash,hitT;
-const rnd=(a,b)=>a+Math.random()*(b-a);
+const W=1280,H=720,GRAV=1900,JUMP=1080,SPRING=1600,CAMK=0.55;
+let api,t,p,plats,mons,shots,bombs,camY,topGen,goalY,startY,done,lost,eff,grace,ptr,shootCD,boss,lock,stars,clouds,squash,hitT,R,jumpBuf,coyote,upWas,spWas,lastPl,stormY,stormWarn,bestY,hintT;
+const mkRng=s=>{ let a=s>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let q=Math.imul(a^a>>>15,1|a); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }; };
+const rnd=(a,b)=>a+R()*(b-a);
+const easy=()=>api.diff===0&&api.level<=5;          // Beginner stages 1-5 (+ tutorial): extra gentle
+const beg=()=>api.diff===0&&api.level<=10;          // Beginner stages 1-10: no breaking / vanishing clouds
+const APEX=JUMP*JUMP/(2*GRAV);                       // how high one jump goes (~307 px)
 const GAME=window.GAME={
   id:'cloud-jumper',title:'Cloud Jumper',titleHTML:'CLOUD<br>JUMPER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-CJ-1.0 · 2026-10-17',theme:{a:'#3bd5ff',b:'#ffd23f',bg:'#07102a'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🐸',joystick:false,coinPts:40,
+  build:'BUILD-CJ-1.1 · 2026-10-25',theme:{a:'#3bd5ff',b:'#ffd23f',bg:'#07102a'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🐸',joystick:true,coinPts:40,
   abilities:[
-    {id:'shoot',icon:'🔫',name:'SHOOT',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — fire a star straight up. Or swipe UP on the game.'},
+    {id:'jump',icon:'⬆️',name:'JUMP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — jump! Line up under the next cloud first, then tap JUMP. You only jump when you press it.'},
+    {id:'shoot',icon:'⭐',name:'SHOOT',cd:0,key:'KeyX',keyLabel:'X',desc:'FREE — fire a star straight up. Hold to keep shooting.'},
     {id:'rocket',icon:'🚀',name:'ROCKET',cd:20,key:'Digit1',keyLabel:'1',desc:'Blast straight up for 3 seconds. Nothing can hurt you.'},
-    {id:'shield',icon:'🛡️',name:'BUBBLE SHIELD',cd:18,key:'Digit2',keyLabel:'2',desc:'Monsters and bombs bounce off you for 6 seconds.'},
-    {id:'net',icon:'☁️',name:'SAFETY CLOUD',cd:22,key:'Digit3',keyLabel:'3',desc:'A big cloud at the bottom catches you if you fall, for 8 seconds.'}],
+    {id:'shield',icon:'🛡️',name:'BUBBLE SHIELD',cd:18,key:'Digit2',keyLabel:'2',desc:'Monsters and bolts bounce off you for 6 seconds.'},
+    {id:'net',icon:'☁️',name:'SAFETY CLOUD',cd:22,key:'Digit3',keyLabel:'3',desc:'For 8 seconds: if you fall, a cloud appears under you and catches you.'}],
   shop:[{id:'j_g',cat:'Jumper',name:'Green Hopper',cost:0,colors:['#5dff7a'],desc:'Classic.'},{id:'j_p',cat:'Jumper',name:'Pink Hopper',cost:150,colors:['#ff6ad5'],desc:'Bright and bouncy.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3bd5ff,#ffd23f)'}],
-  story:`<h3>CLOUD JUMPER</h3><p>Hop the frog wants to see the top of the sky. The clouds go up forever — and the sky monsters don't want visitors.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>You bounce by yourself. <b>Hold your finger left or right</b> of Hop to steer (← → or A D on PC).</li><li>Go off one side and you come back on the other.</li><li>Brown clouds break, white ones vanish after one bounce, yellow springs launch you high.</li><li><b>Swipe UP</b> or press SPACE to shoot monsters. Landing on a monster's head also beats it.</li><li>Fall off the bottom and you lose a life. Reach the FINISH line to clear the stage.</li></ul>`,
-  tutorial:[{text:'PRACTICE: hold left or right of the frog to steer onto the clouds!',ev:'bounce'},{text:'Swipe UP (or SPACE) to shoot the monster!',ev:'kill'},{text:'Now reach the FINISH line!',time:6}],
-  stageIntro:{1:'BOUNCE UP TO THE FINISH LINE'},bossName:'THE STORM KING!',ending:{"0":["#SKY HIGH","Hop reached the top of the sky."],"1":["#STAR JUMPER","Higher than the moon."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={rocket:3,shield:6,net:8}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pl(){return p;}, get plats(){return plats;}, get mons(){return mons;}, get boss(){return boss;}, get camY(){return camY;}, get goalY(){return goalY;}, get lost(){return lost;}, get done(){return done;}, setSteer:s=>{steer=s;}}; },
+  story:`<h3>CLOUD JUMPER</h3><p>Hop the frog wants to see the top of the sky. The clouds go up forever — the sky monsters don't want visitors, and a storm is rising behind him.</p>`,
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick walks Hop left/right on his cloud and steers him in the air. He only moves when you push it. PC: ← → or A D.</li><li><b>Right thumb:</b> tap <b>⬆️ JUMP</b> to jump (PC: SPACE or ↑). Hop never jumps by himself — walk under the next cloud, line up, then jump!</li><li>The dotted line above Hop shows how high one jump goes.</li><li><b>⭐ SHOOT</b> fires a star straight up (PC: X). Landing on a monster's head also beats it.</li><li>Yellow-spring clouds make your next jump extra high. Brown clouds break, white ones vanish soon after you land.</li><li>Go off one side and you come back on the other.</li><li>A ⛈️ storm rises from below — keep climbing! Fall off the bottom or get caught and you lose a life.</li><li>Reach the 🏁 FINISH line. Every 10th stage: beat the Storm King.</li></ul>`,
+  tutorial:[{text:'Walk with ← → under the cloud above, then press <b>SPACE</b> to JUMP onto it!',touch:'Left thumb: walk under the cloud above. Then tap <b>⬆️ JUMP</b>!',ev:'land'},
+    {text:'Press <b>X</b> to SHOOT the monster above you!',touch:'Stand under the monster and tap <b>⭐ SHOOT</b>!',ev:'kill'},{text:'Now jump up to the FINISH line!',time:6}],
+  stageIntro:{1:'WALK, LINE UP, THEN JUMP!'},bossName:'THE STORM KING!',ending:{"0":["#SKY HIGH","Hop reached the top of the sky."],"1":["#STAR JUMPER","Higher than the moon."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ const tot={rocket:3,shield:6,net:8}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return {get pl(){return p;}, get plats(){return plats;}, get mons(){return mons;}, get boss(){return boss;}, get bombs(){return bombs;}, get camY(){return camY;}, get goalY(){return goalY;}, get startY(){return startY;}, get lost(){return lost;}, get done(){return done;}, get storm(){return stormY;}, APEX, wrapDx,
+    sig(){ return GAME._sig; }}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1; eff={rocket:-9,shield:-9,net:-9}; steer=0; ptr=null; shootCD=0; squash=0; hitT=0;
-    plats=[]; mons=[]; shots=[]; bombs=[]; boss=null; lock=false; startY=800; camY=0; best=startY;
-    const tall=a.content===0?2600:Math.round(a.dv([5000,7000,9000],11000,14000));
+  startStage(n,a){ api=a; R=mkRng(Math.floor(Math.random()*4294967296)); t=0; done=false; lost=false; grace=1; eff={rocket:-9,shield:-9,net:-9}; ptr=null; shootCD=0; squash=0; hitT=0; jumpBuf=0; coyote=0; upWas=true; spWas=true; stormWarn=false; hintT=4;
+    plats=[]; mons=[]; shots=[]; bombs=[]; boss=null; lock=false; startY=800;
+    const tall=a.content===0?1500:easy()?Math.round(a.dv([2600,5000,7000],9000,12000)):Math.round(a.dv([3600,6500,8500],10500,13500));
     goalY=startY-tall;
-    p={x:W/2,y:startY-40,vx:0,vy:-JUMP,face:1};
-    plats.push({x:W/2,y:startY,w:200,type:'n',vx:0}); topGen=startY;
-    stars=[...Array(70)].map(()=>({x:Math.random()*W,y:Math.random()*H,s:Math.random()*2+0.5,d:Math.random()*0.3+0.05}));
-    clouds=[...Array(9)].map((_,i)=>({x:Math.random()*W,y:i*110,s:rnd(0.6,1.4),d:rnd(0.15,0.4)}));
-    gen(); },
-  respawn(){ lost=false; grace=1.6; mons=mons.filter(m=>m.y<camY+H*0.45); bombs=[]; const y=camY+H-170; plats.push({x:W/2,y,w:220,type:'n',vx:0,safe:true}); p.x=W/2; p.y=y-30; p.vy=-JUMP*1.1; p.vx=0; },
+    const st={x:W/2,y:startY,w:300,type:'n',vx:0}; plats.push(st); topGen=startY; lastPl=st;
+    p={x:W/2,y:startY-8,vx:0,vy:0,face:1,on:st}; bestY=p.y; camY=p.y-H*CAMK; stormY=camY+H+60;
+    stars=[...Array(140)].map(()=>({x:R()*W,y:R()*H,s:R()*2+0.5,d:R()*0.3+0.05}));
+    clouds=[...Array(16)].map((_,i)=>({x:R()*W,y:i*60,s:rnd(0.6,1.4),d:rnd(0.15,0.4)}));
+    genAll(); GAME._sig=plats.map(q=>(q.x|0)+','+(q.y|0)+q.type+(q.vx|0)).join(';')+'|'+mons.map(m=>(m.bx|0)+','+(m.by|0)).join(';'); },
+  respawn(){ lost=false; grace=1.8; bombs=[]; placeSafe(); },
   stageBonus(){ return Math.max(0,Math.round(300-t*2))+(boss?500:0); },
   useAbility(id){ if(done||lost) return false;
-    if(id==='shoot'){ if(shootCD>0) return false; shootCD=0.22; shots.push({x:p.x,y:p.y-30,vy:-1300}); api.sfx.shoot(); squash=-0.15; return true; }
-    eff[id]={rocket:3,shield:6,net:8}[id]; if(id==='rocket'){ api.sfx.power(); api.fx.flash('#ffb43b',.2); } else api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(done||lost) return;
-    if(type==='down') ptr={x,y,sx:x,sy:y,t:t,shot:false};
-    else if(type==='move'&&ptr){ ptr.x=x; ptr.y=y; if(!ptr.shot&&ptr.sy-y>70&&t-ptr.t<0.35){ ptr.shot=true; GAME.useAbility('shoot'); } }
-    else if(type==='up'){ if(ptr&&!ptr.shot&&ptr.sy-y>60&&t-ptr.t<0.4) GAME.useAbility('shoot'); ptr=null; } },
-  update(dt){ t+=dt; if(done&&!boss) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; shootCD-=dt; hitT-=dt; squash*=Math.pow(0.002,dt);
-    const K=api.input.keys; if(K.Space&&!this._s) GAME.useAbility('shoot'); this._s=K.Space;
-    // background drift
+    if(id==='jump'){ if(spWas) return false; jumpBuf=0.15; return true; }          // one press = one jump (key auto-repeat ignored)
+    if(id==='shoot'){ if(shootCD>0) return false; fire(); return true; }
+    eff[id]={rocket:3,shield:6,net:8}[id]; if(id==='rocket'){ p.on=null; api.fx.flash('#ffb43b',.2); } api.sfx.power(); return true; },
+  onPointer(type,x,y,id,pt){ if(pt==='touch'||pt==='pen') return;   // phones steer with the shell's stick; a mouse may hold left/right of Hop
+    if(done||lost){ ptr=null; return; }
+    if(type==='down') ptr={x,y}; else if(type==='move'&&ptr){ ptr.x=x; ptr.y=y; } else if(type==='up') ptr=null; },
+  update(dt){ t+=dt; if(done&&!boss) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; shootCD-=dt; hitT-=dt; jumpBuf-=dt; coyote-=dt; hintT-=dt; squash*=Math.pow(0.002,dt);
+    const K=api.input.keys, E=easy();
     clouds.forEach(c=>{ c.x+=c.s*10*dt; if(c.x>W+120) c.x=-120; });
-    if(lost||done) { updShots(dt); return; }
-    // steering
-    let s=0; if(K.ArrowLeft||K.KeyA) s=-1; if(K.ArrowRight||K.KeyD) s=1;
-    if(ptr){ const sx=toScreenX(p.x), dx=ptr.x-sx; if(Math.abs(dx)>18) s=Math.max(-1,Math.min(1,dx/90)); }
-    if(steer) s=steer;
-    const maxV=api.dv([430,470,500],520,540);
-    p.vx+=(s*maxV-p.vx)*Math.min(1,dt*9); if(s) p.face=Math.sign(s);
-    p.x+=p.vx*dt; if(p.x<-20) p.x+=W+40; if(p.x>W+20) p.x-=W+40;
-    const oy=p.y;
-    if(eff.rocket>0){ p.vy=-1150; api.fx.spark(p.x+rnd(-6,6),toScreenY(p.y)+30,rnd(-60,60),rnd(200,400),Math.random()<.5?'#ffb43b':'#ff3b3b',.4,4); }
-    else p.vy+=GRAV*dt;
-    p.y+=p.vy*dt;
-    // platforms
-    const pmv=api.dv([60,110,160],190,260);
-    plats.forEach(pl=>{ if(pl.vx){ pl.x+=pl.vx*dt; if(pl.x<pl.w/2||pl.x>W-pl.w/2){ pl.vx*=-1; pl.x=Math.max(pl.w/2,Math.min(W-pl.w/2,pl.x)); } }
+    if(boss&&boss.dead) boss.y+=300*dt;
+    if(lost||done){ updShots(dt); spWas=!!K.Space; return; }
+    // ---- input: stick / arrows walk + steer; SPACE / ↑ / JUMP button = jump (fresh press only); X = shoot ----
+    const up=!!(K.ArrowUp||K.KeyW); if(up&&!upWas) jumpBuf=0.15; upWas=up;
+    if(K.Space&&!spWas) jumpBuf=0.15; spWas=!!K.Space;
+    let s=0; const d=api.input.dir(); if(Math.abs(d.x)>0.15) s=Math.max(-1,Math.min(1,d.x*1.3));
+    if(ptr){ const dx=ptr.x-p.x; if(Math.abs(dx)>24) s=Math.max(-1,Math.min(1,dx/120)); }
+    if(K.KeyX&&shootCD<=0) fire();
+    // ---- clouds move ----
+    plats.forEach(pl=>{ pl.px=pl.x; if(pl.vx){ pl.x+=pl.vx*dt; if(pl.x<pl.x0-pl.rng||pl.x>pl.x0+pl.rng){ pl.vx*=-1; pl.x=Math.max(pl.x0-pl.rng,Math.min(pl.x0+pl.rng,pl.x)); } }
       if(pl.fall){ pl.fy=(pl.fy||0)+600*dt; pl.y+=pl.fy*dt; }
-      if(pl.fade!==undefined){ pl.fade-=dt*3; if(pl.fade<=0) pl.dead=true; }
-      if(pl.sx!==undefined){ pl.sx-=dt*5; } });
-    if(p.vy>0&&eff.rocket<=0){ for(const pl of plats){ if(pl.dead||pl.fall||pl.fade!==undefined) continue;
-      if(oy<=pl.y-8&&p.y>=pl.y-8&&Math.abs(wrapDx(p.x-pl.x))<pl.w/2+12){
-        if(pl.type==='b'){ pl.fall=true; api.sfx.small(); api.fx.burst(toScreenX(pl.x),toScreenY(pl.y),'#a86a3a',14,160,.5,4); continue; }
-        p.y=pl.y-8; const spr=pl.type==='s'&&Math.abs(p.x-pl.x)<pl.w/2; p.vy=spr?-SPRING:-JUMP; squash=0.35; pl.sx=1;
-        if(spr){ api.sfx.power(); api.fx.burst(toScreenX(pl.x),toScreenY(pl.y),'#ffd23f',18,260,.5,3); } else api.sfx.bump();
-        if(pl.type==='v'){ pl.fade=1; }
-        api.event('bounce'); break; } } }
-    // safety cloud
-    if(eff.net>0&&p.vy>0&&toScreenY(p.y)>H-80){ p.vy=-SPRING*0.95; api.sfx.power(); api.fx.burst(toScreenX(p.x),H-70,'#fff',20,240,.5,4); }
-    // camera (only goes up)
-    const want=p.y-H*0.42; if(!lock&&want<camY) camY=want;
-    if(p.y<best) best=p.y;
-    gen();
-    // monsters
+      if(pl.fade!==undefined){ pl.fade-=dt*(pl.fr||3); if(pl.fade<=0) pl.dead=true; }
+      if(pl.sx!==undefined) pl.sx-=dt*5; });
+    // ---- walk / steer ----
+    const maxV=E?380:api.dv([400,440,470],490,510);
+    p.vx+=(s*maxV-p.vx)*Math.min(1,dt*(p.on?14:7)); if(Math.abs(s)>0.1){ p.face=Math.sign(s); if(p.on) api.event('walk'); }
+    p.x+=p.vx*dt; if(p.on) p.x+=p.on.x-p.on.px; if(p.x<-20) p.x+=W+40; if(p.x>W+20) p.x-=W+40;
+    if(p.on){ const pl=p.on; if(pl.dead||pl.fall||eff.rocket>0||Math.abs(wrapDx(p.x-pl.x))>pl.w/2+12){ p.on=null; coyote=eff.rocket>0?0:0.1; } else { p.y=pl.y-8; p.vy=0; } }
+    // ---- jump (only when the player asks) ----
+    if(jumpBuf>0&&(p.on||coyote>0)&&eff.rocket<=0){ const spr=p.on&&p.on.type==='s'; p.vy=spr?-SPRING:-JUMP; if(p.on) p.on.sx=1; p.on=null; coyote=0; jumpBuf=0; squash=0.35;
+      if(spr){ api.sfx.power(); api.fx.burst(p.x,toScreenY(p.y),'#ffd23f',18,260,.5,3); } else api.sfx.bump(); api.event('jump'); }
+    if(!p.on){ const oy=p.y;
+      if(eff.rocket>0){ p.vy=-1150; api.fx.spark(p.x+(Math.random()-.5)*12,toScreenY(p.y)+30,(Math.random()-.5)*120,200+Math.random()*200,Math.random()<.5?'#ffb43b':'#ff3b3b',.4,4); }
+      else p.vy=Math.min(1500,p.vy+GRAV*dt);
+      p.y+=p.vy*dt;
+      if(p.vy>0&&eff.rocket<=0){ for(const pl of plats){ if(pl.dead||pl.fall||pl.fade!==undefined&&pl.fade<0.25) continue;
+        if(oy<=pl.y-8+1&&p.y>=pl.y-8&&Math.abs(wrapDx(p.x-pl.x))<pl.w/2+12){
+          if(pl.type==='b'){ pl.fall=true; api.sfx.small(); api.fx.burst(pl.x,toScreenY(pl.y),'#a86a3a',14,160,.5,4); continue; }
+          land(pl); break; } } }
+      // safety cloud: appears under a falling Hop
+      if(eff.net>0&&p.vy>0&&!p.on&&toScreenY(p.y)>H-130){ const pl={x:p.x,y:p.y+8,w:240,type:'n',vx:0,safe:true}; plats.push(pl); land(pl); eff.net=0; api.sfx.power(); api.fx.burst(p.x,toScreenY(p.y),'#fff',24,240,.6,4); } }
+    // ---- camera: follows Hop up; when he stands on a lower cloud it drifts back down to him ----
+    if(!lock){ const want=p.y-H*CAMK; if(want<camY) camY=want; else if(p.on&&want>camY) camY+=Math.min(want-camY,420*dt); }
+    if(p.y<bestY) bestY=p.y;
+    // ---- the storm rises from below: an idle frog is never safe ----
+    if(!boss){ stormY=Math.min(stormY,camY+H+60)-(E?20:api.dv([30,46,60],76,96))*dt;
+      if(!stormWarn&&toScreenY(stormY)<H-30){ stormWarn=true; api.toast('⛈️ THE STORM IS RISING — KEEP JUMPING!'); }
+      if(p.y>stormY-4) hurt('THE STORM CAUGHT YOU!'); }
+    // ---- monsters ----
     mons.forEach(m=>{ m.ph+=dt; m.x=m.bx+Math.sin(m.ph*m.sp)*m.amp; m.y=m.by+Math.sin(m.ph*2.3)*10;
       if(m.dead){ m.dy=(m.dy||0)+1500*dt; m.y=m.by+(m.oy=(m.oy||0)+m.dy*dt); return; }
       const dx=wrapDx(p.x-m.x), dy=p.y-m.y;
       if(Math.abs(dx)<34&&Math.abs(dy)<38&&grace<=0){
-        if(p.vy>0&&dy<-8||eff.rocket>0||eff.shield>0){ if(eff.shield>0&&!(p.vy>0&&dy<-8)&&eff.rocket<=0){ p.vy=-JUMP; api.sfx.bump(); } else killMon(m,p.vy>0?'STOMP!':null); if(p.vy>0) p.vy=-JUMP; }
+        const stomp=p.vy>0&&dy<-8;
+        if(stomp||eff.rocket>0) { killMon(m,stomp?'STOMP!':null); if(stomp) p.vy=-JUMP*0.7; }
+        else if(eff.shield>0){ m.dead=false; p.vy=Math.max(p.vy,200); p.x+=Math.sign(dx||1)*30; api.sfx.bump(); }
         else hurt('A SKY MONSTER GOT YOU!'); } });
     mons=mons.filter(m=>!(m.dead&&m.y>camY+H+100));
     updShots(dt);
-    // boss
     if(boss) updBoss(dt);
-    // bombs
     bombs.forEach(b=>{ b.vy+=500*dt; b.y+=b.vy*dt; b.x+=b.vx*dt; b.r+=dt*6;
-      if(Math.hypot(wrapDx(p.x-b.x),p.y-20-b.y)<28&&!b.gone){ b.gone=true; if(eff.shield>0||eff.rocket>0){ api.sfx.bump(); api.fx.burst(toScreenX(b.x),toScreenY(b.y),'#9bf',12,200,.4,3); } else hurt('HIT BY A STORM BOLT!'); } });
+      if(Math.hypot(wrapDx(p.x-b.x),p.y-20-b.y)<28&&!b.gone){ b.gone=true; if(eff.shield>0||eff.rocket>0){ api.sfx.bump(); api.fx.burst(b.x,toScreenY(b.y),'#9bf',12,200,.4,3); } else hurt('HIT BY A STORM BOLT!'); } });
     bombs=bombs.filter(b=>!b.gone&&b.y<camY+H+60);
-    plats=plats.filter(pl=>!pl.dead&&pl.y<camY+H+120);
-    // objective
-    if(api.boss){ if(!boss&&p.y<goalY+H*0.5) startBoss(); api.counter(boss?'⛈️ STORM KING':'☁️ TO GO',boss?boss.hp:Math.max(0,Math.ceil((p.y-goalY)/10))+'m'); }
+    plats=plats.filter(pl=>!pl.dead&&!(pl.fall&&pl.y>camY+H+120));
+    if(E&&hintT<=0&&p.on&&!boss&&t>6){ hintT=12; api.toast('WALK UNDER A CLOUD, THEN JUMP!'); }
+    // ---- objective ----
+    if(api.boss){ if(!boss&&p.y<goalY+H*0.3) startBoss(); api.counter(boss?'⛈️ STORM KING':'☁️ TO GO',boss?boss.hp:Math.max(0,Math.ceil((p.y-goalY)/10))+'m'); }
     else { api.counter('☁️ TO GO',Math.max(0,Math.ceil((p.y-goalY)/10))+'m');
-      if(p.y<goalY&&!done){ done=true; api.toast('YOU MADE IT!'); api.sfx.clear(); api.fx.flash('#fff',.35); api.fx.burst(toScreenX(p.x),toScreenY(p.y),'#ffd23f',40,360,.9,4); setTimeout(()=>api.stageClear(),1000); } }
-    if(toScreenY(p.y)>H+60&&!lost){ lost=true; api.toast('YOU FELL!'); api.sfx.hurt(); setTimeout(()=>api.loseLife(),900); } },
+      if(p.y<goalY&&!done){ done=true; api.toast('YOU MADE IT!'); api.sfx.clear(); api.fx.flash('#fff',.35); api.fx.burst(p.x,toScreenY(p.y),'#ffd23f',40,360,.9,4); setTimeout(()=>api.stageClear(),1000); } }
+    if(toScreenY(p.y)>H+60&&!lost){
+      if(E){ placeSafe(); grace=1.2; api.toast('OOPS! TRY AGAIN'); api.sfx.bump(); }       // Beginner 1-5: a fall puts you back on your cloud
+      else { lost=true; api.toast('YOU FELL!'); api.sfx.hurt(); setTimeout(()=>api.loseLife(),900); } } },
   render(c){
-    // sky gets darker as you climb
     const prog=Math.max(0,Math.min(1,(startY-camY-H*0.3)/(startY-goalY)));
     const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,mix('#3a8dff','#0a0628',prog)); g.addColorStop(1,mix('#bfe9ff','#2a1460',prog)); c.fillStyle=g; c.fillRect(0,0,W,H);
     c.fillStyle='#fff'; stars.forEach(s=>{ const y=((s.y-camY*s.d)%H+H)%H; c.globalAlpha=prog*0.9*(0.5+0.5*Math.sin(t*3+s.x)); c.fillRect(s.x,y,s.s,s.s); }); c.globalAlpha=1;
-    // far mountains near the ground
     const gy=startY+120-camY*0.3; if(gy<H+300){ c.fillStyle='rgba(40,60,120,.6)'; c.beginPath(); c.moveTo(0,H); for(let x=0;x<=W;x+=60) c.lineTo(x,gy-80-Math.abs(Math.sin(x*0.013))*160); c.lineTo(W,H); c.fill(); }
-    // parallax puffy clouds
     clouds.forEach(cl=>{ const y=((cl.y-camY*cl.d)%(H+200)+H+200)%(H+200)-100; c.globalAlpha=0.18*(1-prog*0.6); puff(c,cl.x,y,60*cl.s,'#fff'); }); c.globalAlpha=1;
     // finish line
-    const fy=toScreenY(goalY); if(!api.boss&&fy>-40&&fy<H+40){ c.save(); c.shadowColor='#ffd23f'; c.shadowBlur=20; for(let x=0;x<W;x+=30){ c.fillStyle=(x/30)%2?'#fff':'#111'; c.fillRect(x,fy-8,30,8); c.fillStyle=(x/30)%2?'#111':'#fff'; c.fillRect(x,fy,30,8); } c.restore(); c.fillStyle='#ffd23f'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.fillText('🏁 FINISH 🏁',W/2,fy-20); }
-    // height markers
-    c.font='bold 13px sans-serif'; c.textAlign='left'; for(let m=Math.ceil((startY-camY-H)/1000)*1000;m<startY-camY;m+=1000){ const y=toScreenY(startY-m); if(m<=0) continue; c.fillStyle='rgba(255,255,255,.35)'; c.fillRect(0,y,26,2); c.fillText(m/10+'m',30,y+5); }
-    // platforms
-    plats.forEach(pl=>{ const x=toScreenX(pl.x), y=toScreenY(pl.y); if(y<-30||y>H+30) return; drawPlat(c,pl,x,y); });
-    // safety cloud
-    if(eff.net>0){ c.globalAlpha=Math.min(1,eff.net)*0.9; c.shadowColor='#fff'; c.shadowBlur=20; for(let x=0;x<=W;x+=70) puff(c,x,H-40+Math.sin(t*3+x)*4,45,'#f4fbff'); c.shadowBlur=0; c.globalAlpha=1; }
-    // monsters
+    const fy=toScreenY(goalY); if(!api.boss&&fy>-40&&fy<H+40){ c.save(); c.shadowColor='#ffd23f'; c.shadowBlur=20; for(let x=0;x<W;x+=32){ c.fillStyle=(x/32)%2?'#fff':'#111'; c.fillRect(x,fy-8,32,8); c.fillStyle=(x/32)%2?'#111':'#fff'; c.fillRect(x,fy,32,8); } c.restore(); c.fillStyle='#ffd23f'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.fillText('🏁 FINISH 🏁',W/2,fy-20); }
+    // height markers (right edge)
+    c.font='bold 13px sans-serif'; c.textAlign='right'; for(let m=Math.ceil((startY-camY-H)/1000)*1000;m<startY-camY;m+=1000){ const y=toScreenY(startY-m); if(m<=0) continue; c.fillStyle='rgba(255,255,255,.35)'; c.fillRect(W-26,y,26,2); c.fillText(m/10+'m',W-32,y+5); }
+    plats.forEach(pl=>{ const y=toScreenY(pl.y); if(y<-30||y>H+30) return; drawPlat(c,pl,pl.x,y); });
+    // jump guide: how high one jump reaches (helps you line up)
+    if(p.on&&!lost&&!done){ const x=p.x, y0=toScreenY(p.y)-48, top=toScreenY(p.y)-(p.on.type==='s'?SPRING*SPRING/(2*GRAV):APEX)+4; c.save(); c.strokeStyle='rgba(255,255,255,.35)'; c.lineWidth=2; c.setLineDash([4,8]); c.lineDashOffset=-t*20; c.beginPath(); c.moveTo(x,y0); c.lineTo(x,Math.max(70,top)); c.stroke(); c.setLineDash([]); if(top>70){ c.fillStyle='rgba(255,255,255,.45)'; c.beginPath(); c.moveTo(x-8,top+8); c.lineTo(x,top); c.lineTo(x+8,top+8); c.fill(); } c.restore(); }
     mons.forEach(m=>drawMon(c,m));
     if(boss) drawBoss(c);
-    // bombs
-    bombs.forEach(b=>{ const x=toScreenX(b.x), y=toScreenY(b.y); c.save(); c.translate(x,y); c.rotate(b.r); c.shadowColor='#9bf'; c.shadowBlur=16; c.fillStyle='#e8f0ff'; c.beginPath(); c.moveTo(0,-14); c.lineTo(6,-2); c.lineTo(1,-2); c.lineTo(5,14); c.lineTo(-6,0); c.lineTo(-1,0); c.closePath(); c.fill(); c.restore(); });
-    // shots
-    c.shadowColor='#ffd23f'; c.shadowBlur=14; c.fillStyle='#fff6a8'; shots.forEach(s=>{ const x=toScreenX(s.x), y=toScreenY(s.y); star(c,x,y,9,t*10); }); c.shadowBlur=0;
-    // player
+    bombs.forEach(b=>{ const y=toScreenY(b.y); c.save(); c.translate(b.x,y); c.rotate(b.r); c.shadowColor='#9bf'; c.shadowBlur=16; c.fillStyle='#e8f0ff'; c.beginPath(); c.moveTo(0,-14); c.lineTo(6,-2); c.lineTo(1,-2); c.lineTo(5,14); c.lineTo(-6,0); c.lineTo(-1,0); c.closePath(); c.fill(); c.restore(); });
+    c.shadowColor='#ffd23f'; c.shadowBlur=14; c.fillStyle='#fff6a8'; shots.forEach(s=>star(c,s.x,toScreenY(s.y),9,t*10)); c.shadowBlur=0;
     if(!lost||Math.floor(t*10)%2) drawPlayer(c);
-    if(grace>0&&!lost&&Math.floor(t*12)%2){ c.strokeStyle='rgba(255,255,255,.5)'; c.lineWidth=2; c.beginPath(); c.arc(toScreenX(p.x),toScreenY(p.y)-24,34,0,7); c.stroke(); }
+    if(grace>0&&!lost&&Math.floor(t*12)%2){ c.strokeStyle='rgba(255,255,255,.5)'; c.lineWidth=2; c.beginPath(); c.arc(p.x,toScreenY(p.y)-24,34,0,7); c.stroke(); }
+    // rising storm
+    if(!boss){ const sy=toScreenY(stormY); if(sy<H+40){ c.save(); const sg=c.createLinearGradient(0,sy-30,0,H); sg.addColorStop(0,'rgba(60,30,110,.85)'); sg.addColorStop(1,'rgba(10,4,30,.97)'); c.fillStyle=sg; c.fillRect(0,sy,W,H-sy+10);
+      c.globalAlpha=.9; for(let x=-20;x<=W+40;x+=64) puff(c,x,sy+Math.sin(t*2+x*0.05)*6,46,'#3a2470'); c.globalAlpha=1;
+      if(Math.floor(t*7)%9===0){ const lx=(Math.floor(t*7)*197)%W; c.strokeStyle='#e8f0ff'; c.lineWidth=3; c.shadowColor='#9bf'; c.shadowBlur=18; c.beginPath(); c.moveTo(lx,sy+10); c.lineTo(lx+14,sy+50); c.lineTo(lx-6,sy+80); c.lineTo(lx+10,sy+130); c.stroke(); }
+      c.restore(); } }
   },
   attract(c,tt){ const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#1a3a8f'); g.addColorStop(1,'#7fd0ff'); c.fillStyle=g; c.fillRect(0,0,W,H);
-    for(let i=0;i<6;i++){ const y=((i*170+tt*80)%1020)-60; puff(c,100+((i*233)%400),y,40,'rgba(255,255,255,.9)'); }
-    const by=600-Math.abs(Math.sin(tt*3))*260; c.fillStyle='#5dff7a'; c.shadowColor='#5dff7a'; c.shadowBlur=20; c.beginPath(); c.ellipse(W/2,by,30,26,0,0,7); c.fill(); c.shadowBlur=0; c.fillStyle='#fff'; c.beginPath(); c.arc(W/2-10,by-14,8,0,7); c.arc(W/2+10,by-14,8,0,7); c.fill(); c.fillStyle='#000'; c.beginPath(); c.arc(W/2-9,by-14,4,0,7); c.arc(W/2+11,by-14,4,0,7); c.fill(); }
+    for(let i=0;i<10;i++){ const y=((i*120+tt*60)%840)-60; puff(c,80+((i*277)%1120),y,44,'rgba(255,255,255,.9)'); }
+    const ph=(tt*0.8)%2, by=470-Math.max(0,Math.sin(Math.min(1,ph)*Math.PI))*260; c.fillStyle='#5dff7a'; c.shadowColor='#5dff7a'; c.shadowBlur=20; c.beginPath(); c.ellipse(W/2,by,30,26,0,0,7); c.fill(); c.shadowBlur=0; c.fillStyle='#fff'; c.beginPath(); c.arc(W/2-10,by-14,8,0,7); c.arc(W/2+10,by-14,8,0,7); c.fill(); c.fillStyle='#000'; c.beginPath(); c.arc(W/2-9,by-14,4,0,7); c.arc(W/2+11,by-14,4,0,7); c.fill(); }
 };
-function toScreenX(x){ return x; }
 function toScreenY(y){ return y-camY; }
 function wrapDx(d){ if(d>W/2) d-=W; if(d<-W/2) d+=W; return d; }
+function fire(){ shootCD=0.22; shots.push({x:p.x,y:p.y-40,vy:-1300}); api.sfx.shoot(); squash=-0.15; }
+function land(pl){ p.on=pl; p.y=pl.y-8; p.vy=0; squash=0.25; pl.sx=1; api.sfx.bump();
+  if(pl.type==='v'&&pl.fade===undefined){ pl.fade=1; pl.fr=api.dv([0.7,0.9,1.1],1.3,1.6); }
+  if(pl.y<lastPl.y-20) api.event('land'); lastPl=pl; }
+function placeSafe(){ let pl=lastPl;
+  if(!pl||pl.dead||pl.fall||pl.fade!==undefined||pl.type==='b'||plats.indexOf(pl)<0){ const y=pl?pl.y:(lock?camY+H-150:camY+H*0.7); pl={x:pl?pl.x:W/2,y,w:240,type:'n',vx:0,safe:true}; plats.push(pl); }
+  p.x=pl.x; p.y=pl.y-8; p.vx=0; p.vy=0; p.on=pl; lastPl=pl; coyote=0; jumpBuf=0;
+  if(!lock) camY=p.y-H*CAMK; stormY=camY+H+150; mons=mons.filter(m=>m.dead||Math.hypot(wrapDx(m.x-p.x),m.y-p.y)>260); }
 function mix(a,b,k){ const A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16); const r=((A>>16)*(1-k)+(B>>16)*k)|0, g=(((A>>8)&255)*(1-k)+((B>>8)&255)*k)|0, bl=((A&255)*(1-k)+(B&255)*k)|0; return `rgb(${r},${g},${bl})`; }
 function puff(c,x,y,r,col){ c.fillStyle=col; c.beginPath(); c.arc(x,y,r*0.6,0,7); c.arc(x-r*0.6,y+r*0.15,r*0.42,0,7); c.arc(x+r*0.6,y+r*0.15,r*0.45,0,7); c.arc(x+r*0.2,y-r*0.3,r*0.45,0,7); c.fill(); }
 function star(c,x,y,r,rot){ c.beginPath(); for(let i=0;i<10;i++){ const a=rot+i*Math.PI/5, rr=i%2?r*0.45:r; c.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr); } c.closePath(); c.fill(); }
-// ---- level generation: always keep a reachable "real" platform within jump range ----
-function gen(){ if(lock) return; const L=api.level, tut=api.content===0;
-  const maxGap=tut?150:api.dv([150,205,235],245,255), minGap=tut?90:api.dv([70,110,140],170,200);
-  const pw=tut?150:api.dv([120,95,78],66,54);
-  const pBreak=tut?0:api.dv([0.08,0.2,0.3],0.35,0.45), pMove=tut?0:api.dv([0.1,0.3,0.45],0.55,0.65), pVan=tut||L<15?0:api.dv([0.05,0.15,0.25],0.3,0.4), pSpring=api.dv([0.1,0.07,0.05],0.04,0.03);
-  const pMon=tut?0:api.dv([0.07,0.16,0.26],0.32,0.45), mvSp=api.dv([60,110,160],190,260);
-  while(topGen>camY-300){ const y=topGen-rnd(minGap,maxGap);
-    const r=Math.random(); let type='n'; if(r<pVan) type='v'; else if(r<pVan+pSpring) type='s';
-    const x=rnd(pw/2,W-pw/2); const pl={x,y,w:pw,type,vx:Math.random()<pMove?(Math.random()<.5?-1:1)*mvSp*rnd(0.7,1.2):0};
-    if(type==='s') pl.vx=0; plats.push(pl);
+// ---- level generation: the WHOLE stage is built at start (race = same seed = same sky on every phone).
+//      A "main" chain of clouds is always reachable from the one below (gap < jump height, sideways step in range). ----
+function genAll(){ const L=api.level, tut=api.content===0, E=easy(), B=beg();
+  const maxGap=tut?140:E?150:api.dv([165,205,230],240,250), minGap=tut?100:E?95:api.dv([90,120,145],165,190);
+  const pw=tut?240:E?220:api.dv([170,120,96],82,70), maxDx=tut?220:E?260:api.dv([300,330,350],360,370);
+  const pBreak=tut||B?0:api.dv([0.12,0.25,0.33],0.38,0.45), pMove=tut||E?0:api.dv([0.12,0.3,0.45],0.55,0.65), pVan=tut||B||L<15?0:api.dv([0.05,0.15,0.25],0.3,0.4), pSpring=tut?0:api.dv([0.08,0.06,0.05],0.04,0.03);
+  const pMon=tut?0:E?0.04:api.dv([0.06,0.15,0.24],0.3,0.42), mvSp=api.dv([50,100,150],180,240), pExtra=tut?0.6:B?0.55:api.dv([0.45,0.3,0.2],0.15,0.1);
+  let px=W/2, n=0;
+  while(topGen>goalY-300){ const y=topGen-rnd(minGap,maxGap);
+    const x=Math.max(170,Math.min(W-170,px+rnd(-maxDx,maxDx)));
+    const r=R(); let type='n'; if(r<pVan) type='v'; else if(r<pVan+pSpring) type='s';
+    const pl={x,y,w:pw,type,vx:0};
+    if(type!=='s'&&R()<pMove){ pl.vx=(R()<.5?-1:1)*mvSp*rnd(0.7,1.2); pl.x0=x; pl.rng=rnd(90,api.dv([150,220,300],320,340)); }
+    plats.push(pl);
+    // wide sky: a spare cloud elsewhere on the same row
+    if(R()<pExtra){ let ex=rnd(170,W-170); if(Math.abs(ex-x)<pw+120) ex=x<W/2?Math.min(W-170,x+pw+200):Math.max(170,x-pw-200); plats.push({x:ex,y:y+rnd(-30,30),w:pw,type:'n',vx:0}); }
     // decoy breaking clouds in between
-    if(Math.random()<pBreak) plats.push({x:rnd(pw/2,W-pw/2),y:y+rnd(30,Math.max(40,(topGen-y)-30)),w:pw,type:'b',vx:0});
-    // monsters
-    if(Math.random()<pMon&&y<startY-700&&y>goalY+200){ const bx=rnd(70,W-70); mons.push({bx,by:y-rnd(110,160),x:bx,y:0,ph:Math.random()*6,sp:rnd(1,2)*api.dv([1,1.4,1.8],2.2,2.8),amp:rnd(30,api.dv([60,120,170],200,220)),kind:Math.random()<.5?0:1}); }
-    // tutorial monster
-    if(tut&&!mons.length&&y<startY-900) mons.push({bx:W/2,by:y-150,x:W/2,y:0,ph:0,sp:1,amp:60,kind:0,tut:true});
-    topGen=y; } }
+    if(R()<pBreak) plats.push({x:rnd(170,W-170),y:y+rnd(30,Math.max(40,(topGen-y)-30)),w:pw,type:'b',vx:0});
+    if(R()<pMon&&y<startY-700&&y>goalY+200){ const bx=rnd(200,W-200); mons.push({bx,by:y-rnd(110,150),x:bx,y:0,ph:R()*6,sp:rnd(1,2)*api.dv([0.8,1.4,1.8],2.2,2.8),amp:rnd(30,api.dv([80,140,190],220,240)),kind:R()<.5?0:1}); }
+    if(tut&&!mons.length&&y<startY-700) mons.push({bx:x,by:y-150,x,y:0,ph:0,sp:0.8,amp:50,kind:0,tut:true});
+    topGen=y; px=x; n++; } }
 function updShots(dt){ shots.forEach(s=>{ s.y+=s.vy*dt;
-    mons.forEach(m=>{ if(!m.dead&&!s.gone&&Math.abs(wrapDx(s.x-m.x))<34&&Math.abs(s.y-m.y)<34){ s.gone=true; killMon(m); } });
-    if(boss&&!s.gone&&!boss.dead&&Math.abs(s.x-boss.x)<boss.r&&Math.abs(s.y-boss.y)<boss.r){ s.gone=true; boss.hp--; boss.hit=0.15; api.sfx.small(); api.fx.burst(toScreenX(s.x),toScreenY(s.y),'#fff',10,200,.4,3); api.addScore(60,s.x,toScreenY(s.y),true);
-      if(boss.hp<=0){ boss.dead=true; api.fx.shake(16); api.fx.flash('#fff',.5); api.sfx.boom(); api.fx.burst(toScreenX(boss.x),toScreenY(boss.y),'#b14bff',60,420,1,5); api.addScore(1500,toScreenX(boss.x),toScreenY(boss.y)); bombs=[]; if(!done){ done=true; api.toast('THE STORM KING FALLS!'); setTimeout(()=>{ api.sfx.clear(); api.stageClear(); },1300); } } } });
+    mons.forEach(m=>{ if(!m.dead&&!s.gone&&Math.abs(wrapDx(s.x-m.x))<36&&Math.abs(s.y-m.y)<36){ s.gone=true; killMon(m); } });
+    if(boss&&!s.gone&&!boss.dead&&Math.abs(s.x-boss.x)<boss.r&&Math.abs(s.y-boss.y)<boss.r){ s.gone=true; boss.hp--; boss.hit=0.15; api.sfx.small(); api.fx.burst(s.x,toScreenY(s.y),'#fff',10,200,.4,3); api.addScore(60,s.x,toScreenY(s.y),true);
+      if(boss.hp<=0){ boss.dead=true; api.fx.shake(16); api.fx.flash('#fff',.5); api.sfx.boom(); api.fx.burst(boss.x,toScreenY(boss.y),'#b14bff',60,420,1,5); api.addScore(1500,boss.x,toScreenY(boss.y)); bombs=[]; if(!done){ done=true; api.toast('THE STORM KING FALLS!'); setTimeout(()=>{ api.sfx.clear(); api.stageClear(); },1300); } } } });
   shots=shots.filter(s=>!s.gone&&s.y>camY-60); }
-function killMon(m,txt){ if(m.dead) return; m.dead=true; m.dy=-300; api.sfx.boom(); api.fx.shake(5); api.fx.burst(toScreenX(m.x),toScreenY(m.y),m.kind?'#ff6a3b':'#b14bff',22,280,.6,4); api.addScore(150*(1+api.dk*.5),toScreenX(m.x),toScreenY(m.y)); if(txt) api.fx.text(toScreenX(m.x),toScreenY(m.y)-30,txt,'#ffd23f',20); api.event('kill'); }
-function hurt(msg){ if(lost||grace>0||done) return; lost=true; hitT=0.5; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(toScreenX(p.x),toScreenY(p.y)-20,'#5dff7a',26,300,.7,4); setTimeout(()=>api.loseLife(),900); }
-function startBoss(){ lock=true; camY=Math.min(camY,goalY-H*0.15); const top=camY;
-  // build a solid arena of clouds that fills the screen
-  plats=plats.filter(pl=>pl.y>top+H-60); for(let y=top+H-120;y>top+260;y-=135){ plats.push({x:rnd(80,W-80),y,w:130,type:'n',vx:(Math.random()<.5?-1:1)*api.dv([40,80,120],150,200)}); }
+function killMon(m,txt){ if(m.dead) return; m.dead=true; m.dy=-300; api.sfx.boom(); api.fx.shake(5); api.fx.burst(m.x,toScreenY(m.y),m.kind?'#ff6a3b':'#b14bff',22,280,.6,4); api.addScore(150*(1+api.dk*.5),m.x,toScreenY(m.y)); if(txt) api.fx.text(m.x,toScreenY(m.y)-30,txt,'#ffd23f',20); api.event('kill'); }
+function hurt(msg){ if(lost||grace>0||done) return; lost=true; hitT=0.5; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(p.x,toScreenY(p.y)-20,'#5dff7a',26,300,.7,4); setTimeout(()=>api.loseLife(),900); }
+// boss arena: a wide base cloud (clear of the thumb corners) + moving clouds above it
+function startBoss(){ lock=true; camY=Math.min(camY,goalY-120); const top=camY;
+  plats=[]; const base={x:W/2,y:top+H-150,w:600,type:'n',vx:0,base:true}; plats.push(base);
+  const v=api.dv([50,90,130],160,210);
+  [[top+H-290,330],[top+H-290,950],[top+H-430,500],[top+H-430,800]].forEach(([y,x],i)=>plats.push({x,y,w:150,type:'n',vx:(i%2?-1:1)*v,x0:x,rng:140}));
+  p.x=W/2; p.y=base.y-8; p.vx=0; p.vy=0; p.on=base; lastPl=base; grace=1.5;
   const hp=Math.round(api.dv([10,16,22],28,40));
-  boss={x:W/2,y:top+190,r:70,hp,max:hp,ph:0,fire:2,hit:0,dead:false}; api.toast('THE STORM KING!'); api.sfx.boom(); api.fx.shake(10); mons=[]; }
-function updBoss(dt){ if(boss.dead){ boss.y+=300*dt; return; } boss.ph+=dt; boss.hit-=dt; boss.x=W/2+Math.sin(boss.ph*api.dv([0.7,1,1.3],1.6,2.2))*(W/2-90); boss.y=camY+190+Math.sin(boss.ph*1.7)*30;
-  boss.fire-=dt; if(boss.fire<=0){ boss.fire=api.dv([2.2,1.5,1],0.75,0.45); const n=api.level>30?3:api.level>10?2:1; for(let i=0;i<n;i++){ const dx=p.x-boss.x; bombs.push({x:boss.x,y:boss.y+50,vx:dx*0.4+(i-(n-1)/2)*120,vy:150,r:0}); } api.sfx.shoot(); }
-  // re-grow clouds that broke so the arena stays playable
-  if(plats.length<6) plats.push({x:rnd(80,W-80),y:camY+rnd(300,H-150),w:130,type:'n',vx:0}); }
+  boss={x:W/2,y:top+150,r:70,hp,max:hp,ph:0,fire:2.5,hit:0,dead:false}; api.toast('THE STORM KING!'); api.sfx.boom(); api.fx.shake(10); mons=[]; shots=[]; }
+function updBoss(dt){ if(boss.dead) return; boss.ph+=dt; boss.hit-=dt; boss.x=W/2+Math.sin(boss.ph*api.dv([0.6,0.9,1.2],1.5,2))*(W/2-230); boss.y=camY+150+Math.sin(boss.ph*1.7)*25;
+  boss.fire-=dt; if(boss.fire<=0){ boss.fire=api.dv([2.4,1.5,1],0.75,0.45); const n=api.level>30?3:api.level>10?2:1; for(let i=0;i<n;i++){ const dx=wrapDx(p.x-boss.x); bombs.push({x:boss.x,y:boss.y+50,vx:dx*0.4+(i-(n-1)/2)*120,vy:150,r:0}); } api.sfx.shoot(); }
+  if(plats.length<4){ const x=rnd(330,950); plats.push({x,y:camY+H-rnd(290,430),w:150,type:'n',vx:0}); } }
 function drawPlat(c,pl,x,y){ const w=pl.w, sq=pl.sx>0?Math.sin(pl.sx*Math.PI)*6:0; c.save(); c.translate(x,y+sq);
-  let col='#5dff7a', glow='#5dff7a'; if(pl.vx){ col='#3bd5ff'; glow='#3bd5ff'; } if(pl.type==='b'){ col='#a86a3a'; glow='#000'; } if(pl.type==='v'){ col='#ffffff'; glow='#bfe9ff'; } if(pl.type==='s'){ col='#5dff7a'; }
+  let col='#5dff7a', glow='#5dff7a'; if(pl.vx){ col='#3bd5ff'; glow='#3bd5ff'; } if(pl.type==='b'){ col='#a86a3a'; glow='#000'; } if(pl.type==='v'){ col='#ffffff'; glow='#bfe9ff'; } if(pl.base){ col='#7fe6ff'; glow='#7fe6ff'; }
   if(pl.fade!==undefined) c.globalAlpha=Math.max(0,pl.fade); if(pl.type==='v'&&pl.fade===undefined) c.globalAlpha=0.75+0.25*Math.sin(t*6+pl.x);
   if(pl.fall) c.rotate(Math.min(0.6,(pl.fy||0)/800));
   c.shadowColor=glow; c.shadowBlur=pl.type==='b'?0:14;
   const g=c.createLinearGradient(0,-10,0,12); g.addColorStop(0,'#fff'); g.addColorStop(0.25,col); g.addColorStop(1,shade(col)); c.fillStyle=g;
   c.beginPath(); c.roundRect(-w/2,-8,w,18,9); c.fill(); c.shadowBlur=0;
-  // fluffy top bumps
   c.fillStyle='rgba(255,255,255,.55)'; for(let i=-w/2+14;i<w/2-8;i+=22){ c.beginPath(); c.arc(i,-7,7,Math.PI,0); c.fill(); }
   if(pl.type==='b'){ c.strokeStyle='#3a1a0a'; c.lineWidth=2; c.beginPath(); c.moveTo(-10,-8); c.lineTo(-4,2); c.lineTo(-12,10); c.moveTo(12,-8); c.lineTo(6,3); c.stroke(); }
   if(pl.type==='s'){ const ex=pl.sx>0?-14:0; c.strokeStyle='#ffd23f'; c.lineWidth=3; c.shadowColor='#ffd23f'; c.shadowBlur=10; c.beginPath(); for(let i=0;i<4;i++){ c.moveTo(-10,-10-i*4+ex*i/4); c.lineTo(10,-12-i*4+ex*i/4); } c.stroke(); c.fillStyle='#ffd23f'; c.fillRect(-14,-26+ex,28,5); }
   c.restore(); c.globalAlpha=1; }
 function shade(h){ const A=parseInt(h.slice(1),16); return `rgb(${(A>>16)*0.45|0},${((A>>8)&255)*0.45|0},${(A&255)*0.45|0})`; }
-function drawMon(c,m){ const x=toScreenX(m.x), y=toScreenY(m.y); if(y<-60||y>H+60) return; c.save(); c.translate(x,y); if(m.dead) c.rotate(t*8);
+function drawMon(c,m){ const x=m.x, y=toScreenY(m.y); if(y<-60||y>H+60) return; c.save(); c.translate(x,y); if(m.dead) c.rotate(t*8);
   const col=m.kind?'#ff6a3b':'#b14bff'; c.shadowColor=col; c.shadowBlur=18; c.fillStyle=col;
-  // wings
   const fl=Math.sin(t*18+m.ph)*0.6; c.globalAlpha=0.8; c.beginPath(); c.ellipse(-30,-6,18,9,-0.4+fl,0,7); c.ellipse(30,-6,18,9,0.4-fl,0,7); c.fill(); c.globalAlpha=1;
-  // spiky body
   c.beginPath(); for(let i=0;i<16;i++){ const a=i*Math.PI/8, r=i%2?22:30; c.lineTo(Math.cos(a)*r,Math.sin(a)*r); } c.closePath(); c.fill(); c.shadowBlur=0;
   c.fillStyle='#fff'; c.beginPath(); c.arc(-9,-4,8,0,7); c.arc(9,-4,8,0,7); c.fill(); c.fillStyle='#000'; const lx=Math.max(-3,Math.min(3,(p.x-m.x)/60)); c.beginPath(); c.arc(-9+lx,-3,4,0,7); c.arc(9+lx,-3,4,0,7); c.fill();
   c.strokeStyle='#000'; c.lineWidth=2; c.beginPath(); c.moveTo(-10,10); for(let i=0;i<5;i++) c.lineTo(-10+i*5,i%2?14:9); c.stroke(); c.restore(); }
-function drawBoss(c){ const x=toScreenX(boss.x), y=toScreenY(boss.y); c.save(); c.translate(x,y); const k=boss.hit>0;
+function drawBoss(c){ const x=boss.x, y=toScreenY(boss.y); c.save(); c.translate(x,y); const k=boss.hit>0;
   c.shadowColor='#7a5cff'; c.shadowBlur=40; const g=c.createRadialGradient(0,-10,10,0,0,boss.r); g.addColorStop(0,k?'#fff':'#9a8cff'); g.addColorStop(1,'#2a1a6a'); c.fillStyle=g;
   for(let i=0;i<7;i++){ const a=i/7*Math.PI*2+boss.ph*0.5; c.beginPath(); c.arc(Math.cos(a)*boss.r*0.55,Math.sin(a)*boss.r*0.35,boss.r*0.5,0,7); c.fill(); }
   c.shadowBlur=0; c.fillStyle='#ffd23f'; c.beginPath(); c.moveTo(-40,-50); c.lineTo(-30,-80); c.lineTo(-12,-58); c.lineTo(0,-88); c.lineTo(12,-58); c.lineTo(30,-80); c.lineTo(40,-50); c.closePath(); c.fill();
@@ -628,15 +690,12 @@ function drawBoss(c){ const x=toScreenX(boss.x), y=toScreenY(boss.y); c.save(); 
   c.strokeStyle='#fff'; c.lineWidth=3; c.beginPath(); c.arc(0,22,18,Math.PI*0.15,Math.PI*0.85); c.stroke();
   if(Math.floor(boss.ph*3)%4===0){ c.strokeStyle='#e8f0ff'; c.lineWidth=3; c.shadowColor='#9bf'; c.shadowBlur=14; c.beginPath(); c.moveTo(-50,40); c.lineTo(-40,70); c.lineTo(-55,90); c.stroke(); }
   c.restore();
-  // hp bar
   if(!boss.dead){ const bw=360; c.fillStyle='rgba(0,0,0,.5)'; c.fillRect(W/2-bw/2,H-40,bw,14); c.fillStyle='#b14bff'; c.shadowColor='#b14bff'; c.shadowBlur=12; c.fillRect(W/2-bw/2,H-40,bw*boss.hp/boss.max,14); c.shadowBlur=0; c.fillStyle='#fff'; c.font='bold 13px sans-serif'; c.textAlign='center'; c.fillText('STORM KING',W/2,H-46); } }
-function drawPlayer(c){ const x=toScreenX(p.x), y=toScreenY(p.y); const col=api.cos('Jumper').colors[0]; const sq=squash; c.save(); c.translate(x,y-22); c.scale(p.face,1); c.scale(1+sq*0.6,1-sq*0.6);
+function drawPlayer(c){ const x=p.x, y=toScreenY(p.y); const col=api.cos('Jumper').colors[0]; const sq=squash; c.save(); c.translate(x,y-22); c.scale(p.face,1); c.scale(1+sq*0.6,1-sq*0.6);
   if(eff.shield>0){ c.strokeStyle='rgba(120,220,255,.85)'; c.fillStyle='rgba(120,220,255,.15)'; c.lineWidth=3; c.shadowColor='#7df'; c.shadowBlur=16; c.beginPath(); c.arc(0,-2,40+Math.sin(t*8)*2,0,7); c.fill(); c.stroke(); c.shadowBlur=0; }
   if(eff.rocket>0){ c.fillStyle='#888'; c.fillRect(-30,-10,12,30); c.fillStyle='#ff3b3b'; c.beginPath(); c.moveTo(-30,-10); c.lineTo(-24,-22); c.lineTo(-18,-10); c.fill(); }
-  // legs
-  const leg=p.vy<0?8:14; c.strokeStyle=shade(col); c.lineWidth=5; c.lineCap='round'; c.beginPath(); c.moveTo(-10,14); c.lineTo(-14,14+leg); c.moveTo(10,14); c.lineTo(14,14+leg); c.stroke();
+  const leg=p.on?(Math.abs(p.vx)>40?10+Math.sin(t*20)*4:10):p.vy<0?8:14; c.strokeStyle=shade(col); c.lineWidth=5; c.lineCap='round'; c.beginPath(); c.moveTo(-10,14); c.lineTo(-14,14+leg); c.moveTo(10,14); c.lineTo(14,14+leg); c.stroke();
   c.shadowColor=col; c.shadowBlur=18; const g=c.createRadialGradient(-6,-8,4,0,0,28); g.addColorStop(0,'#fff'); g.addColorStop(0.3,col); g.addColorStop(1,shade(col)); c.fillStyle=g; c.beginPath(); c.ellipse(0,0,26,22,0,0,7); c.fill(); c.shadowBlur=0;
-  // eyes on top
   c.fillStyle=col; c.beginPath(); c.arc(-11,-18,10,0,7); c.arc(11,-18,10,0,7); c.fill(); c.fillStyle='#fff'; c.beginPath(); c.arc(-11,-19,7,0,7); c.arc(11,-19,7,0,7); c.fill(); c.fillStyle='#000'; const ey=p.vy<0?-2:1; c.beginPath(); c.arc(-9,-19+ey,3.5,0,7); c.arc(13,-19+ey,3.5,0,7); c.fill();
   c.strokeStyle='#123'; c.lineWidth=2; c.beginPath(); c.arc(4,4,9,0.2,Math.PI-0.4); c.stroke();
   c.restore(); }
@@ -644,7 +703,7 @@ function drawPlayer(c){ const x=toScreenX(p.x), y=toScreenY(p.y); const col=api.
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -731,8 +790,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -757,6 +834,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -774,6 +874,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -880,7 +984,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -904,6 +1008,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -953,8 +1059,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1325,7 +1431,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1499,6 +1605,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1509,10 +1616,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1529,7 +1649,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1565,7 +1685,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1604,6 +1724,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
