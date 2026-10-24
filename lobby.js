@@ -1,7 +1,7 @@
-/* REMIX LOBBY-3 — who's online + invites. Shared by the games page and every game (loaded from the site root). */
+/* REMIX LOBBY-4 — who's online + invites. Shared by the games page and every game (loaded from the site root). */
 (function(){
   if(window.RMXL) return;
-  if(window.GAME&&!window.GAME.net) return; // LOBBY-3: solo-only games stay offline/invisible
+  if(window.GAME&&!window.GAME.net&&!window.GAME.race) return; // LOBBY-4 (race games allowed): solo-only games stay offline/invisible
   var SB='https://uuyaoffzgjxxwxlzhwur.supabase.co', KEY='sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9';
   var ROOT=(location.pathname.match(/^(.*\/remix-games\/)/)||[0,'/'])[1];
   function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
@@ -64,14 +64,15 @@
 
 /* LOBBY-3 2P-ONLY: multiplayer only in games with real PLAY TOGETHER (GAME.net). Others = solo only. Race mode hidden everywhere. */
 (function(){
-  var g=window.GAME; if(!g) return; var two=!!g.net;
+  var g=window.GAME; if(!g) return; var two=!!g.net, race=!two&&!!g.race; /* LOBBY-4: race games = same puzzle, first to finish wins */
   var css=document.createElement('style');
-  css.textContent= two ? '' : '#btnMP,#btnOnline{display:none!important}';
+  css.textContent= (two||race) ? '' : '#btnMP,#btnOnline{display:none!important}';
   document.head.appendChild(css);
   function fix(){
     var m=document.querySelectorAll('button');
     for(var i=0;i<m.length;i++){ var b=m[i], t=b.textContent;
-      if(!two && t.indexOf('MULTIPLAYER (2')>=0 && b.getAttribute('data-a')==='m'){ var s=b.parentNode.querySelector('[data-a="s"]'); if(s){ s.click(); return; } }
+      if(!two && !race && t.indexOf('MULTIPLAYER (2')>=0 && b.getAttribute('data-a')==='m'){ var s=b.parentNode.querySelector('[data-a="s"]'); if(s){ s.click(); return; } }
+      if(race && t==='👥 MULTIPLAYER (2–3)'){ b.textContent='👥 RACE A FRIEND — FIRST TO FINISH WINS'; }
       if(two){
         if(t==='👥 MULTIPLAYER (2–3)'){ b.textContent='👥 2 PLAYER — PLAY TOGETHER'; }
         if(t.indexOf('START RACE')>=0&&b.style.display!=='none'){ b.style.display='none'; }
