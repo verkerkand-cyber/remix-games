@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-TK-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-TK-1.2 · 2026-10-24">
 <title>Temple Kick</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,44 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
 
 </style>
 </head>
 <body>
-<!-- BUILD-TK-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-TK-1.2 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,90 +464,136 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* TEMPLE KICK — Kung-Fu Master remix (#56). 100 stages. Walk the temple floor, kick everything that comes at you from both sides. */
+/* TEMPLE KICK — Kung-Fu Master remix (#56). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1): side-on temple floor.
+   YOU walk (left thumb stick / arrows) — the hero never moves by himself. KICK and PUNCH buttons (right thumb, hold-safe). */
 (function(){
-const W=600,H=900,GY=700;
-let api,t,pl,ens,knives,dist,goal,dirn,done,lost,eff,grace,spawnT,boss,swipe,cam,hp;
+const W=1280,H=720,GY=545,SC=1.25;
+let api,t,pl,ens,knives,goal,dirn,done,lost,eff,grace,spawnT,boss,cam,hp,want,atkT,jumpHeld,hintT;
+const easy=()=>api.diff===0&&api.level<=5;          // Beginner stages 1-5 (+ tutorial): extra gentle
+const prog=()=>pl.wx*dirn;                           // how far towards the stairs (0..goal)
 const GAME=window.GAME={
   id:'temple-kick',title:'Temple Kick',titleHTML:'TEMPLE<br>KICK',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-TK-1.1 · 2026-10-17',theme:{a:'#ffd23f',b:'#ff3b3b',bg:'#1a0a04'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🥋',joystick:false,coinPts:40,
+  build:'BUILD-TK-1.2 · 2026-10-24',theme:{a:'#ffd23f',b:'#ff3b3b',bg:'#1a0a04'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🥋',joystick:true,coinPts:40,
   abilities:[
-    {id:'kickL',icon:'⬅️',name:'KICK LEFT',cd:0,key:'ArrowLeft',keyLabel:'←',desc:'FREE — kick to the left. Or tap the LEFT half of the game.'},
-    {id:'kickR',icon:'➡️',name:'KICK RIGHT',cd:0,key:'ArrowRight',keyLabel:'→',desc:'FREE — kick to the right. Or tap the RIGHT half of the game.'},
+    {id:'kick',icon:'🦶',name:'KICK',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — a long kick the way you face. Hold to keep kicking.'},
+    {id:'punch',icon:'👊',name:'PUNCH',cd:0,key:'KeyX',keyLabel:'X',desc:'FREE — short, very fast jabs. Hold to keep punching.'},
     {id:'tornado',icon:'🌪️',name:'TORNADO KICK',cd:12,key:'Digit1',keyLabel:'1',desc:'Spin and knock down everyone close on both sides.'},
-    {id:'focus',icon:'🧘',name:'FOCUS',cd:20,key:'Digit2',keyLabel:'2',desc:'Time slows down for 6 seconds.'},
+    {id:'focus',icon:'🧘',name:'FOCUS',cd:20,key:'Digit2',keyLabel:'2',desc:'Enemies slow down for 6 seconds.'},
     {id:'tea',icon:'🍵',name:'GREEN TEA',cd:20,key:'Digit3',keyLabel:'3',desc:'Restore half your energy.'}],
   shop:[{id:'g_w',cat:'Gi',name:'White Gi',cost:0,colors:['#f4f4f0'],desc:'Classic.'},{id:'g_r',cat:'Gi',name:'Red Gi',cost:150,colors:['#ff3b3b'],desc:'Fierce.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#ff3b3b)'}],
-  story:`<h3>TEMPLE KICK</h3><p>Your master has been taken to the top of the temple. Fight through every floor — they'll come from both sides.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>You walk on by yourself. <b>Tap the left or right half</b> of the game to kick that way (← → on PC).</li><li><b>Swipe UP</b> to jump over low knives, <b>swipe DOWN</b> to duck under high ones (↑ ↓ on PC).</li><li>If a grabber holds you, kick fast to shake him off!</li><li>Reach the stairs at the end of the floor.</li></ul>`,
-  tutorial:[{text:'Tap the side the fighter is coming from to kick him!',ev:'ko'},{text:'Keep going to the stairs!',time:5}],
-  stageIntro:{1:'REACH THE STAIRS'},bossName:'THE FLOOR GUARDIAN!',ending:{"0":["#MASTER","Your master is free."],"1":["#GRANDMASTER","Temple legend."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ if(id==='focus') return {left:Math.max(0,eff.focus),total:6}; return null; },
-  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}, kick:d=>kick(d)}; },
+  story:`<h3>TEMPLE KICK</h3><p>Your master has been taken to the top of the temple. Fight your way along every floor to the stairs — they'll come from both sides.</p>`,
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick walks you left/right — you only move when you push it. Push <b>UP</b> to jump over low knives, <b>DOWN</b> to duck under high ones. PC: ← → (A/D) walk, ↑ (W) jump, ↓ (S) duck.</li><li><b>Right thumb:</b> <b>🦶 KICK</b> (long reach) and <b>👊 PUNCH</b> (short, fast). Hold a button to keep attacking. PC: SPACE = kick, X = punch.</li><li>You hit the way you face — if nobody is in front, you turn and hit the one behind you.</li><li>If a grabber holds you, kick or punch fast to shake him off!</li><li>Walk to the golden <b>STAIRS</b> at the end of the floor (the bar at the top shows how far).</li><li>Every 10th floor: beat the Floor Guardian. Duck or step back when he raises his leg!</li></ul>`,
+  tutorial:[{text:'Walk with ← → (A/D). Press <b>SPACE</b> to KICK the fighter!',touch:'Left thumb walks. Tap <b>🦶 KICK</b> to kick the fighter!',ev:'ko'},
+    {text:'Press <b>X</b> to PUNCH — short, fast jabs.',touch:'Tap <b>👊 PUNCH</b> for short, fast jabs.',ev:'ab_punch'},{text:'Walk to the golden STAIRS!',touch:'Push the stick to walk to the golden STAIRS!',time:5}],
+  stageIntro:{1:'WALK TO THE STAIRS'},bossName:'THE FLOOR GUARDIAN!',ending:{"0":["#MASTER","Your master is free."],"1":["#GRANDMASTER","Temple legend."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ if(id==='focus'&&eff) return {left:Math.max(0,eff.focus),total:6}; return null; },
+  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get knives(){return knives;}, get lost(){return lost;}, get done(){return done;}, get prog(){return prog();}, get goal(){return goal;}, get dirn(){return dirn;}, get boss(){return boss;}, get hp(){return hp;}}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1.2; eff={focus:-9}; ens=[]; knives=[]; dist=0; boss=null; hp=100; spawnT=1.2; swipe=null;
-    dirn=n%2?-1:1; goal=a.content===0?1200:Math.round(a.dv([2400,3000,3600],4200,5000)); pl={x:W/2,st:'walk',stT:0,face:dirn,y:0,vy:0,held:0}; },
-  respawn(){ lost=false; grace=2; hp=100; ens=ens.filter(e=>Math.abs(e.x-pl.x)>250); knives=[]; pl.st='walk'; pl.held=0; },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1.5; eff={focus:-9}; ens=[]; knives=[]; boss=null; hp=100; spawnT=easy()?2:1.4; want={}; atkT=0; jumpHeld=false; hintT=0;
+    dirn=(n%2||a.content===0)?1:-1; goal=a.content===0?1500:Math.round(a.dv([3400,4200,5000],5800,6800)); pl={wx:0,st:'walk',stT:0,face:dirn,y:0,vy:0,held:0,step:0}; cam=-W/2+dirn*160; },
+  respawn(){ lost=false; grace=2.5; hp=100; ens=ens.filter(e=>e.boss||Math.abs(e.x-pl.wx)>420); if(!boss&&!easy()) pl.wx=dirn*Math.max(0,prog()-300); knives=[]; pl.st='walk'; pl.held=0; pl.y=0; pl.vy=0; ens.forEach(e=>e.grab=false); },
   stageBonus(){ return Math.round(hp*10); },
   useAbility(id){ if(done||lost) return false;
-    if(id==='kickL') return kick(-1); if(id==='kickR') return kick(1);
-    if(id==='tornado'){ pl.st='spin'; pl.stT=0.5; ens.forEach(e=>{ if(Math.abs(e.x-pl.x)<150) hit(e,2); }); pl.held=0; api.sfx.boom(); return true; }
+    if(id==='kick'||id==='punch'){ want[id]=true; return true; }
+    if(id==='tornado'){ pl.st='spin'; pl.stT=0.5; ens.forEach(e=>{ if(Math.abs(e.x-pl.wx)<190) hit(e,2); }); knives=knives.filter(k=>Math.abs(k.x-pl.wx)>190); if(pl.held){ pl.held=0; ens.forEach(e=>e.grab=false); } api.sfx.boom(); api.fx.shake(5); return true; }
     if(id==='tea'){ hp=Math.min(100,hp+50); api.sfx.pickup(); return true; }
     eff.focus=6; api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(done||lost) return; if(type==='down') swipe={x,y,t:t}; else if(type==='up'&&swipe){ const dy=y-swipe.y; if(dy<-50) jump(); else if(dy>50){ pl.st='duck'; pl.stT=0.6; } else kick(x<W/2?-1:1); swipe=null; } },
-  update(dt0){ t+=dt0; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt0; grace-=dt0; if(lost) return; const dt=dt0*(eff.focus>0?0.55:1);
-    const K=api.input.keys; if((K.ArrowUp||K.KeyW)&&!this._u) jump(); this._u=K.ArrowUp||K.KeyW; if(K.ArrowDown||K.KeyS){ pl.st='duck'; pl.stT=0.15; } if(K.KeyA&&!this._a) kick(-1); this._a=K.KeyA; if(K.KeyD&&!this._d) kick(1); this._d=K.KeyD;
-    pl.stT-=dt0; if(pl.stT<=0&&pl.st!=='walk'&&pl.y>=0) pl.st='walk';
+  onPointer(type,x,y,id,pt){ if(pt==='touch'||pt==='pen'||done||lost) return;   // phones use the stick + buttons; a mouse click kicks towards that side
+    if(type==='down'){ const sx=pl.wx-cam; pl.face=x<sx?-1:1; want.kick=true; } },
+  update(dt0){ t+=dt0; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt0; grace-=dt0; hintT-=dt0; if(lost) return;
+    const dt=dt0, edt=dt0*(eff.focus>0?0.5:1), E=easy(), K=api.input.keys, d=api.input.dir();
+    // --- the player: moves ONLY from input ---
+    pl.stT-=dt; if(pl.stT<=0&&pl.st!=='walk'&&pl.y>=0) pl.st='walk';
+    const up=d.y<-0.55&&Math.abs(d.y)>Math.abs(d.x)*0.8, down=d.y>0.55&&Math.abs(d.y)>Math.abs(d.x)*0.8;
+    if(up&&!jumpHeld) jump(); jumpHeld=up;
+    if(down&&pl.y>=0&&!pl.held){ pl.st='duck'; pl.stT=0.12; }
+    if(Math.abs(d.x)>0.25&&!pl.held&&pl.st!=='duck'){ const s=Math.sign(d.x); pl.face=s;
+      let nx=pl.wx+d.x*(E?290:270)*dt;
+      ens.forEach(e=>{ if(e.down>0||(e.k==='small'&&pl.y<-50)) return; const gap=e.boss?70:46; if(Math.sign(e.x-pl.wx)===s&&Math.abs(e.x-pl.wx)>=gap-2&&Math.abs(e.x-nx)<gap) nx=e.x-s*gap; });
+      const lo=Math.min(-dirn*260,dirn*goal), hi=Math.max(-dirn*260,dirn*goal); nx=Math.max(lo,Math.min(hi,nx));
+      if(boss&&!boss.dead) nx=dirn>0?Math.min(nx,dirn*goal-80):Math.max(nx,dirn*goal+80);
+      if(nx!==pl.wx) pl.step+=Math.abs(nx-pl.wx); pl.wx=nx; }
     if(pl.y<0||pl.vy<0){ pl.vy+=2200*dt; pl.y+=pl.vy*dt; if(pl.y>=0){ pl.y=0; pl.vy=0; } }
-    const near=ens.some(e=>!e.down&&Math.abs(e.x-pl.x)<90);
-    if(!near&&!pl.held&&!boss) dist+=150*dt; const scrollV=(!near&&!pl.held&&!boss)?150*dirn:0;
-    // spawns
-    spawnT-=dt; if(!boss&&spawnT<=0&&dist<goal-300){ spawnT=api.dv([1.6,1.2,0.85],0.7,0.45); const side=Math.random()<0.5?-1:1, r=Math.random();
-      const k=api.content===0?'grab':api.level<3?(r<0.7?'grab':'knife'):(r<0.55?'grab':r<0.85?'knife':'small'); ens.push({k,x:side<0?-30:W+30,side,hp:k==='grab'?1:k==='small'?1:2,down:0,cool:1+Math.random(),st:0}); }
-    const es=api.dv([90,120,150],170,210);
-    ens.forEach(e=>{ e.x-=scrollV*dt; if(e.down>0){ e.down-=dt; e.x+=e.side*300*dt; if(e.down<=0) e.gone=true; return; }
-      const dx=pl.x-e.x;
-      if(e.k==='knife'){ if(Math.abs(dx)>220) e.x+=Math.sign(dx)*es*dt; else { e.cool-=dt; if(e.cool<=0){ e.cool=api.dv([2,1.5,1.1],0.9,0.6); knives.push({x:e.x,dir:Math.sign(dx),high:Math.random()<0.5}); } } }
-      else if(e.k==='small'){ e.x+=Math.sign(dx)*es*1.4*dt; if(Math.abs(dx)<26&&grace<=0&&pl.y>-30){ hp-=api.dv([6,9,12],14,18)*dt*4; } }
-      else { if(Math.abs(dx)>24) e.x+=Math.sign(dx)*es*dt; else if(grace<=0&&!pl.held&&pl.st!=='spin'){ pl.held=api.dv([3,4,5],6,7)|0; e.grab=true; api.toast('GRABBED! KICK FAST!'); } }
-      if(e.boss){ e.cool-=dt; if(Math.abs(dx)<100&&e.cool<=0){ e.cool=api.dv([1.1,0.85,0.65],0.55,0.4); e.st=0.35; } if(e.st>0){ e.st-=dt; if(e.st<=0&&Math.abs(dx)<110&&grace<=0&&pl.st!=='duck'){ hp-=api.dv([10,14,18],22,30); api.sfx.hurt(); api.fx.shake(6); } } } });
-    if(pl.held){ hp-=dt*api.dv([8,12,16],20,26); }
-    knives.forEach(k=>{ k.x+=k.dir*api.dv([300,360,420],480,560)*dt-scrollV*dt; if(Math.abs(k.x-pl.x)<20&&grace<=0){ const dodged=k.high?pl.st==='duck':pl.y<-40; if(!dodged){ k.gone=true; hp-=api.dv([12,16,20],24,30); api.sfx.hurt(); api.fx.burst(pl.x,GY-(k.high?110:30),'#fff',8,160,.3,2); } } if(k.x<-40||k.x>W+40) k.gone=true; });
-    knives=knives.filter(k=>!k.gone); ens=ens.filter(e=>!e.gone);
-    if(dist>=goal&&!boss&&!done){ if(api.boss){ boss={k:'boss',boss:true,x:dirn>0?W+40:-40,side:dirn,hp:Math.round(api.dv([10,14,18],22,30)),max:0,down:0,cool:1,st:0}; boss.max=boss.hp; ens.push(boss); api.toast('FLOOR GUARDIAN!'); } else win(); }
-    if(boss&&boss.hp<=0&&!done) win();
+    // camera follows the player (player kept left/right of centre, the way to the stairs ahead)
+    const sx=pl.wx-cam, lo=dirn>0?380:560, hi=dirn>0?720:900; if(sx<lo) cam=pl.wx-lo; else if(sx>hi) cam=pl.wx-hi;
+    // attacks: tap = one hit (buffered), hold = repeats. Never automatic.
+    atkT-=dt; if(atkT<=0){ if(want.kick||K.Space) attack('kick'); else if(want.punch||K.KeyX) attack('punch'); }
+    // --- spawns ---
+    spawnT-=edt; const maxN=api.content===0?1:E?2:Math.round(api.dv([3,4,5],6,7)), alive=ens.filter(e=>!e.down&&!e.boss).length;
+    if(!boss&&spawnT<=0&&prog()<goal-260&&alive<maxN){ spawnT=E?(api.content===0?2.6:3):api.dv([1.7,1.25,0.9],0.7,0.5);
+      const side=Math.random()<0.62?dirn:-dirn, r=Math.random(), L=api.level;
+      const k=api.content===0||L<2?'grab':E?(r<0.7?'grab':'knife'):L<4?(r<0.65?'grab':'knife'):(r<0.5?'grab':r<0.8?'knife':'small');
+      const x=side>0?cam+W+50:cam-50; ens.push({k,x,side,hp:k==='knife'&&!E?2:1,down:0,cool:E?2.5:1+Math.random(),st:0,walk:0}); }
+    // one fighter always comes for you, even if you stand still (no hands = no win)
+    if(!boss&&!ens.some(e=>!e.down)&&spawnT<=0&&prog()<goal-260){ ens.push({k:'grab',x:dirn>0?cam+W+50:cam-50,side:dirn,hp:1,down:0,cool:1,st:0,walk:0}); spawnT=1; }
+    const es=E?75:api.dv([110,140,170],190,230);
+    ens.forEach(e=>{ if(e.down>0){ e.down-=edt; e.x+=e.side*320*edt; if(e.down<=0) e.gone=true; return; }
+      const dx=pl.wx-e.x, ad=Math.abs(dx), s=Math.sign(dx)||1; e.walk+=edt;
+      if(e.k==='knife'){ const keep=E?330:260; if(ad>keep+20) e.x+=s*es*edt; else { e.cool-=edt; if(e.cool<=0){ e.cool=E?3.2:api.dv([2,1.5,1.1],0.9,0.6); e.st=0.25; knives.push({x:e.x+s*30,dir:s,high:E?false:Math.random()<0.5}); } } }
+      else if(e.k==='small'){ if(ad>30) e.x+=s*es*1.35*edt; else if(grace<=0&&pl.y>-40){ hp-=api.dv([20,28,36],44,52)*edt; } }
+      else if(e.boss){ if(ad>90) e.x+=s*es*0.6*edt; e.cool-=edt; if(ad<130&&e.cool<=0&&e.st<=0){ e.cool=api.dv([1.6,1.2,0.9],0.75,0.55); e.st=0.55; }
+        if(e.st>0){ e.st-=edt; if(e.st<=0&&Math.abs(pl.wx-e.x)<135&&grace<=0&&pl.st!=='duck'&&pl.y>-60){ hp-=api.dv([12,16,20],24,30); api.sfx.hurt(); api.fx.shake(6); pl.wx-=dirn*40; } } }
+      else { if(ad>40) e.x+=s*es*edt; else if(grace<=0&&!pl.held&&pl.st!=='spin'&&pl.y>-40){ pl.held=E?2:api.dv([3,4,5],6,7)|0; e.grab=true; api.toast('GRABBED! KICK FAST!'); } } });
+    if(pl.held) hp-=dt*(E?7:api.dv([10,14,18],22,28));
+    knives.forEach(k=>{ k.x+=k.dir*(E?230:api.dv([300,360,420],480,560))*edt; if(Math.abs(k.x-pl.wx)<22&&grace<=0){ const dodged=k.high?pl.st==='duck':pl.y<-40; if(!dodged){ k.gone=true; hp-=E?8:api.dv([12,16,20],24,30); api.sfx.hurt(); api.fx.burst(pl.wx-cam,GY-(k.high?130:36),'#fff',8,160,.3,2); if(E&&hintT<=0){ hintT=4; api.toast(k.high?'DUCK! (stick DOWN)':'JUMP! (stick UP)'); } } } if(Math.abs(k.x-cam-W/2)>W) k.gone=true; });
+    knives=knives.filter(k=>!k.gone); ens=ens.filter(e=>!e.gone&&Math.abs(e.x-pl.wx)<W*1.5);
+    // stairs / guardian
+    if(prog()>=goal-90&&!boss&&!done){ if(api.boss){ ens.forEach(e=>{ if(!e.down&&!e.boss){ e.down=0.6; e.side=Math.sign(e.x-pl.wx)||1; } }); pl.held=0;
+        boss={k:'boss',boss:true,x:pl.wx+dirn*(W*0.45),side:dirn,hp:Math.round(api.dv([10,14,18],22,30)*(E?0.7:1)),max:0,down:0,cool:1.5,st:0,walk:0}; boss.max=boss.hp; ens.push(boss); api.toast('FLOOR GUARDIAN!'); } else win(); }
+    if(boss&&boss.dead&&!done) win();
     if(hp<=0) die();
-    api.counter(boss?'👹 GUARDIAN':'🥋 ENERGY',boss?Math.max(0,Math.ceil(boss.hp/boss.max*100))+'%':Math.max(0,Math.ceil(hp)),hp<25?'empty':hp<50?'low':''); },
+    api.counter(boss&&!boss.dead?'👹 GUARDIAN':'🥋 ENERGY',boss&&!boss.dead?Math.max(0,Math.ceil(boss.hp/boss.max*100))+'%':Math.max(0,Math.ceil(hp)),hp<25?'empty':hp<50?'low':''); },
   render(c){ const g=c.createLinearGradient(0,0,0,GY); g.addColorStop(0,'#2a0a04'); g.addColorStop(1,'#6a2a0a'); c.fillStyle=g; c.fillRect(0,0,W,H);
-    const off=(dist*dirn)%120; for(let x=-120;x<W+120;x+=120){ const px=x-off; c.fillStyle='#8a1a0a'; c.fillRect(px,200,24,GY-200); c.fillStyle='#ffd23f'; c.fillRect(px-6,200,36,10); c.fillStyle='rgba(255,210,63,.15)'; c.fillRect(px+40,300,50,70); }
-    c.fillStyle='#3a1a0a'; c.fillRect(0,GY,W,H-GY); c.fillStyle='#5a2a10'; for(let x=-((dist*dirn)%60+60)%60;x<W;x+=60) c.fillRect(x,GY,30,8);
-    c.fillStyle='#ffd23f'; c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillText(dirn>0?'STAIRS →':'← STAIRS',W/2,170);
-    knives.forEach(k=>{ c.fillStyle='#ddd'; c.save(); c.translate(k.x,GY-(k.high?110:30)); c.rotate(t*20); c.fillRect(-12,-2,24,4); c.restore(); });
-    ens.forEach(e=>fighter(c,e.x,GY,e.boss?'#2a2a2a':e.k==='knife'?'#3a6a3a':e.k==='small'?'#6a3a8a':'#8a6a3a',e.side*-1,e.down>0?'down':e.st>0?'kick':'walk',e.boss?1.3:e.k==='small'?0.7:1));
-    if(boss&&!boss.dead){ c.fillStyle='#000'; c.fillRect(W/2-120,200,240,10); c.fillStyle='#ff3b3b'; c.fillRect(W/2-120,200,240*Math.max(0,boss.hp)/boss.max,10); }
-    if(!lost&&(grace<=0||(t*10|0)%2)){ fighter(c,pl.x,GY+pl.y,api.cos('Gi').colors[0],pl.face,pl.st==='duck'?'duck':pl.st==='kick'?'kick':pl.st==='spin'?'spin':'walk',1); if(pl.held){ c.fillStyle='#ff3b3b'; c.font='bold 22px sans-serif'; c.fillText('KICK! ×'+pl.held,pl.x,GY-190); } }
-    c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(20,H-40,W-40,10); c.fillStyle='#ffd23f'; c.fillRect(20,H-40,(W-40)*Math.min(1,dist/goal),10);
+    // back wall: pillars, lanterns (parallax), windows
+    const off=((cam*0.6)%160+160)%160; for(let x=-160;x<W+160;x+=160){ const px=x-off; c.fillStyle='rgba(255,210,63,.12)'; c.fillRect(px+60,250,60,90); c.fillStyle='#8a1a0a'; c.fillRect(px,170,30,GY-170); c.fillStyle='#ffd23f'; c.fillRect(px-8,170,46,12); }
+    const lo=((cam*0.8)%320+320)%320; for(let x=-320;x<W+320;x+=320){ const px=x-lo+150; c.strokeStyle='#5a2a10'; c.lineWidth=2; c.beginPath(); c.moveTo(px,90); c.lineTo(px,140); c.stroke(); c.save(); c.shadowColor='#ff6a2a'; c.shadowBlur=18; c.fillStyle='#ff3b3b'; c.beginPath(); c.ellipse(px,160,16,22,0,0,7); c.fill(); c.restore(); c.fillStyle='#ffd23f'; c.fillRect(px-10,136,20,4); c.fillRect(px-10,180,20,4); }
+    // stairs at the goal + start door
+    const stx=dirn*goal-cam; if(stx>-300&&stx<W+300){ c.save(); c.shadowColor='#ffd23f'; c.shadowBlur=20; for(let i=0;i<7;i++){ const a=stx+dirn*i*40, b=stx+dirn*320, y0=GY-(i+1)*44; c.fillStyle=i%2?'#8a5a10':'#a06a14'; c.fillRect(Math.min(a,b),y0,Math.abs(b-a),44*(i+1)); c.fillStyle='#ffd23f'; c.fillRect(Math.min(a,b),y0,Math.abs(b-a),8); } c.restore();
+      c.fillStyle='#ffd23f'; c.font='bold 22px sans-serif'; c.textAlign='center'; c.fillText('STAIRS',stx+dirn*200,GY-330); }
+    const dx0=-dirn*260-cam; if(dx0>-200&&dx0<W+200){ c.fillStyle='#3a0a04'; c.fillRect(dx0-70,GY-260,140,260); c.strokeStyle='#ffd23f'; c.lineWidth=4; c.strokeRect(dx0-70,GY-260,140,260); }
+    // floor
+    c.fillStyle='#3a1a0a'; c.fillRect(0,GY,W,H-GY); c.fillStyle='#5a2a10'; for(let x=-((cam%60)+60)%60;x<W;x+=60) c.fillRect(x,GY,30,8); c.fillStyle='rgba(0,0,0,.25)'; c.fillRect(0,GY+8,W,4);
+    // knives
+    knives.forEach(k=>{ c.save(); c.translate(k.x-cam,GY-(k.high?130:36)); c.rotate(t*20); c.shadowColor='#fff'; c.shadowBlur=8; c.fillStyle='#eee'; c.fillRect(-14,-2.5,28,5); c.restore();
+      if(Math.abs(k.x-pl.wx)<300&&(t*8|0)%2){ c.fillStyle=k.high?'#7df9ff':'#ffd23f'; c.font='bold 16px sans-serif'; c.textAlign='center'; c.fillText(k.high?'▼':'▲',k.x-cam,GY-(k.high?160:66)); } });
+    ens.forEach(e=>{ const fx=e.x-cam; if(fx<-120||fx>W+120) return; const f=Math.sign(pl.wx-e.x)||1;
+      fighter(c,fx,GY,e.boss?'#2a2a2a':e.k==='knife'?'#3a6a3a':e.k==='small'?'#6a3a8a':'#8a6a3a',e.down>0?-e.side:f,e.down>0?'down':e.boss&&e.st>0?(e.st<0.2?'kick':'wind'):e.st>0?'kick':'walk',(e.boss?1.4:e.k==='small'?0.7:1)*SC,e.walk);
+      if(e.boss&&e.st>0&&e.down<=0){ c.fillStyle='#ff3b3b'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.fillText('!',fx,GY-250); } });
+    if(!lost&&(grace<=0||(t*10|0)%2)){ const px=pl.wx-cam; fighter(c,px,GY+pl.y,api.cos('Gi').colors[0],pl.face,pl.st==='duck'?'duck':pl.st==='kick'?'kick':pl.st==='punch'?'punch':pl.st==='spin'?'spin':'walk',SC,pl.step/40);
+      if(pl.held){ c.fillStyle='#ff3b3b'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.fillText('KICK! ×'+pl.held,px,GY-210); } }
+    // progress bar (under the HUD strip) + guardian bar
+    const bx=340,bw=W-680; c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(bx,82,bw,10); c.fillStyle='#ffd23f'; const pr=Math.max(0,Math.min(1,prog()/goal)); c.fillRect(dirn>0?bx:bx+bw*(1-pr),82,bw*pr,10);
+    c.font='bold 14px sans-serif'; c.textAlign=dirn>0?'left':'right'; c.fillText(dirn>0?'STAIRS →':'← STAIRS',dirn>0?bx+bw+8:bx-8,93);
+    if(boss&&!boss.dead){ c.fillStyle='#000'; c.fillRect(W/2-160,104,320,12); c.fillStyle='#ff3b3b'; c.fillRect(W/2-160,104,320*Math.max(0,boss.hp)/boss.max,12); }
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#2a0a04'; c.fillRect(0,0,W,H); fighter(c,300,600,'#f4f4f0',1,(tt*2|0)%2?'kick':'walk',1.4); }
+  attract(c,tt){ c.fillStyle='#2a0a04'; c.fillRect(0,0,W,H); c.fillStyle='#3a1a0a'; c.fillRect(0,GY,W,H-GY); for(let x=100;x<W;x+=260){ c.fillStyle='#8a1a0a'; c.fillRect(x,170,30,GY-170); c.fillStyle='#ffd23f'; c.fillRect(x-8,170,46,12); }
+    t=tt; fighter(c,560,GY,'#f4f4f0',1,(tt*2|0)%2?'kick':'walk',1.6,tt*3); fighter(c,760,GY,'#8a6a3a',-1,'walk',1.6,tt*3); }
 };
-function fighter(c,x,y,col,f,st,s){ c.save(); c.translate(x,y); c.scale(f*s,s); if(st==='spin') c.rotate(t*20); if(st==='down'){ c.rotate(-1.4); }
-  const h=st==='duck'?0.6:1; c.strokeStyle='#222'; c.lineWidth=9; c.lineCap='round'; c.beginPath(); c.moveTo(-6,-50*h); c.lineTo(-10,0); c.moveTo(6,-50*h); if(st==='kick') c.lineTo(56,-70); else c.lineTo(10,0); c.stroke();
+function fighter(c,x,y,col,f,st,s,ph){ c.save(); c.translate(x,y); c.scale(f*s,s); if(st==='spin') c.rotate(t*20); if(st==='down'){ c.rotate(-1.4); }
+  const h=st==='duck'?0.6:1, sw=st==='walk'?Math.sin((ph||0)*6)*10:0; c.strokeStyle='#222'; c.lineWidth=9; c.lineCap='round'; c.beginPath(); c.moveTo(-6,-50*h); c.lineTo(-10+sw,0); c.moveTo(6,-50*h);
+  if(st==='kick') c.lineTo(62,-72); else if(st==='wind') c.lineTo(20,-92); else c.lineTo(10-sw,0); c.stroke();
   c.fillStyle=col; c.fillRect(-14,-100*h,28,52*h); c.fillStyle='#000'; c.fillRect(-14,-56*h,28,5); c.fillStyle='#f0c090'; c.beginPath(); c.arc(0,-112*h,12,0,7); c.fill(); c.fillStyle='#ff3b3b'; c.fillRect(-12,-120*h,24,4);
-  c.strokeStyle='#f0c090'; c.lineWidth=7; c.beginPath(); c.moveTo(8,-92*h); c.lineTo(st==='kick'?26:20,-70*h); c.stroke(); c.restore(); }
-function kick(d){ if(done||lost) return false; pl.face=d; pl.st='kick'; pl.stT=0.22; api.sfx.click();
-  if(pl.held){ pl.held--; if(pl.held<=0){ ens.forEach(e=>{ if(e.grab){ e.grab=false; hit(e,2); } }); } return true; }
-  const tg=ens.filter(e=>!e.down&&Math.sign(e.x-pl.x)===d&&Math.abs(e.x-pl.x)<(pl.y<-30?120:95)).sort((A,B)=>Math.abs(A.x-pl.x)-Math.abs(B.x-pl.x))[0]; if(tg) hit(tg,1); return true; }
-function hit(e,dmg){ if(e.down>0) return; e.hp-=dmg; api.fx.burst(e.x,GY-80,'#fff',8,200,.25,3); api.sfx.bump(); if(e.hp<=0){ e.down=0.6; e.side=Math.sign(e.x-pl.x)||1; e.grab=false; api.addScore((e.boss?3000:e.k==='knife'?200:100)*(1+api.dk*.5),e.x,GY-140); api.event('ko'); if(e.boss) e.dead=true; } else if(!e.boss) e.x+=Math.sign(e.x-pl.x)*40; }
-function jump(){ if(pl.y<0||done||lost) return; pl.vy=-760; pl.y=-1; api.sfx.blip(); }
+  c.strokeStyle='#f0c090'; c.lineWidth=7; c.beginPath(); c.moveTo(8,-92*h); if(st==='punch') c.lineTo(46,-92*h); else c.lineTo(st==='kick'?26:20,-70*h); c.stroke(); c.restore(); }
+function attack(kind){ if(done||lost) return; want.kick=want.punch=false; const kk=kind==='kick';
+  atkT=kk?0.3:0.16; pl.st=kk?'kick':'punch'; pl.stT=kk?0.22:0.12; api.sfx.click(); if(kind==='punch') api.event('punch');
+  if(pl.held){ pl.held--; api.fx.burst(pl.wx-cam,GY-100,'#ffd23f',5,140,.2,2); if(pl.held<=0){ ens.forEach(e=>{ if(e.grab){ e.grab=false; hit(e,2); } }); } return; }
+  const reach=(kk?125:88)+(pl.y<-30?20:0), cand=f=>ens.filter(e=>!e.down&&Math.sign(e.x-pl.wx)===f&&Math.abs(e.x-pl.wx)<reach+(e.boss?30:0)).sort((A,B)=>Math.abs(A.x-pl.wx)-Math.abs(B.x-pl.wx))[0];
+  let tg=cand(pl.face); if(!tg){ const b=cand(-pl.face); if(b){ pl.face=-pl.face; tg=b; } }
+  knives.forEach(k=>{ if(Math.sign(k.x-pl.wx)===pl.face&&Math.abs(k.x-pl.wx)<reach){ k.gone=true; api.fx.burst(k.x-cam,GY-(k.high?130:36),'#fff',6,160,.25,2); api.addScore(20,k.x-cam,GY-160); } });
+  if(tg) hit(tg,1); }
+function hit(e,dmg){ if(e.down>0) return; e.hp-=dmg; api.fx.burst(e.x-cam,GY-100,'#fff',8,200,.25,3); api.sfx.bump();
+  if(e.hp<=0){ e.down=0.6; e.side=Math.sign(e.x-pl.wx)||1; e.grab=false; api.addScore((e.boss?3000:e.k==='knife'?200:100)*(1+api.dk*.5),e.x-cam,GY-170); api.event('ko'); if(e.boss){ e.dead=true; api.fx.burst(e.x-cam,GY-120,'#ffd23f',50,320,.8,4); api.sfx.boom(); } }
+  else { e.x+=(Math.sign(e.x-pl.wx)||1)*(e.boss?30:40); e.st=0; } }
+function jump(){ if(pl.y<0||done||lost||pl.held) return; pl.vy=-820; pl.y=-1; api.sfx.blip(); }
 function win(){ if(done) return; done=true; api.toast('UP THE STAIRS!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1000); }
 function die(){ if(lost||done) return; lost=true; api.toast('KNOCKED OUT!'); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1100); }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -601,8 +680,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -627,6 +724,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -644,6 +764,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -750,7 +874,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -774,6 +898,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -823,8 +949,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1195,7 +1321,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1369,6 +1495,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1379,10 +1506,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1399,7 +1539,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1435,7 +1575,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1474,6 +1614,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
