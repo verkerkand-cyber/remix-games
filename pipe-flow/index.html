@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-PF-1.1 · 2026-10-18">
+<meta name="build" content="BUILD-PF-1.2 · 2026-10-24">
 <title>Pipe Flow</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,47 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
 
 </style>
 </head>
 <body>
-<!-- BUILD-PF-1.1 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-PF-1.2 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,14 +467,37 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* PIPE FLOW — Pipe Mania remix. 100 stages. Lay pipes from the queue before the glowing goo starts flowing. */
+/* PIPE FLOW — Pipe Mania remix. 100 stages. Lay pipes from the queue before the glowing goo starts flowing.
+   1.2 (24 Oct): LANDSCAPE 1280x720, RACE mode (board + queue come from the seeded stage RNG), Beginner 1-10 easy
+   (small boards, slow goo, long countdown, hint route + green 'next pipe fits here' square, 6s grace before a leak). */
 (function(){
-const W=600,H=900,DX=[0,1,0,-1],DY=[-1,0,1,0];
-const QT=[10,5,3,6,12,9,15],QW=[1.3,1.3,1,1,1,1,.6];
-let api,t=0,grid,GW,GH,CS,bx,by,BY0,queue,flows,N,filled,cd,cd0,ft,done,lost,eff,bomb,lock,speed,spBonus,seed,sol,cur,showCur,tut,boss,srcs,drain,leakAt,doneT;
-let rs=1; function rnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+const W=1280,H=720,HOLD=6,DX=[0,1,0,-1],DY=[-1,0,1,0];
+const QT=[10,5,3,6,12,9,15],QW=[1.3,1.3,1,1,1,1,.6],QWE=[1.5,1.5,1,1,1,1,.2];
+let api,t=0,grid,GW,GH,CS,bx,by,BY0,queue,flows,N,filled,cd,cd0,ft,done,lost,eff,bomb,lock,speed,spBonus,seed,sol,cur,showCur,tut,boss,srcs,drain,leakAt,doneT,easy,qs,solParts,top=96,bot=640,raceT=0;
+let hiC=null,hiT=0; let rs=1; function rnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
 const ri=n=>Math.floor(rnd()*n), inb=(x,y)=>x>=0&&y>=0&&x<GW&&y<GH, bit=d=>1<<d, opp=d=>(d+2)%4;
-function rq(){ let s=0; QW.forEach(w=>s+=w); let r=Math.random()*s; for(let i=0;i<QT.length;i++){ r-=QW[i]; if(r<=0) return QT[i]; } return 10; }
+// queue pieces use their OWN seeded generator so both racers get the exact same pieces in the same order
+function qr(){ qs=qs+0x6D2B79F5|0; let q=Math.imul(qs^qs>>>15,1|qs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+let solQ=[],sqi=0;   // Beginner 1-10: half the pieces come from the stage's own solution, in order (still seeded = same for both racers)
+function rq(){ if(easy&&solQ.length&&qr()<.5) return solQ[sqi++%solQ.length]; const w=easy||tut?QWE:QW; let s=0; w.forEach(v=>s+=v); let r=qr()*s; for(let i=0;i<QT.length;i++){ r-=w[i]; if(r<=0) return QT[i]; } return 10; }
+function acc(c,en){ return !!c&&c.k!=='blk'&&c.k!=='src'&&(c.k==='drn'||!!(c.m&bit(en)))&&!(c.k==='one'&&en!==opp(c.d)); }
+// follow the pipes already laid from a tank: how long is the pipeline and where does it need the next pipe?
+function trace(s){ let x=s.x+DX[s.d], y=s.y+DY[s.d], ent=opp(s.d), len=0; const seen=new Set();
+  for(let k=0;k<300;k++){ if(!inb(x,y)) return {len}; const c=grid[y][x]; if(!c) return {len,end:{x,y,ent}}; if(c.k==='drn') return {len,drain:true};
+    if(!acc(c,ent)) return {len,bad:{x,y}}; const key=x+','+y+','+(ent%2); if(seen.has(key)) return {len}; seen.add(key);
+    const o=c.m===15?opp(ent):[0,1,2,3].find(d=>d!==ent&&(c.m&bit(d))); len+=c.k==='bon'?2:1; x+=DX[o]; y+=DY[o]; ent=opp(o); } return {len}; }
+// can the pipeline still grow 'need' more pipes from (x,y)? (so the green hint never leads into a dead end)
+function canExt(x0,y0,ent0,need){ let it=0; const seen=new Set();
+  const go=(x,y,ent,cnt)=>{ if(++it>4000) return true; if(!inb(x,y)) return false; const k=x+','+y; if(seen.has(k)) return false; const c=grid[y][x]; let outs;
+    if(!c) outs=[0,1,2,3].filter(d=>d!==ent); else { if(c.k==='drn') return boss; if(!acc(c,ent)||(c.f.length&&c.m!==15)) return false; outs=[c.m===15?opp(ent):[0,1,2,3].find(d=>d!==ent&&(c.m&bit(d)))]; }
+    const add=c&&c.k==='bon'?2:1; if(!boss&&cnt+add>=need) return true; seen.add(k); for(const o of outs) if(go(x+DX[o],y+DY[o],opp(o),cnt+add)) return true; seen.delete(k); return false; };
+  return go(x0,y0,ent0,0); }
+function fitsAt(e,len,q){ if(!(q&bit(e.ent))) return false; if(!boss&&len+1>=N) return true; const o=q===15?opp(e.ent):[0,1,2,3].find(d=>d!==e.ent&&(q&bit(d))), nx=e.x+DX[o], ny=e.y+DY[o];
+  if(!inb(nx,ny)) return false;
+  if(boss){ if(drain&&nx===drain.x&&ny===drain.y) return true; if(grid[ny][nx]) return false; // twin tanks: the pipe must lead CLOSER to the drain
+    const D=new Map([[drain.x+','+drain.y,0]]), qq=[[drain.x,drain.y]]; for(let h=0;h<qq.length;h++){ const [x,y]=qq[h]; for(let d=0;d<4;d++){ const X=x+DX[d],Y=y+DY[d],k=X+','+Y; if(!inb(X,Y)||D.has(k)||(grid[Y][X]&&!(X===e.x&&Y===e.y))) continue; D.set(k,D.get(x+','+y)+1); qq.push([X,Y]); } }
+    const a=D.get(nx+','+ny), b=D.get(e.x+','+e.y); return a!==undefined&&b!==undefined&&a<b; }
+  grid[e.y][e.x]={k:'p',m:q,fx:0,f:[]}; const r=canExt(nx,ny,opp(o),N-len-1); grid[e.y][e.x]=null; return r; }
 function shuf(a){ for(let i=a.length-1;i>0;i--){ const j=ri(i+1); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 /* ---------- stage generator: the required length is always possible (checked with a path search) ---------- */
 function freeCell(avoid){ for(let k=0;k<200;k++){ const x=ri(GW),y=ri(GH); if(!grid[y][x]&&!avoid.has(x+','+y)) return [x,y]; } return null; }
@@ -455,24 +514,25 @@ function pathTo(s,block){ const st=[s.x+DX[s.d],s.y+DY[s.d]]; if(!inb(...st)||gr
   for(let h=0;h<q.length&&!end;h++){ const [x,y]=q[h]; for(const d of shuf([0,1,2,3])){ const nx=x+DX[d],ny=y+DY[d]; if(nx===drain.x&&ny===drain.y){ end=[x,y]; break; } const k=nx+','+ny; if(!inb(nx,ny)||grid[ny][nx]||block.has(k)||prev.has(k)) continue; prev.set(k,[x,y]); q.push([nx,ny]); } }
   if(!end) return null; const cells=[]; let c=end; while(c){ cells.unshift(c); c=prev.get(c+''); }
   return cells.map(([x,y],i)=>{ const pv=i?cells[i-1]:[s.x,s.y], nx=i<cells.length-1?cells[i+1]:[drain.x,drain.y]; const din=[0,1,2,3].find(d=>x+DX[d]===pv[0]&&y+DY[d]===pv[1]), dout=[0,1,2,3].find(d=>x+DX[d]===nx[0]&&y+DY[d]===nx[1]); return {x,y,m:bit(din)|bit(dout)}; }); }
-function gen(a){ rs=seed; const L=a.level; tut=a.content===0; boss=a.boss; srcs=[]; drain=null;
+function gen(a){ rs=seed; const L=a.level; tut=a.content===0; boss=a.boss; srcs=[]; drain=null; solParts=null;
   const mkG=()=>{ grid=[...Array(GH)].map(()=>Array(GW).fill(null)); };
-  if(tut){ GW=GH=5; mkG(); srcs=[{x:0,y:2,d:1}]; grid[2][0]={k:'src',m:2,d:1,fx:1,f:[]}; N=3; sol=[1,2,3].map(x=>({x,y:2,m:10})); return; }
+  if(tut){ GW=GH=5; mkG(); srcs=[{x:0,y:2,d:1}]; grid[2][0]={k:'src',m:2,d:1,fx:1,f:[]}; N=3; sol=[1,2,3].map(x=>({x,y:2,m:10})); solParts=[sol]; return; }
   for(let tries=0;tries<60;tries++){
-    GW=Math.round(a.dv([7,8,9],9,9)); GH=Math.round(a.dv([7,9,10],10,10)); mkG(); srcs=[]; drain=null;
+    if(easy){ GW=L<=3?5:L<=6?6:boss?7:6; GH=L<=6?5:6; } else { GW=Math.round(a.dv([7,9,10],10,10)); GH=Math.round(a.dv([6,7,8],8,8)); } mkG(); srcs=[]; drain=null;
     if(boss){ srcs=[{x:0,y:1+ri(GH-3),d:1},{x:GW-1,y:1+ri(GH-3),d:3}]; drain={x:1+ri(GW-2),y:GH-1}; grid[drain.y][drain.x]={k:'drn',m:15,fx:1,f:[]}; }
+    else if(easy&&L<=3) srcs=[{x:ri(2),y:1+ri(GH-2),d:1}];   // first stages: tank on the left, goo flows right
     else { const d=ri(4), x=1+ri(GW-2), y=1+ri(GH-2); srcs=[{x,y,d}]; }
     srcs.forEach(s=>grid[s.y][s.x]={k:'src',m:bit(s.d),d:s.d,fx:1,f:[]});
     const avoid=new Set(srcs.map(s=>(s.x+DX[s.d])+','+(s.y+DY[s.d]))); if(drain) [0,1,2,3].forEach(d=>avoid.add((drain.x+DX[d])+','+(drain.y+DY[d])));
     const put=(n,mk)=>{ for(let i=0;i<n;i++){ const c=freeCell(avoid); if(c) grid[c[1]][c[0]]=mk(); } };
-    put(L<4?0:Math.round(a.dv([1,4,7],9,11)),()=>({k:'blk',m:0,fx:1,f:[]}));
+    put(L<4?0:easy?1:Math.round(a.dv([1,4,7],9,11)),()=>({k:'blk',m:0,fx:1,f:[]}));
     if(L>=8) put(1+ri(2),()=>({k:'bon',m:[10,5,3,6,12,9][ri(6)],fx:1,f:[]}));
     if(L>=15) put(Math.round(a.dv([1,2,3],3,4)),()=>{ const d=ri(4); return {k:'one',m:d%2?10:5,d,fx:1,f:[]}; });
     if(L>=30) put(1+ri(2),()=>({k:'res',m:ri(2)?10:5,fx:1,f:[]}));
-    if(boss){ const pa=pathTo(srcs[0],new Set()); if(!pa) continue; const pb=pathTo(srcs[1],new Set(pa.map(p=>p.x+','+p.y))); if(!pb) continue; sol=pa.concat(pb); N=sol.length; break; }
+    if(boss){ const pa=pathTo(srcs[0],new Set()); if(!pa) continue; const pb=pathTo(srcs[1],new Set(pa.map(p=>p.x+','+p.y))); if(!pb) continue; sol=pa.concat(pb); solParts=[pa,pb]; N=sol.length; break; }
     let free=0; grid.forEach(r=>r.forEach(c=>{ if(!c) free++; }));
-    N=Math.min(Math.round(a.dv([6,14,22],26,32)),Math.floor(free*.5)); sol=solveLen(srcs[0]); if(sol) break; }
-  if(!sol){ GW=7; GH=7; mkG(); srcs=[{x:0,y:3,d:1}]; grid[3][0]={k:'src',m:2,d:1,fx:1,f:[]}; N=6; boss=false; sol=[1,2,3,4,5,6].map(x=>({x,y:3,m:10})); } }
+    N=Math.min(easy?4+Math.floor((L-1)/3):Math.round(a.dv([6,14,22],26,32)),Math.floor(free*.5)); sol=solveLen(srcs[0]); if(sol){ solParts=[sol]; break; } }
+  if(!sol){ GW=7; GH=6; mkG(); srcs=[{x:0,y:3,d:1}]; grid[3][0]={k:'src',m:2,d:1,fx:1,f:[]}; N=6; boss=false; sol=[1,2,3,4,5,6].map(x=>({x,y:3,m:10})); solParts=[sol]; } }
 /* ---------- flow ---------- */
 function startFlow(){ if(cd<=-1) return; cd=-1; flows=srcs.map((s,i)=>{ const c=grid[s.y][s.x]; c.f=[{a:-1,b:s.d,p:0,by:i}]; return {x:s.x,y:s.y,b:s.d,p:0,st:'run',i}; }); api.event('flow'); api.sfx.power(); api.toast(boss?'BOTH TANKS ARE FLOWING!':'GOO IS FLOWING!'); }
 function pc(x,y){ return {x:bx+x*CS+CS/2,y:by+y*CS+CS/2}; }
@@ -481,16 +541,20 @@ function win(msg){ if(done) return; done=true; doneT=0; api.sfx.clear(); api.fx.
 function advance(f){ const c=grid[f.y][f.x];
   if(c.k!=='src'){ const add=c.k==='bon'?2:1; filled+=add; const p=pc(f.x,f.y); api.addScore((c.k==='bon'?500:100)*(1+api.dk*.5)+(speed?50:0),p.x,p.y); if(speed) spBonus+=50*add; api.sfx.blip(); api.event('fill');
     if(!boss&&filled>=N){ f.st='end'; win(speed?'SPEED FINISH! BONUS!':'PIPELINE COMPLETE!'); return; } }
-  const nx=f.x+DX[f.b], ny=f.y+DY[f.b], en=opp(f.b);
+  step(f,true); }
+function canGo(f){ const nx=f.x+DX[f.b], ny=f.y+DY[f.b]; return inb(nx,ny)&&acc(grid[ny][nx],opp(f.b)); }
+function step(f,grace){ const nx=f.x+DX[f.b], ny=f.y+DY[f.b], en=opp(f.b);
   if(!inb(nx,ny)) return leak(f,nx,ny);
   const c2=grid[ny][nx];
   if(c2&&c2.k==='drn'){ c2.f.push({a:en,b:-1,p:1,by:f.i}); f.st='ok'; const p=pc(nx,ny); api.fx.burst(p.x,p.y,goo(),24,200,.6,3); api.sfx.coin(); api.toast('TANK CONNECTED!'); api.event('drain'); return checkBoss(); }
-  if(!c2||c2.k==='blk'||c2.k==='src'||!(c2.m&bit(en))||(c2.k==='one'&&en!==opp(c2.d))) return leak(f,nx,ny);
+  if(!acc(c2,en)){ // Beginner 1-10 + tutorial: the goo WAITS a few seconds at an empty/wrong square so you can still fix it
+    if(grace&&(easy||tut)&&(!c2||(c2.k==='p'&&!c2.f.length))){ f.st='hold'; f.hold=HOLD; api.toast('⚠ QUICK! PUT A PIPE IN THE FLASHING SQUARE'); api.sfx.bump(); api.event('hold'); return; }
+    return leak(f,nx,ny); }
   const used=c2.f.filter(s=>c2.m!==15||s.a%2===en%2);
   if(used.length){ if(boss&&used.some(s=>s.by!==f.i)){ f.st='merge'; api.toast('FLOWS JOINED!'); return checkBoss(); } return leak(f,nx,ny); }
   const b=c2.m===15?opp(en):[0,1,2,3].find(d=>d!==en&&(c2.m&bit(d)));
   c2.f.push({a:en,b,p:0,by:f.i}); f.x=nx; f.y=ny; f.b=b; f.p=0; }
-function checkBoss(){ if(flows.every(f=>f.st==='ok'||f.st==='merge')&&flows.some(f=>f.st==='ok')) win('BOTH TANKS DRAINED!'); }
+function checkBoss(){ if(!flows.every(f=>f.st==='ok'||f.st==='merge')) return; if(flows.some(f=>f.st==='ok')) win('BOTH TANKS DRAINED!'); else { const f=flows[flows.length-1]; leak(f,f.x+DX[f.b],f.y+DY[f.b]); } }   // both flows ran into each other = loop, never reaches the drain
 function goo(){ return api.cos('Goo').colors[0]; }
 function place(x,y){ if(lost||done||!inb(x,y)) return; const c=grid[y][x];
   if(bomb){ if(c&&!c.fx&&!c.f.length){ grid[y][x]=null; bomb=false; api.setActive(2,false); const p=pc(x,y); api.fx.burst(p.x,p.y,'#ff9a30',24,240,.5,3); api.sfx.boom(); api.fx.shake(5); api.event('bomb'); } else { api.toast('BOMB: TAP ONE OF YOUR PIPES'); api.sfx.bump(); } return; }
@@ -498,7 +562,7 @@ function place(x,y){ if(lost||done||!inb(x,y)) return; const c=grid[y][x];
   if(lock>0){ api.sfx.bump(); return; }
   const p=pc(x,y);
   if(c){ if(cd>0){ cd=Math.max(0.01,cd-2); api.fx.text(p.x,p.y-20,'-2s','#ff5a5a',18); } else { lock=0.9; api.fx.text(p.x,p.y-20,'WAIT!','#ff5a5a',18); } api.sfx.small(); }
-  grid[y][x]={k:'p',m:queue.shift(),fx:0,f:[],pop:0.25}; queue.push(rq()); api.addScore(10,p.x,p.y,true); api.sfx.click(); api.event('place'); }
+  grid[y][x]={k:'p',m:queue.shift(),fx:0,f:[],pop:0.25}; queue.push(rq()); hiT=0; hiC=null; api.addScore(10,p.x,p.y,true); api.sfx.click(); api.event('place'); }
 function cellAt(x,y){ const cx=Math.floor((x-bx)/CS), cy=Math.floor((y-by)/CS); return inb(cx,cy)?[cx,cy]:null; }
 /* ---------- drawing ---------- */
 function curve(c,cx,cy,s,a,b,p){ const e=d=>d<0?[cx,cy]:[cx+DX[d]*s/2,cy+DY[d]*s/2]; const A=e(a),B=e(b);
@@ -523,11 +587,24 @@ function drawCell(c,x,y,cell,s,cx,cy){ const k=cell.k, gc=goo();
   if(cell.f.length) drawGoo(c,cx,cy,s,cell.f);
   if(k==='res'&&cell.f.length){ const p=Math.min(1,cell.f[0].p); c.save(); c.beginPath(); c.arc(cx,cy,s*.28,0,7); c.clip(); c.fillStyle=gc; c.fillRect(cx-s*.3,cy+s*.3-p*s*.6,s*.6,p*s*.6); c.restore(); }
   if(k==='bon'){ c.save(); c.translate(cx,cy); c.rotate(t); c.fillStyle='#ffd23f'; c.shadowColor='#ffd23f'; c.shadowBlur=10; c.beginPath(); for(let i=0;i<10;i++){ const r=i%2?s*.08:s*.18, an=i*Math.PI/5; c.lineTo(Math.cos(an)*r,Math.sin(an)*r); } c.fill(); c.restore(); } }
+function layout(){ const RW=655, RH=bot-top; CS=Math.floor(Math.min(RW/GW,RH/GH,96)); bx=320+Math.floor((RW-GW*CS)/2); by=top+Math.floor((RH-GH*CS)/2); BY0=by; }
+// RACE: the shell's progress bars float bottom-centre (above the ⏩ button) — shrink the board so they never cover it
+function raceFit(){ try{ const el=document.getElementById('mpBars'), cv=document.querySelector('canvas'); let b=640;
+  if(el&&cv&&el.style.display!=='none'&&el.offsetHeight){ const r=el.getBoundingClientRect(), q=cv.getBoundingClientRect(); if(q.height>0) b=Math.min(640,Math.floor((r.top-q.top)/q.height*H)-14); }
+  b=Math.max(top+200,b); if(b!==bot){ bot=b; layout(); } }catch(e){} }
+function wrap(c,txt,x,y,mw,lh){ const w=txt.split(' '); let line='', n=0; for(const word of w){ const tt=line?line+' '+word:word; if(c.measureText(tt).width>mw&&line){ c.fillText(line,x,y+n*lh); n++; line=word; } else line=tt; } if(line){ c.fillText(line,x,y+n*lh); n++; } return n; }
+function hintInfo(){ // what the right-hand panel and the board hints show
+  const tr=srcs.map(s=>trace(s)); const h={tr,len:tr[0]?tr[0].len:0};
+  if(!boss&&!tut&&tr[0]) h.ready=tr[0].len>=N; else if(tut) h.ready=tr[0].len>=N;
+  if(boss) h.ready=tr.every(r=>r.drain);
+  if((easy||tut)&&!h.ready){ const j=tr.findIndex(r=>r.bad&&grid[r.bad.y][r.bad.x].k==='p'&&!grid[r.bad.y][r.bad.x].f.length);
+    if(j>=0) h.bad=tr[j].bad; else { const i=tr.findIndex(r=>r.end); if(i>=0){ h.end=tr[i].end; h.fits=fitsAt(h.end,tr[i].len,queue[0]); } } }
+  return h; }
 /* ---------- game object ---------- */
 const GAME=window.GAME={
   id:'pipe-flow',title:'Pipe Flow',titleHTML:'PIPE<br>FLOW',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-PF-1.1 · 2026-10-18',theme:{a:'#39ff6a',b:'#ffd23f',bg:'#050a16'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🧪',joystick:false,coinPts:60,
+  build:'BUILD-PF-1.2 · 2026-10-24',theme:{a:'#39ff6a',b:'#ffd23f',bg:'#050a16'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🧪',joystick:false,coinPts:60,
   abilities:[
     {id:'speed',icon:'⏩',name:'SPEED FLOW',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — done building? Make the goo rush through at top speed. Every pipe filled fast = BONUS points. Also starts the flow early.'},
     {id:'slow',icon:'🐌',name:'SLOW FLOW',cd:18,key:'Digit1',keyLabel:'1',desc:'The goo (and the countdown) crawl at less than half speed for 6 seconds.'},
@@ -536,69 +613,106 @@ const GAME=window.GAME={
   shop:[{id:'g_g',cat:'Goo',name:'Toxic Green',cost:0,colors:['#39ff6a'],desc:'Classic glow.'},{id:'g_p',cat:'Goo',name:'Plasma Pink',cost:150,colors:['#ff3bd4'],desc:'Hot pink plasma.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#39ff6a,#ffd23f)'}],
   story:`<h3>PIPE FLOW</h3><p>The lab's glowing goo tank is about to blow. Build a pipeline — fast — and keep every drop inside the pipes.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap a square</b> to drop the NEXT pipe from the queue on the left (PC: click, or arrows + ENTER).</li><li>When the countdown on the tank hits 0, the goo flows. It must pass through the number of pipes shown at the top.</li><li>If the goo reaches an open end — <b>LEAK</b> — you lose a life and the stage restarts.</li><li>Tapping a pipe you already placed swaps it, but costs 2 seconds (or a short wait once the goo flows).</li><li>✚ Crosses can be used twice. ⭐ pipes count double. Yellow arrows only flow one way. Glass tanks slow the goo down.</li><li><b>⏩ SPEED FLOW</b> (SPACE) when you're done = bonus points.</li></ul>`,
-  tutorial:[{text:'Tap the squares right of the goo tank to lay pipes!',ev:'place'},{text:'Lay 3 pipes in a row, then tap <b>⏩ SPEED FLOW</b> (SPACE) to start the goo!',ev:'flow'},{text:'Fill 3 pipes to win!',time:6}],
-  stageIntro:{1:'TAP TO LAY PIPES · DON\'T LET IT LEAK',4:'WATCH OUT FOR BLOCKS',8:'⭐ PIPES COUNT DOUBLE',15:'ARROW PIPES FLOW ONE WAY ONLY',30:'GLASS TANKS SLOW THE GOO'},bossName:'TWIN TANKS! CONNECT BOTH TO THE DRAIN',
+  howto:`<h3>HOW TO PLAY</h3><ul><li>📱 <b>Hold your phone sideways.</b></li><li><b>Tap a square</b> to drop the NEXT pipe (the queue on the left) there. PC: click, or arrows + ENTER.</li><li>When the countdown on the tank hits 0, the goo flows. It must pass through the number of pipes shown at the top.</li><li>If the goo reaches an open end — <b>LEAK</b> — you lose a life and the stage restarts. On Beginner stages 1-10 the goo waits a few seconds first so you can still add the pipe.</li><li>Beginner 1-10: a faint line shows a good route and a <b>green square</b> shows where the next pipe fits.</li><li>Tapping a pipe you already placed swaps it, but costs 2 seconds (or a short wait once the goo flows).</li><li>✚ Crosses can be used twice. ⭐ pipes count double. Yellow arrows only flow one way. Glass tanks slow the goo down.</li><li><b>⏩ SPEED FLOW</b> (button bottom-right, PC: SPACE) when you're done = bonus points.</li><li>Abilities on the left: 🐌 1 · 💣 2 · 👁️ 3.</li></ul>`,
+  tutorial:[{text:'Tap the GREEN square next to the goo tank to lay a pipe!',ev:'place'},{text:'Lay 3 pipes in a row, then tap <b>⏩ SPEED FLOW</b> (bottom-right · SPACE) to start the goo!',ev:'flow'},{text:'Fill 3 pipes to win!',time:6}],
+  stageIntro:{1:'TAP THE GREEN SQUARE · DON\'T LET IT LEAK',4:'WATCH OUT FOR BLOCKS',8:'⭐ PIPES COUNT DOUBLE',15:'ARROW PIPES FLOW ONE WAY ONLY',30:'GLASS TANKS SLOW THE GOO'},bossName:'TWIN TANKS! CONNECT BOTH TO THE DRAIN',
   ending:{"0":["#PLUMBER","Not one drop spilled."],"1":["#MASTER","The lab is saved."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(!eff) return null; if(id==='bomb') return bomb?{left:1,total:1,label:'TAP'}:null; const tot={slow:6,peek:12}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get grid(){return grid;}, get queue(){return queue;}, get sol(){return sol;}, get flows(){return flows;}, get N(){return N;}, get filled(){return filled;}, get cd(){return cd;}, get lock(){return lock;}, get done(){return done;}, get lost(){return lost;}, get GW(){return GW;}, get GH(){return GH;}, get boss(){return boss;}, place:(x,y)=>place(x,y), speed:()=>GAME.useAbility('speed')}; },
+  _dbg(){ return {get grid(){return grid;}, get queue(){return queue;}, get sol(){return sol;}, get flows(){return flows;}, get N(){return N;}, get filled(){return filled;}, get cd(){return cd;}, get cd0(){return cd0;}, get ft(){return ft;}, get lock(){return lock;}, get done(){return done;}, get lost(){return lost;}, get GW(){return GW;}, get GH(){return GH;}, get boss(){return boss;}, get easy(){return easy;}, get seed(){return seed;}, get srcs(){return srcs;}, get box(){return {bx,by,CS,top};}, hint:()=>hintInfo(), place:(x,y)=>place(x,y), speed:()=>GAME.useAbility('speed')}; },
   init(a){ api=a; },
-  startStage(n,a){ api=a; seed=(Math.random()*1e9)|0; this.respawn(); },
-  respawn(){ const a=api; done=false; lost=false; leakAt=null; filled=0; speed=false; spBonus=0; bomb=false; lock=0; flows=[]; eff={slow:0,peek:0}; gen(a); a.setActive(2,false);
-    BY0=tut?420:120; CS=Math.floor(Math.min(480/GW,(tut?370:600)/GH,84)); bx=110+(482-GW*CS)/2; by=BY0;
-    cd0=cd=tut?30:boss?a.dv([28,20,15],13,10):a.dv([20,14,10],8,6); ft=(tut?4.5:a.dv([3.6,2.4,1.7],1.4,1.0))*(boss?1.25:1);
-    queue=[]; for(let i=0;i<10;i++) queue.push(tut&&i<4?10:rq()); cur=cur||{x:0,y:0}; cur.x=Math.min(cur.x,GW-1); cur.y=Math.min(cur.y,GH-1); },
+  startStage(n,a){ api=a; seed=(Math.random()*1e9)|0; this.respawn(); },   // in a RACE the shell seeds Math.random, so both phones get this same seed
+  respawn(){ const a=api; done=false; lost=false; leakAt=null; filled=0; speed=false; spBonus=0; bomb=false; lock=0; flows=[]; eff={slow:0,peek:0};
+    hiC=null; hiT=0; tut=a.content===0; easy=!tut&&a.diff===0&&a.level<=10; gen(a); a.setActive(2,false);
+    // landscape layout: queue x140-300, board x320-975, info panel x995-1265 (above the ⏩ button); tutorial box covers the top-left, so drop below it
+    top=tut?262:96; bot=640; raceT=0; layout();
+    const L=a.level, ramp=a.diff===0&&L<=20?20-L:0;
+    cd0=cd=tut?30:easy?(boss?34:30)-L*.6:boss?a.dv([28,20,15],13,10)+ramp*.4:a.dv([20,14,10],8,6)+ramp*.4;
+    ft=(tut?4.5:easy?4.6-L*.05:a.dv([3.6,2.4,1.7],1.4,1.0)+ramp*.06)*(boss?1.25:1);
+    qs=seed^0x5bd1e995; solQ=sol.filter(q=>!q.fx).map(q=>q.m); sqi=0; queue=[]; for(let i=0;i<10;i++) queue.push(tut&&i<4?10:rq()); cur=cur||{x:0,y:0}; cur.x=Math.min(cur.x,GW-1); cur.y=Math.min(cur.y,GH-1); },
   stageBonus(){ return spBonus; },
   useAbility(id){ if(done||lost) return false;
-    if(id==='speed'){ if(speed) return false; if(cd>0){ api.addScore(Math.ceil(cd)*30,W/2,by+GH*CS+40); startFlow(); } speed=true; api.sfx.power(); api.fx.flash(goo(),.2); api.toast('⏩ SPEED FLOW!'); return true; }
+    if(id==='speed'){ if(speed) return false; if(cd>0){ api.addScore(Math.ceil(cd)*30,bx+GW*CS/2,by+GH*CS/2); startFlow(); } speed=true; api.sfx.power(); api.fx.flash(goo(),.2); api.toast('⏩ SPEED FLOW!'); return true; }
     if(id==='bomb'){ if(bomb) return false; if(!grid.some(r=>r.some(c=>c&&!c.fx&&!c.f.length))){ api.toast('NO PIPES TO BOMB YET'); return false; } bomb=true; api.setActive(2,true); api.toast('💣 TAP A PIPE TO BLOW IT UP'); return true; }
     eff[id]=id==='slow'?6:12; api.sfx.power(); return true; },
   onPointer(type,x,y,id,pt){ const c=cellAt(x,y); if(type==='move'){ if(c&&pt==='mouse'){ cur.x=c[0]; cur.y=c[1]; showCur=true; } return; } if(type!=='down') return; if(c){ cur.x=c[0]; cur.y=c[1]; place(c[0],c[1]); } },
   onKey(code,down){ if(!down) return; const m={ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0],ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1]}[code];
     if(m){ cur.x=Math.max(0,Math.min(GW-1,cur.x+m[0])); cur.y=Math.max(0,Math.min(GH-1,cur.y+m[1])); showCur=true; } if(code==='Enter'||code==='KeyE'||code==='KeyX'){ showCur=true; place(cur.x,cur.y); } },
-  update(dt){ t+=dt; if(!grid) return; for(const k in eff) if(eff[k]>0) eff[k]-=dt; if(lock>0) lock-=dt; if(leakAt) leakAt.t+=dt;
+  update(dt){ t+=dt; if(!grid) return; if((raceT-=dt)<=0){ raceT=.5; raceFit(); } if((hiT-=dt)<=0){ hiT=.2; hiC=hintInfo(); } for(const k in eff) if(eff[k]>0) eff[k]-=dt; if(lock>0) lock-=dt; if(leakAt) leakAt.t+=dt;
     grid.forEach(r=>r.forEach(c=>{ if(c&&c.pop>0) c.pop-=dt; }));
     if(done||lost) return;
     const sl=eff.slow>0?.4:1;
     if(cd>0){ cd-=dt*sl; if(cd<=0) startFlow(); }
-    else flows.forEach(f=>{ if(f.st!=='run'||done||lost) return; const c=grid[f.y][f.x]; const step=speed?0.14:ft*(c.k==='res'?3:c.k==='src'?.5:1)/sl; f.p+=dt/step; const seg=c.f[c.f.length-1]; if(seg) seg.p=Math.min(1,f.p);
+    else flows.forEach(f=>{ if(done||lost) return;
+      if(f.st==='hold'){ f.hold-=dt*sl; if(canGo(f)){ f.st='run'; api.sfx.coin(); step(f,false); } else if(f.hold<=0){ f.st='run'; step(f,false); } return; }
+      if(f.st!=='run') return; const c=grid[f.y][f.x]; const step_=speed?0.14:ft*(c.k==='res'?3:c.k==='src'?.5:1)/sl; f.p+=dt/step_; const seg=c.f[c.f.length-1]; if(seg) seg.p=Math.min(1,f.p);
       if(f.p>=1) advance(f); });
-    if(boss) api.counter('🔗 TANKS TO CONNECT',flows.length?flows.filter(f=>f.st==='run').length:2); else api.counter('🧪 PIPES TO FILL',Math.max(0,N-filled)); },
+    if(boss) api.counter('🔗 TANKS TO CONNECT',flows.length?flows.filter(f=>f.st==='run'||f.st==='hold').length:2); else api.counter('🧪 PIPES TO FILL',Math.max(0,N-filled)); },
   render(c){ c.fillStyle='#050a16'; c.fillRect(0,0,W,H); if(!grid) return;
     c.strokeStyle='rgba(60,120,255,.06)'; c.lineWidth=1; for(let x=0;x<W;x+=30){ c.beginPath(); c.moveTo(x,0); c.lineTo(x,H); c.stroke(); } for(let y=0;y<H;y+=30){ c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); }
-    const gc=goo(), bw=GW*CS, bh=GH*CS;
+    const gc=goo(), bw=GW*CS, bh=GH*CS, hi=hiC||(hiC=hintInfo());
     // board panel
     c.save(); c.shadowColor=gc; c.shadowBlur=24; c.fillStyle='#0b1324'; c.beginPath(); c.roundRect(bx-10,by-10,bw+20,bh+20,14); c.fill(); c.restore(); c.strokeStyle='rgba(120,160,255,.35)'; c.lineWidth=2; c.beginPath(); c.roundRect(bx-10,by-10,bw+20,bh+20,14); c.stroke();
     for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){ const px=bx+x*CS, py=by+y*CS; c.fillStyle=(x+y)%2?'#121c33':'#0f182c'; c.beginPath(); c.roundRect(px+2,py+2,CS-4,CS-4,6); c.fill(); }
+    // HINT (Beginner 1-10 + tutorial): faint suggested route from each tank
+    if((easy||tut)&&!done&&solParts) solParts.forEach((part,i)=>{ const s=srcs[i]; if(!s) return; const pts=[pc(s.x,s.y)].concat(part.map(q=>pc(q.x,q.y))); if(boss&&drain) pts.push(pc(drain.x,drain.y));
+      c.save(); c.strokeStyle=gc; c.globalAlpha=.22+.08*Math.sin(t*3); c.lineWidth=CS*.16; c.lineCap='round'; c.lineJoin='round'; c.setLineDash([CS*.12,CS*.22]); c.lineDashOffset=-t*30; c.beginPath(); pts.forEach((p,k)=>k?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y)); c.stroke(); c.restore(); });
     // danger: next cell the goo will hit is wrong
-    if(cd<=0&&!done) flows.forEach(f=>{ if(f.st!=='run'||f.p<.35) return; const nx=f.x+DX[f.b], ny=f.y+DY[f.b], en=opp(f.b), c2=inb(nx,ny)?grid[ny][nx]:null; const bad=!c2||c2.k==='blk'||c2.k==='src'||(c2.k!=='drn'&&!(c2.m&bit(en)));
-      if(bad){ c.strokeStyle=`rgba(255,60,60,${.5+.5*Math.sin(t*16)})`; c.lineWidth=4; if(inb(nx,ny)){ c.beginPath(); c.roundRect(bx+nx*CS+3,by+ny*CS+3,CS-6,CS-6,6); c.stroke(); } else { const p=pc(f.x,f.y); c.beginPath(); c.arc(p.x+DX[f.b]*CS*.55,p.y+DY[f.b]*CS*.55,CS*.18,0,7); c.stroke(); } } });
+    if(cd<=0&&!done) flows.forEach(f=>{ if(!((f.st==='run'&&f.p>=.35)||f.st==='hold')) return; const nx=f.x+DX[f.b], ny=f.y+DY[f.b], en=opp(f.b), c2=inb(nx,ny)?grid[ny][nx]:null; const bad=!acc(c2,en);
+      if(bad){ const hold=f.st==='hold'; c.strokeStyle=`rgba(255,60,60,${.5+.5*Math.sin(t*16)})`; c.lineWidth=hold?7:4; if(inb(nx,ny)){ c.beginPath(); c.roundRect(bx+nx*CS+3,by+ny*CS+3,CS-6,CS-6,6); c.stroke();
+          if(hold){ c.fillStyle='rgba(255,60,60,.18)'; c.fill(); c.fillStyle='#fff'; c.font=`bold ${Math.round(CS*.42)}px sans-serif`; c.textAlign='center'; c.textBaseline='middle'; c.fillText(Math.ceil(Math.max(0,f.hold)),bx+nx*CS+CS/2,by+ny*CS+CS/2); c.textBaseline='alphabetic'; } }
+        else { const p=pc(f.x,f.y); c.beginPath(); c.arc(p.x+DX[f.b]*CS*.55,p.y+DY[f.b]*CS*.55,CS*.18,0,7); c.stroke(); } } });
     for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){ const cell=grid[y][x]; if(cell){ const p=pc(x,y); drawCell(c,x,y,cell,CS,p.x,p.y); } }
-    flows.forEach(f=>{ if(f.st!=='run') return; const cell=grid[f.y][f.x], q=cell.f[cell.f.length-1]; if(!q) return; const p=pc(f.x,f.y), A=q.a<0?[p.x,p.y]:[p.x+DX[q.a]*CS/2,p.y+DY[q.a]*CS/2], Bp=[p.x+DX[q.b]*CS/2,p.y+DY[q.b]*CS/2], u=Math.min(1,f.p), v=1-u;
+    // HINT: the square where the next pipe goes — green = the NEXT piece fits there
+    if(hi.end&&!done&&!lost&&!flows.some(f=>f.st==='hold')){ const e=hi.end, col=hi.fits?'#39ff6a':'#ffb02e', pu=.55+.45*Math.sin(t*6);
+      c.save(); c.shadowColor=col; c.shadowBlur=18; c.strokeStyle=col; c.globalAlpha=pu; c.lineWidth=5; c.beginPath(); c.roundRect(bx+e.x*CS+4,by+e.y*CS+4,CS-8,CS-8,8); c.stroke(); c.globalAlpha=.25*pu; c.fillStyle=col; c.fill(); c.restore();
+      if(hi.fits){ c.save(); c.globalAlpha=.35; drawPipe(c,bx+e.x*CS+CS/2,by+e.y*CS+CS/2,CS*.8,queue[0]); c.restore(); } }
+    if(hi.bad&&!done&&!lost){ const e=hi.bad, pu=.55+.45*Math.sin(t*6); c.save(); c.strokeStyle='#ffb02e'; c.shadowColor='#ffb02e'; c.shadowBlur=18; c.globalAlpha=pu; c.lineWidth=5; c.setLineDash([10,6]); c.beginPath(); c.roundRect(bx+e.x*CS+4,by+e.y*CS+4,CS-8,CS-8,8); c.stroke(); c.restore(); }
+    flows.forEach(f=>{ if(f.st!=='run'&&f.st!=='hold') return; const cell=grid[f.y][f.x], q=cell.f[cell.f.length-1]; if(!q) return; const p=pc(f.x,f.y), A=q.a<0?[p.x,p.y]:[p.x+DX[q.a]*CS/2,p.y+DY[q.a]*CS/2], Bp=[p.x+DX[q.b]*CS/2,p.y+DY[q.b]*CS/2], u=Math.min(1,f.p), v=1-u;
       const hx=v*v*A[0]+2*v*u*p.x+u*u*Bp[0], hy=v*v*A[1]+2*v*u*p.y+u*u*Bp[1]; c.save(); c.shadowColor='#fff'; c.shadowBlur=16; c.fillStyle='#fff'; c.beginPath(); c.arc(hx,hy,CS*.09+Math.sin(t*20)*1.5,0,7); c.fill(); c.restore(); if(Math.random()<.3) api.fx.spark(hx,hy,(Math.random()-.5)*60,(Math.random()-.5)*60,gc,.3,2); });
     if(leakAt){ const p=pc(flows.length?leakAt.x-DX[leakAt.d]:0,leakAt.y-DY[leakAt.d]), lx=p.x+DX[leakAt.d]*CS/2, ly=p.y+DY[leakAt.d]*CS/2; c.fillStyle=gc; c.globalAlpha=.75; c.beginPath(); c.ellipse(lx+DX[leakAt.d]*leakAt.t*20,ly+DY[leakAt.d]*leakAt.t*20+leakAt.t*10,10+leakAt.t*30,8+leakAt.t*16,0,0,7); c.fill(); c.globalAlpha=1; }
     if(showCur&&!done){ c.strokeStyle=bomb?'#ff9a30':'#fff'; c.setLineDash([6,4]); c.lineWidth=3; c.strokeRect(bx+cur.x*CS+3,by+cur.y*CS+3,CS-6,CS-6); c.setLineDash([]); }
-    // queue panel
-    const n=4+(eff.peek>0?5:0); c.fillStyle='rgba(15,25,48,.9)'; c.beginPath(); c.roundRect(6,by-10,96,n>4?578:360,14); c.fill(); c.strokeStyle='rgba(120,160,255,.35)'; c.lineWidth=2; c.stroke();
-    c.fillStyle=gc; c.font='bold 16px sans-serif'; c.textAlign='center'; c.fillText('NEXT',54,by+12);
-    let qy=by+24; for(let i=0;i<n;i++){ const s=i===0?80:i<4?62:46; if(i===0){ c.save(); c.shadowColor=gc; c.shadowBlur=14; c.strokeStyle=gc; c.lineWidth=3; c.beginPath(); c.roundRect(54-s/2-2,qy-2,s+4,s+4,10); c.stroke(); c.restore(); }
-      if(i===4){ c.fillStyle='#7df9ff'; c.font='bold 13px sans-serif'; c.fillText('👁️ PEEK',54,qy+12); qy+=18; }
-      c.fillStyle=i>=4?'rgba(125,249,255,.08)':'#121c33'; c.beginPath(); c.roundRect(54-s/2,qy,s,s,8); c.fill(); drawPipe(c,54,qy+s/2,s*.9,queue[i]); qy+=s+(i===0?14:6); }
-    // status line
-    const sy=by+bh+30; c.textAlign='center'; c.font='bold 22px sans-serif';
-    if(done){ c.fillStyle=gc; c.fillText(boss?'BOTH TANKS DRAINED!':'PIPELINE COMPLETE!',bx+bw/2,sy+14); }
-    else if(cd>0){ const w=bw*.9, x0=bx+bw/2-w/2; c.fillStyle='#1a2440'; c.beginPath(); c.roundRect(x0,sy,w,14,7); c.fill(); c.fillStyle=cd<4?'#ff5a5a':gc; c.beginPath(); c.roundRect(x0,sy,w*(cd/cd0),14,7); c.fill(); c.fillStyle='#dfe8ff'; c.font='bold 18px sans-serif'; c.fillText(`GOO FLOWS IN ${Math.ceil(cd)}s  ·  ⏩ SPACE = START NOW`,bx+bw/2,sy+40); }
-    else { c.fillStyle=speed?'#ffd23f':'#dfe8ff'; c.font='bold 18px sans-serif'; c.fillText(speed?'⏩ SPEED FLOW — BONUS!':eff.slow>0?'🐌 SLOW FLOW':'GOO FLOWING · ⏩ SPACE WHEN DONE = BONUS',bx+bw/2,sy+18); }
-    if(lock>0){ c.fillStyle='rgba(255,90,90,.9)'; c.font='bold 20px sans-serif'; c.fillText('SWAPPING…',bx+bw/2,by-22); }
-    if(bomb){ c.fillStyle='#ff9a30'; c.font='bold 20px sans-serif'; c.fillText('💣 TAP A PIPE TO BLOW IT UP',bx+bw/2,by-22); } },
-  attract(c,tt){ c.fillStyle='#050a16'; c.fillRect(0,0,W,H); const s=90, sv=t; t=tt; const m=[6,10,10,12,5,3,10,10]; const cells=[[1,3],[2,3],[3,3],[4,3],[4,4],[4,5],[5,5],[6,5]];
-    cells.forEach(([x,y],i)=>{ const cx=x*s-20, cy=y*s+50; c.fillStyle='#0f182c'; c.fillRect(cx-s/2+3,cy-s/2+3,s-6,s-6); drawPipe(c,cx,cy,s,m[i]); const pr=(tt*1.5)%10-i; if(pr>0){ const ds=[0,1,2,3].filter(d=>m[i]&bit(d)); const a=i===0?ds.find(d=>d===3)??ds[0]:ds[0]; const b=ds.find(d=>d!==a); api&&drawGoo(c,cx,cy,s,[{a,b,p:Math.min(1,pr)}]); } }); t=sv; }
+    // queue panel (left, clear of the ability column)
+    const QX=190, peek=eff.peek>0, nq=tut?3:4; c.fillStyle='rgba(15,25,48,.9)'; c.beginPath(); c.roundRect(140,top-10,100,nq===3?272:340,14); c.fill(); c.strokeStyle='rgba(120,160,255,.35)'; c.lineWidth=2; c.stroke();
+    c.fillStyle=gc; c.font='bold 16px sans-serif'; c.textAlign='center'; c.fillText('NEXT',QX,top+12);
+    let qy=top+24; for(let i=0;i<nq;i++){ const s=i===0?80:62; if(i===0){ c.save(); c.shadowColor=gc; c.shadowBlur=14; c.strokeStyle=gc; c.lineWidth=3; c.beginPath(); c.roundRect(QX-s/2-2,qy-2,s+4,s+4,10); c.stroke(); c.restore(); }
+      c.fillStyle='#121c33'; c.beginPath(); c.roundRect(QX-s/2,qy,s,s,8); c.fill(); drawPipe(c,QX,qy+s/2,s*.9,queue[i]); qy+=s+(i===0?14:6); }
+    if(peek){ c.fillStyle='rgba(15,25,48,.9)'; c.beginPath(); c.roundRect(246,top-10,58,310,12); c.fill(); c.strokeStyle='rgba(125,249,255,.4)'; c.stroke(); c.fillStyle='#7df9ff'; c.font='bold 12px sans-serif'; c.fillText('👁️ PEEK',275,top+10);
+      let py=top+22; for(let i=4;i<9;i++){ c.fillStyle='rgba(125,249,255,.08)'; c.beginPath(); c.roundRect(275-23,py,46,46,8); c.fill(); drawPipe(c,275,py+23,41,queue[i]); py+=52; } }
+    // info panel (right, above the ⏩ button)
+    const PX=995, PW=270, PT=top-10, PH=510-PT, cx=PX+PW/2; c.fillStyle='rgba(15,25,48,.9)'; c.beginPath(); c.roundRect(PX,PT,PW,PH,14); c.fill(); c.strokeStyle='rgba(120,160,255,.35)'; c.lineWidth=2; c.stroke();
+    const hold=flows.find(f=>f.st==='hold'); let y=PT+30; c.textAlign='center';
+    c.fillStyle=gc; c.font='bold 16px sans-serif'; c.fillText(boss?'TWIN TANKS':'GOO TANK',cx,y); y+=tut?44:52;
+    c.font=`bold ${tut?38:46}px sans-serif`;
+    if(done){ c.fillStyle=gc; c.fillText('DONE!',cx,y); }
+    else if(hold){ c.fillStyle=`rgba(255,${90+80*Math.sin(t*12)|0},90,1)`; c.fillText('⚠ '+Math.ceil(Math.max(0,hold.hold))+'s',cx,y); }
+    else if(cd>0){ c.fillStyle=cd<4?'#ff5a5a':'#dfe8ff'; c.fillText(Math.ceil(cd)+'s',cx,y); }
+    else { c.fillStyle=speed?'#ffd23f':gc; c.font=`bold ${tut?26:30}px sans-serif`; c.fillText(speed?'⏩ RUSH!':eff.slow>0?'🐌 SLOW':'FLOWING',cx,y); }
+    y+=16; const bw2=PW-40; c.fillStyle='#1a2440'; c.beginPath(); c.roundRect(PX+20,y,bw2,12,6); c.fill();
+    const fr=cd>0?cd/cd0:hold?Math.max(0,hold.hold/HOLD):0; if(fr>0){ c.fillStyle=hold?'#ff5a5a':cd<4?'#ff5a5a':gc; c.beginPath(); c.roundRect(PX+20,y,bw2*fr,12,6); c.fill(); }
+    y+=tut?36:42; c.font='bold 19px sans-serif'; c.fillStyle='#dfe8ff';
+    if(boss) c.fillText('TANKS LINKED '+hi.tr.filter(r=>r.drain).length+' / 2',cx,y);
+    else { const have=cd>0?Math.min(hi.len,N):filled; c.fillText((cd>0?'PIPES ':'FILLED ')+have+' / '+N,cx,y); }
+    y+=tut?30:40; c.font='bold 16px sans-serif';
+    let msg, mc='#cfd8f0';
+    if(done){ msg=boss?'BOTH TANKS DRAINED!':'PIPELINE COMPLETE!'; mc=gc; }
+    else if(bomb){ msg='💣 TAP ONE OF YOUR PIPES TO BLOW IT UP'; mc='#ff9a30'; }
+    else if(lock>0){ msg='SWAPPING… WAIT'; mc='#ff5a5a'; }
+    else if(hold){ msg='QUICK! PUT A PIPE IN THE FLASHING RED SQUARE'; mc='#ff8080'; }
+    else if(hi.ready&&cd>0){ msg='✅ LONG ENOUGH! TAP ⏩ TO START THE GOO = BONUS'; mc=gc; }
+    else if(hi.bad){ msg='THE ORANGE PIPE DOESN\'T JOIN UP — TAP IT TO SWAP IT FOR THE NEXT ONE'; mc='#ffb02e'; }
+    else if(hi.end){ msg=hi.fits?'✅ NEXT PIPE FITS THE GREEN SQUARE — TAP IT!':'NEXT PIPE DOESN\'T FIT THE ORANGE SQUARE — DROP IT ON A SPARE SQUARE'; mc=hi.fits?gc:'#ffb02e'; }
+    else if(cd>0) msg=boss?'JOIN BOTH TANKS TO THE DRAIN':'BUILD A PIPELINE FROM THE TANK';
+    else msg=speed?'SPEED BONUS FOR EVERY PIPE!':'KEEP BUILDING AHEAD OF THE GOO';
+    c.fillStyle=mc; const nl=wrap(c,msg,cx,y,PW-30,21); y+=nl*21+(tut?4:14);
+    if(!done&&cd>0&&!tut){ c.fillStyle='#8fa0c8'; c.font='bold 14px sans-serif'; c.fillText('⏩ = START NOW (SPACE)',cx,Math.min(y,PT+PH-14)); } },
+  attract(c,tt){ c.fillStyle='#050a16'; c.fillRect(0,0,W,H); const s=96, sv=t; t=tt; const m=[6,10,10,12,5,3,10,10]; const cells=[[1,3],[2,3],[3,3],[4,3],[4,4],[4,5],[5,5],[6,5]];
+    cells.forEach(([x,y],i)=>{ const cx=x*s+260, cy=y*s-40; c.fillStyle='#0f182c'; c.fillRect(cx-s/2+3,cy-s/2+3,s-6,s-6); drawPipe(c,cx,cy,s,m[i]); const pr=(tt*1.5)%10-i; if(pr>0){ const ds=[0,1,2,3].filter(d=>m[i]&bit(d)); const a=i===0?ds.find(d=>d===3)??ds[0]:ds[0]; const b=ds.find(d=>d!==a); api&&drawGoo(c,cx,cy,s,[{a,b,p:Math.min(1,pr)}]); } }); t=sv; }
 };
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -685,8 +799,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -711,6 +843,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -728,6 +883,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -834,7 +993,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -858,6 +1017,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -907,8 +1068,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1279,7 +1440,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1453,6 +1614,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1463,10 +1625,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1483,7 +1658,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1519,7 +1694,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1558,6 +1733,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
