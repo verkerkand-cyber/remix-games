@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-NG-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-NG-1.1 · 2026-10-24">
 <title>Number Grid</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,47 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
 
 </style>
 </head>
 <body>
-<!-- BUILD-NG-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-NG-1.1 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,20 +467,24 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* NUMBER GRID — number-place puzzle remix. 100 stages. 4x4 -> 6x6 -> 9x9 grids, built fresh every stage with exactly one answer. */
+/* NUMBER GRID — number-place puzzle remix. 100 stages. 4x4 -> 6x6 -> 9x9 grids, built fresh every stage with exactly one answer.
+   LANDSCAPE (SHELL-LANDSCAPE-1, 1.1): grid on the left, number pad on the right — both kept clear of the ability column
+   (left edge) and the action button (bottom-right). RACE: puzzles come only from Math.random (no time budget), so both racers get the same grid. */
 (function(){
-const W=600,H=900,GX=42,GY=100,GS=516,PADY=668,PADH=84,ROW2Y=770,ROW2H=64;
-let api,t,N,BR,BC,sol,grid,giv,notes,sel,notesOn,mistakes,done,lost,eff,limit,clock,timed,left,flashBad,wave,pops,bg,inkCol,winT,lastPlaced;
+const W=1280,H=720,GX=150,GY=96,GS=600,PX=790,PW=340,ROW2Y=452,ROW2H=64,STX=790,STY=560;
+/* keep-clear zones (game px): left 0-140 = ability column, top 0-80 = HUD, x>980&&y>520 = action button. Everything sits outside them. */
+let PY=96,PH=344,api,t,N,BR,BC,sol,grid,giv,notes,sel,notesOn,mistakes,maxMis=3,done,lost,eff,limit,clock,timed,left,flashBad,wave,pops,bg,inkCol,winT,lastPlaced;
+const easy=()=>api&&api.diff===0&&api.level<=10;   // Beginner stages 1-10: extra gentle
 function R(a,b){ return a+Math.random()*(b-a); }
 function shuf(a){ for(let i=a.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
 /* ---------- generator: random full grid by backtracking, then remove cells while the answer stays unique ---------- */
 function boxOf(i){ const r=i/N|0,c=i%N; return ((r/BR|0)*(N/BC)|0)+(c/BC|0); }
-function solveCount(g,limit){ // bitmask backtracking with "fewest options first"
+function solveCount(g,limit,nodeCap){ // bitmask backtracking with "fewest options first"; nodeCap -> give up (counts as 'not unique')
   const rows=new Array(N).fill(0),cols=new Array(N).fill(0),bxs=new Array(N).fill(0),FULL=(1<<N)-1;
   for(let i=0;i<N*N;i++) if(g[i]){ const b=1<<(g[i]-1); rows[i/N|0]|=b; cols[i%N]|=b; bxs[boxOf(i)]|=b; }
   const empt=[]; for(let i=0;i<N*N;i++) if(!g[i]) empt.push(i);
-  let count=0;
-  (function rec(k){ if(count>=limit) return; if(k===empt.length){ count++; return; }
+  let count=0,nodes=0; nodeCap=nodeCap||1e9;
+  (function rec(k){ if(count>=limit) return; if(++nodes>nodeCap){ count=limit; return; } if(k===empt.length){ count++; return; }
     let bi=-1,bm=0,bc=99;
     for(let j=k;j<empt.length;j++){ const i=empt[j]; const m=FULL&~(rows[i/N|0]|cols[i%N]|bxs[boxOf(i)]); let c=0,x=m; while(x){ x&=x-1; c++; } if(c<bc){ bc=c; bi=j; bm=m; if(c<=1) break; } }
     if(bc===0) return; [empt[k],empt[bi]]=[empt[bi],empt[k]]; const i=empt[k],r=i/N|0,c=i%N,bx=boxOf(i);
@@ -454,15 +494,16 @@ function solveCount(g,limit){ // bitmask backtracking with "fewest options first
 function fillFull(){ const g=new Array(N*N).fill(0);
   (function rec(i){ if(i===N*N) return true; const r=i/N|0,c=i%N; for(const v of shuf([...Array(N)].map((_,k)=>k+1))){ if(ok(g,r,c,v)){ g[i]=v; if(rec(i+1)) return true; g[i]=0; } } return false; })(0); return g; }
 function ok(g,r,c,v){ for(let k=0;k<N;k++){ if(g[r*N+k]===v||g[k*N+c]===v) return false; } const r0=(r/BR|0)*BR,c0=(c/BC|0)*BC; for(let y=r0;y<r0+BR;y++) for(let x=c0;x<c0+BC;x++) if(g[y*N+x]===v) return false; return true; }
-function makePuzzle(n,want,budget,only){ N=n; BR=n===4?2:n===6?2:3; BC=n===4?2:3; const t0=performance.now();
+function makePuzzle(n,want,cap,only){ N=n; BR=n===4?2:n===6?2:3; BC=n===4?2:3; const t0=performance.now();
   const s=fillFull(), g=s.slice(); let removed=0;
-  for(const i of shuf([...Array(N*N).keys()].filter(i=>!only||only(i)))){ if(removed>=want) break; if(performance.now()-t0>budget) break; // too slow? stop with fewer removals (still unique)
-    const v=g[i]; g[i]=0; if(solveCount(g,2)===1) removed++; else g[i]=v; }
+  /* NO clock-based cut-off: the result must depend only on Math.random so both racers (same seed) get the identical puzzle */
+  for(const i of shuf([...Array(N*N).keys()].filter(i=>!only||only(i)))){ if(removed>=want) break;
+    const v=g[i]; g[i]=0; if(solveCount(g,2,cap||20000)===1) removed++; else g[i]=v; }
   return {s,g,ms:performance.now()-t0}; }
 const GAME=window.GAME={
   id:'number-grid',title:'Number Grid',titleHTML:'NUMBER<br>GRID',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-NG-1.0 · 2026-10-17',theme:{a:'#3dffd8',b:'#ff3bd4',bg:'#070b1e'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'💡',joystick:false,coinPts:40,
+  build:'BUILD-NG-1.1 · 2026-10-24',theme:{a:'#3dffd8',b:'#ff3bd4',bg:'#070b1e'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'💡',joystick:false,coinPts:40,
   abilities:[
     {id:'notes',icon:'✏️',name:'NOTES',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — switch pencil notes on/off. With notes on, numbers you tap are small reminders, not answers.'},
     {id:'hint',icon:'💡',name:'HINT',cd:12,key:'KeyH',keyLabel:'H',desc:'Fills in the selected cell (or a random empty one) with the right number.'},
@@ -471,8 +512,8 @@ const GAME=window.GAME={
   shop:[{id:'i_c',cat:'Ink',name:'Neon Cyan',cost:0,colors:['#3dffd8'],desc:'Classic.'},{id:'i_p',cat:'Ink',name:'Hot Pink',cost:150,colors:['#ff5ad8'],desc:'Loud and proud.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3dffd8,#ff3bd4)'}],
   story:`<h3>NUMBER GRID</h3><p>The city's neon signs have lost their numbers. Every board is a lock — fill it perfectly and the lights come back on, one grid at a time.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>Fill every empty cell so each <b>row</b>, <b>column</b> and <b>bold box</b> has every number exactly once.</li><li><b>Phone:</b> tap a cell, then tap a number on the pad below. ⌫ clears a cell.</li><li><b>PC:</b> click a cell or move with the arrow keys, type 1-9, BACKSPACE clears.</li><li><b>NOTES</b> (SPACE or the ✏️ button) pencils in small reminders.</li><li>A wrong number is a mistake ✖. 3 mistakes cost a life — your board stays.</li><li>Some stages have a clock. Every 10th stage is a timed 9x9 MASTER GRID.</li><li>Abilities on PC: H = hint, C = check, F = freeze clock.</li></ul>`,
-  tutorial:[{text:'Tap an empty cell, then tap its number on the pad below!',ev:'place'},{text:'Tap NOTES (or SPACE) to switch pencil notes on.',ev:'notes'},{text:'Fill every cell!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li>Fill every empty cell so each <b>row</b>, <b>column</b> and <b>bold box</b> has every number exactly once.</li><li>Hold your phone <b>sideways</b>.</li><li><b>Phone:</b> tap a cell on the grid (left), then tap a number on the pad (right). ⌫ ERASE clears your pencil notes.</li><li><b>PC:</b> click a cell or move with the arrow keys, type 1-9, BACKSPACE clears.</li><li><b>NOTES</b> (SPACE or the ✏️ button) pencils in small reminders.</li><li>A wrong number is a mistake ✖. 3 mistakes cost a life (5 on Beginner stages 1-10) — your board stays.</li><li><b>👥 RACE A FRIEND:</b> you both get the exact same grid — first to fill it wins.</li><li>Some stages have a clock. Every 10th stage is a timed 9x9 MASTER GRID.</li><li>Abilities on PC: H = hint, C = check, F = freeze clock.</li></ul>`,
+  tutorial:[{text:'Tap an empty cell, then tap its number on the pad on the right!',ev:'place'},{text:'Tap NOTES (or SPACE) to switch pencil notes on.',ev:'notes'},{text:'Fill every cell!',time:5}],
   stageIntro:{1:'FILL THE GRID'},bossName:'MASTER GRID!',ending:{"0":["#LIGHTS ON","Every sign shines again."],"1":["#GRANDMASTER","No grid can stop you."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='freeze') return eff.freeze>0?{left:eff.freeze,total:15}:null; if(id==='check') return eff.check>0?{left:eff.check,total:8}:null; return null; },
   _dbg(){ return {get sol(){return sol;}, get grid(){return grid;}, get N(){return N;}, get left(){return left;}, get lost(){return lost;}, get done(){return done;}, get clock(){return clock;}, get timed(){return timed;}, get mistakes(){return mistakes;},
@@ -480,15 +521,21 @@ const GAME=window.GAME={
   init(a){ api=a; mkBg(); eff={freeze:-9,check:-9}; N=4; BR=BC=2; grid=new Array(16).fill(0); giv=grid.map(()=>false); sol=grid; notes=grid.map(()=>0); },
   startStage(n,a){ api=a; t=0; done=false; lost=false; mistakes=0; notesOn=false; eff={freeze:-9,check:-9}; flashBad=[]; wave=-1; pops=[]; winT=0; lastPlaced=-1;
     const L=a.level, tut=a.content===0; let size,want;
+    const beg=a.diff===0;
     if(tut){ size=4; want=3; }
-    else if(a.boss){ size=9; want=Math.round(Math.min(58,30+L*0.22)); }
+    else if(beg&&L<=10){ /* Beginner 1-10: small 4x4 grids, very few gaps; the stage-10 boss is a 4x4 with a gentle clock */
+      size=4; want=a.boss?8:Math.min(8,3+(L*0.55|0)); }
+    else if(beg&&L<=35){ size=6; want=a.boss?Math.min(20,12+(L-10)*0.3|0):Math.min(20,8+(L-11)*0.5|0); }
+    else if(a.boss){ size=9; want=Math.round(Math.min(58,(beg?26:30)+L*0.22)); }
     else if(L<=8){ size=4; want=Math.min(11,5+L*0.7|0); }
     else if(L<=24){ size=6; want=Math.min(24,13+(L-9)*0.7|0); }
-    else { size=9; want=Math.round(Math.min(60,34+(L-25)*0.2)); if(a.content===1) want-=3; }
-    const p=makePuzzle(size,want,size===9?260:120,tut?(i=>i>=8):null); /* tutorial: empty cells in the bottom half (the help box covers the top) */ sol=p.s; grid=p.g.slice(); giv=grid.map(v=>v>0); notes=grid.map(()=>0);
+    else { size=9; want=Math.round(Math.min(60,(beg?28:34)+(L-25)*0.2)); if(a.content===1) want-=3; }
+    PY=tut?236:96; PH=440-PY; /* tutorial: the help box covers the top ~220px, so the pad starts below it */
+    const p=makePuzzle(size,want,size===9?6000:20000,tut?(i=>i>=8):null); /* tutorial: empty cells in the bottom half (the help box covers the top) */ sol=p.s; grid=p.g.slice(); giv=grid.map(v=>v>0); notes=grid.map(()=>0);
     left=grid.filter(v=>!v).length; sel=grid.findIndex(v=>!v);
-    timed=!tut&&(a.boss||a.diff===2||(a.content===2&&L>=6));
-    const spc=a.dv([12,8,5],4,2.5)*(a.boss?1.1:1); limit=timed?Math.round(left*spc+(a.boss?30:20)):0; clock=limit; },
+    maxMis=easy()?5:3;
+    timed=!tut&&(a.boss||a.diff===2||(a.diff>0&&a.content===2&&L>=6)||(a.diff===0&&a.content===2&&L>=36));
+    const spc=a.dv([12,8,5],4,2.5)*(a.boss?1.1:1)*(easy()?2:1); limit=timed?Math.round(left*spc+(a.boss?30:20)):0; clock=limit; },
   respawn(){ lost=false; mistakes=0; if(timed&&clock<=0) clock=limit; },
   stageBonus(){ return Math.round((timed?Math.max(0,clock)*5:0)+N*N*4); },
   useAbility(id){ if(done||lost) return false;
@@ -542,33 +589,35 @@ const GAME=window.GAME={
         for(let v=1;v<=N;v++) if(notes[i]&(1<<(v-1))){ const k=v-1; c.fillText(v,x-cs/2+cs*((k%nc)+.5)/nc,y-cs/2+cs*((k/nc|0)+.5)/nr+1); } } }
     c.textBaseline='alphabetic';
     // status row
-    const sy=GY+GS+38; c.font='bold 22px sans-serif'; c.textAlign='left';
-    for(let k=0;k<3;k++){ c.fillStyle=k<mistakes?'#ff3b5a':'rgba(255,255,255,.18)'; if(k<mistakes){ c.shadowColor='#ff3b5a'; c.shadowBlur=10; } c.fillText('✖',GX+k*28,sy); c.shadowBlur=0; }
-    c.textAlign='center'; c.fillStyle=notesOn?'#ffd23f':'rgba(255,255,255,.35)'; c.fillText(notesOn?'✏️ NOTES ON':`${N}×${N}`,W/2,sy);
-    if(timed){ c.textAlign='right'; const low=clock<15&&eff.freeze<=0; c.fillStyle=eff.freeze>0?'#8ad8ff':low?'#ff3b5a':'#fff'; if(low&&Math.floor(t*4)%2) c.fillStyle='#ffd23f';
-      const m=Math.floor(Math.max(0,clock)/60),s=Math.floor(Math.max(0,clock)%60); c.fillText((eff.freeze>0?'❄️ ':'⏱ ')+m+':'+String(s).padStart(2,'0'),GX+GS,sy);
-      c.fillStyle='rgba(255,255,255,.1)'; c.fillRect(GX,sy+10,GS,5); c.fillStyle=eff.freeze>0?'#8ad8ff':low?'#ff3b5a':'#3dffd8'; c.fillRect(GX,sy+10,GS*Math.max(0,clock)/limit,5); }
+    /* status block: under the pad, LEFT of the action-button corner (x<980) */
+    const sy=STY; c.font='bold 26px sans-serif'; c.textAlign='left';
+    for(let k=0;k<maxMis;k++){ c.fillStyle=k<mistakes?'#ff3b5a':'rgba(255,255,255,.18)'; if(k<mistakes){ c.shadowColor='#ff3b5a'; c.shadowBlur=10; } c.fillText('✖',STX+k*34,sy); c.shadowBlur=0; }
+    c.font='bold 22px sans-serif'; c.fillStyle=notesOn?'#ffd23f':'rgba(255,255,255,.4)'; c.fillText(notesOn?'✏️ NOTES ON':`${N}×${N} GRID`,STX,sy+42);
+    if(timed){ const low=clock<15&&eff.freeze<=0; c.fillStyle=eff.freeze>0?'#8ad8ff':low?'#ff3b5a':'#fff'; if(low&&Math.floor(t*4)%2) c.fillStyle='#ffd23f';
+      const m=Math.floor(Math.max(0,clock)/60),s=Math.floor(Math.max(0,clock)%60); c.font='bold 30px sans-serif'; c.fillText((eff.freeze>0?'❄️ ':'⏱ ')+m+':'+String(s).padStart(2,'0'),STX,sy+90);
+      c.fillStyle='rgba(255,255,255,.1)'; c.fillRect(STX,sy+104,170,6); c.fillStyle=eff.freeze>0?'#8ad8ff':low?'#ff3b5a':'#3dffd8'; c.fillRect(STX,sy+104,170*Math.max(0,clock)/limit,6); }
     // pad
     padBtns().forEach(b=>{ const pr=(pressT[b.k]||0)>0, isNum=typeof b.k==='number'; const cnt=isNum?grid.filter(v=>v===b.k).length:0, full=isNum&&cnt>=N;
       const on=b.k==='notes'&&notesOn; const col=b.k==='erase'?'#ff7a9a':b.k==='notes'?'#ffd23f':inkCol;
       c.fillStyle=pr?'rgba(255,255,255,.25)':on?'rgba(255,210,63,.22)':'rgba(20,30,70,.9)'; rr(c,b.x,b.y,b.w,b.h,12); c.fill();
       c.strokeStyle=full?'rgba(255,255,255,.15)':col; c.lineWidth=2.5; if(!full){ c.shadowColor=col; c.shadowBlur=pr?24:10; } c.stroke(); c.shadowBlur=0;
       c.fillStyle=full?'rgba(255,255,255,.2)':isNum?'#fff':col; c.textAlign='center'; c.textBaseline='middle';
-      c.font=isNum?'bold 40px sans-serif':'bold 24px sans-serif'; c.fillText(isNum?b.k:b.k==='erase'?'⌫ ERASE':(notesOn?'✏️ NOTES: ON':'✏️ NOTES: OFF'),b.x+b.w/2,b.y+b.h/2+2);
-      if(isNum&&!full&&N>4){ c.font='bold 13px sans-serif'; c.fillStyle='rgba(255,255,255,.4)'; c.fillText(N-cnt,b.x+b.w-11,b.y+13); }
+      c.font=isNum?`bold ${Math.round(Math.min(b.h,b.w)*.48)}px sans-serif`:'bold 18px sans-serif'; c.fillText(isNum?b.k:b.k==='erase'?'⌫ ERASE':(notesOn?'✏️ NOTES: ON':'✏️ NOTES: OFF'),b.x+b.w/2,b.y+b.h/2+2);
+      if(isNum&&!full&&N>4){ c.font='bold 13px sans-serif'; c.fillStyle='rgba(255,255,255,.4)'; c.fillText(N-cnt,b.x+b.w-12,b.y+15); }
       c.textBaseline='alphabetic'; });
     if(eff.freeze>0){ c.fillStyle='rgba(120,200,255,.07)'; c.fillRect(0,0,W,H); }
     if(lost){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#070b1e'; c.fillRect(0,0,W,H); const cs=60,x0=30,y0=180;
+  attract(c,tt){ c.fillStyle='#070b1e'; c.fillRect(0,0,W,H); const cs=66,x0=(W-cs*9)/2,y0=(H-cs*9)/2+20;
     c.textAlign='center'; c.textBaseline='middle'; c.font='bold 32px sans-serif';
     for(let r=0;r<9;r++) for(let k=0;k<9;k++){ const ph=Math.sin(tt*2+r*.7+k*.5); c.strokeStyle='rgba(61,255,216,.25)'; c.strokeRect(x0+k*cs,y0+r*cs,cs,cs);
       if(ph>.3){ c.globalAlpha=(ph-.3)/.7; c.fillStyle=(r+k)%3?'#3dffd8':'#ff3bd4'; c.fillText(((r*3+(r/3|0)+k)%9)+1,x0+k*cs+cs/2,y0+r*cs+cs/2); c.globalAlpha=1; } }
     c.textBaseline='alphabetic'; }
 };
 const pressT={};
-function padBtns(){ const bs=[], gap=8, w=Math.min(110,(W-2*24-(N-1)*gap)/N), tot=N*w+(N-1)*gap, x0=(W-tot)/2;
-  for(let v=1;v<=N;v++) bs.push({k:v,x:x0+(v-1)*(w+gap),y:PADY,w,h:PADH});
-  bs.push({k:'erase',x:40,y:ROW2Y,w:250,h:ROW2H}); bs.push({k:'notes',x:310,y:ROW2Y,w:250,h:ROW2H}); return bs; }
+/* number pad on the RIGHT of the grid: 2x2 (4x4 grid), 3x2 (6x6), 3x3 (9x9) in the box PX..PX+PW, PY..PY+PH; ERASE + NOTES row under it */
+function padBtns(){ const bs=[], gap=12, cols=N===4?2:3, rows=Math.ceil(N/cols), w=(PW-(cols-1)*gap)/cols, h=(PH-(rows-1)*gap)/rows;
+  for(let v=1;v<=N;v++){ const k=v-1; bs.push({k:v,x:PX+(k%cols)*(w+gap),y:PY+(k/cols|0)*(h+gap),w,h}); }
+  const hw=(PW-gap)/2; bs.push({k:'erase',x:PX,y:ROW2Y,w:hw,h:ROW2H}); bs.push({k:'notes',x:PX+hw+gap,y:ROW2Y,w:hw,h:ROW2H}); return bs; }
 function single(i){ const r=i/N|0,c=i%N; let n=0; for(let v=1;v<=N;v++) if(ok(grid,r,c,v)) n++; return n===1; }
 function tap(v){ if(sel<0||done||lost) return; if(giv[sel]||grid[sel]){ api.sfx.bump(); return; }
   if(notesOn){ notes[sel]^=1<<(v-1); api.sfx.blip(); return; } enter(v); }
@@ -576,7 +625,7 @@ function erase(){ if(sel<0||giv[sel]) return; if(notes[sel]){ notes[sel]=0; api.
 function enter(v,hint){ const i=sel; if(i<0||grid[i]||done||lost) return false;
   const x=GX+(i%N)*GS/N+GS/N/2, y=GY+(i/N|0)*GS/N+GS/N/2;
   if(v!==sol[i]){ mistakes++; flashBad.push({i,t:0.8}); api.sfx.hurt(); api.fx.shake(6); api.fx.text(x,y-20,'✖ MISTAKE','#ff3b5a',20);
-    if(mistakes>=3) fail('3 MISTAKES!'); return false; }
+    if(mistakes>=maxMis) fail(maxMis+' MISTAKES!'); return false; }
   grid[i]=v; notes[i]=0; left--; pops.push({i,t:0}); lastPlaced=i;
   // clear that number from notes in the same row, column and box
   const r=i/N|0,c=i%N,b=boxOf(i); for(let k=0;k<N*N;k++) if((k/N|0)===r||k%N===c||boxOf(k)===b) notes[k]&=~(1<<(v-1));
@@ -587,7 +636,7 @@ function checkUnits(i){ const r=i/N|0,c=i%N,b=boxOf(i); const cs=GS/N;
   const units=[[...Array(N)].map((_,k)=>r*N+k),[...Array(N)].map((_,k)=>k*N+c),[...Array(N*N).keys()].filter(k=>boxOf(k)===b)];
   units.forEach(u=>{ if(u.every(k=>grid[k])){ api.sfx.coin(); u.forEach(k=>api.fx.burst(GX+(k%N)*cs+cs/2,GY+(k/N|0)*cs+cs/2,'#ffd23f',3,120,.4,2)); api.addScore(50,GX+(i%N)*cs+cs/2,GY+(i/N|0)*cs); } }); }
 function win(){ if(done) return; done=true; wave=0; api.toast(api.boss?'MASTER GRID SOLVED!':'GRID COMPLETE!'); api.sfx.clear(); api.fx.flash('#fff',.25);
-  api.fx.burst(W/2,GY+GS/2,'#3dffd8',60,500,1,4); api.fx.burst(W/2,GY+GS/2,'#ff3bd4',40,400,1,4); setTimeout(()=>api.stageClear(),1500); }
+  api.fx.burst(GX+GS/2,GY+GS/2,'#3dffd8',60,500,1,4); api.fx.burst(GX+GS/2,GY+GS/2,'#ff3bd4',40,400,1,4); setTimeout(()=>api.stageClear(),1500); }
 function fail(msg){ if(lost||done) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),900); }
 function mkBg(){ bg=[]; for(let i=0;i<40;i++) bg.push({x:R(0,W),y:R(0,H),v:R(8,30),n:1+(Math.random()*9|0),s:R(14,34),a:R(.04,.12)}); }
 function drawBg(c){ const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#070b1e'); g.addColorStop(1,api&&api.boss?'#2a0830':'#0a1a3a'); c.fillStyle=g; c.fillRect(0,0,W,H);
@@ -597,7 +646,7 @@ function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -684,8 +733,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -710,6 +777,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -727,6 +817,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -833,7 +927,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -857,6 +951,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -906,8 +1002,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1278,7 +1374,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1452,6 +1548,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1462,10 +1559,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1482,7 +1592,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1518,7 +1628,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1557,6 +1667,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
