@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RL-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-RL-1.1 · 2026-10-25">
 <title>Rail Rush</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,47 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
 
 </style>
 </head>
 <body>
-<!-- BUILD-RL-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-RL-1.1 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,64 +467,84 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* RAIL RUSH — 3-track train-yard runner remix. 100 stages. Switch tracks, jump barriers, roll under bars and outrun the Inspector drone. */
+/* RAIL RUSH — 3-track train-yard runner remix. 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1) + RACE (MP-1).
+   Switch tracks with the big ◀ (bottom-left) / ▶ (bottom-right) buttons or a swipe — every press = exactly ONE track.
+   JUMP / ROLL are hold-safe action buttons (bottom-right). The runner never steers, jumps or rolls by himself.
+   Stage layout comes ONLY from a private generator seeded by ONE Math.random() call at stage start (race = same seed = same track). */
 (function(){
-const W=600,H=900,HY=250,D=4,F=264,CAMH=8,LW=2.4,ZN=-2.4,ZF=78;
-let api,t,dist,finW,v,v0,p,obs,coins,drops,nextW,prevOpen,rowI,busy,done,lost,eff,grace,boss,camX,runT,mTick,sw,city,stars,G0,tutRow;
-function R(a,b){ return a+Math.random()*(b-a); }
+const W=1280,H=720,HY=190,D=4,F=250,CAMH=8,LW=2.4,ZN=-2.4,ZF=78;
+let api,t,dist,finW,v,v0,p,obs,coins,drops,nextW,prevOpen,sameOpen,rowI,busy,done,lost,eff,grace,boss,camX,runT,mTick,city,stars,G0,tutRow,rng,seed0,ptrs,BT,btnT,press,blockT,slowT,hintT;
+function R(a,b){ return a+Math.random()*(b-a); }           // looks only (city, sparks)
+function RR(a,b){ return a+rng()*(b-a); }                   // the STAGE (seeded)
+function mkRng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let q=Math.imul(s^s>>>15,1|s); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }; }
 function S(z){ return F/Math.max(0.3,z+D); }
 function pt(x,z,h){ const s=S(z); return [W/2+s*(x-camX),HY+s*(CAMH-(h||0))]; }
 function lx(l){ return (l-1)*LW; }
 function fog(z){ return Math.max(0,Math.min(1,(ZF-z)/26)); }
 function poly(c,P,fill){ c.beginPath(); c.moveTo(P[0][0],P[0][1]); for(let i=1;i<P.length;i++) c.lineTo(P[i][0],P[i][1]); c.closePath(); c.fillStyle=fill; c.fill(); }
+const easy=()=>api.content===0||(api.diff===0&&api.level<=5);   // Beginner 1-5 + tutorial: barriers only trip you
+const early=()=>api.content===0||(api.diff===0&&api.level<=10);  // Beginner 1-10: slower, wider gaps, short trains
 const TC=[['#1fb6c9','#0b6b7a','#ffd23f'],['#ff7a2e','#a3401a','#fff'],['#b14bff','#5a1f8a','#3dffd8'],['#e8384f','#7a1424','#ffd23f'],['#3bd16f','#1a6b38','#fff']];
 const GAME=window.GAME={
   id:'rail-rush',title:'Rail Rush',titleHTML:'RAIL<br>RUSH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-RL-1.0 · 2026-10-17',theme:{a:'#ff3bd4',b:'#ffd23f',bg:'#120626'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'👟',joystick:false,coinPts:40,
+  build:'BUILD-RL-1.1 · 2026-10-25',theme:{a:'#ff3bd4',b:'#ffd23f',bg:'#120626'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'👟',joystick:false,coinPts:40,
   abilities:[
-    {id:'jump',icon:'⤴️',name:'JUMP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — jump over low barriers and crates. Or swipe UP (↑ / W on PC).'},
+    {id:'jump',icon:'⤴️',name:'JUMP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — jump over low barriers and crates. One jump per press. Or swipe UP (↑ / W on PC).'},
+    {id:'roll',icon:'⤵️',name:'ROLL',cd:0,key:'ArrowDown',keyLabel:'↓',desc:'FREE — roll under the yellow overhead bars. One roll per press. Or swipe DOWN (S on PC).'},
     {id:'jet',icon:'🚀',name:'JETPACK',cd:20,key:'Digit1',keyLabel:'1',desc:'Fly high above every train for 5 seconds and grab the sky coins.'},
     {id:'mag',icon:'🧲',name:'MAGNET',cd:15,key:'Digit2',keyLabel:'2',desc:'Pulls in every coin near you for 6 seconds.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:18,key:'Digit3',keyLabel:'3',desc:'For 8 seconds the next crash is free — you smash right through.'}],
   shop:[{id:'r_p',cat:'Runner',name:'Neon Hoodie',cost:0,colors:['#ff3bd4','#ffd23f'],desc:'Classic.'},{id:'r_c',cat:'Runner',name:'Cyan Streak',cost:150,colors:['#3dd8ff','#ff7a2e'],desc:'Cool and quick.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff3bd4,#ffd23f)'}],
   story:`<h3>RAIL RUSH</h3><p>The night trains never stop in the neon train yard — and the Inspector drone wants you off the tracks. Run, switch, jump, roll. Don't look back.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Swipe LEFT / RIGHT</b> to switch tracks (PC: ← → or A D).</li><li><b>Swipe UP</b> or tap to jump low barriers and crates (PC: ↑ W or SPACE).</li><li><b>Swipe DOWN</b> to roll under the yellow overhead bars (PC: ↓ or S).</li><li>Trains can't be jumped — switch tracks! Grab coins for gold.</li><li>Run the distance shown at the top to clear the stage. Every 10th stage the Inspector drone chases you and drops crates.</li></ul>`,
-  tutorial:[{text:'Swipe LEFT or RIGHT (← →) to dodge the train!',ev:'lane'},{text:'Swipe UP (or SPACE) to jump the barrier!',ev:'jump'},{text:'Swipe DOWN (↓) to roll under yellow bars. Run to the finish!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the big <b>◀</b> button (bottom-left) moves you ONE track left. <b>Right thumb:</b> the big <b>▶</b> button moves you ONE track right. Swiping left/right on the screen works too. PC: ← → or A D.</li><li><b>⤴️ JUMP</b> (bottom-right, or swipe UP / tap the screen) hops low barriers and crates. PC: SPACE, ↑ or W.</li><li><b>⤵️ ROLL</b> (or swipe DOWN) slides under the yellow overhead bars. PC: ↓ or S.</li><li>Trains can't be jumped — switch tracks! You can't switch into a train that is right beside you: wait until it has passed.</li><li>Run the distance shown at the top to clear the stage. Every 10th stage the Inspector drone chases you and drops crates.</li><li>🏁 RACE a friend: same track for both, first to the finish wins.</li></ul>`,
+  tutorial:[{text:'Press ← or → to switch tracks and dodge the train!',touch:'Tap <b>◀</b> (bottom-left) or <b>▶</b> (bottom-right) to switch tracks and dodge the train!',ev:'lane'},
+    {text:'Press SPACE (or ↑) to jump the red barrier!',touch:'Tap <b>⤴️ JUMP</b> (or tap the screen) to jump the red barrier!',ev:'jump'},
+    {text:'Press ↓ to roll under yellow bars. Run to the finish!',touch:'Tap <b>⤵️ ROLL</b> to roll under yellow bars. Run to the finish!',time:5}],
   stageIntro:{1:'RUN TO THE FINISH ARCH'},bossName:'THE INSPECTOR DRONE!',ending:{"0":["#FREE","The yard is yours."],"1":["#RUSH","Fastest feet on the rails."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={jet:5,mag:6,shield:8}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get p(){return p;}, get obs(){return obs;}, get dist(){return dist;}, get fin(){return finW;}, get lost(){return lost;}, get done(){return done;}, get v(){return v;}, lane:d=>lane(d), jump:()=>jump(), roll:()=>roll()}; },
+  abTime(id){ const tot={jet:5,mag:6,shield:8}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return {get p(){return p;}, get obs(){return obs;}, get coins(){return coins;}, get dist(){return dist;}, get fin(){return finW;}, get lost(){return lost;}, get done(){return done;}, get v(){return v;}, get btn(){ layoutBtns(); return BT; },
+    lane:d=>lane(d), jump:()=>jump(), roll:()=>roll(), sig:()=>seed0+':'+finW+':'+obs.slice(0,60).map(o=>o.k[0]+o.l+'@'+o.w.toFixed(1)).join(',')}; },
   init(a){ api=a; mkCity(); },
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1; eff={jet:-9,mag:-9,shield:-9}; camX=0; runT=0; mTick=0; sw=null;
-    p={lane:1,x:1,h:0,vy:0,roll:0}; obs=[]; coins=[]; drops=[]; busy=[-1,-1,-1]; GAME._ob=false; prevOpen=1; rowI=0; tutRow=0; dist=0;
-    const tut=a.content===0; v0=tut?10:a.dv([12,18,24],28,34); v=v0*0.6;
-    G0=v0*(tut?1.9:a.dv([1.35,1.0,0.85],0.78,0.72));
-    finW=tut?230:Math.round(a.dv([450,800,1150],1400,1900)/10)*10; boss=null;
-    if(a.boss){ finW=Math.round(finW*1.15/10)*10; boss={x:W/2,y:170,dropT:2.5,t:0,eye:0}; }
-    nextW=tut?40:55; if(!city) mkCity(); },
-  respawn(){ lost=false; grace=2.2; p.h=0; p.vy=0; p.roll=0; v=v0*0.55; drops=[];
-    obs=obs.filter(o=>o.w>dist+34||o.w1<dist-3); coins=coins.filter(c=>c.w>dist+2); },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1; eff={jet:-9,mag:-9,shield:-9}; camX=0; runT=0; mTick=0; ptrs={}; press={L:0,R:0,Lx:0,Rx:0}; blockT=0; slowT=0; hintT=0; btnT=0;
+    seed0=Math.floor(Math.random()*4294967296); rng=mkRng(seed0);       // the ONLY Math.random the stage layout uses
+    p={lane:1,x:1,h:0,vy:0,roll:0}; obs=[]; coins=[]; drops=[]; busy=[-1,-1,-1]; GAME._ob=false; prevOpen=1; sameOpen=0; rowI=0; tutRow=0; dist=0;
+    const tut=a.content===0, E=early(); v0=tut?10:a.dv([12,18,24],28,34); v=v0*0.6;
+    G0=v0*(tut?1.9:E?1.65:a.dv([1.35,1.0,0.85],0.78,0.72));
+    finW=tut?230:Math.round(a.dv([450,800,1150],1400,1900)*(E?0.85:1)/10)*10; boss=null;
+    if(a.boss){ finW=Math.round(finW*1.15/10)*10; boss={x:W/2,y:140,dropT:2.5,t:0,eye:0}; }
+    nextW=tut?40:55; while(nextW<finW-12) genRow();                   // whole track built now, from the seed
+    if(!city) mkCity(); layoutBtns(); },
+  // a crash costs ground: you restart a bit BEFORE the crash, so the same train is still ahead (standing still never wins)
+  respawn(){ lost=false; grace=2; p.h=0; p.vy=0; p.roll=0; v=v0*0.55; drops=[]; ptrs={};
+    const back=easy()?40:60; dist=Math.max(0,dist-back); mTick=Math.floor(dist/10); api.fx.text(W/2,H*0.42,'−'+back+' m','#ff3b3b',40);
+    obs=obs.filter(o=>o.w>dist+14||o.w1<dist-3); coins=coins.filter(c=>c.w>dist+2); },
   stageBonus(){ return Math.round(finW/2); },
-  useAbility(id){ if(done||lost) return false; if(id==='jump') return jump();
+  useAbility(id){ if(done||lost) return false; if(id==='jump') return jump(); if(id==='roll') return roll();
     eff[id]={jet:5,mag:6,shield:8}[id];
     if(id==='jet'){ p.roll=0; let l=p.lane; for(let i=0;i<26;i++){ if(i%6===5) l=Math.max(0,Math.min(2,l+(Math.random()<.5?-1:1))); coins.push({w:dist+14+i*4,l,h:5.4,sky:1}); } }
     api.sfx.power(); return true; },
+  // PC keys: one switch per key press (key repeat is ignored by the shell). Space / ↓ come through the JUMP / ROLL abilities.
   onKey(code,down){ if(!down||done||lost) return;
-    if(code==='ArrowLeft'||code==='KeyA') lane(-1); else if(code==='ArrowRight'||code==='KeyD') lane(1);
-    else if(code==='ArrowUp'||code==='KeyW') jump(); else if(code==='ArrowDown'||code==='KeyS') roll(); },
-  onPointer(type,x,y){ if(type==='down'){ sw={x,y,used:false}; return; } if(!sw) return;
-    const dx=x-sw.x, dy=y-sw.y, m=Math.hypot(dx,dy);
-    if(!sw.used&&m>36){ sw.used=true; if(Math.abs(dx)>Math.abs(dy)) lane(dx>0?1:-1); else if(dy<0) jump(); else roll(); }
-    if(type==='up'){ if(!sw.used) jump(); sw=null; } },
-  update(dt){ t+=dt; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt;
+    if(code==='ArrowLeft'||code==='KeyA') pressBtn('L'); else if(code==='ArrowRight'||code==='KeyD') pressBtn('R');
+    else if(code==='ArrowUp'||code==='KeyW') jump(); else if(code==='KeyS') roll(); },
+  // touch + mouse: a finger that lands on ◀ / ▶ switches ONE track at once and does nothing else until it lifts.
+  // Anywhere else: swipe left/right = switch, swipe up / tap = jump, swipe down = roll (each finger counts once).
+  onPointer(type,x,y,id){ if(id===undefined) id=0;
+    if(type==='down'){ if(done||lost){ ptrs[id]='dead'; return; } const b=hitBtn(x,y); if(b){ ptrs[id]='btn'; pressBtn(b); return; } ptrs[id]={x,y,used:false}; return; }
+    const s=ptrs[id]; if(type==='up') delete ptrs[id]; if(!s||typeof s!=='object') return;
+    const dx=x-s.x, dy=y-s.y, m=Math.hypot(dx,dy);
+    if(!s.used&&m>34){ s.used=true; if(Math.abs(dx)>Math.abs(dy)) lane(dx>0?1:-1); else if(dy<0) jump(); else roll(); }
+    if(type==='up'&&!s.used) jump(); },
+  update(dt){ t+=dt; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; blockT-=dt; slowT-=dt; hintT-=dt; press.L-=dt; press.R-=dt;
+    if((btnT-=dt)<=0) layoutBtns();
     if(boss){ boss.t+=dt; boss.eye+=dt; }
     camX+=(lx(p.x)*0.55-camX)*Math.min(1,dt*6);
     if(lost) return;
     if(done){ v=Math.max(0,v-v0*dt*0.8); dist+=v*dt; runT+=dt*v/8; if(boss) boss.y-=dt*120; return; }
-    const tv=v0*(1+Math.min(0.12,dist/finW*0.12)); v+=(tv-v)*Math.min(1,dt*1.5); dist+=v*dt; runT+=dt*v/8;
-    while(nextW<dist+96&&nextW<finW-12) genRow();
-    // player
+    const tv=v0*(1+Math.min(0.12,dist/finW*0.12))*(slowT>0?0.6:1); v+=(tv-v)*Math.min(1,dt*1.5); dist+=v*dt; runT+=dt*v/8;
+    // player (moves only on a press)
     p.x+=(p.lane-p.x)*Math.min(1,dt*15);
     if(eff.jet>0){ p.h+=(5.4-p.h)*Math.min(1,dt*5); p.vy=0; if(eff.jet<0.4) grace=Math.max(grace,0.8); }
     else if(p.h>0||p.vy>0){ p.vy-=36*dt; p.h+=p.vy*dt; if(p.h<=0){ p.h=0; p.vy=0; } }
@@ -498,16 +554,19 @@ const GAME=window.GAME={
       if(Math.abs(o.l-p.x)>0.62) continue;
       let hit=false;
       if(o.k==='train') hit=p.h<3.6; else if(o.k==='bar') hit=!((p.roll>0&&p.h<0.45)||p.h>3); else hit=p.h<0.8;
-      if(hit){ if(eff.shield>0){ eff.shield=0; o.hit=1; grace=1; const q=pt(lx(o.l),0.5,1); api.fx.burst(q[0],q[1],'#3dd8ff',40,420,.7,4); api.fx.shake(8); api.sfx.boom(); api.toast('SHIELD SAVED YOU!'); }
-        else if(grace<=0) crash(o.k==='train'?'YOU HIT A TRAIN!':o.k==='bar'?'ROLL UNDER THE BARS! (↓)':'JUMP THE BARRIERS! (↑)'); } }
+      if(!hit) continue;
+      if(eff.shield>0){ eff.shield=0; o.hit=1; grace=1; const q=pt(lx(o.l),0.5,1); api.fx.burst(q[0],q[1],'#3dd8ff',40,420,.7,4); api.fx.shake(8); api.sfx.boom(); api.toast('SHIELD SAVED YOU!'); }
+      else if(grace>0) continue;
+      else if(o.k!=='train'&&easy()){ o.hit=1; slowT=1.2; v=Math.min(v,v0*0.45); api.sfx.bump(); api.fx.shake(5); if(hintT<=0){ hintT=3; api.toast(o.k==='bar'?'OOF! ROLL UNDER BARS (⤵️ ROLL)':'OOF! JUMP THE BARRIERS (⤴️ JUMP)'); } }
+      else crash(o.k==='train'?'YOU HIT A TRAIN!':o.k==='bar'?'ROLL UNDER THE BARS! (⤵️)':'JUMP THE BARRIERS! (⤴️)'); }
     // coins
     for(const c of coins){ let z=c.w-dist;
       if(eff.mag>0&&z<24&&z>-1&&!c.sky){ c.l+=(p.x-c.l)*Math.min(1,dt*7); c.h+=(p.h+0.9-c.h)*Math.min(1,dt*7); c.w-=(z)*Math.min(1,dt*5); z=c.w-dist; }
       if(Math.abs(z)<0.9&&Math.abs(c.l-p.x)<0.5&&Math.abs(c.h-(p.h+0.9))<1.5){ c.got=1; const q=pt(lx(c.l),0,c.h); api.addScore(10,q[0],q[1],true); api.sfx.coin(); api.fx.burst(q[0],q[1],'#ffd23f',6,140,.35,3); } }
-    coins=coins.filter(c=>!c.got&&c.w>dist-3); obs=obs.filter(o=>o.w1>dist-6);
-    // boss
-    if(boss){ boss.dropT-=dt; boss.y+=(170+Math.sin(boss.t*1.3)*16-boss.y)*Math.min(1,dt*3);
-      if(boss.dropT<=0&&dist<finW-60){ boss.dropT=api.dv([2.3,1.6,1.15],0.95,0.75); const n=api.level>=40?2:1, used=[];
+    coins=coins.filter(c=>!c.got&&c.w>dist-3);   // passed obstacles stay in the list (a crash rewinds you onto them)
+    // boss: drops crates on free tracks (never closes every track)
+    if(boss){ boss.dropT-=dt; boss.y+=(140+Math.sin(boss.t*1.3)*16-boss.y)*Math.min(1,dt*3);
+      if(boss.dropT<=0&&dist<finW-60){ boss.dropT=api.dv([2.3,1.6,1.15],0.95,0.75)*(early()?1.3:1); const n=api.level>=40?2:1, used=[];
         const gp=Math.max(7,v*1.05); for(let i=0;i<n;i++){ const w=dist+v*1.7+i*3; const ok=[0,1,2].filter(l=>!used.includes(l)&&!obs.some(o=>o.l===l&&o.w1>w-gp&&o.w<w+gp));
           if(!ok.length) continue; const l=ok.includes(p.lane)&&Math.random()<.6?p.lane:ok[Math.floor(Math.random()*ok.length)]; used.push(l); drops.push({l,w,h:11,k:'crate'}); } api.sfx.shoot(); } }
     drops.forEach(d=>{ d.h-=dt*16; if(d.h<=0){ d.h=0; d.gone=1; obs.push({k:'crate',l:d.l,w:d.w-0.6,w1:d.w+0.6}); const q=pt(lx(d.l),d.w-dist,0); api.fx.burst(q[0],q[1],'#ff7a2e',10,160,.4,3); api.sfx.small(); } });
@@ -515,34 +574,56 @@ const GAME=window.GAME={
     if(Math.floor(dist/10)>mTick){ mTick=Math.floor(dist/10); api.addScore(5); }
     api.counter('🏁 METRES TO GO',Math.max(0,Math.ceil(finW-dist)));
     if(dist>=finW&&!done){ done=true; api.toast(boss?'YOU OUTRAN THE DRONE!':'FINISH!'); api.sfx.clear(); api.fx.flash('#fff',.3); if(boss) api.fx.burst(boss.x,boss.y,'#ff3bd4',70,480,1.1,5); setTimeout(()=>api.stageClear(),1200); } },
-  render(c){ drawWorld(c,dist,true); },
+  render(c){ drawWorld(c,dist,true); drawBtns(c); },
   attract(c,tt){ if(!stars) mkCity(); const sv=[api,dist,obs,coins,drops,p,camX,boss,t,runT,finW]; dist=tt*14; obs=[]; coins=[]; drops=[]; boss=null; p={lane:1,x:1,h:Math.max(0,Math.sin(tt*2.2))*1.4,vy:0,roll:0}; camX=Math.sin(tt*.5)*1.2; t=tt; runT=tt*2; finW=1e9;
     for(let i=0;i<4;i++){ const w=Math.floor(dist/30)*30+30+i*30; obs.push({k:'train',l:[0,2,0,2][(w/30)%4],w,w1:w+18,c:(w/30)%5}); }
     drawWorld(c,dist,false); [api,dist,obs,coins,drops,p,camX,boss,t,runT,finW]=sv; }
 };
-function mkCity(){ city=[]; stars=[]; let x=-300; while(x<W+300){ const w=R(26,70); city.push({x,w,h:R(30,130),c:Math.random()<.5}); x+=w+R(2,10); } for(let i=0;i<70;i++) stars.push({x:R(0,W),y:R(0,HY-30),s:Math.random()<.2?2:1,k:R(1,4)}); }
+function mkCity(){ city=[]; stars=[]; let x=-400; while(x<W+400){ const w=R(26,80); city.push({x,w,h:R(30,140),c:Math.random()<.5}); x+=w+R(2,10); } for(let i=0;i<120;i++) stars.push({x:R(0,W),y:R(0,HY-30),s:Math.random()<.2?2:1,k:R(1,4)}); }
+/* ---------- ◀ ▶ track buttons (drawn on the canvas, kept clear of the shell's ability column + action buttons) ---------- */
+function layoutBtns(){ btnT=0.5; const bw=230,bh=170,y=H-bh-18; const L={x:100,y,w:bw,h:bh}, Rb={x:W-24-bw,y,w:bw,h:bh};
+  try{ const cv=document.getElementById('game'), cr=cv&&cv.getBoundingClientRect(); if(cr&&cr.width>0){ const k=cr.width/W;
+    for(const id of ['bar','actbar']){ const el=document.getElementById(id); if(!el) continue; const r=el.getBoundingClientRect(); if(!(r.width>0&&r.height>0)) continue;
+      const x0=(r.left-cr.left)/k, x1=(r.right-cr.left)/k, y0=(r.top-cr.top)/k, y1=(r.bottom-cr.top)/k;
+      for(const B of [L,Rb]){ if(x1<=B.x||x0>=B.x+B.w||y1<=B.y||y0>=B.y+B.h) continue;
+        if((x0+x1)/2<W/2){ B.x=Math.max(B.x,x1+12); if(B.x+B.w>W/2-140){ B.x=Math.max(12,x0); B.y=y0-12-B.h; } }      // no room beside it: sit on top of it
+        else { B.x=Math.min(B.x,x0-12-B.w); if(B.x<W/2+130){ B.x=Math.min(W-24,x1)-B.w; B.y=y0-12-B.h; } } } } } }catch(e){}
+  BT={L,R:Rb}; }
+function hitBtn(x,y){ if(!BT) layoutBtns(); const P=26, L=BT.L, Rb=BT.R;
+  if(x>=L.x-P&&x<=L.x+L.w+P&&y>=L.y-P&&y<=L.y+L.h+P+(L.y+L.h>H-40?60:0)) return 'L';
+  if(x>=Rb.x-P&&x<=Rb.x+Rb.w+P&&y>=Rb.y-P&&y<=Rb.y+Rb.h+P+(Rb.y+Rb.h>H-40?60:0)) return 'R'; return null; }
+function pressBtn(b){ const ok=lane(b==='L'?-1:1); press[b]=0.2; press[b+'x']=ok?0:1; return ok; }
 function lane(d){ if(done||lost) return false; const nl=p.lane+d; if(nl<0||nl>2){ api.sfx.bump(); return false; }
-  if(p.h<3.6&&obs.some(o=>o.k==='train'&&o.l===nl&&o.w-dist<1.4&&o.w1-dist>-1.4)){ api.sfx.bump(); api.fx.shake(4); return false; }
+  if(p.h<3.6&&obs.some(o=>o.k==='train'&&!o.hit&&o.l===nl&&o.w-dist<1.4&&o.w1-dist>-1.4)){ api.sfx.bump(); api.fx.shake(4); if(blockT<=0){ blockT=1.5; api.toast('TRAIN BESIDE YOU — WAIT!'); } return false; }
   p.lane=nl; api.sfx.blip(); api.event('lane'); return true; }
 function jump(){ if(done||lost||eff.jet>0||p.h>0.05) return false; p.roll=0; p.vy=11.5; p.h=0.01; api.sfx.bump(); api.event('jump'); return true; }
 function roll(){ if(done||lost||eff.jet>0) return false; if(p.h>0) p.vy=-22; p.roll=0.62; api.sfx.small(); api.event('roll'); return true; }
-function crash(msg){ if(lost||done) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(12); const q=pt(lx(p.x),0,1); api.fx.burst(q[0],q[1],api.cos('Runner').colors[0],30,340,.7,4); setTimeout(()=>api.loseLife(),1000); }
-function genRow(){ const tut=api.content===0, L=api.level, w=nextW; rowI++; tutRow++;
-  const G=G0*R(1,1.18); nextW+=G;
+function crash(msg){ if(lost||done) return; lost=true; ptrs={}; api.toast(msg); api.sfx.hurt(); api.fx.shake(12); const q=pt(lx(p.x),0,1); api.fx.burst(q[0],q[1],api.cos('Runner').colors[0],30,340,.7,4); setTimeout(()=>api.loseLife(),1000); }
+// one row of the track. Uses ONLY rng() so both racers get the identical yard.
+function genRow(){ const tut=api.content===0, E=early(), L=api.level, w=nextW; rowI++; tutRow++;
+  const G=G0*RR(1,1.18); nextW+=G;
   const cand=[0,1,2].filter(l=>busy[l]<rowI&&Math.abs(l-prevOpen)<=1);
-  let open=Math.random()<.4&&cand.includes(prevOpen)?prevOpen:cand[Math.floor(Math.random()*cand.length)];
-  if(tut&&tutRow===1) open=Math.random()<.5?0:2; prevOpen=open;
-  const pT=tut?0.5:api.dv([0.42,0.58,0.68],0.74), pH=0.22, pB=tut?(tutRow>4?0.3:0):(L>=2?0.22:0.1);
-  for(let l=0;l<3;l++){ if(l===open||busy[l]>=rowI) continue; const r=Math.random();
+  let open=rng()<.4&&cand.includes(prevOpen)?prevOpen:cand[Math.floor(rng()*cand.length)];
+  if(open===prevOpen&&sameOpen>=2&&cand.length>1){ const o2=cand.filter(l=>l!==prevOpen); open=o2[Math.floor(rng()*o2.length)]; }   // keep the safe track moving: standing still never wins
+  if(tut&&tutRow===1) open=rng()<.5?0:2; sameOpen=open===prevOpen?sameOpen+1:0; prevOpen=open;
+  const pT=tut?0.5:E?0.4+L*0.012:api.dv([0.42,0.58,0.68],0.74), pH=E?0.18:0.22, pB=tut?(tutRow>4?0.3:0):E?(L>=3?0.14:0):(L>=2?0.22:0.1);
+  for(let l=0;l<3;l++){ if(l===open||busy[l]>=rowI) continue; const r=rng();
     if(tut&&tutRow===1){ if(l===1) mkTrain(l,w,1,G); continue; }
-    if(r<pT){ const k=1+Math.floor(R(0,Math.min(3,1+L/22))); busy[l]=rowI+k-1; mkTrain(l,w,k,G0); }
+    if(r<pT){ const k=E?1:1+Math.floor(RR(0,Math.min(3,1+L/22))); busy[l]=rowI+k-1; mkTrain(l,w,k,G0); }
     else if(r<pT+pH) obs.push({k:'hurdle',l,w:w-0.3,w1:w+0.3});
     else if(r<pT+pH+pB) obs.push({k:'bar',l,w:w-0.3,w1:w+0.3}); }
-  // the open track: usually clear, sometimes a barrier you can always pass
-  const tb=tut?(tutRow===2||tutRow===4?'hurdle':tutRow===6||tutRow===8?'bar':null):(L>=6&&!GAME._ob&&Math.random()<Math.min(0.45,0.15+L/200)?(Math.random()<.5?'hurdle':'bar'):null);
+  // the open track: usually clear, sometimes a barrier you can always pass (not before Beginner 11)
+  const tb=tut?(tutRow===2||tutRow===4?'hurdle':tutRow===6||tutRow===8?'bar':null):((E?false:L>=6)&&!GAME._ob&&rng()<Math.min(0.45,0.15+L/200)?(rng()<.5?'hurdle':'bar'):null);
   GAME._ob=!!tb; if(tb) obs.push({k:tb,l:open,w:w-0.3,w1:w+0.3});
-  if(Math.random()<.65){ for(let z=w+(tb==='hurdle'?-3:2),i=0;z<w+G-4&&i<6;z+=2.2,i++){ coins.push({w:z,l:open,h:tb==='hurdle'?0.9+Math.max(0,1.6-Math.abs(z-w)*0.45):0.9}); } } }
-function mkTrain(l,w,k,G){ obs.push({k:'train',l,w:w-1.5,w1:w+(k-1)*G+1.5,c:Math.floor(Math.random()*TC.length)}); }
+  if(rng()<.65){ for(let z=w+(tb==='hurdle'?-3:2),i=0;z<w+G-4&&i<6;z+=2.2,i++){ coins.push({w:z,l:open,h:tb==='hurdle'?0.9+Math.max(0,1.6-Math.abs(z-w)*0.45):0.9}); } } }
+function mkTrain(l,w,k,G){ obs.push({k:'train',l,w:w-1.5,w1:w+(k-1)*G+1.5,c:Math.floor(rng()*TC.length)}); }
+function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function drawBtns(c){ if(!BT) layoutBtns(); for(const b of ['L','R']){ const B=BT[b], on=press[b]>0, bad=on&&press[b+'x'];
+    const col=bad?'#ff3b3b':'#3dffd8'; c.save(); c.globalAlpha=on?0.95:0.6; rr(c,B.x,B.y,B.w,B.h,26); c.fillStyle=on?(bad?'rgba(255,59,59,.35)':'rgba(61,255,216,.35)'):'rgba(18,6,38,.55)'; c.fill();
+    c.lineWidth=4; c.strokeStyle=col; c.shadowColor=col; c.shadowBlur=on?28:14; c.stroke(); c.shadowBlur=0;
+    const cx=B.x+B.w/2, cy=B.y+B.h/2-10, s=on?1.1:1, dx=b==='L'?-1:1; c.fillStyle='#fff'; c.shadowColor=col; c.shadowBlur=18;
+    c.beginPath(); c.moveTo(cx+dx*46*s,cy); c.lineTo(cx-dx*30*s,cy-46*s); c.lineTo(cx-dx*30*s,cy+46*s); c.closePath(); c.fill(); c.shadowBlur=0;
+    c.font='bold 22px sans-serif'; c.textAlign='center'; c.fillStyle=col; c.fillText(b==='L'?'TRACK LEFT':'TRACK RIGHT',cx,B.y+B.h-16); c.restore(); } }
 /* ---------- drawing ---------- */
 function drawWorld(c,d,live){
   const sk=c.createLinearGradient(0,0,0,HY); sk.addColorStop(0,'#07031a'); sk.addColorStop(.7,'#3a0f5c'); sk.addColorStop(1,'#ff3b8a'); c.fillStyle=sk; c.fillRect(0,0,W,HY+2);
@@ -556,6 +637,8 @@ function drawWorld(c,d,live){
   const gg=c.createLinearGradient(0,HY,0,H); gg.addColorStop(0,'#2a0a40'); gg.addColorStop(1,'#0c0418'); c.fillStyle=gg; c.fillRect(0,HY,W,H-HY);
   c.strokeStyle='rgba(255,59,212,.35)'; c.lineWidth=1.5; for(let i=0;i<16;i++){ const z=i*5-(d%5); if(z<ZN) continue; const a=pt(-40,z,0),b=pt(40,z,0); c.globalAlpha=fog(z)*0.8; c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); }
   c.globalAlpha=1; for(let x=-30;x<=30;x+=5){ if(Math.abs(x)<6) continue; const a=pt(x,ZN,0),b=pt(x,ZF,0); c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); }
+  // outer yard tracks (the wide landscape view shows the freight lines beside the walls)
+  for(const sd of [-1,1]) for(const ox of [7.4,10.6]){ const x=sd*ox; c.strokeStyle='rgba(159,232,255,.35)'; c.lineWidth=1.5; for(const o of [-0.72,0.72]){ const a=pt(x+o,ZN,0),b=pt(x+o,ZF,0); c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); } }
   // trackbed
   poly(c,[pt(-4.1,ZN,0),pt(4.1,ZN,0),pt(4.1,ZF,0),pt(-4.1,ZF,0)],'#1b1226');
   for(let i=0;i<50;i++){ const z=i*1.6-(d%1.6); if(z<ZN||z>ZF) continue; c.globalAlpha=fog(z); for(let l=0;l<3;l++){ const x=lx(l); poly(c,[pt(x-1,z,0),pt(x+1,z,0),pt(x+1,z+0.35,0),pt(x-1,z+0.35,0)],'#3a2a3a'); } }
@@ -660,7 +743,7 @@ function drawDrone(c){ const bx=W/2+Math.sin(boss.t*0.8)*150-camX*20, by=boss.y;
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -747,8 +830,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -773,6 +874,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -790,6 +914,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -896,7 +1024,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -920,6 +1048,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -969,8 +1099,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1341,7 +1471,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1515,6 +1645,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1525,10 +1656,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1545,7 +1689,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1581,7 +1725,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1620,6 +1764,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
