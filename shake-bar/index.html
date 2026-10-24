@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SK-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-SK-1.2 · 2026-10-25">
 <title>Shake Bar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,47 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
 
 </style>
 </head>
 <body>
-<!-- BUILD-SK-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SK-1.2 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,72 +467,125 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* SHAKE BAR — Tapper remix (#53). 100 stages. Slide milkshakes down four counters before the thirsty crowd reaches you. */
+/* SHAKE BAR — Tapper remix (#53). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1): four long counters run left to right,
+   the thirsty crowd walks in from the doors on the left, you (the waiter) work the right-hand end.
+   BUILD 1.2 fix ("dies for no reason"): moving NEVER serves any more (old version served a shake on every tap, so tapping
+   to go catch a glass fired a shake down an empty counter -> it smashed -> life lost). Only the SERVE button / SPACE serves.
+   Every life lost now freezes on the cause (red ring + big label on the spot) and the reason stays on screen after respawn.
+   Beginner stages 1-10: a wasted shake or dropped glass is only a warning (no life lost). Race: whole crowd is rolled at stage start. */
 (function(){
-const W=600,H=900,BARS=[260,410,560,710],X0=40,X1=520;
-let api,t,bar,cust,shakes,empties,done,lost,eff,grace,queue,spawnT,served,goal,tapCD;
+const W=1280,H=720,BARS=[185,290,395,500],X0=150,X1=1030,PX=X1+50;
+let lastBars=-9,lostT=0,clearT=0,api,t,bar,cust,shakes,empties,done,lost,eff,grace,queue,spawnT,served,goal,tapCD,sched,si,moveT,moveDir,why,wasted;
+const soft=()=>api.diff===0&&api.level<=10;            // Beginner 1-10 (+ tutorial): wasted shake / dropped glass = warning only
+const LOOKS=['#ff3b3b','#3bff7a','#2e7bff','#ffd23f','#b14bff'];
 const GAME=window.GAME={
   id:'shake-bar',title:'Shake Bar',titleHTML:'SHAKE<br>BAR',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-SK-1.1 · 2026-10-17',theme:{a:'#ff7ab8',b:'#ffd23f',bg:'#1a0812'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🥤',joystick:false,coinPts:40,
+  build:'BUILD-SK-1.2 · 2026-10-25',theme:{a:'#ff7ab8',b:'#ffd23f',bg:'#1a0812'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🥤',joystick:true,coinPts:40,
   abilities:[
-    {id:'serve',icon:'🥤',name:'SERVE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — slide a shake down your counter. Or just tap a counter: you jump there and serve.'},
+    {id:'serve',icon:'🥤',name:'SERVE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — slide ONE shake down the counter you are standing at. Holding it does not keep serving.'},
     {id:'slow',icon:'🐌',name:'SLOW CROWD',cd:18,key:'Digit1',keyLabel:'1',desc:'Customers walk at half speed for 6 seconds.'},
     {id:'catch',icon:'🧲',name:'GLASS MAGNET',cd:15,key:'Digit2',keyLabel:'2',desc:'Empty glasses on every counter are caught for you for 6 seconds.'},
     {id:'tip',icon:'💸',name:'HAPPY HOUR',cd:20,key:'Digit3',keyLabel:'3',desc:'Every customer at the front of a counter is served instantly.'}],
   shop:[{id:'b_p',cat:'Waiter',name:'Pink Apron',cost:0,colors:['#ff7ab8'],desc:'Classic.'},{id:'b_b',cat:'Waiter',name:'Blue Apron',cost:150,colors:['#2e7bff'],desc:'Cool.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff7ab8,#ffd23f)'}],
   story:`<h3>SHAKE BAR</h3><p>It's the hottest day of the year and the whole town wants a milkshake. Four counters, one waiter — you.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap a counter</b> to jump to it and slide a shake (PC: ↑ ↓ to switch, SPACE to serve).</li><li>A shake pushes the customer back. Serve them all before they reach your end!</li><li>Catch the empty glasses sliding back — just be at that counter when they arrive.</li><li>A shake with nobody to catch it smashes at the door. A dropped glass smashes too. Each smash costs a life.</li></ul>`,
-  tutorial:[{text:'Tap the counter with the customer to slide a shake!',ev:'serve'},{text:'Catch the empty glass coming back!',ev:'catch'},{text:'Serve everyone!',time:5}],
-  stageIntro:{1:'SERVE THE WHOLE CROWD'},bossName:'RUSH HOUR!',ending:{"0":["#CHEERS","Best bar in town."],"1":["#LEGEND","Shake master."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={slow:6,catch:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get bar(){return bar;}, get cust(){return cust;}, get lost(){return lost;}, serve:()=>serve()}; },
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> push the stick up/down to move between the 4 counters — or tap a counter on the right side of the screen. PC: ↑ ↓ or W S.</li><li><b>Right thumb:</b> tap <b>🥤 SERVE</b> to slide one shake down your counter (PC: SPACE). Moving never serves.</li><li>A shake pushes the customer back. Serve them all before one reaches your end — <b>that costs a life</b>.</li><li>Empty glasses slide back to you — stand at that counter to catch them (a flashing <b>GLASS!</b> sign shows which one).</li><li>Serving a counter with nobody on it smashes the shake at the door, and a missed glass smashes too. On Beginner stages 1-10 that's only a warning; after that it costs a life.</li><li>Every 10th stage: RUSH HOUR — a bigger, faster crowd.</li></ul>`,
+  tutorial:[{text:'↑ ↓ to pick the counter with the customer, then SPACE to slide a shake!',touch:'Left thumb: stick up/down to pick the counter with the customer. Then tap <b>🥤 SERVE</b>!',ev:'serve'},
+    {text:'Catch the empty glass — stay at that counter until it reaches you.',touch:'Catch the empty glass — stay at that counter until it reaches you.',ev:'catch'},{text:'Serve everyone!',time:5}],
+  stageIntro:{1:'PICK A COUNTER · TAP 🥤 SERVE'},bossName:'RUSH HOUR!',ending:{"0":["#CHEERS","Best bar in town."],"1":["#LEGEND","Shake master."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ const tot={slow:6,catch:6}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return {get bar(){return bar;}, get cust(){return cust;}, get shakes(){return shakes;}, get empties(){return empties;}, get lost(){return lost;}, get done(){return done;},
+    get why(){return why;}, get queue(){return queue;}, get served(){return served;}, get wasted(){return wasted;}, BARS, X0, X1, PX, serve:()=>serve(),
+    sig:()=>sched.map(s=>s.bar+''+s.look+':'+s.gap.toFixed(2)).join(',')}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1; tapCD=0; eff={slow:-9,catch:-9}; bar=1; cust=[]; shakes=[]; empties=[]; served=0; spawnT=0.5;
-    goal=a.content===0?3:Math.round(a.dv([10,16,22],28,40))*(a.boss?1.4:1)|0; queue=goal; },
-  respawn(){ lost=false; grace=1.5; shakes=[]; empties=[]; cust.forEach(c=>c.x=Math.min(c.x,X0+60)); },
+  startStage(n,a){ api=a; t=0; lastBars=-9; lostT=0; clearT=0; done=false; lost=false; grace=1; tapCD=0; moveT=0; moveDir=0; why=null; wasted=0; eff={slow:-9,catch:-9}; bar=1; cust=[]; shakes=[]; empties=[]; served=0; spawnT=0.8;
+    goal=a.content===0?3:Math.round(a.dv([10,16,22],28,40)*(a.boss?1.4:1)); queue=goal;
+    // the whole crowd is rolled NOW with Math.random (race = same seed -> same crowd on every phone; nothing random during play)
+    sched=[]; si=0; const L=a.level;
+    for(let i=0;i<goal;i++){ const nb=a.content===0?1:(a.diff===0&&L<3)?1+Math.floor(Math.random()*2):(a.diff===0&&L<=6)?Math.floor(Math.random()*3):Math.floor(Math.random()*4);
+      const gap=a.dv([3.0,2.0,1.35],1.05,0.7)*(a.content===0?1.5:1)*(soft()?1.2:1)*(0.85+Math.random()*0.3);
+      sched.push({bar:nb,look:Math.floor(Math.random()*5),gap}); } },
+  respawn(){ if(!lost) why={msg:api.diff===2?'THE EXPERT CLOCK RAN OUT!':'TIME RAN OUT!',tip:'Clear the stage before the clock hits 0',x:W/2,y:H/2,t:3.5}; lost=false; lostT=0; grace=2; shakes=[]; empties=[]; cust.forEach(c=>{ if(!c.out) c.x=Math.min(c.x,X0+60); }); if(why) why.t=Math.max(why.t,2.5); },
   stageBonus(){ return served*20; },
   useAbility(id){ if(done||lost) return false; if(id==='serve') return serve();
-    if(id==='tip'){ BARS.forEach((_,b)=>{ const f=cust.filter(c=>c.bar===b&&!c.out).sort((A,B)=>B.x-A.x)[0]; if(f){ f.out=true; f.vx=-300; served++; api.addScore(100,f.x,BARS[b]-60); } }); api.sfx.coin(); return true; }
+    if(id==='tip'){ BARS.forEach((_,b)=>{ const f=cust.filter(c=>c.bar===b&&!c.out).sort((A,B)=>B.x-A.x)[0]; if(f){ f.out=true; f.vx=-420; served++; api.addScore(100,f.x,BARS[b]-60); } }); api.sfx.coin(); return true; }
     eff[id]={slow:6,catch:6}[id]; api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(type!=='down'||done||lost) return; let b=0,best=1e9; BARS.forEach((by,i)=>{ const d=Math.abs(y-(by-40)); if(d<best){ best=d; b=i; } }); bar=b; serve(); },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; tapCD-=dt; if(lost) return;
-    const K=api.input.keys; if((K.ArrowUp||K.KeyW)&&!this._u) bar=Math.max(0,bar-1); if((K.ArrowDown||K.KeyS)&&!this._d) bar=Math.min(3,bar+1); this._u=K.ArrowUp||K.KeyW; this._d=K.ArrowDown||K.KeyS; if(K.Space&&!this._s) serve(); this._s=K.Space;
-    spawnT-=dt; if(spawnT<=0&&queue>0){ spawnT=api.dv([2.6,1.8,1.2],0.95,0.6)*(api.content===0?1.5:1); queue--; const nb=api.content===0?1:api.level<3?Math.floor(Math.random()*2)+1:Math.floor(Math.random()*4); cust.push({bar:nb,x:X0-30,vx:0,out:false,step:0,pause:0,look:Math.floor(Math.random()*5)}); }
-    const cs=api.dv([22,30,38],44,58)*(eff.slow>0?0.5:1)*(api.boss?1.2:1);
-    cust.forEach(c=>{ if(c.out){ c.x+=c.vx*dt; if(c.x<X0-40){ c.gone=true; } return; }
+  onPointer(type,x,y,id,pt){ if(type!=='down'||done||lost) return;
+    if((pt==='touch'||pt==='pen')&&x<W*0.45) return;            // left side = the joystick thumb, not a counter tap
+    if(y<90||y>BARS[3]+60) return;                              // HUD strip / below the counters: ignore
+    let b=0,best=1e9; BARS.forEach((by,i)=>{ const d=Math.abs(y-(by-40)); if(d<best){ best=d; b=i; } }); bar=b; },   // a tap only MOVES you — it never serves
+  update(dt){ t+=dt; if(why&&why.t>0) why.t-=dt; if(t-lastBars>0.4){ lastBars=t; placeBars(); } if(done){ if(clearT>0&&(clearT-=dt)<=0) api.stageClear(); return; } for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; tapCD-=dt; if(lost){ if(lostT>0&&(lostT-=dt)<=0) api.loseLife(); return; }
+    // move: stick / arrows / WS, one counter per push, repeats while held
+    const dy=api.input.dir().y, d=dy>0.5?1:dy<-0.5?-1:0; moveT-=dt;
+    if(d&&(d!==moveDir||moveT<=0)){ bar=Math.max(0,Math.min(3,bar+d)); moveT=d!==moveDir?0.32:0.2; } moveDir=d;
+    spawnT-=dt; if(spawnT<=0&&si<sched.length){ const s=sched[si++]; spawnT=s.gap; queue--; cust.push({bar:s.bar,x:X0-30,vx:0,out:false,step:0,pause:0,look:s.look}); }
+    const cs=api.dv([30,46,58],68,86)*(eff.slow>0?0.5:1)*(api.boss?1.15:1)*(soft()?0.85:1);
+    for(const c of cust){ if(c.out){ c.x+=c.vx*dt; if(c.x<X0-60) c.gone=true; continue; }
       c.pause-=dt; if(c.pause<=0){ c.step+=dt; c.x+=cs*dt*(Math.sin(c.step*6)>-0.3?1.6:0); }
-      if(c.x>=X1-30&&grace<=0){ c.x=X1-30; smash('A CUSTOMER GOT TOO ANGRY!'); } });
-    shakes.forEach(s=>{ s.x-=api.dv([420,470,520],560,620)*dt; const c=cust.filter(c=>c.bar===s.bar&&!c.out&&c.x>s.x-10).sort((A,B)=>B.x-A.x)[0];
+      if(c.x>=X1-30){ c.x=X1-30; if(grace<=0){ smash('A CUSTOMER REACHED YOUR END!','Serve them before they get to you',X1-30,BARS[c.bar]-50); return; } } }
+    const sv=api.dv([650,720,800],860,940);
+    for(const s of shakes){ s.x-=sv*dt; const c=cust.filter(c=>c.bar===s.bar&&!c.out&&c.x>s.x-10).sort((A,B)=>B.x-A.x)[0];
       if(c&&s.x<=c.x+20){ s.gone=true; served++; api.addScore(50*(1+api.dk*.5),c.x,BARS[s.bar]-70,true); api.sfx.pickup(); api.event('serve');
-        c.pause=api.dv([1.6,1.3,1],0.8,0.6); c.x-=api.dv([140,120,100],90,80); if(c.x<X0){ c.out=true; c.vx=-200; } else c.gone=false; empties.push({bar:s.bar,x:c.x+20,delay:c.pause}); }
-      if(!s.gone&&s.x<X0-10){ s.gone=true; smash('A SHAKE SMASHED AT THE DOOR!'); } });
-    empties.forEach(e=>{ e.delay-=dt; if(e.delay>0) return; e.x+=api.dv([150,180,210],230,260)*dt;
-      if(e.x>=X1-10){ if(bar===e.bar||eff.catch>0){ e.gone=true; api.addScore(100,X1,BARS[e.bar]-60,true); api.sfx.coin(); api.event('catch'); } else { e.gone=true; smash('YOU DROPPED A GLASS!'); } } });
+        c.pause=api.dv([1.8,1.4,1.1],0.9,0.7); c.x-=api.dv([240,210,180],160,140); if(c.x<X0){ c.out=true; c.vx=-300; } empties.push({bar:s.bar,x:Math.max(X0,c.x)+20,delay:c.pause}); continue; }
+      if(s.x<X0-10){ s.gone=true;
+        if(soft()){ wasted++; api.toast('NOBODY ON THAT COUNTER — SHAKE WASTED'); api.fx.text(X0+70,BARS[s.bar]-60,'WASTED','#ff9f1c',22); api.fx.burst(X0,BARS[s.bar]-30,'#ff7ab8',10,160,.4,3); api.sfx.bump&&api.sfx.bump(); }
+        else { smash('A SHAKE SMASHED AT THE DOOR!','Nobody was on that counter',X0,BARS[s.bar]-32); return; } } }
+    const ev=api.dv([220,260,300],330,370);
+    for(const e of empties){ e.delay-=dt; if(e.delay>0) continue; e.x+=ev*dt;
+      if(e.x>=X1-10){ e.gone=true; if(bar===e.bar||eff.catch>0){ api.addScore(100,X1,BARS[e.bar]-60,true); api.sfx.coin(); api.event('catch'); }
+        else if(soft()){ api.toast('GLASS DROPPED — stand at that counter to catch it'); api.fx.text(X1-40,BARS[e.bar]-70,'DROPPED','#ff9f1c',22); api.fx.burst(X1,BARS[e.bar]-30,'#bfefff',12,180,.4,3); }
+        else { smash('YOU MISSED AN EMPTY GLASS!','Stand at that counter to catch it',X1,BARS[e.bar]-32); return; } } }
     cust=cust.filter(c=>!c.gone); shakes=shakes.filter(s=>!s.gone); empties=empties.filter(e=>!e.gone);
     api.counter('🥤 TO SERVE',queue+cust.filter(c=>!c.out).length);
-    if(queue<=0&&!cust.some(c=>!c.out)&&!empties.length&&!done){ done=true; api.toast('EVERYONE SERVED!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); } },
-  render(c){ c.fillStyle='#1a0812'; c.fillRect(0,0,W,H); c.fillStyle='#2a1020'; for(let x=0;x<W;x+=60) c.fillRect(x,0,30,H);
-    c.fillStyle='#ff7ab8'; c.shadowColor='#ff7ab8'; c.shadowBlur=20; c.font='bold 40px sans-serif'; c.textAlign='center'; c.fillText('SHAKE BAR',W/2,150); c.shadowBlur=0;
-    BARS.forEach((y,b)=>{ c.fillStyle='#000'; c.fillRect(X0-30,y-130,30,130); c.fillStyle='#ffd23f'; c.fillRect(X0-30,y-130,30,6);
-      c.fillStyle='#6a3a1a'; c.fillRect(X0,y-20,X1-X0,22); c.fillStyle='#8a5a2a'; c.fillRect(X0,y-20,X1-X0,6); c.fillStyle='#3a1a0a'; c.fillRect(X0,y+2,X1-X0,30);
-      c.fillStyle='#c0c0d0'; c.fillRect(X1+6,y-70,26,60); c.fillStyle='#ff7ab8'; c.fillRect(X1+10,y-60,18,10); });
-    cust.forEach(cu=>{ const y=BARS[cu.bar]-24, x=cu.x, col=['#ff3b3b','#3bff7a','#2e7bff','#ffd23f','#b14bff'][cu.look]; const bob=cu.out?0:Math.abs(Math.sin(cu.step*6))*4;
-      c.fillStyle=col; c.fillRect(x-12,y-50-bob,24,34); c.fillStyle='#f0c090'; c.beginPath(); c.arc(x,y-62-bob,11,0,7); c.fill(); c.fillStyle='#000'; c.fillRect(x+2,y-66-bob,3,3); if(!cu.out&&cu.x>X1-140){ c.fillStyle='#ff3b3b'; c.font='bold 20px sans-serif'; c.fillText('!',x+16,y-76); } });
-    shakes.forEach(s=>{ const y=BARS[s.bar]-30; c.fillStyle='#fff'; c.fillRect(s.x-8,y-20,16,22); c.fillStyle='#ff7ab8'; c.fillRect(s.x-8,y-20,16,10); c.fillStyle='#ffd23f'; c.fillRect(s.x+2,y-30,3,12); });
-    empties.forEach(e=>{ if(e.delay>0) return; const y=BARS[e.bar]-30; c.strokeStyle='#bfefff'; c.lineWidth=2; c.strokeRect(e.x-7,y-18,14,20); });
-    const py=BARS[bar]-24, px=X1+50, col=api.cos('Waiter').colors[0]; if(!lost){ c.fillStyle='#fff'; c.fillRect(px-12,py-52,24,36); c.fillStyle=col; c.fillRect(px-12,py-38,24,22); c.fillStyle='#f0c090'; c.beginPath(); c.arc(px,py-64,11,0,7); c.fill(); c.fillStyle='#333'; c.fillRect(px-11,py-16,8,18); c.fillRect(px+3,py-16,8,18); c.fillStyle='rgba(255,255,255,.08)'; c.fillRect(0,BARS[bar]-130,W,150); }
-    if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#1a0812'; c.fillRect(0,0,W,H); c.fillStyle='#ff7ab8'; c.fillRect(200+((tt*150)%200),440,16,22); }
+    if(queue<=0&&!cust.some(c=>!c.out)&&!empties.length&&!done){ done=true; api.toast('EVERYONE SERVED!'); api.sfx.clear(); api.fx.flash('#fff',.3); clearT=0.9; } },
+  render(c){ const rush=api&&api.boss;
+    c.fillStyle='#1a0812'; c.fillRect(0,0,W,H); c.fillStyle='#2a1020'; for(let x=0;x<W;x+=64) c.fillRect(x,0,32,H);
+    if(rush){ c.fillStyle=`rgba(255,59,92,${0.08+0.06*Math.sin(t*6)})`; c.fillRect(0,0,W,H); }
+    // floor + neon sign (bottom centre, between the thumbs) — hidden while the "why" banner uses that spot
+    c.fillStyle='#12050c'; c.fillRect(0,560,W,H-560);
+    if(!(why&&why.t>0&&!lost)){ c.save(); c.textAlign='center'; c.font='bold 46px sans-serif'; c.shadowColor='#ff7ab8'; c.shadowBlur=24; c.fillStyle='#ff7ab8'; c.fillText(rush?'RUSH HOUR!':'SHAKE BAR',W/2,665); c.restore(); }
+    // the counter you stand at
+    if(!lost&&cust){ c.fillStyle='rgba(255,255,255,.07)'; c.fillRect(X0,BARS[bar]-95,X1-X0+130,125); }
+    BARS.forEach(y=>{ c.fillStyle='#000'; c.fillRect(X0-30,y-100,30,100); c.fillStyle='#ffd23f'; c.fillRect(X0-30,y-100,30,5); });
+    // drawn row by row (back to front): each counter's customers stand BEHIND it (the counter covers their waist)
+    BARS.forEach((y,b)=>{
+      cust.forEach(cu=>{ if(cu.bar!==b) return; const x=cu.x, col=LOOKS[cu.look], bob=cu.out?0:Math.abs(Math.sin(cu.step*6))*4, angry=!cu.out&&cu.x>X1-260;
+        c.fillStyle=col; c.fillRect(x-13,y-60-bob,26,54); c.fillStyle=angry?'#ff8a70':'#f0c090'; c.beginPath(); c.arc(x,y-71-bob,12,0,7); c.fill(); c.fillStyle='#000'; c.fillRect(x+3,y-75-bob,3,3);
+        if(angry){ c.save(); c.fillStyle='#ff3b3b'; c.shadowColor='#ff3b3b'; c.shadowBlur=10; c.font='bold 24px sans-serif'; c.textAlign='center'; c.fillText('!',x+22,y-80); c.restore(); } });
+      c.fillStyle='#6a3a1a'; c.fillRect(X0,y-20,X1-X0,22); c.fillStyle='#8a5a2a'; c.fillRect(X0,y-20,X1-X0,6); c.fillStyle='#3a1a0a'; c.fillRect(X0,y+2,X1-X0,26);
+      const front=cust.filter(q=>q.bar===b&&!q.out).reduce((m,q)=>Math.max(m,q.x),-1);
+      if(front>X1-260){ c.fillStyle=`rgba(255,59,59,${0.3+0.25*Math.sin(t*12)})`; c.fillRect(X1-220,y-20,220,6); }
+      c.fillStyle='#c0c0d0'; c.fillRect(X1+6,y-70,22,60); c.fillStyle='#ff7ab8'; c.fillRect(X1+10,y-60,14,10); });
+    shakes.forEach(s=>{ const y=BARS[s.bar]-20; c.save(); c.shadowColor='#ff7ab8'; c.shadowBlur=10; c.fillStyle='#fff'; c.fillRect(s.x-9,y-24,18,24); c.fillStyle='#ff7ab8'; c.fillRect(s.x-9,y-24,18,11); c.fillStyle='#ffd23f'; c.fillRect(s.x+2,y-34,3,12); c.restore(); });
+    empties.forEach(e=>{ if(e.delay>0) return; const y=BARS[e.bar]-20; c.save(); c.shadowColor='#bfefff'; c.shadowBlur=14; c.fillStyle='rgba(191,239,255,.35)'; c.fillRect(e.x-9,y-24,18,24); c.strokeStyle='#e8fbff'; c.lineWidth=3; c.strokeRect(e.x-9,y-24,18,24); c.restore(); });
+    // warning at YOUR end for every glass coming down a counter you are not on
+    if(!lost&&!(eff&&eff.catch>0)){ const warn=new Set(empties.filter(e=>e.bar!==bar).map(e=>e.bar)); warn.forEach(b=>{ const y=BARS[b];
+      c.save(); c.globalAlpha=0.6+0.4*Math.sin(t*12); c.textAlign='center'; c.font='bold 22px sans-serif'; c.fillStyle='#ffd23f'; c.shadowColor='#ffd23f'; c.shadowBlur=14; c.fillText('GLASS!',PX,y-58); c.fillText('➜',PX,y-30);
+      c.strokeStyle='#ffd23f'; c.lineWidth=3; c.strokeRect(X1-4,y-62,PX-X1+40,66); c.restore(); }); }
+    // nobody on your counter -> a shake would be wasted
+    if(!lost&&cust&&!cust.some(q=>q.bar===bar&&!q.out)){ c.save(); c.textAlign='center'; c.font='bold 16px sans-serif'; c.fillStyle='rgba(255,255,255,.5)'; c.fillText('NOBODY ON THIS COUNTER',(X0+X1)/2,BARS[bar]+21); c.restore(); }
+    const py=BARS[bar]+16, col=api?api.cos('Waiter').colors[0]:'#ff7ab8';
+    if(!lost){ c.save(); c.shadowColor=col; c.shadowBlur=14; c.fillStyle='#fff'; c.fillRect(PX-13,py-56,26,38); c.fillStyle=col; c.fillRect(PX-13,py-40,26,22); c.restore(); c.fillStyle='#f0c090'; c.beginPath(); c.arc(PX,py-68,12,0,7); c.fill(); c.fillStyle='#333'; c.fillRect(PX-11,py-18,9,18); c.fillRect(PX+2,py-18,9,18); }
+    if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); }
+    // WHY you lost the life: ring on the spot + label (stays a while after the respawn too)
+    if(why&&why.t>0){ c.save(); c.globalAlpha=Math.min(1,why.t); c.textAlign='center';
+      if(lost){ const r=40+8*Math.sin(t*10); c.strokeStyle='#ff3b3b'; c.lineWidth=5; c.shadowColor='#ff3b3b'; c.shadowBlur=18; c.beginPath(); c.arc(why.x,why.y,r,0,7); c.stroke(); }
+      const bx=lost?590:W/2, by=lost?380:650; c.shadowBlur=0; c.fillStyle='rgba(20,0,8,.88)'; c.fillRect(bx-350,by-40,700,74); c.strokeStyle='#ff3b3b'; c.lineWidth=3; c.strokeRect(bx-350,by-40,700,74);
+      c.shadowColor='#ff3b3b'; c.shadowBlur=10; c.fillStyle='#ff5b6b'; c.font='bold 26px sans-serif'; c.fillText((lost?'💥 ':'LIFE LOST: ')+why.msg,bx,by-6); c.shadowBlur=0; c.fillStyle='#fff'; c.font='bold 19px sans-serif'; c.fillText(why.tip,bx,by+22); c.restore(); } },
+  attract(c,tt){ c.fillStyle='#1a0812'; c.fillRect(0,0,W,H); c.fillStyle='#6a3a1a'; c.fillRect(150,380,880,22); c.fillStyle='#ff7ab8'; c.fillRect(1000-((tt*400)%850),340,16,22); c.fillStyle='#3bff7a'; c.fillRect(200+((tt*40)%300),330,24,32); }
 };
+/* RACE: the shell parks its progress bars under the HUD (over counter 1). Move them to the empty floor strip, bottom centre. */
+function placeBars(){ const el=document.getElementById('mpBars'); if(!el||el.style.display==='none'||!el.innerHTML) return;
+  const cv=document.getElementById('game'); if(!cv) return; const b=cv.getBoundingClientRect(), k=b.width/W; const S=(p,v)=>el.style.setProperty(p,v,'important');
+  S('left',(b.left+W/2*k)+'px'); S('top',(b.top+566*k)+'px'); S('bottom','auto'); S('transform','translateX(-50%) scale(.8)'); }
 function serve(){ if(done||lost||tapCD>0) return false; tapCD=0.18; shakes.push({bar,x:X1-20}); api.sfx.blip(); return true; }
-function smash(msg){ if(lost||done) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(8); api.fx.burst(W/2,BARS[bar]-40,'#bfefff',20,200,.5,3); setTimeout(()=>api.loseLife(),1000); }
+function smash(msg,tip,x,y){ if(lost||done) return; lost=true; why={msg,tip,x,y,t:4.5}; api.toast(msg); api.sfx.hurt(); api.fx.shake(8); api.fx.burst(x,y,'#bfefff',20,200,.5,3); lostT=1.3; }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -583,8 +672,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -609,6 +716,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -626,6 +756,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -732,7 +866,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -756,6 +890,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -805,8 +941,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1177,7 +1313,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1351,6 +1487,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1361,10 +1498,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1381,7 +1531,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1417,7 +1567,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1456,6 +1606,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
