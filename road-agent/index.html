@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RA-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-RA-1.2 · 2026-10-24">
 <title>Road Agent</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,44 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
 
 </style>
 </head>
 <body>
-<!-- BUILD-RA-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-RA-1.2 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,80 +464,108 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* ROAD AGENT — Spy Hunter remix (#55). 100 stages. Drive the spy car, shoot the enemy cars, never hit the innocent ones. */
+/* ROAD AGENT — spy-car highway remix (#55). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1): the highway runs left to right,
+   you see far down the road. You hold FIRE to shoot (no auto-fire): take out enemy cars, never hit the innocent blue ones. */
 (function(){
-const W=600,H=900;
-let api,t,car,cars,shots,oil,ebul,scroll,dist,goal,done,lost,eff,grace,fireT,spawnT,road,mouse,heli,civHits;
-function roadAt(y){ const k=(y-scroll)*0.004; const w=api.dv([380,340,300],270,240)+Math.sin(k*0.7)*60; const cx=W/2+Math.sin(k)*60; return {l:cx-w/2,r:cx+w/2}; }
+const W=1280,H=720,CX0=360,CY=392;
+let api,t,car,cars,shots,oil,ebul,scroll,dist,goal,done,lost,eff,grace,fireT,spawnT,aimT,mouse,heli,civHits,edgeT,vol;
+const easy=()=>api.diff===0&&api.level<=5;              // Beginner stages 1-5 (+ tutorial): extra gentle
+function halfW(){ return api.dv([440,350,310],280,250)/2; }
+function roadAt(x){ const k=(x+scroll)*0.0022, h=halfW(), A=Math.min(api.dv([70,105,120],125,130),(326-h)/1.45);
+  const c=CY+Math.sin(k)*A+Math.sin(k*0.43+1.3)*A*0.45; return {t:c-h,b:c+h,c}; }
 const GAME=window.GAME={
   id:'road-agent',title:'Road Agent',titleHTML:'ROAD<br>AGENT',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-RA-1.1 · 2026-10-17',theme:{a:'#e8e8f0',b:'#ff3b3b',bg:'#0c140c'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🚘',joystick:false,coinPts:40,
+  build:'BUILD-RA-1.2 · 2026-10-24',theme:{a:'#e8e8f0',b:'#ff3b3b',bg:'#0c140c'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🚘',joystick:true,coinPts:40,
   abilities:[
-    {id:'oil',icon:'🛢️',name:'OIL SLICK',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — drop an oil slick behind you. Cars chasing you spin off the road. Needs 2 seconds to recharge.'},
-    {id:'missile',icon:'🚀',name:'MISSILES',cd:15,key:'Digit1',keyLabel:'1',desc:'Homing missiles for 8 seconds — great against the helicopter.'},
+    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — HOLD to fire your machine-guns. Let go to stop, so you never hit the blue cars.'},
+    {id:'oil',icon:'🛢️',name:'OIL SLICK',cd:0,key:'KeyX',keyLabel:'X',desc:'FREE — drop an oil slick behind you. Cars chasing you spin off the road. Needs 2 seconds to recharge.'},
+    {id:'missile',icon:'🚀',name:'MISSILES',cd:15,key:'Digit1',keyLabel:'1',desc:'For 8 seconds your FIRE also launches homing missiles — great against the helicopter.'},
     {id:'armor',icon:'🛡️',name:'ARMOUR',cd:20,key:'Digit2',keyLabel:'2',desc:'Bump enemy cars off the road safely for 6 seconds.'},
     {id:'turbo',icon:'⚡',name:'TURBO',cd:15,key:'Digit3',keyLabel:'3',desc:'Race ahead for 5 seconds.'}],
   shop:[{id:'c_w',cat:'Car',name:'White Spy Car',cost:0,colors:['#e8e8f0'],desc:'Classic.'},{id:'c_k',cat:'Car',name:'Black Spy Car',cost:200,colors:['#3a3a4a'],desc:'Stealth.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#e8e8f0,#ff3b3b)'}],
   story:`<h3>ROAD AGENT</h3><p>You're the agency's best driver. Enemy agents are on the highway — take them out, keep the public safe, and outrun the chopper.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to steer (arrow keys on PC). Your machine-guns fire by themselves.</li><li>🔴 RED and ⚫ BLACK cars are enemies — shoot them or ram them off the road.</li><li>🔵 BLUE cars are innocent drivers — hitting or shooting one costs you points!</li><li>Drop a <b>🛢️ OIL SLICK</b> (SPACE) to spin out cars behind you.</li></ul>`,
-  tutorial:[{text:'Drag to steer. Shoot the RED enemy car — don\'t hit the BLUE ones!',ev:'kill'},{text:'Reach the end of the highway!',time:5}],
-  stageIntro:{1:'TAKE OUT THE ENEMY AGENTS'},bossName:'THE ATTACK CHOPPER!',ending:{"0":["#AGENT","Mission complete."],"1":["#TOP AGENT","The agency's finest."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ if(id==='oil'&&this._oilCD>0) return {left:this._oilCD,total:2}; const tot={missile:8,armor:6,turbo:5}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick steers — up/down to change lane, left/right to drive further ahead or drop back. PC: arrow keys or WASD.</li><li><b>Right thumb:</b> HOLD <b>🔫 FIRE</b> to shoot (PC: hold SPACE). Your guns only fire while you hold it.</li><li>🔴 RED and ⚫ BLACK cars are enemies — shoot them or dodge them.</li><li>🔵 BLUE cars are innocent drivers — let go of FIRE when one is in front of you! Hitting one costs points, crashing into one costs a life.</li><li>Drop a <b>🛢️ OIL SLICK</b> (X) to spin out cars chasing you from behind.</li><li>Every 10th stage: shoot down the attack chopper.</li></ul>`,
+  tutorial:[{text:'Steer with the arrow keys. <b>HOLD SPACE</b> to fire — shoot the RED car. Let go when a BLUE car is in front!',touch:'Left thumb steers. <b>HOLD 🔫 FIRE</b> to shoot the RED car. Let go when a BLUE car is in front!',ev:'kill'},
+    {text:'Press <b>X</b> to drop a 🛢️ OIL SLICK behind you — chasing cars spin out.',touch:'Tap <b>🛢️ OIL SLICK</b> to drop oil behind you — chasing cars spin out.',ev:'ab_oil'},{text:'Reach the end of the highway!',time:5}],
+  stageIntro:{1:'HOLD 🔫 FIRE TO SHOOT'},bossName:'THE ATTACK CHOPPER!',ending:{"0":["#AGENT","Mission complete."],"1":["#TOP AGENT","The agency's finest."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ if(id==='oil'&&this._oilCD>0) return {left:this._oilCD,total:2}; const tot={missile:8,armor:6,turbo:5}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
   _oilCD:0,
-  _dbg(){ return {get pl(){return car;}, get cars(){return cars;}, get lost(){return lost;}}; },
+  _dbg(){ return {get pl(){return car;}, get cars(){return cars;}, get lost(){return lost;}, get done(){return done;}, get dist(){return dist;}, get goal(){return goal;}, get heli(){return heli;}, get shots(){return shots;}, roadAt}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1.5; this._oilCD=0; civHits=0; eff={missile:-9,armor:-9,turbo:-9}; cars=[]; shots=[]; oil=[]; ebul=[]; scroll=0; dist=0; fireT=0; spawnT=1; mouse=null; heli=null;
-    goal=a.content===0?3000:Math.round(a.dv([7000,9000,11000],13000,16000)); car={x:W/2,y:H-170,vx:0}; },
-  respawn(){ lost=false; grace=2.5; const R=roadAt(H-170); car.x=(R.l+R.r)/2; cars=cars.filter(c=>c.y<H-400); ebul=[]; },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1.5; this._oilCD=0; civHits=0; eff={missile:-9,armor:-9,turbo:-9}; cars=[]; shots=[]; oil=[]; ebul=[]; scroll=0; dist=0; fireT=0; spawnT=1.2; mouse=null; heli=null; edgeT=0; vol=0;
+    aimT=easy()?3.5:2.5; goal=a.content===0?3000:Math.round(a.dv([7000,9000,11000],13000,16000)); car={x:CX0,y:roadAt(CX0).c}; },
+  respawn(){ lost=false; grace=2.5; if(!heli){ dist=Math.max(0,dist-1000); aimT=0.3; } car.x=CX0; car.y=roadAt(CX0).c; car.ty=undefined; cars=cars.filter(c=>c.x>car.x+420||c.x<car.x-300); ebul=[]; },
   stageBonus(){ return Math.max(0,500-civHits*150); },
-  useAbility(id){ if(done||lost) return false; if(id==='oil'){ if(this._oilCD>0) return false; this._oilCD=2; oil.push({x:car.x,y:car.y+50,l:4}); api.sfx.small(); return true; } eff[id]={missile:8,armor:6,turbo:5}[id]; api.sfx.power(); return true; },
-  onPointer(type,x){ if(type==='down') mouse={x,px:car.x}; else if(type==='move'&&mouse) car.tx=mouse.px+(x-mouse.x)*1.3; else if(type==='up'){ mouse=null; car.tx=undefined; } },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; if(this._oilCD>0) this._oilCD-=dt; if(lost) return;
-    const v=api.dv([380,430,480],520,580)*(eff.turbo>0?1.5:1); scroll+=v*dt; if(!heli||heli.dead) dist+=v*dt;
-    const K=api.input.keys; let st=(K.ArrowRight||K.KeyD?1:0)-(K.ArrowLeft||K.KeyA?1:0); if(car.tx!==undefined) car.x+=(car.tx-car.x)*Math.min(1,dt*10); else car.x+=st*320*dt; if(K.Space&&!this._s) this.useAbility('oil'); this._s=K.Space;
-    const R=roadAt(car.y); if(car.x<R.l+14||car.x>R.r-14){ if(grace<=0){ die('OFF THE ROAD!'); return; } car.x=Math.max(R.l+20,Math.min(R.r-20,car.x)); }
-    fireT-=dt; if(fireT<=0){ fireT=0.12; shots.push({x:car.x-8,y:car.y-30,vx:0},{x:car.x+8,y:car.y-30,vx:0}); if(eff.missile>0&&Math.floor(t*4)%3===0){ shots.push({x:car.x,y:car.y-30,m:true,vx:0}); } api.sfx.shoot(); }
-    shots.forEach(s=>{ if(s.m){ const tg=heli&&!heli.dead?heli:cars.filter(c=>c.k!=='civ'&&c.y<car.y).sort((a,b)=>b.y-a.y)[0]; if(tg) s.vx+=(tg.x-s.x)*dt*8; } s.x+=s.vx*dt; s.y-=900*dt; }); shots=shots.filter(s=>s.y>-20&&!s.hit);
-    spawnT-=dt; if(spawnT<=0&&dist<goal-500){ spawnT=api.dv([1.3,1,0.75],0.6,0.4); const r=Math.random(), Rt=roadAt(-60); const k=api.content===0?(r<0.5?'civ':'red'):(r<0.35?'civ':r<0.75?'red':r<0.9?'ram':'gun');
-      cars.push({k,x:Rt.l+40+Math.random()*(Rt.r-Rt.l-80),y:-60,v:k==='civ'?0.55:k==='ram'?0.75:0.65,hp:k==='gun'?3:k==='ram'?2:1,spin:0,cool:1}); }
-    const hard=api.dv([0.4,0.7,1],1.2,1.6);
-    cars.forEach(c=>{ const Rc=roadAt(c.y); c.y+=v*(1-c.v)*dt*(c.spin>0?2:1)+(c.k==='ram'&&c.y>car.y+40?-v*0.7*dt:0);
-      if(c.spin>0){ c.spin-=dt; c.x+=Math.sin(t*20)*200*dt; if(c.x<Rc.l||c.x>Rc.r){ c.dead=true; if(c.k!=='civ') { api.addScore(250,c.x,c.y); api.sfx.boom(); api.fx.burst(c.x,c.y,'#ff9f1c',16,200,.4,3); api.event('kill'); } } }
-      else { if(c.k==='ram'&&Math.abs(c.y-car.y)<160) c.x+=Math.sign(car.x-c.x)*120*hard*dt; else c.x+=Math.sin(t+c.y*0.01)*20*dt; c.x=Math.max(Rc.l+20,Math.min(Rc.r-20,c.x)); }
-      if(c.k==='gun'){ c.cool-=dt; if(c.cool<=0&&c.y<car.y){ c.cool=api.dv([1.8,1.3,0.9],0.7,0.5); ebul.push({x:c.x,y:c.y+30,vy:500}); } }
-      shots.forEach(s=>{ if(!s.hit&&Math.abs(s.x-c.x)<18&&Math.abs(s.y-c.y)<30){ s.hit=true; if(c.k==='civ'){ c.dead=true; civHits++; api.addScore(-200,c.x,c.y); api.toast('INNOCENT DRIVER! −200'); api.sfx.hurt(); } else if(--c.hp<=0){ c.dead=true; api.addScore(200*(1+api.dk*.5),c.x,c.y); api.fx.burst(c.x,c.y,'#ff3b3b',18,220,.45,3); api.sfx.boom(); api.event('kill'); } } });
-      oil.forEach(o=>{ if(c.spin<=0&&Math.hypot(c.x-o.x,c.y-o.y)<36) c.spin=1.5; });
-      if(!c.dead&&grace<=0&&Math.abs(c.x-car.x)<30&&Math.abs(c.y-car.y)<50){ if(eff.armor>0){ c.spin=1.5; c.x+=Math.sign(c.x-car.x)*30; api.sfx.bump(); } else if(c.k==='civ'){ c.dead=true; civHits++; api.addScore(-200,c.x,c.y); api.toast('INNOCENT DRIVER! −200'); die('CRASH!'); } else die('RAMMED!'); }
-      if(c.y>H+80) c.gone=true; });
+  useAbility(id){ if(done||lost) return false; if(id==='fire') return true;
+    if(id==='oil'){ if(this._oilCD>0) return false; this._oilCD=2; oil.push({x:car.x-66,y:car.y,l:4}); api.sfx.small(); return true; }
+    eff[id]={missile:8,armor:6,turbo:5}[id]; api.sfx.power(); return true; },
+  onPointer(type,x,y,id,pt){ if(pt==='touch'||pt==='pen') return;   // phones steer with the shell's joystick; a mouse drags
+    if(type==='down') mouse={y,py:car.y}; else if(type==='move'&&mouse) car.ty=mouse.py+(y-mouse.y)*1.3; else if(type==='up'){ mouse=null; car.ty=undefined; } },
+  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; edgeT-=dt; if(this._oilCD>0) this._oilCD-=dt; if(lost) return;
+    const v=api.dv([360,430,480],520,580)*(eff.turbo>0?1.5:1); scroll+=v*dt; if(!heli||heli.dead) dist+=v*dt;
+    const K=api.input.keys, d=api.input.dir();
+    if(car.ty!==undefined) car.y+=(car.ty-car.y)*Math.min(1,dt*10); else car.y+=d.y*340*dt;
+    car.x=Math.max(220,Math.min(620,car.x+d.x*230*dt));
+    const R=roadAt(car.x);
+    if(car.y<R.t+16||car.y>R.b-16){ if(easy()||grace>0){ car.y=Math.max(R.t+20,Math.min(R.b-20,car.y)); if(easy()&&edgeT<=0&&grace<=0){ edgeT=2; api.toast('STAY ON THE ROAD!'); api.sfx.bump(); } } else { die('OFF THE ROAD!'); return; } }
+    // guns: ONLY while FIRE (Space) is held
+    fireT-=dt; if(K.Space&&fireT<=0){ fireT=0.12; vol++; shots.push({x:car.x+52,y:car.y-9,vy:0},{x:car.x+52,y:car.y+9,vy:0}); if(eff.missile>0&&vol%3===0) shots.push({x:car.x+52,y:car.y,m:true,vy:0}); if(vol%2) api.sfx.shoot(); }
+    shots.forEach(s=>{ if(s.m){ const tg=heli&&!heli.dead?heli:cars.filter(c=>c.k!=='civ'&&c.x>s.x).sort((a,b)=>a.x-b.x)[0]; if(tg) s.vy+=(tg.y-s.y)*dt*8; s.vy*=0.97; } s.y+=s.vy*dt; s.x+=1100*dt; }); shots=shots.filter(s=>s.x<W+30&&!s.hit);
+    // traffic
+    spawnT-=dt; aimT-=dt; const more=dist<goal-600;
+    if(spawnT<=0&&more){ spawnT=api.dv([1.5,1,0.75],0.6,0.42)*(easy()?1.25:1); const r=Math.random(), L=api.level;
+      const k=api.content===0||L<=5?(r<0.42?'civ':'red'):L<=10?(r<0.35?'civ':r<0.8?'red':'ram'):(r<0.32?'civ':r<0.68?'red':r<0.85?'ram':'gun'); spawnCar(k); }
+    if(aimT<=0&&more){ aimT=api.dv([3.4,2.4,1.8],1.4,1)*(easy()?1.15:1); spawnCar('red',car.y,true); }   // one enemy always comes down YOUR lane
+    const hard=api.dv([0.4,0.7,1],1.2,1.6), steer=api.dv([30,70,110],130,160);
+    cars.forEach(c=>{ const Rc=roadAt(c.x);
+      if(c.k==='ram'){ c.x+=v*0.3*dt*(c.spin>0?-2:1); if(c.spin<=0&&Math.abs(c.x-car.x)<220) c.y+=Math.sign(car.y-c.y)*Math.min(Math.abs(car.y-c.y),120*hard*dt); }
+      else c.x-=v*(1-c.v)*dt*(c.spin>0?2:1);
+      if(c.spin>0){ c.spin-=dt; c.y+=Math.sin(t*20)*220*dt; if(c.y<Rc.t||c.y>Rc.b){ c.dead=true; if(c.k!=='civ'){ api.addScore(250,c.x,c.y); api.sfx.boom(); api.fx.burst(c.x,c.y,'#ff9f1c',16,200,.4,3); api.event('kill'); } } }
+      else { if(c.k==='red'&&c.x>car.x+60&&c.x<car.x+700) c.y+=Math.sign(car.y-c.y)*Math.min(Math.abs(car.y-c.y),steer*dt); else if(c.k!=='ram') c.y+=Math.sin(t+c.x*0.01)*18*dt; c.y=Math.max(Rc.t+22,Math.min(Rc.b-22,c.y)); }
+      if(c.k==='gun'){ c.cool-=dt; if(c.cool<=0&&c.x>car.x+150&&c.x<car.x+900){ c.cool=api.dv([2.2,1.4,0.9],0.7,0.5); const tt=(c.x-car.x)/520; ebul.push({x:c.x-40,y:c.y,vx:-520,vy:(car.y-c.y)/tt*0.6}); } }
+      shots.forEach(s=>{ if(!s.hit&&!c.dead&&Math.abs(s.x-c.x)<44&&Math.abs(s.y-c.y)<21){ s.hit=true; if(c.k==='civ'){ c.dead=true; civHits++; api.addScore(-200,c.x,c.y); api.toast('INNOCENT DRIVER! −200'); api.sfx.hurt(); api.fx.burst(c.x,c.y,'#2e7bff',14,180,.4,3); } else if(--c.hp<=0){ c.dead=true; api.addScore(200*(1+api.dk*.5),c.x,c.y); api.fx.burst(c.x,c.y,'#ff3b3b',18,220,.45,3); api.sfx.boom(); api.event('kill'); } else api.fx.burst(s.x,s.y,'#fff6a0',5,120,.2,2); } });
+      oil.forEach(o=>{ if(c.spin<=0&&Math.hypot(c.x-o.x,c.y-o.y)<46) c.spin=1.5; });
+      if(!c.dead&&grace<=0&&Math.abs(c.x-car.x)<72&&Math.abs(c.y-car.y)<32){ if(eff.armor>0){ c.spin=1.5; c.y+=Math.sign(c.y-car.y)*30; api.sfx.bump(); } else if(c.k==='civ'){ c.dead=true; civHits++; api.addScore(-200,c.x,c.y); api.toast('INNOCENT DRIVER! −200'); die('CRASH!'); } else die('RAMMED!'); }
+      if(c.x<-120||c.x>W+140) c.gone=true; });
     cars=cars.filter(c=>!c.dead&&!c.gone);
-    oil.forEach(o=>{ o.y+=v*dt; o.l-=dt; }); oil=oil.filter(o=>o.l>0&&o.y<H+40);
+    oil.forEach(o=>{ o.x-=v*dt; o.l-=dt; }); oil=oil.filter(o=>o.l>0&&o.x>-60);
     // helicopter boss / end
-    if(dist>=goal&&!heli){ if(api.boss){ heli={x:W/2,y:-80,hp:Math.round(api.dv([20,30,40],50,80)),max:0,t:0}; heli.max=heli.hp; api.toast('ATTACK CHOPPER!'); } else win(); }
-    if(heli&&!heli.dead){ heli.t+=dt; heli.y=Math.min(200,heli.y+80*dt); heli.x=car.x+Math.sin(heli.t)*160; if(Math.random()<dt*api.dv([1.2,1.8,2.4],3,4)) ebul.push({x:heli.x,y:heli.y+30,vy:420,vx:(car.x-heli.x)*0.8});
-      shots.forEach(s=>{ if(!s.hit&&Math.abs(s.x-heli.x)<50&&Math.abs(s.y-heli.y)<30){ s.hit=true; heli.hp-=s.m?3:1; if(heli.hp<=0){ heli.dead=true; api.addScore(4000,heli.x,heli.y); api.fx.burst(heli.x,heli.y,'#ff9f1c',70,380,.9,4); api.sfx.boom(); win(); } } }); }
-    ebul.forEach(b=>{ b.y+=b.vy*dt; b.x+=(b.vx||0)*dt; if(grace<=0&&eff.armor<=0&&Math.abs(b.x-car.x)<20&&Math.abs(b.y-car.y)<36){ b.gone=true; die('SHOT!'); } }); ebul=ebul.filter(b=>!b.gone&&b.y<H+20);
+    if(dist>=goal&&!heli){ if(api.boss){ heli={x:W+120,y:car.y,hp:Math.round(api.dv([20,30,40],50,80)),max:0,t:0}; heli.max=heli.hp; api.toast('ATTACK CHOPPER!'); } else win(); }
+    if(heli&&!heli.dead){ heli.t+=dt; heli.x+=((W-240+Math.sin(heli.t*0.6)*90)-heli.x)*Math.min(1,dt*1.5); heli.y+=((car.y+Math.sin(heli.t*1.1)*140)-heli.y)*Math.min(1,dt*1.2); heli.y=Math.max(110,Math.min(H-60,heli.y));
+      if(heli.x<W&&Math.random()<dt*api.dv([0.9,1.6,2.4],3,4)){ const dx=car.x-heli.x, dy=car.y-heli.y, m=Math.hypot(dx,dy)||1, sp=api.dv([340,420,480],520,600); ebul.push({x:heli.x-40,y:heli.y,vx:dx/m*sp,vy:dy/m*sp}); }
+      shots.forEach(s=>{ if(!s.hit&&Math.abs(s.x-heli.x)<55&&Math.abs(s.y-heli.y)<34){ s.hit=true; heli.hp-=s.m?3:1; api.fx.burst(s.x,s.y,'#fff6a0',4,120,.2,2); if(heli.hp<=0){ heli.dead=true; api.addScore(4000,heli.x,heli.y); api.fx.burst(heli.x,heli.y,'#ff9f1c',70,380,.9,4); api.sfx.boom(); win(); } } }); }
+    ebul.forEach(b=>{ b.x+=b.vx*dt; b.y+=(b.vy||0)*dt; if(grace<=0&&eff.armor<=0&&Math.abs(b.x-car.x)<40&&Math.abs(b.y-car.y)<20){ b.gone=true; die('SHOT!'); } }); ebul=ebul.filter(b=>!b.gone&&b.x>-20&&b.x<W+40&&b.y>-20&&b.y<H+20);
     api.counter(heli&&!heli.dead?'🚁 CHOPPER':'🏁 TO GO',heli&&!heli.dead?Math.ceil(heli.hp/heli.max*100)+'%':Math.max(0,Math.ceil((goal-dist)/50))+'m'); },
-  render(c){ c.fillStyle='#1a4a1a'; c.fillRect(0,0,W,H); for(let i=0;i<20;i++){ const y=((i*97+scroll*0.9)%(H+60))-30; c.fillStyle='#2a6a2a'; c.beginPath(); c.arc((i*53)%120+10,y,16,0,7); c.arc(W-((i*71)%120)-10,y+40,18,0,7); c.fill(); }
-    for(let y=0;y<H;y+=10){ const R=roadAt(y); c.fillStyle='#3a3a44'; c.fillRect(R.l,y,R.r-R.l,10); c.fillStyle='#e8e8e8'; c.fillRect(R.l-6,y,6,10); c.fillRect(R.r,y,6,10); if(((y+scroll)%80)<40){ c.fillStyle='#ffd23f'; c.fillRect((R.l+R.r)/2-3,y,6,10); } }
-    oil.forEach(o=>{ c.fillStyle='rgba(10,10,10,.85)'; c.beginPath(); c.ellipse(o.x,o.y,34,22,0,0,7); c.fill(); });
-    cars.forEach(cc=>{ const col={civ:'#2e7bff',red:'#ff3b3b',ram:'#3a3a3a',gun:'#8a1a1a'}[cc.k]; vehicle(c,cc.x,cc.y,col,cc.spin>0?t*10:0,cc.k==='gun'); });
-    if(heli&&!heli.dead){ c.fillStyle='#4a5a3a'; c.beginPath(); c.ellipse(heli.x,heli.y,40,22,0,0,7); c.fill(); c.fillRect(heli.x-6,heli.y,12,60); c.strokeStyle='#ddd'; c.lineWidth=4; c.beginPath(); const a=t*30; c.moveTo(heli.x+Math.cos(a)*70,heli.y+Math.sin(a)*14); c.lineTo(heli.x-Math.cos(a)*70,heli.y-Math.sin(a)*14); c.stroke(); c.fillStyle='#000'; c.fillRect(heli.x-50,heli.y-46,100,6); c.fillStyle='#ff3b3b'; c.fillRect(heli.x-50,heli.y-46,100*heli.hp/heli.max,6); }
-    c.fillStyle='#ff9f1c'; ebul.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,5,0,7); c.fill(); }); shots.forEach(s=>{ c.fillStyle=s.m?'#ff3bd4':'#fff6a0'; c.fillRect(s.x-2,s.y-8,s.m?5:3,12); });
-    if(!lost&&(grace<=0||(t*10|0)%2)){ vehicle(c,car.x,car.y,api.cos('Car').colors[0],0,true); if(eff.armor>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.ellipse(car.x,car.y,30,46,0,0,7); c.stroke(); } }
-    c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(20,H-30,W-40,8); c.fillStyle='#e8e8f0'; c.fillRect(20,H-30,(W-40)*Math.min(1,dist/goal),8);
+  render(c){ c.fillStyle='#1a4a1a'; c.fillRect(0,0,W,H);
+    for(let i=0;i<30;i++){ const x=((i*173-scroll*0.9)%(W+120)+W+120)%(W+120)-60, y=i%2?40+(i*37)%150:H-40-(i*53)%150; c.fillStyle=i%3?'#2a6a2a':'#245c24'; c.beginPath(); c.arc(x,y,16+(i%3)*3,0,7); c.arc(x+22,y+8,13,0,7); c.fill(); }
+    for(let x=0;x<W;x+=10){ const R=roadAt(x+5); c.fillStyle='#3a3a44'; c.fillRect(x,R.t,10,R.b-R.t); c.fillStyle='#e8e8e8'; c.fillRect(x,R.t-6,10,6); c.fillRect(x,R.b,10,6);
+      const m=((x+scroll)%80+80)%80; if(m<40){ c.fillStyle='#ffd23f'; c.fillRect(x,R.c-3,10,6); } else if(m<60){ c.fillStyle='rgba(255,255,255,.25)'; c.fillRect(x,(R.t+R.c)/2-2,10,3); c.fillRect(x,(R.c+R.b)/2-2,10,3); } }
+    oil.forEach(o=>{ c.fillStyle='rgba(10,10,10,.85)'; c.beginPath(); c.ellipse(o.x,o.y,30,22,0,0,7); c.fill(); c.fillStyle='rgba(120,90,200,.25)'; c.beginPath(); c.ellipse(o.x-6,o.y-5,10,6,0,0,7); c.fill(); });
+    cars.forEach(cc=>{ const col={civ:'#2e7bff',red:'#ff3b3b',ram:'#3a3a3a',gun:'#8a1a1a'}[cc.k]; vehicle(c,cc.x,cc.y,col,cc.spin>0?t*10:0,cc.k==='gun'); if(cc.k==='civ'){ c.fillStyle='rgba(120,190,255,.9)'; c.fillRect(cc.x-7,cc.y-2,14,4); } });
+    if(heli&&!heli.dead){ c.save(); c.translate(heli.x,heli.y); c.fillStyle='#4a5a3a'; c.beginPath(); c.ellipse(0,0,40,22,0,0,7); c.fill(); c.fillRect(0,-6,70,12); c.fillStyle='#bfefff'; c.beginPath(); c.ellipse(-18,0,14,12,0,0,7); c.fill(); c.strokeStyle='#ddd'; c.lineWidth=4; c.beginPath(); const a=t*30; c.moveTo(Math.cos(a)*70,Math.sin(a)*14); c.lineTo(-Math.cos(a)*70,-Math.sin(a)*14); c.stroke(); c.restore();
+      c.fillStyle='#000'; c.fillRect(heli.x-50,heli.y-48,100,6); c.fillStyle='#ff3b3b'; c.fillRect(heli.x-50,heli.y-48,100*heli.hp/heli.max,6); }
+    c.fillStyle='#ff9f1c'; ebul.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,6,0,7); c.fill(); }); shots.forEach(s=>{ c.fillStyle=s.m?'#ff3bd4':'#fff6a0'; c.fillRect(s.x-8,s.y-1.5,s.m?16:14,s.m?5:3); });
+    if(!lost&&(grace<=0||(t*10|0)%2)){ vehicle(c,car.x,car.y,api.cos('Car').colors[0],0,true); if(eff.armor>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.ellipse(car.x,car.y,54,34,0,0,7); c.stroke(); }
+      if(api.input.keys.Space&&!done){ c.fillStyle='rgba(255,240,150,.85)'; c.beginPath(); c.arc(car.x+56,car.y-9,4+Math.random()*3,0,7); c.arc(car.x+56,car.y+9,4+Math.random()*3,0,7); c.fill(); } }
+    c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(300,H-16,W-600,8); c.fillStyle='#e8e8f0'; c.fillRect(300,H-16,(W-600)*Math.min(1,dist/goal),8); c.fillStyle='#ff3b3b'; c.fillRect(W-304,H-20,4,16);
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#3a3a44'; c.fillRect(150,0,300,H); vehicle(c,300+Math.sin(tt)*80,600,'#e8e8f0',0,true); }
+  attract(c,tt){ c.fillStyle='#1a4a1a'; c.fillRect(0,0,W,H); c.fillStyle='#3a3a44'; c.fillRect(0,210,W,300); c.fillStyle='#e8e8e8'; c.fillRect(0,204,W,6); c.fillRect(0,510,W,6);
+    c.fillStyle='#ffd23f'; for(let x=-((tt*400)%80);x<W;x+=80) c.fillRect(x,357,40,6); vehicle(c,420+Math.sin(tt*0.7)*120,360+Math.sin(tt)*90,'#e8e8f0',0,true); vehicle(c,980,300+Math.cos(tt*0.8)*60,'#ff3b3b',0,false); }
 };
-function vehicle(c,x,y,col,spin,guns){ c.save(); c.translate(x,y); c.rotate(spin); c.fillStyle='#111'; c.fillRect(-20,-30,8,16); c.fillRect(12,-30,8,16); c.fillRect(-20,14,8,16); c.fillRect(12,14,8,16); c.fillStyle=col; c.fillRect(-15,-36,30,72); c.fillStyle='#bfefff'; c.fillRect(-11,-20,22,12); c.fillStyle='rgba(0,0,0,.3)'; c.fillRect(-11,8,22,14); if(guns){ c.fillStyle='#555'; c.fillRect(-10,-44,4,10); c.fillRect(6,-44,4,10); } c.restore(); }
+function spawnCar(k,y,aim){ const R=roadAt(W+60), yy=y===undefined?R.t+40+Math.random()*(R.b-R.t-80):Math.max(R.t+30,Math.min(R.b-30,y));
+  if(k==='ram'){ const Rb=roadAt(-70); cars.push({k,x:-70,y:Rb.t+40+Math.random()*(Rb.b-Rb.t-80),v:0,hp:2,spin:0,cool:1}); return; }
+  if(cars.some(c=>c.x>W-60&&Math.abs(c.y-yy)<70)) return;      // never stack two cars on top of each other
+  cars.push({k,x:W+60,y:yy,v:aim?0.42:k==='civ'?0.55:k==='gun'?0.72:0.65,hp:k==='gun'?3:1,spin:0,cool:1}); }
+function vehicle(c,x,y,col,spin,guns){ c.save(); c.translate(x,y); c.scale(1.2,1.2); c.rotate(Math.PI/2+spin); c.fillStyle='#111'; c.fillRect(-20,-30,8,16); c.fillRect(12,-30,8,16); c.fillRect(-20,14,8,16); c.fillRect(12,14,8,16); c.fillStyle=col; c.fillRect(-15,-36,30,72); c.fillStyle='#bfefff'; c.fillRect(-11,-20,22,12); c.fillStyle='rgba(0,0,0,.3)'; c.fillRect(-11,8,22,14); if(guns){ c.fillStyle='#555'; c.fillRect(-10,-44,4,10); c.fillRect(6,-44,4,10); } c.restore(); }
 function win(){ if(done) return; done=true; api.toast('MISSION COMPLETE!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1000); }
 function die(msg){ if(lost||done) return; lost=true; api.toast(msg); api.fx.burst(car.x,car.y,'#ff9f1c',40,300,.7,3); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1000); }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -591,8 +652,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -617,6 +696,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -634,6 +736,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -740,7 +846,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -764,6 +870,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -813,8 +921,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1185,7 +1293,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1359,6 +1467,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1369,10 +1478,23 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  const want = up && (state==='play' || state==='rot');
+  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
+  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1389,7 +1511,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1425,7 +1547,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1464,6 +1586,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
