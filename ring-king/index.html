@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RK-1.1 · 2026-10-19">
+<meta name="build" content="BUILD-RK-1.2 · 2026-10-26">
 <title>Ring King</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-RK-1.1 · 2026-10-19 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-RK-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -492,12 +492,16 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 /* RING KING — Punch-Out remix (#57). 100 stages. Read the wind-up, dodge the punch, then hit back while they're wide open. Every stage is a new fighter.
    BUILD-RK-1.1: real online 2-player VERSUS (NET-1) — P1 host (cyan) vs P2 guest (pink). Each phone sees ITSELF from behind and the rival facing it. Best of 3 rounds. */
 (function(){
-const W=600,H=900,OX=300,OY=515,PX=300,PY=800;
-let api,t,opp,pl,done,lost,eff,grace,downs,need,roundT,roundN,stars,hearts,php,tired,swipe,hint,cnt,koT,combo,seedR,ring;
+const W=600,H=900,OX=300,OY=515,PX=300,PY=800;   // the ring is drawn in its own 600x900 "scene", scaled into the wide 1280x720 world
+const GW=1280,GH=720,SC=0.8,SX0=(GW-W*SC)/2, mx=x=>SX0+x*SC, my=y=>y*SC, sxw=x=>(x-SX0)/SC, syw=y=>y/SC;
+const FX={text:(x,y,...r)=>api.fx.text(mx(x),my(y),...r), burst:(x,y,...r)=>api.fx.burst(mx(x),my(y),...r), spark:(x,y,...r)=>api.fx.spark(mx(x),my(y),...r)};
+const UPI=2;   // index of the UPPERCUT ability (its button shows how many ⭐ you have)
+let upN=0,upQ=0,upMsgT=0,api,t,opp,pl,done,lost,eff,grace,downs,need,roundT,roundN,stars,hearts,php,tired,swipe,hint,cnt,koT,combo,seedR,ring;
 // 2-player versus state: NF[0]=P1 (host), NF[1]=P2 (guest). The host runs the fight; the guest only draws snapshots.
 let NF,rw,rnd,rt,pause,rEnd,fin,banner,ev,evN,seq,gSeq,gEv,sw2;
 const P1C='#00e5ff',P2C='#ff3bd4',PCOL=[P1C,P2C],PSKIN=['#f0c090','#c88a5a'],PHAIR=['headband','mohawk'];
 const isNet=()=>!!(api&&api.net);
+const score=(n,x,y)=>api.addScore(n,mx(x),my(y));
 const meIdx=()=>(api&&api.net&&api.net.role==='guest')?1:0;
 const nmOf=i=>(((api&&api.net&&api.net.names)||[])[i]||('P'+(i+1))).slice(0,10);
 const FIRST=['Rocco','Bruno','Kiko','Dex','Vlad','Tank','Sly','Hector','Ozzy','Nash','Duke','Rex','Gus','Mako','Zeke','Taro','Bjorn','Lalo','Remy','Kofi','Ivo','Sven','Paco','Jojo','Thabo','Marek','Yuri','Bongani','Luca','Enzo'];
@@ -514,45 +518,46 @@ function makeOpp(n,a){ const r=mkRng(n*131+a.diff*977+7);
 function newState(s,tm){ opp.st=s; opp.t=tm||0; opp.t0=tm||0; }
 const GAME=window.GAME={
   id:'ring-king',title:'Ring King',titleHTML:'RING<br>KING',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-RK-1.1 · 2026-10-19',theme:{a:'#3bff7a',b:'#ffd23f',bg:'#08060f'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🥊',joystick:false,coinPts:40,
+  build:'BUILD-RK-1.2 · 2026-10-26',theme:{a:'#3bff7a',b:'#ffd23f',bg:'#08060f'},
+  landscape:true, w:GW,h:GH,stages:100,lives:3,livesIcon:'🥊',joystick:false,coinPts:40,
   net:{mode:'versus'},
   abilities:[
     {id:'jabL',icon:'🤛',name:'LEFT PUNCH',cd:0,key:'KeyZ',keyLabel:'Z',desc:'FREE — punch with your left. Or tap the LEFT half of the ring.'},
     {id:'jabR',icon:'🤜',name:'RIGHT PUNCH',cd:0,key:'KeyX',keyLabel:'X',desc:'FREE — punch with your right. Or tap the RIGHT half of the ring.'},
-    {id:'star',icon:'⭐',name:'STAR UPPERCUT',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — but needs a ⭐. Earn stars with PERFECT counters. Smashes through any guard. Or swipe UP.'},
+    {id:'star',icon:'💥',name:'UPPERCUT',cd:0,key:'Space',keyLabel:'SPC',desc:'Costs 1 ⭐ (the number on the button). Earn ⭐ with PERFECT or COUNTER punches. Smashes through any guard. Or swipe UP.'},
     {id:'guard',icon:'🛡️',name:'IRON GUARD',cd:18,key:'Digit1',keyLabel:'1',desc:'Every punch bounces off you for 5 seconds.'},
     {id:'rage',icon:'🔥',name:'RAGE',cd:20,key:'Digit2',keyLabel:'2',desc:'Your punches do double damage for 6 seconds.'},
     {id:'water',icon:'💧',name:'WATER BREAK',cd:22,key:'Digit3',keyLabel:'3',desc:'Get back half your health and all your hearts.'}],
   shop:[{id:'gl_g',cat:'Gloves',name:'Neon Green',cost:0,colors:['#3bff7a'],desc:'Classic.'},{id:'gl_p',cat:'Gloves',name:'Hot Pink',cost:150,colors:['#ff3bd4'],desc:'Loud.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3bff7a,#ffd23f)'}],
   story:`<h3>RING KING</h3><p>Nobody gave you a chance. 100 fighters stand between you and the belt — every one of them bigger, faster and meaner than the last.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>Watch the <b>glowing glove</b> — that's the punch coming.</li><li><b>Swipe</b> left or right (← → on PC) to dodge AWAY from it. Swipe <b>down</b> (↓) to duck a hook. Uppercuts and straight jabs can't be ducked!</li><li>When he misses he's <b>OPEN</b> — tap the left or right half (Z / X) to punch.</li><li>Punch just as he winds up or right after a dodge for a <b>PERFECT</b> — it earns a ⭐. Swipe UP (SPACE) for a STAR UPPERCUT.</li><li>Knock him down enough times to win. Hearts ❤ run out if you punch his guard — then you're tired.</li><li><b>Play Together (2P):</b> you see yourself from behind and your friend facing you (cyan P1 vs pink P2). Tap left/right half (Z / X) to throw a punch — it glows first, so your friend can dodge it! When your friend's glove glows, swipe AWAY from it (or swipe down to duck a hook). Missed punches leave you OPEN. KO your friend or have more health when the clock ends. Best of 3 rounds.</li></ul>`,
+  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Hold your phone sideways.</b> Buttons bottom-right: 🤛 LEFT, 🤜 RIGHT, 💥 UPPERCUT.</li><li>Watch the <b>glowing glove</b> — that's the punch coming.</li><li><b>Swipe</b> left or right (← → on PC) to dodge AWAY from it. Swipe <b>down</b> (↓) to duck a hook. Uppercuts and straight jabs can't be ducked!</li><li>When he misses he's <b>OPEN</b> — tap the left or right half (Z / X) to punch.</li><li>Punch the moment he's OPEN (or late in his wind-up) for a <b>PERFECT</b>/<b>COUNTER</b> — it earns a ⭐ (max 3). The 💥 UPPERCUT button (SPACE, or swipe UP) spends 1 ⭐ for a huge hit — the number on the button is your ⭐. Beginner starts every fight with 1 ⭐.</li><li>Knock him down enough times to win. Hearts ❤ run out if you punch his guard — then you're tired.</li><li><b>Play Together (2P):</b> you see yourself from behind and your friend facing you (cyan P1 vs pink P2). Tap left/right half (Z / X) to throw a punch — it glows first, so your friend can dodge it! When your friend's glove glows, swipe AWAY from it (or swipe down to duck a hook). Missed punches leave you OPEN. KO your friend or have more health when the clock ends. Best of 3 rounds.</li></ul>`,
   tutorial:[{text:'Swipe AWAY from the glowing glove to dodge (← → on PC)!',ev:'dodge'},{text:'He is OPEN! Tap the left or right half to punch!',ev:'hit'},{text:'Knock him down!',time:6}],
   stageIntro:{1:'KNOCK HIM DOWN'},bossName:'TITLE FIGHT — THE CHAMPION!',
   ending:{"0":["#CONTENDER","You beat every fighter in the city."],"1":["#CHAMPION","The belt is yours."],"2":["#RING KING","Impossible. You did it."]},
   abTime(id){ const tot={guard:5,rage:6}[id]; if(!tot) return null; if(isNet()){ const f=NF&&NF[meIdx()]; return f?{left:Math.max(0,f.eff[id]),total:tot}:null; } return {left:Math.max(0,eff[id]),total:tot}; },
-  _dbg(){ return {get opp(){return opp;}, get pl(){return pl;}, get lost(){return lost;}, get downs(){return downs;}, get need(){return need;}, punch:s=>punch(s), dodge:d=>dodge(d),
+  _dbg(){ return {get opp(){return opp;}, get pl(){return pl;}, get lost(){return lost;}, get downs(){return downs;}, get need(){return need;}, get ups(){return upN;}, get upQ(){return upQ;}, get stars(){return stars;}, set stars(v){stars=v;}, heal(){ php=100; hearts=5; tired=0; }, punch:s=>punch(s), dodge:d=>dodge(d),
     get NF(){ return NF; }, act:(i,k,a)=>netAct(i,k,a),
     get net2(){ if(!isNet()||!NF) return null; const h=f=>({st:f.st,hp:+f.hp.toFixed(1),side:f.side,ps:f.ps,stars:f.stars,hearts:f.hearts}); return {p1:h(NF[0]),p2:h(NF[1]),rw:rw&&rw.slice(),rnd,rt:Math.ceil(rt),fin,banner}; },
     ko(i){ if(!isNet()||!NF) return; const v=NF[i]; v.st='idle'; v.eff.guard=-9; v.hp=1; landN(1-i,i,999,null); }}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; if(a.net){ lost=false; eff={guard:-9,rage:-9}; netInit(); return; } lost=false; grace=1.5; eff={guard:-9,rage:-9}; downs=0; stars=0; hearts=5; php=100; tired=0; swipe=null; koT=0; combo=0; cnt=0;
+  startStage(n,a){ api=a; t=0; done=false; if(a.net){ lost=false; eff={guard:-9,rage:-9}; netInit(); return; } lost=false; grace=1.5; eff={guard:-9,rage:-9}; downs=0; stars=(a.diff===0||a.content===0)?1:0; upQ=0; upMsgT=0; hearts=5; php=100; tired=0; swipe=null; koT=0; combo=0; cnt=0;
     opp=makeOpp(n,a); opp.hp=100; opp.st='idle'; opp.t=1.6; opp.t0=1.6; opp.gs=1; opp.gT=opp.guardP; opp.hx=0; opp.bob=0; opp.atk=null; opp.cl=0; opp.hits=0;
     need=a.content===0?1:a.boss?3:Math.round(a.dv([1,2,2],2,3)); roundN=1; roundT=roundLen(); hint=a.content===0||a.level<=12;
     pl={st:'idle',t:0,side:0,x:0,hitT:0,punchSide:0,punchT:0}; ring=a.boss?'#ffd23f':['#ff3b3b','#2e7bff','#b14bff','#3bff7a'][n%4]; },
   respawn(){ lost=false; grace=2; php=100; hearts=5; tired=0; pl.st='idle'; pl.t=0; if(opp.st!=='down') newState('idle',1.6); roundT=roundLen(); },
   stageBonus(){ return Math.round(php*6+stars*150+Math.max(0,roundT)*5); },
-  useAbility(id){ if(isNet()) return abilN(0,id); if(done||lost) return false;
+  useAbility(id){ if(isNet()) return abilN(0,id); if(id==='star') return starPunch(); if(done||lost) return false;
     if(id==='jabL') return punch(-1); if(id==='jabR') return punch(1); if(id==='star') return starPunch();
-    if(id==='water'){ php=Math.min(100,php+50); hearts=5; tired=0; api.sfx.pickup(); api.fx.text(PX,PY-140,'+50 HEALTH','#7df9ff',20); return true; }
+    if(id==='water'){ php=Math.min(100,php+50); hearts=5; tired=0; api.sfx.pickup(); FX.text(PX,PY-140,'+50 HEALTH','#7df9ff',20); return true; }
     eff[id]={guard:5,rage:6}[id]; api.sfx.power(); return true; },
   useAbility2(id){ if(!isNet()) return false; return abilN(1,id); },
-  onPointer2(type,x,y){ if(isNet()) ptrN(1,type,x,y); },
-  onPointer(type,x,y){ if(isNet()){ ptrN(0,type,x,y); return; } if(done||lost) return; if(type==='down') swipe={x,y};
-    else if(type==='up'&&swipe){ const dx=x-swipe.x, dy=y-swipe.y; if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)) dodge(dx<0?-1:1); else if(dy>45) dodge(0); else if(dy<-60) starPunch(); else punch(x<W/2?-1:1); swipe=null; } },
+  onPointer2(type,x,y){ if(isNet()) ptrN(1,type,sxw(x),syw(y)); },
+  onPointer(type,x,y){ x=sxw(x); y=syw(y); if(isNet()){ ptrN(0,type,x,y); return; } if(done||lost) return; if(type==='down') swipe={x,y};
+    else if(type==='up'&&swipe){ const k=swipeKind(x-swipe.x,y-swipe.y); if(k==='up') starPunch(); else if(k==='down') dodge(0); else if(k) dodge(k==='L'?-1:1); else punch(x<W/2?-1:1); swipe=null; } },
   update(dt){ t+=dt; if(isNet()){ netUpdate(dt); return; } if(done){ return; } for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; if(lost) return;
-    const K=api.input.keys;
+    if(upMsgT>0) upMsgT-=dt; if(upQ>0){ upQ-=dt; if(canUp()) starPunch(); else if(upQ<=0) upMsg('NOT NOW — WAIT FOR HIM'); }
+    api.badge(UPI,String(stars)); const K=api.input.keys;
     if((K.ArrowLeft)&&!this._l) dodge(-1); this._l=K.ArrowLeft; if((K.ArrowRight)&&!this._r) dodge(1); this._r=K.ArrowRight;
     if((K.ArrowDown||K.KeyS)&&!this._d) dodge(0); this._d=K.ArrowDown||K.KeyS; if((K.ArrowUp||K.KeyW)&&!this._u) starPunch(); this._u=K.ArrowUp||K.KeyW;
     if(K.KeyA&&!this._a) punch(-1); this._a=K.KeyA; if(K.KeyD&&!this._dd) punch(1); this._dd=K.KeyD;
@@ -567,16 +572,16 @@ const GAME=window.GAME={
     switch(opp.st){
       case 'idle': opp.gT-=dt; if(opp.gT<=0){ opp.gs=-opp.gs; opp.gT=opp.guardP*(0.6+Math.random()*0.8); }
         if(opp.t<=0&&grace<=0){ opp.cl=1+Math.floor(Math.random()*opp.combo); startAttack(); } break;
-      case 'wind': if(opp.t<=0){ if(opp.feinting){ opp.feinting=false; api.fx.text(OX,OY-260,'FAKE!','#ffd23f',22); newState('idle',api.dv([0.5,0.35,0.25],0.2,0.1)); } else strike(); } break;
+      case 'wind': if(opp.t<=0){ if(opp.feinting){ opp.feinting=false; FX.text(OX,OY-260,'FAKE!','#ffd23f',22); newState('idle',api.dv([0.5,0.35,0.25],0.2,0.1)); } else strike(); } break;
       case 'punch': if(opp.t<=0){ if(opp.missed){ opp.cl--; if(opp.cl>0) startAttack(true); else { newState('open',api.dv([1.35,0.95,0.7],0.55,0.28)); opp.hits=0; } } else newState('idle',api.dv([1.1,0.8,0.55],0.45,0.2)/spd); } break;
       case 'open': if(opp.t<=0){ newState('idle',api.dv([0.9,0.65,0.45],0.35,0.15)/spd); opp.gs=Math.random()<.5?-1:1; } break;
       case 'hurt': if(opp.t<=0) newState('idle',api.dv([0.8,0.55,0.4],0.3,0.12)/spd); break;
       case 'block': if(opp.t<=0) newState('idle',api.dv([0.6,0.45,0.3],0.25,0.1)/spd); break;
       case 'down': opp.cntT-=dt; if(opp.cntT<=0){ cnt++; opp.cntT=downs>=need?0.4:0.65; api.sfx.blip(); if(downs>=need&&cnt>=10){ ko(); } else if(downs<need&&cnt>=opp.getUp){ opp.hp=Math.max(40,85-downs*15); newState('idle',1.2); api.toast('HE\'S BACK UP!'); } } break; }
     api.counter('🥊 KNOCKDOWNS',downs+' / '+need); },
-  render(c){ if(isNet()){ netRender(c); return; } drawArena(c); drawOpp(c); drawPlayer(c); drawHud(c); if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#08060f'; c.fillRect(0,0,W,H); const g=c.createRadialGradient(300,420,20,300,420,360); g.addColorStop(0,'rgba(59,255,122,.35)'); g.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=g; c.fillRect(0,0,W,H);
-    c.font='120px sans-serif'; c.textAlign='center'; c.fillText('🥊',220+Math.sin(tt*6)*30,500); c.fillText('🥊',380-Math.sin(tt*6)*30,500); }
+  render(c){ c.save(); c.fillStyle='#08060f'; c.fillRect(0,0,GW,GH); c.translate(SX0,0); c.scale(SC,SC); if(isNet()) netRender(c); else { drawArena(c); drawOpp(c); drawPlayer(c); drawHud(c); if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(-SX0/SC,0,GW/SC,H); } } c.restore(); },
+  attract(c,tt){ c.fillStyle='#08060f'; c.fillRect(0,0,GW,GH); c.save(); c.translate(SX0,0); c.scale(SC,SC); const g=c.createRadialGradient(300,420,20,300,420,360); g.addColorStop(0,'rgba(59,255,122,.35)'); g.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=g; c.fillRect(0,0,W,H);
+    c.font='120px sans-serif'; c.textAlign='center'; c.fillText('🥊',220+Math.sin(tt*6)*30,500); c.fillText('🥊',380-Math.sin(tt*6)*30,500); c.restore(); }
 };
 function roundLen(){ return api.content===0?90:Math.round(api.dv([75,60,50],45,25)); }
 function startAttack(chain){ const w=opp.w, tot=w.reduce((a,b)=>a+b,0); let r=Math.random()*tot, k=0; while(r>w[k]){ r-=w[k]; k++; }
@@ -585,16 +590,16 @@ function startAttack(chain){ const w=opp.w, tot=w.reduce((a,b)=>a+b,0); let r=Ma
   newState('wind',wt); }
 function strike(){ newState('punch',0.14); const a=opp.atk; let ok=false;
   if(pl.st==='dodge') ok = a==='L'?pl.side>0 : a==='R'?pl.side<0 : true; else if(pl.st==='duck') ok = a==='L'||a==='R';
-  if(eff.guard>0&&!ok){ api.fx.text(PX,PY-160,'BLOCKED!','#7df9ff',22); api.sfx.bump(); api.fx.shake(3); opp.missed=false; return; }
-  if(ok){ opp.missed=true; hearts=Math.min(5,hearts+(tired>0?0:1)); api.sfx.blip(); api.fx.text(PX+pl.x,PY-180,'DODGED!','#3bff7a',22); api.event('dodge'); api.addScore(20,undefined,undefined,true); }
+  if(eff.guard>0&&!ok){ FX.text(PX,PY-160,'BLOCKED!','#7df9ff',22); api.sfx.bump(); api.fx.shake(3); opp.missed=false; return; }
+  if(ok){ opp.missed=true; hearts=Math.min(5,hearts+(tired>0?0:1)); api.sfx.blip(); FX.text(PX+pl.x,PY-180,'DODGED!','#3bff7a',22); api.event('dodge'); api.addScore(20,undefined,undefined,true); }
   else { opp.missed=false; hurtMe(api.dv([13,20,28],34,60)*(opp.champ?1.25:1),'YOU WENT DOWN!'); } }
 function hurtMe(d,msg){ php-=d; pl.st='hit'; pl.t=0.45; hearts=Math.max(0,hearts-2); if(hearts<=0&&tired<=0) tired=2.5;
-  api.sfx.hurt(); api.fx.shake(12); api.fx.flash('#ff2040',.35); api.fx.burst(PX+pl.x,PY-130,'#ff3b3b',22,260,.5,4);
+  api.sfx.hurt(); api.fx.shake(12); api.fx.flash('#ff2040',.35); FX.burst(PX+pl.x,PY-130,'#ff3b3b',22,260,.5,4);
   if(php<=0){ php=0; lost=true; api.toast(msg); setTimeout(()=>api.loseLife(),1100); } }
 function canAct(){ return !done&&!lost&&(pl.st==='idle'||pl.st==='rec')&&pl.punchT<=0; }
 function dodge(d){ if(!canAct()&&pl.st!=='idle') return false; if(done||lost||pl.st==='hit') return false; if(d===0){ pl.st='duck'; pl.t=0.42; } else { pl.st='dodge'; pl.side=d; pl.t=0.42; } return true; }
 function dmgMul(){ return (eff.rage>0?2:1)/opp.hpMul; }
-function punch(side){ if(!canAct()) return false; if(tired>0){ api.fx.text(PX,PY-170,'TOO TIRED!','#ff7ab8',20); return false; }
+function punch(side){ if(!canAct()) return false; if(tired>0){ FX.text(PX,PY-170,'TOO TIRED!','#ff7ab8',20); return false; }
   pl.st='punch'; pl.t=0.2; pl.punchSide=side; pl.punchT=0.24; api.sfx.shoot(); const s=opp.st;
   if(s==='open'){ const perf=opp.t0-opp.t<0.45; opp.hits++; landHit((perf?18:13)*dmgMul(),side,perf?'PERFECT!':null); if(perf) gainStar(); if(opp.hits>=4&&opp.st==='open'){ newState('block',0.5); } }
   else if(s==='wind'&&!opp.feinting&&(1-opp.t/opp.t0)>0.5){ landHit(16*dmgMul(),side,'COUNTER!'); gainStar(); if(opp.st!=='down') newState('hurt',0.55); }
@@ -602,44 +607,54 @@ function punch(side){ if(!canAct()) return false; if(tired>0){ api.fx.text(PX,PY
   else if(s==='hurt'){ landHit(6*dmgMul(),side,null); if(opp.st!=='down') newState('block',0.4); }
   else if(s==='idle'||s==='block'||s==='wind'){ blocked(side); if(s==='idle'&&Math.random()<0.5) opp.t=Math.min(opp.t,0.25); }
   return true; }
-function starPunch(){ if(!canAct()) return false; if(stars<=0){ api.fx.text(PX,PY-170,'NEED A ⭐','#ffd23f',20); return false; } if(opp.st==='down'||opp.st==='punch') return false;
-  stars--; pl.st='punch'; pl.t=0.3; pl.punchSide=0; pl.punchT=0.35; const big=opp.st==='open'||opp.st==='wind';
-  landHit((big?45:32)*dmgMul(),0,'STAR UPPERCUT!'); api.sfx.boom(); api.fx.flash('#ffd23f',.4); api.fx.shake(16); api.fx.burst(OX,OY-170,'#ffd23f',40,380,.7,5); if(opp.st!=='down') newState('hurt',0.9); return true; }
-function gainStar(){ if(stars<3){ stars++; api.fx.text(OX,OY-300,'+⭐','#ffd23f',26); api.sfx.coin(); } }
-function blocked(side){ hearts--; api.sfx.bump(); api.fx.burst(OX+side*60,OY-160,'#7df9ff',8,140,.3,3); api.fx.text(OX+side*60,OY-210,'GUARD','#7df9ff',16); if(hearts<=0){ hearts=0; tired=2.5; api.toast('OUT OF HEARTS — DODGE TO RECOVER!'); } if(opp.st==='idle') newState('block',0.25); }
-function landHit(d,side,label){ opp.hp-=d; opp.hx=side===0?0:side*30; api.event('hit'); api.addScore(Math.round(d*10),OX+side*50,OY-180); api.sfx.small(); api.fx.shake(label?9:5);
-  api.fx.burst(OX+side*50,OY-170,label?'#ffd23f':'#fff',label?24:12,label?320:200,.45,4); if(label) api.fx.text(OX,OY-280,label,'#ffd23f',26);
+/* UPPERCUT (BUILD-RK-1.2): Andrew — "the uppercut doesn't always work". It used to be silently ignored while you were
+   still in a punch/dodge/duck/hit animation, while his punch was landing, or with no ⭐ (tiny text). Now a press is BUFFERED
+   for 0.7 s and fires the instant you can move; anything that really blocks it says why, big and clear. */
+function swipeKind(dx,dy){ const ax=Math.abs(dx), ay=Math.abs(dy); if(dy<-35&&ay>=ax*0.75) return 'up'; if(ax>45&&ax>ay) return dx<0?'L':'R'; if(dy>45) return 'down'; return null; }
+function upMsg(m){ if(upMsgT>0) return; upMsgT=0.6; api.toast(m); api.sfx.bump(); FX.text(PX,PY-330,m.split(' —')[0],'#ffd23f',30); }
+function canUp(){ return !done&&!lost&&(pl.st==='idle'||pl.st==='rec'||pl.st==='dodge'||pl.st==='duck')&&pl.punchT<=0&&opp.st!=='down'; }
+function starPunch(){ if(done||lost) return false;
+  if(stars<=0){ upMsg('NEED ⭐ — LAND A PERFECT PUNCH WHEN HE\'S OPEN'); return false; }
+  if(opp.st==='down'){ upMsg('HE\'S DOWN — WAIT FOR HIM TO GET UP'); return false; }
+  if(!canUp()){ upQ=0.7; return true; }
+  upQ=0; upN++; stars--; pl.st='punch'; pl.t=0.3; pl.punchSide=0; pl.punchT=0.35; const big=opp.st==='open'||opp.st==='wind';
+  landHit((big?45:32)*dmgMul(),0,'STAR UPPERCUT!'); api.sfx.boom(); api.fx.flash('#ffd23f',.4); api.fx.shake(16); FX.burst(OX,OY-170,'#ffd23f',40,380,.7,5); if(opp.st!=='down') newState('hurt',0.9); return true; }
+function gainStar(){ if(stars<3){ stars++; FX.text(OX,OY-300,'+⭐','#ffd23f',26); api.sfx.coin(); } }
+function blocked(side){ hearts--; api.sfx.bump(); FX.burst(OX+side*60,OY-160,'#7df9ff',8,140,.3,3); FX.text(OX+side*60,OY-210,'GUARD','#7df9ff',16); if(hearts<=0){ hearts=0; tired=2.5; api.toast('OUT OF HEARTS — DODGE TO RECOVER!'); } if(opp.st==='idle') newState('block',0.25); }
+function landHit(d,side,label){ opp.hp-=d; opp.hx=side===0?0:side*30; api.event('hit'); score(Math.round(d*10),OX+side*50,OY-180); api.sfx.small(); api.fx.shake(label?9:5);
+  FX.burst(OX+side*50,OY-170,label?'#ffd23f':'#fff',label?24:12,label?320:200,.45,4); if(label) FX.text(OX,OY-280,label,'#ffd23f',26);
   if(opp.hp<=0){ opp.hp=0; downs++; cnt=0; opp.cntT=1; opp.getUp=downs>=need?99:Math.max(3,Math.round(api.dv([8,7,6],5,3)-downs)); newState('down',0); opp.st='down';
-    api.sfx.boom(); api.fx.flash('#fff',.5); api.fx.shake(18); api.toast(downs>=need?'HE\'S DOWN!!':'KNOCKDOWN!'); api.addScore(1000,OX,OY-100); } }
-function ko(){ if(done) return; done=true; api.toast('K.O.!  YOU WIN!'); api.sfx.clear(); api.fx.flash('#ffd23f',.5); api.fx.burst(OX,OY,'#ffd23f',60,420,1,5); setTimeout(()=>api.stageClear(),1400); }
+    api.sfx.boom(); api.fx.flash('#fff',.5); api.fx.shake(18); api.toast(downs>=need?'HE\'S DOWN!!':'KNOCKDOWN!'); score(1000,OX,OY-100); } }
+function ko(){ if(done) return; done=true; api.toast('K.O.!  YOU WIN!'); api.sfx.clear(); api.fx.flash('#ffd23f',.5); FX.burst(OX,OY,'#ffd23f',60,420,1,5); setTimeout(()=>api.stageClear(),1400); }
 /* ---------- NET-1 versus (host runs these; the guest only draws snapshots) ---------- */
 const ST=['idle','wind','punch','open','rec','dodge','duck','hit','down'];
-function mkF(i){ return {i,st:'idle',t:0,t0:0,side:0,ps:0,hp:100,stars:0,hearts:5,tired:0,eff:{guard:-9,rage:-9},hx:0,x:0,missed:false,kp:{}}; }
+function mkF(i){ return {i,st:'idle',t:0,t0:0,side:0,ps:0,hp:100,stars:0,hearts:5,tired:0,eff:{guard:-9,rage:-9},hx:0,x:0,missed:false,uq:0,kp:{}}; }
 function netInit(){ rw=[0,0]; rnd=0; fin=false; ev=[]; evN=0; seq=0; gSeq=0; gEv=0; sw2=[null,null]; rEnd=0; banner=''; hint=true; cnt=0; ring='#b14bff'; netRound(); }
 function netRound(){ rnd++; const keep=NF?NF.map(f=>f.eff):null; NF=[mkF(0),mkF(1)]; if(keep){ NF[0].eff=keep[0]; NF[1].eff=keep[1]; } rt=60; pause=1.5; rEnd=0; banner='ROUND '+rnd; doEv('r',0,''); api.counter('🥊 ROUND',rnd+' · BEST OF 3'); }
 function doEv(k,who,lab){ if(ev){ ev.push([++evN,t,k,who,lab||'']); if(ev.length>16) ev.shift(); } fxN(k,who,lab||''); }
 function posN(i){ const f=NF[i]; return i===meIdx()?{x:PX+f.x,y:PY-150}:{x:OX-f.x,y:OY-170}; }
 function fxN(k,who,lab){ const me=who===meIdx(), p=posN(who);
-  if(k==='h'){ const big=!!lab; NF[who].hx=(Math.random()<.5?-1:1)*30; api.sfx.small(); api.fx.shake(big?9:5); api.fx.burst(p.x,p.y,big?'#ffd23f':'#fff',big?24:12,big?320:200,.45,4); if(lab) api.fx.text(OX,OY-280,lab,'#ffd23f',26); if(me){ api.sfx.hurt(); api.fx.flash('#ff2040',.3); } }
-  else if(k==='m'){ api.sfx.blip(); api.fx.text(p.x,p.y-30,'DODGED!','#3bff7a',22); }
-  else if(k==='g'){ api.sfx.bump(); api.fx.text(p.x,p.y-30,'BLOCKED!','#7df9ff',22); api.fx.shake(3); }
+  if(k==='h'){ const big=!!lab; NF[who].hx=(Math.random()<.5?-1:1)*30; api.sfx.small(); api.fx.shake(big?9:5); FX.burst(p.x,p.y,big?'#ffd23f':'#fff',big?24:12,big?320:200,.45,4); if(lab) FX.text(OX,OY-280,lab,'#ffd23f',26); if(me){ api.sfx.hurt(); api.fx.flash('#ff2040',.3); } }
+  else if(k==='m'){ api.sfx.blip(); FX.text(p.x,p.y-30,'DODGED!','#3bff7a',22); }
+  else if(k==='g'){ api.sfx.bump(); FX.text(p.x,p.y-30,'BLOCKED!','#7df9ff',22); api.fx.shake(3); }
   else if(k==='u'){ api.sfx.boom(); api.fx.flash('#ffd23f',.4); api.fx.shake(16); }
-  else if(k==='s'){ if(me){ api.fx.text(PX,PY-330,'+⭐','#ffd23f',26); api.sfx.coin(); } }
+  else if(k==='s'){ if(me){ FX.text(PX,PY-330,'+⭐','#ffd23f',26); api.sfx.coin(); } }
   else if(k==='c'){ api.sfx.shoot(); }
   else if(k==='p'){ api.sfx.power(); }
-  else if(k==='w'){ api.sfx.pickup(); api.fx.text(p.x,p.y-30,'+35 HEALTH','#7df9ff',20); }
+  else if(k==='w'){ api.sfx.pickup(); FX.text(p.x,p.y-30,'+35 HEALTH','#7df9ff',20); }
   else if(k==='k'){ api.sfx.boom(); api.fx.flash('#fff',.5); api.fx.shake(18); }
   else if(k==='t'){ api.toast(lab); }
   else if(k==='r'){ api.sfx.blip(); }
-  else if(k==='T'){ if(me) api.fx.text(PX,PY-330,'TOO TIRED!','#ff7ab8',20); }
-  else if(k==='n'){ if(me) api.fx.text(PX,PY-330,'NEED A ⭐','#ffd23f',20); }
+  else if(k==='T'){ if(me) FX.text(PX,PY-330,'TOO TIRED!','#ff7ab8',20); }
+  else if(k==='n'){ if(me){ FX.text(PX,PY-330,'NEED ⭐','#ffd23f',30); api.toast('NEED ⭐ — LAND A PERFECT OR COUNTER PUNCH'); api.sfx.bump(); } }
   else if(k==='O'){ if(me) api.toast('OUT OF HEARTS — DODGE TO RECOVER!'); }
   else if(k==='B'){ if(me) api.toast('GOT YOUR BREATH BACK!'); } }
 function canN(f){ return !!NF&&!fin&&rEnd<=0&&pause<=0&&f.st!=='down'; }
 function punchN(i,side){ const f=NF[i],o=NF[1-i]; if(!canN(f)||!['idle','rec','dodge','duck'].includes(f.st)) return false; if(f.tired>0){ doEv('T',i); return false; }
   f.st='wind'; f.ps=side; f.t=f.t0=o.st==='open'?0.14:0.45; f.missed=false; doEv('c',i); return true; }
-function starN(i){ const f=NF[i]; if(!canN(f)||!['idle','rec','dodge','duck'].includes(f.st)) return false; if(f.stars<=0){ doEv('n',i); return false; }
-  f.stars--; f.st='wind'; f.ps=0; f.t=f.t0=0.3; f.missed=false; doEv('c',i); return true; }
+function starN(i){ const f=NF[i]; if(!NF||fin) return false; if(f.stars<=0){ doEv('n',i); return false; }
+  if(!canN(f)||!['idle','rec','dodge','duck'].includes(f.st)){ f.uq=0.7; return true; }   // buffered: fires the moment this fighter can move
+  f.uq=0; f.stars--; f.st='wind'; f.ps=0; f.t=f.t0=0.3; f.missed=false; doEv('c',i); return true; }
 function dodgeN(i,d){ const f=NF[i]; if(!canN(f)||!(f.st==='idle'||f.st==='rec')) return false; if(d===0) f.st='duck'; else { f.st='dodge'; f.side=d; } f.t=f.t0=0.42; return true; }
 function netAct(i,k,a){ return k==='punch'?punchN(i,a):k==='star'?starN(i):k==='dodge'?dodgeN(i,a):abilN(i,k); }
 function abilN(i,id){ if(!NF||fin) return false; const f=NF[i];
@@ -647,7 +662,7 @@ function abilN(i,id){ if(!NF||fin) return false; const f=NF[i];
   if(id==='water'){ f.hp=Math.min(100,f.hp+35); f.hearts=5; f.tired=0; doEv('w',i); return true; }
   if(id==='guard'||id==='rage'){ f.eff[id]={guard:5,rage:6}[id]; doEv('p',i); return true; } return false; }
 function ptrN(i,type,x,y){ if(!NF||fin) return; if(type==='down') sw2[i]={x,y};
-  else if(type==='up'&&sw2[i]){ const s=sw2[i], dx=x-s.x, dy=y-s.y; sw2[i]=null; if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)) dodgeN(i,dx<0?-1:1); else if(dy>45) dodgeN(i,0); else if(dy<-60) starN(i); else punchN(i,x<W/2?-1:1); } }
+  else if(type==='up'&&sw2[i]){ const s=sw2[i]; sw2[i]=null; const k=swipeKind(x-s.x,y-s.y); if(k==='up') starN(i); else if(k==='down') dodgeN(i,0); else if(k) dodgeN(i,k==='L'?-1:1); else punchN(i,x<W/2?-1:1); } }
 function keysN(i,K){ const f=NF[i], p=f.kp, ed=c=>{ const on=!!K[c], was=p[c]; p[c]=on; return on&&!was; };
   if(ed('ArrowLeft')) dodgeN(i,-1); if(ed('ArrowRight')) dodgeN(i,1); const dn=ed('ArrowDown'), ds=ed('KeyS'); if(dn||ds) dodgeN(i,0);
   const up=ed('ArrowUp'), uw=ed('KeyW'); if(up||uw) starN(i); if(ed('KeyA')) punchN(i,-1); if(ed('KeyD')) punchN(i,1); }
@@ -666,6 +681,7 @@ function netUpdate(dt){ if(!NF) return; NF.forEach(f=>animN(f,dt)); if(fin) retu
   if(rEnd>0){ rEnd-=dt; if(rEnd<=0){ const w=rw[0]>=2?0:rw[1]>=2?1:-2; if(w>=0||rnd>=5){ fin=true; api.netWin(w>=0?w:(rw[0]>rw[1]?0:rw[1]>rw[0]?1:-1)); } else netRound(); } return; }
   if(pause>0){ pause-=dt; if(pause<=0) banner=''; return; }
   rt-=dt; keysN(0,api.input.keys||{}); keysN(1,(api.input2&&api.input2.keys)||{});
+  for(let i=0;i<2;i++){ const f=NF[i]; if(f.uq>0){ f.uq-=dt; if(canN(f)&&['idle','rec','dodge','duck'].includes(f.st)) starN(i); } }
   for(let i=0;i<2;i++){ const f=NF[i]; f.t-=dt; if(f.tired>0){ f.tired-=dt; if(f.tired<=0){ f.tired=0; f.hearts=3; doEv('B',i); } }
     if(f.t>0) continue;
     if(f.st==='wind') strikeN(i);
@@ -685,7 +701,7 @@ function foeView(f){ const s=f.st, i=f.i; const o={st:s==='wind'||s==='open'||s=
   atk:f.ps===0?'upper':f.ps<0?'R':'L',hx:f.hx,bob:t*4,size:1,skin:PSKIN[i],trunk:PCOL[i],gc:PCOL[i],hair:PHAIR[i],champ:false,gs:0,dx:-f.x,dy:s==='duck'?70:0,hy:630,cnt:''};
   if(o.st==='wind'&&o.t0<=0) o.t0=1; return o; }
 function label(c,txt,x,y,col){ c.font='bold 18px sans-serif'; c.textAlign='center'; c.lineWidth=5; c.strokeStyle='#000'; c.strokeText(txt,x,y); c.fillStyle=col; c.fillText(txt,x,y); }
-function netRender(c){ if(!NF) return; const mi=meIdx(), me=NF[mi], fo=NF[1-mi]; drawArena(c);
+function netRender(c){ if(!NF) return; const mi=meIdx(), me=NF[mi], fo=NF[1-mi]; api.badge(UPI,String(me.stars)); drawArena(c);
   const o=foeView(fo); drawOpp(c,o);
   const fx=OX-fo.x; if(fo.eff.guard>0){ c.strokeStyle='#7df9ff'; c.lineWidth=5; c.shadowColor='#7df9ff'; c.shadowBlur=20; c.globalAlpha=0.5+0.3*Math.sin(t*10); c.beginPath(); c.arc(fx,OY-120,150,Math.PI*0.1,Math.PI*0.9,false); c.stroke(); c.beginPath(); c.arc(fx,OY-90,170,Math.PI*1.1,Math.PI*1.9); c.stroke(); c.globalAlpha=1; c.shadowBlur=0; }
   if(fo.eff.rage>0){ c.strokeStyle='#ff8a1f'; c.lineWidth=4; c.shadowColor='#ff8a1f'; c.shadowBlur=24; c.beginPath(); c.ellipse(fx,OY-60,130,230,0,0,7); c.stroke(); c.shadowBlur=0; }
@@ -705,13 +721,14 @@ function netHud(c,mi,me,fo){ const y0=148, fi=1-mi; c.textAlign='left'; c.font='
   for(let k=0;k<2;k++) for(const [i,cx] of [[mi,214+k*22],[fi,W-26-k*22]]){ c.beginPath(); c.arc(cx,y0+38,7,0,7); if(rw&&rw[i]>k){ c.fillStyle=PCOL[i]; c.fill(); } else { c.strokeStyle=PCOL[i]; c.lineWidth=2; c.stroke(); } }
   c.textAlign='center'; c.font='bold 20px sans-serif'; c.fillStyle=rt<10?'#ff3b3b':'#fff'; const m=Math.max(0,Math.ceil(rt||0)); c.fillText(Math.floor(m/60)+':'+String(m%60).padStart(2,'0'),W/2,y0+44); }
 /* ---------- drawing ---------- */
-function drawArena(c){ c.fillStyle='#08060f'; c.fillRect(0,0,W,H);
-  // crowd + flashes
-  for(let i=0;i<46;i++){ const x=(i*53)%W, y=150+((i*37)%120); c.fillStyle='rgba(120,90,160,.25)'; c.beginPath(); c.arc(x,y,14,0,7); c.fill(); if(Math.sin(t*3+i*7.1)>0.985){ c.fillStyle='#fff'; c.shadowColor='#fff'; c.shadowBlur=20; c.beginPath(); c.arc(x,y-6,4,0,7); c.fill(); c.shadowBlur=0; } }
+const XL=-SX0/SC, XR=W+SX0/SC;   // scene x range that the wide screen shows
+function drawArena(c){ c.fillStyle='#08060f'; c.fillRect(XL,0,XR-XL,H);
+  // crowd + flashes (across the whole wide screen)
+  for(let i=0;i<110;i++){ const x=XL+(i*53)%(XR-XL), y=150+((i*37)%120)+(x<0||x>W?((i*29)%260):0); c.fillStyle='rgba(120,90,160,.25)'; c.beginPath(); c.arc(x,y,14,0,7); c.fill(); if(Math.sin(t*3+i*7.1)>0.985){ c.fillStyle='#fff'; c.shadowColor='#fff'; c.shadowBlur=20; c.beginPath(); c.arc(x,y-6,4,0,7); c.fill(); c.shadowBlur=0; } }
   const sp=c.createRadialGradient(OX,380,10,OX,420,420); sp.addColorStop(0,'rgba(255,255,230,.22)'); sp.addColorStop(1,'rgba(255,255,230,0)'); c.fillStyle=sp; c.fillRect(0,0,W,H);
   // canvas floor in perspective
-  c.fillStyle='#1d1830'; c.beginPath(); c.moveTo(120,330); c.lineTo(480,330); c.lineTo(W+80,H); c.lineTo(-80,H); c.fill();
-  const fg=c.createLinearGradient(0,330,0,H); fg.addColorStop(0,'rgba(0,0,0,0)'); fg.addColorStop(1,'rgba(0,0,0,.5)'); c.fillStyle=fg; c.fillRect(0,330,W,H-330);
+  c.fillStyle='#120e1e'; c.fillRect(XL,330,XR-XL,H-330); c.fillStyle='#1d1830'; c.beginPath(); c.moveTo(120,330); c.lineTo(480,330); c.lineTo(W+80,H); c.lineTo(-80,H); c.fill();
+  const fg=c.createLinearGradient(0,330,0,H); fg.addColorStop(0,'rgba(0,0,0,0)'); fg.addColorStop(1,'rgba(0,0,0,.5)'); c.fillStyle=fg; c.fillRect(XL,330,XR-XL,H-330);
   c.strokeStyle='rgba(255,255,255,.06)'; c.lineWidth=2; for(let i=1;i<6;i++){ const y=330+i*i*20; c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); }
   // back ropes + corner posts
   [0,1,2].forEach(k=>{ c.strokeStyle=k===1?'#fff':ring; c.shadowColor=ring; c.shadowBlur=12; c.lineWidth=4; c.beginPath(); c.moveTo(110,250+k*28); c.lineTo(490,250+k*28); c.stroke(); }); c.shadowBlur=0;
@@ -784,7 +801,7 @@ function drawPlayer(c,P,col,E,tir,hide){ if(!P){ P=pl; col=api.cos('Gloves').col
   c.restore();
   [lg,rg].forEach(g=>{ glove(c,g.x,g.y,g.r,col,g===wg?30+Math.sin(t*30)*10:22,g===wg?'#fff':col); });
   if(E.guard>0){ c.strokeStyle='#7df9ff'; c.lineWidth=5; c.shadowColor='#7df9ff'; c.shadowBlur=20; c.globalAlpha=0.5+0.3*Math.sin(t*10); c.beginPath(); c.arc(x,y-60,150,Math.PI*1.1,Math.PI*1.9); c.stroke(); c.globalAlpha=1; c.shadowBlur=0; }
-  if(E.rage>0){ for(let i=0;i<2;i++) api.fx.spark(x+(Math.random()-.5)*200,y-60+Math.random()*80,0,-120,'#ff8a1f',.4,4); }
+  if(E.rage>0){ for(let i=0;i<2;i++) FX.spark(x+(Math.random()-.5)*200,y-60+Math.random()*80,0,-120,'#ff8a1f',.4,4); }
   if(tir>0){ c.font='bold 24px sans-serif'; c.textAlign='center'; c.fillStyle='#ff7ab8'; c.fillText('💦 TIRED',x,y-160); } }
 function bar(c,x,y,w,h,v,col,right){ c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(x,y,w,h); const vw=w*Math.max(0,Math.min(1,v)); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=10; c.fillRect(right?x+w-vw:x,y,vw,h); c.shadowBlur=0; c.strokeStyle='rgba(255,255,255,.5)'; c.lineWidth=2; c.strokeRect(x,y,w,h); }
 function drawHud(c){ const y0=148; c.textAlign='left'; c.font='bold 15px sans-serif'; c.fillStyle='#3bff7a'; c.fillText('YOU',16,y0); c.textAlign='right'; c.fillStyle=opp.champ?'#ffd23f':'#ff7ab8'; c.fillText(opp.name,W-16,y0);
