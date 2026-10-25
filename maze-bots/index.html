@@ -402,6 +402,13 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 #app.land .fin-stats{margin-top:4px}
 #app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
 
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
+
+/* SHELL-LANDSCAPE-2: upright hint is a small strip, never a blocking cover */
+#app #rotate{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:auto!important;height:auto!important;inset:0 0 auto 0!important;padding:6px 10px!important;background:#000c!important;font:700 12px system-ui,sans-serif!important;color:#ffd23f!important;text-align:center!important;z-index:40!important;pointer-events:none!important;display:block}
+#app #rotate.hidden{display:none!important}
+
 </style>
 </head>
 <body>
@@ -696,7 +703,7 @@ landInsets();
 if(LAND){
   if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
   const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
-  rt.innerHTML='<div class="rotph">📱</div><div class="rotar">🔄</div><h2>TURN YOUR PHONE SIDEWAYS</h2><p>This game is played with the phone on its side. The game is paused and waits for you.</p>';
+  rt.innerHTML='🔄 Turn your phone sideways for a bigger screen (switch on auto-rotate)';
   app.appendChild(rt);
 }
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
@@ -1517,9 +1524,10 @@ function frame(now){
 function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
 function landCheck(){
   const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
-  const want = up && (state==='play' || state==='rot');
-  if(want && state==='play' && !NET.on){ state='rot'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden'); for(const k in keys) keys[k]=false; }
-  if(!up && state==='rot'){ state='play'; last=performance.now(); }
+  // SHELL-LANDSCAPE-2 (25 Oct): NEVER block the game. Many phones have auto-rotate switched off, so the page never turns
+  // and the old "turn your phone" cover got stuck. Upright now just plays (smaller) with a small hint strip at the top.
+  const want = up && state==='play';
+  if(state==='rot'){ state='play'; last=performance.now(); }
   const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
   const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
 }
