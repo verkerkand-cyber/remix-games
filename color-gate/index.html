@@ -368,6 +368,64 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
+
+/* SHELL-LANDSCAPE-2: upright hint is a small strip, never a blocking cover */
+#app #rotate{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:auto!important;height:auto!important;inset:0 0 auto 0!important;padding:6px 10px!important;background:#000c!important;font:700 12px system-ui,sans-serif!important;color:#ffd23f!important;text-align:center!important;z-index:40!important;pointer-events:none!important;display:block}
+#app #rotate.hidden{display:none!important}
+
+/* SHELL-LANDSCAPE-3 hint strip: always visible upright, tappable */
+#app #rotate{pointer-events:auto!important;font-size:14px!important;padding:8px 10px!important;background:#14061fee!important;border-bottom:2px solid #ffd23f!important}
+#rotate #rotGo{display:block;margin:6px auto 0;font:800 14px system-ui,sans-serif;border:0;border-radius:10px;padding:10px 14px;background:linear-gradient(90deg,#ffd23f,#ff3bd4);color:#14061f}
+
+/* SHELL-LANDSCAPE-3b: 'now turn your phone' tip after the screen is turned */
+#turnTip{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10001;background:#14061fee;border:2px solid #ffd23f;border-radius:18px;padding:16px 22px;color:#fff;font:700 15px system-ui,sans-serif;text-align:center;pointer-events:none;box-shadow:0 0 30px #ffd23f66}
+#turnTip.hidden{display:none}
+#turnTip b{display:block;color:#ffd23f;font-size:18px;margin:6px 0}
+#turnTip span{font-size:13px;opacity:.85}
+#turnTip .tt-ph{font-size:44px;display:inline-block;animation:ttrot 1.2s ease-in-out infinite}
+@keyframes ttrot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+/* SHELL-GOLD-1: redeem code button + modal */
+.abshop .gcode{width:100%;padding:11px 8px;border-radius:12px;font-size:13px;font-weight:800;font-family:'Orbitron',sans-serif;background:rgba(255,210,74,.12);color:#ffd24a;border:1px dashed #ffd24a99}
+.mbox .gnote{font-size:12px;opacity:.75;font-family:'Segoe UI',system-ui,sans-serif;margin:0 0 10px;line-height:1.35}
+.mbox #gcIn{width:100%;box-sizing:border-box;margin-bottom:8px}
+.mbox .gmsg{min-height:1.3em;font-size:13px;font-family:'Segoe UI',system-ui,sans-serif;margin:8px 0 4px;color:#ffd24a}
+.mbox .gmsg.ok{color:#7dff9b}.mbox .gmsg.bad{color:#ff8a8a}
 
 </style>
 </head>
@@ -565,7 +623,7 @@ function crash(msg){ if(lost||done) return; lost=true; api.toast(msg); api.sfx.h
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 · SHELL-GOLD-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -596,6 +654,26 @@ let P;
 try { P = JSON.parse(localStorage.getItem(KEY)) || blankProfile(); } catch(e){ P = blankProfile(); }
 P = Object.assign(blankProfile(), P); if(!P.abil || typeof P.abil!=='object') P.abil={};
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(P)); } catch(e){} }
+/* ---------- SHELL-GOLD-1: ONE shared gold wallet for every game ----------
+   All games live on the same site, so gold sits in localStorage 'rmxGold' (a whole number).
+   P.coins is a getter/setter onto that pool, so every old 'P.coins += x' line keeps working.
+   A change is applied as a DIFFERENCE to the freshest stored value, so two open tabs never wipe each other's gold.
+   First load with this shell: the game's old per-game coins are added to the pool once (P.goldMig marks it done). */
+const GOLD_KEY = 'rmxGold';
+function goldRead(){ try { const v = parseInt(localStorage.getItem(GOLD_KEY), 10); return isFinite(v) && v > 0 ? v : 0; } catch(e){ return null; } }
+let GOLD = goldRead(); if(GOLD === null) GOLD = 0;
+function goldWrite(v){ GOLD = Math.max(0, Math.floor(v) || 0); try { localStorage.setItem(GOLD_KEY, String(GOLD)); } catch(e){} }
+(function(){ const old = Math.max(0, Math.floor(+P.coins) || 0); delete P.coins;
+  Object.defineProperty(P, 'coins', { enumerable:true, configurable:true,
+    get(){ return GOLD; },
+    set(v){ v = Math.floor(+v) || 0; const d = v - GOLD; const now = goldRead(); goldWrite((now === null ? GOLD : now) + d); } });
+  if(!P.goldMig){ if(old > 0){ const now = goldRead(); goldWrite((now === null ? GOLD : now) + old); } P.goldMig = 1; save(); }
+})();
+function goldSync(){ const v = goldRead(); if(v === null || v === GOLD) return; GOLD = v; try { goldUI(); } catch(e){} }
+function goldUI(){ const t = P.coins.toLocaleString(); ['#hudCoins','#mCoins','#slC'].forEach(id=>{ const e=$(id); if(e) e.textContent=t; }); document.querySelectorAll('.abshop .bal .coins').forEach(e=>e.textContent=t); }
+window.addEventListener('focus', goldSync); window.addEventListener('pageshow', goldSync);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) goldSync(); });
+window.addEventListener('storage', e=>{ if(!e.key || e.key === GOLD_KEY) goldSync(); });
 G.shop.forEach(it => { if(it.cost === 0 && !P.owned.includes(it.id)) P.owned.push(it.id); if(it.cost===0 && !P.equipped[it.cat]) P.equipped[it.cat] = it.id; });
 function have(a){ return a.cd>0 ? (P.abil[a.id]||0) : Infinity; }
 function starterKit(){ BUY.forEach(a=>{ if(!(P.abil[a.id]>0)) P.abil[a.id]=1; }); save(); }
@@ -652,8 +730,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<b>🔄 TURN YOUR PHONE SIDEWAYS</b> <button id="rotGo" type="button">TAP HERE TO TURN THE SCREEN</button>'; rt.addEventListener('pointerdown',e=>{ e.stopPropagation(); }); rt.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); landForce(); });
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -678,6 +774,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -695,6 +814,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -801,7 +924,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -825,6 +948,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -874,8 +999,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1023,8 +1148,8 @@ function abShopHTML(){
   G.abilities.filter(a=>a.cd===0).forEach(a=>{
     h+=`<div class="abrow free"><div class="ic">${a.icon}</div><div class="tx"><b>${a.name}</b>Part of the game — always free, never runs out.</div></div>`; });
   h+=`<div class="cat">GOLD PACKS</div>`;
-  GOLD_PACKS.forEach(g=>{ h+=`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>Top up your gold with cash.</div><button disabled>${g.price} · SOON</button></div>`; });
-  h+=`<p class="note">Cash gold packs are coming soon (paid with PayFast). Test build: not buyable yet.<br>Earn gold free by playing: coins pop out when you score, plus a bonus for every stage you clear.</p></div>`;
+  h+=goldPackRows();
+  h+=`<p class="note">${GOLD_NOTE}<br>Earn gold free by playing: coins pop out when you score, plus a bonus for every stage you clear. Your gold works in every game.</p></div>`;
   return h;
 }
 function bindAbShop(refresh){
@@ -1032,6 +1157,7 @@ function bindAbShop(refresh){
     const a=BUY.find(x=>x.id===b.dataset.abbuy), p=abPrice(a);
     if(P.coins<p){ SFX.bump(); return; }
     P.coins-=p; P.abil[a.id]=have(a)+1; save(); SFX.power(); refresh(); }));
+  bindGoldPacks(refresh);
 }
 function abilPanel(){ panel('ABILITIES', `<p style="margin-bottom:10px">You start every new game with <b>1 of each</b> ability. Buy more here with 🪙 gold. What you buy stays with you until you use it.</p>`+abShopHTML()); bindAbShop(abilPanel); }
 // in-stage shop: pauses the game; back returns to where you came from
@@ -1246,7 +1372,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1420,6 +1546,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1430,10 +1557,33 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  // SHELL-LANDSCAPE-2 (25 Oct): NEVER block the game. Many phones have auto-rotate switched off, so the page never turns
+  // and the old "turn your phone" cover got stuck. Upright now just plays (smaller) with a small hint strip at the top.
+  const want = up && state!=='loading';  // SHELL-LANDSCAPE-3: hint shows on menu AND in play whenever the phone is upright
+  if(state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+/* SHELL-LANDSCAPE-3: force sideways. Phones only allow a screen lock in fullscreen or in the installed app, and only
+   right after a tap — so we ask for fullscreen + landscape on the hint button and on taps while upright. Works even when
+   the phone's auto-rotate is off. iPhones don't allow it: they keep the hint and play upright (smaller). */
+function landForce(){ try{ const d=document.documentElement, fs=document.fullscreenElement||document.webkitFullscreenElement;
+  const go=()=>{ landLock(); landTurnTip(); }; if(!fs && (d.requestFullscreen||d.webkitRequestFullscreen)){ const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'}); if(r&&r.then) r.then(go,go); else go(); } else go(); }catch(e){ landLock(); } }
+// pointerdown does NOT count as a user tap for touch screens (fullscreen would be refused) -> use click / touchend (SHELL-LANDSCAPE-4)
+if(LAND){ const lf=()=>{ if(window.innerHeight>window.innerWidth*1.05 && landTouch()) landForce(); }; window.addEventListener('click', lf, true); window.addEventListener('touchend', lf, true); }
+function landTurnTip(){ try{ if(landTurnTip.t && Date.now()-landTurnTip.t<8000) return; landTurnTip.t=Date.now(); let el=document.getElementById('turnTip'); if(!el){ el=document.createElement('div'); el.id='turnTip'; el.innerHTML='<div class="tt-ph">📱</div><b>NOW TURN YOUR PHONE SIDEWAYS</b><span>Hold it with both hands, thumbs on the buttons</span>'; document.body.appendChild(el); }
+  el.classList.remove('hidden'); clearTimeout(landTurnTip.h); landTurnTip.h=setTimeout(()=>el.classList.add('hidden'),3500); }catch(e){} }
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1450,7 +1600,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1486,7 +1636,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1525,6 +1675,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
@@ -1710,13 +1861,52 @@ function netResult(idx){ state='modal'; const meIdx=NET.role==='host'?0:1; const
 function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NET.peer&&NET.peer.close(); }catch(e){} NET.dc=null; NET.peer=null; NET.rtcOk=false; Math.random=mpRealRandom; P.diff=MP.prevDiff; if(window.RMXL) RMXL.setBusy(false); }
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
 
-// ===== GOLD STORE (cash gold packs) — PAY-1. Payments are not switched on yet: PAY.buy() is the ONE place to connect PayFast / Google Play Billing later.
-const PAY = { enabled:false,
-  buy(pack, done){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; } /* later: start PayFast / Play Billing checkout here, then on success: */ P.coins+=pack.gold; save(); updCoins(); toast('+'+pack.gold.toLocaleString()+' 🪙 ADDED'); SFX.coin(); done&&done(); } };
+// ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
+// Gold is sold on Payhip (no card details ever touch the game). The buyer gets a code by email and types it in
+// "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
+const PAYHIP_STORE = 'https://payhip.com/b/kXlAa';
+const PAY_LINKS = {500:'', 1500:'', 4000:''};   // per-pack Payhip links go here; empty = the main store page
+const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
+const GOLD_NOTE = 'Buy gold on our Payhip page. You get a code by email — type it here. Each code works once, on one device.';
+const PAY = { enabled:true,
+  buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
+    const url = PAY_LINKS[pack.gold] || PAYHIP_STORE; let w=null;
+    try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
+    if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
+    toast('🛒 OPENING PAYHIP…'); SFX.click(); } };
+function goldPackRows(){
+  return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
+    + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>`;
+}
+function bindGoldPacks(back){
+  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); PAY.buy(GOLD_PACKS[+b.dataset.gp]); }));
+  document.querySelectorAll('[data-gcode]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); SFX.click(); redeemModal(back); }));
+}
 function goldStore(back, title){
-  const rows=GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':''}</div><button data-gp="${i}" ${PAY.enabled?'':'style="opacity:.75"'}>${g.price}${PAY.enabled?'':' · SOON'}</button></div>`).join('');
-  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>${rows}<p class="note">${PAY.enabled?'Secure payment. Gold is added straight away.':'Gold purchases open soon. You can still earn gold free by playing.'}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
-  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); PAY.buy(GOLD_PACKS[+b.dataset.gp], ()=>goldStore(back,title)); }));
+  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>${goldPackRows()}<p class="note">${GOLD_NOTE}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  bindGoldPacks(()=>goldStore(back,title));
+}
+function redeemModal(back){
+  modal(`<h2>🎟️ REDEEM CODE</h2><p class="gnote">${GOLD_NOTE}</p><input id="gcIn" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="YOUR CODE"><button class="big" id="gcGo">REDEEM</button><p class="gmsg" id="gcMsg"></p><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  const inp=$('#gcIn'), go=$('#gcGo'), msg=$('#gcMsg'); let busy=false;
+  const say=(t,ok)=>{ msg.textContent=t; msg.className='gmsg'+(ok?' ok':t?' bad':''); };
+  inp.addEventListener('input',()=>{ const v=inp.value.toUpperCase().replace(/[^A-Z0-9-]/g,''); if(v!==inp.value) inp.value=v; });
+  inp.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') go.click(); });
+  setTimeout(()=>{ try{ inp.focus(); }catch(e){} },50);
+  go.addEventListener('click',e=>{ e.stopPropagation(); if(busy) return;
+    const code=inp.value.toUpperCase().replace(/[^A-Z0-9-]/g,'');
+    if(code.length<4){ say('Type the code from your email.'); SFX.bump(); return; }
+    let pid=''; try{ pid=localStorage.getItem('rmxId')||''; }catch(err){}
+    busy=true; go.disabled=true; say('Checking your code…');
+    let ac=null, tm=null; try{ ac=new AbortController(); tm=setTimeout(()=>ac.abort(),15000); }catch(err){}
+    const done=()=>{ busy=false; go.disabled=false; clearTimeout(tm); };
+    fetch(REDEEM_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':FIN.key},body:JSON.stringify({code,pid}),signal:ac?ac.signal:undefined})
+      .then(r=>r.json().catch(()=>({ok:false,msg:r.ok?'':'Could not check the code right now. Please try again later.'})))
+      .then(j=>{ done(); const n=Math.floor(+(j&&j.gold))||0;
+        if(j&&j.ok&&n>0){ P.coins+=n; save(); goldUI(); SFX.coin(); toast('+'+n.toLocaleString()+' GOLD ADDED'); inp.value=''; say('+'+n.toLocaleString()+' GOLD ADDED ✔ · You now have 🪙 '+P.coins.toLocaleString(),true); }
+        else { SFX.bump(); say((j&&j.msg)||'That code did not work. Check it and try again.'); } })
+      .catch(()=>{ done(); SFX.bump(); say('No connection — could not check your code. Check your internet and try again.'); });
+  });
 }
 
 
