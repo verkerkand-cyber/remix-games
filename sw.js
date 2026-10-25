@@ -1,5 +1,5 @@
 /* REMIX-SW-1.0 offline cache */
-const C='rmx-v8';
+const C='rmx-v9';
 const URLS=['./','./lobby.js','./challenge.html','./games.json','./icon-512.png','./icon-192.png','./manifest.webmanifest',
   './chomp-circuit/',
   './sky-shield/',
