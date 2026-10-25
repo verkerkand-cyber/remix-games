@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SX-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-SX-1.2 · 2026-10-26">
 <title>Sky Strike</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SX-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SX-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,78 +489,125 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* SKY STRIKE — Xevious remix (#50). 100 stages. Zap the air, bomb the ground, reach the mother-fortress. */
+/* SKY STRIKE — Xevious remix (#50). 100 stages. Zap the air, bomb the ground, reach the mother-fortress.
+   v1.2 (Andrew 26 Oct: "way too hard; bomb and shoot buttons at the bottom; tap to shoot, not constant"):
+   LANDSCAPE (SHELL-LANDSCAPE-1) — the land scrolls right to left (top-down), you fly left-of-centre and see far ahead.
+   NO auto-fire: 🔫 FIRE (bottom-right) — TAP = one 3-shot burst, HOLD = steady fire. 💣 BOMB (bottom-right) — tap = one bomb,
+   hold = one every 0.5 s; it lands on the sight in front of you. Left thumb = stick. Beginner 1-10 much gentler.
+   RACE: the whole stage layout (ground targets + air waves) is built at stage start from Math.random → same stage on both phones. */
 (function(){
-const W=600,H=900;
-let api,t,pl,shots,bombs,air,gnd,ebul,done,lost,eff,fireT,spawnA,spawnG,scroll,dist,goal,boss,grace,mouse,bombCD;
+const W=1280,H=720,PXMIN=280,PXMAX=660,PY0=100,PY1=680,SIGHT=240;
+let api,t,pl,shots,bombs,air,gnd,ebul,done,lost,eff,fireT,burstN,scroll,dist,goal,boss,grace,mouse,bombCD,seekT,rng,plan,deaths,hintT;
+const beg10=()=>api.diff===0&&api.level<=10;
+const easy=()=>api.content===0||(api.diff===0&&api.level<=5);
+function mulberry(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let q=Math.imul(a^a>>>15,1|a); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }; }
 const GAME=window.GAME={
   id:'sky-strike',title:'Sky Strike',titleHTML:'SKY<br>STRIKE',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-SX-1.1 · 2026-10-17',theme:{a:'#3dffd8',b:'#ff3bd4',bg:'#08140c'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🛩️',joystick:false,coinPts:40,
+  build:'BUILD-SX-1.2 · 2026-10-26',theme:{a:'#3dffd8',b:'#ff3bd4',bg:'#08140c'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🛩️',joystick:true,coinPts:40,
   abilities:[
-    {id:'bomb',icon:'🎯',name:'GROUND BOMB',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — drop a bomb on the target sight in front of you. Only bombs can hit ground targets.'},
-    {id:'auto',icon:'🤖',name:'AUTO-BOMB',cd:15,key:'Digit1',keyLabel:'1',desc:'Bombs drop by themselves for 8 seconds.'},
-    {id:'rapid',icon:'🔥',name:'RAPID',cd:15,key:'Digit2',keyLabel:'2',desc:'Triple zappers for 8 seconds.'},
+    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — TAP for a quick burst, HOLD for steady fire. Zaps AIR enemies. It never fires by itself.'},
+    {id:'bomb',icon:'💣',name:'BOMB',cd:0,key:'KeyX',keyLabel:'X',desc:'FREE — drops a bomb on the sight in front of you (hold for one every half second). Only bombs hit GROUND targets.'},
+    {id:'auto',icon:'💥',name:'BIG BOMBS',cd:15,key:'Digit1',keyLabel:'1',desc:'For 8 seconds your bombs blow up a much bigger area.'},
+    {id:'rapid',icon:'🔥',name:'RAPID',cd:15,key:'Digit2',keyLabel:'2',desc:'Triple zappers for 8 seconds (while you fire).'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit3',keyLabel:'3',desc:'6 seconds of safety.'}],
   shop:[{id:'f_w',cat:'Fighter',name:'White Fighter',cost:0,colors:['#e8f0ff'],desc:'Classic.'},{id:'f_c',cat:'Fighter',name:'Cyan Fighter',cost:150,colors:['#3dffd8'],desc:'Cool.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3dffd8,#ff3bd4)'}],
   story:`<h3>SKY STRIKE</h3><p>Alien bases cover the land and their saucers fill the sky. Zap the air, bomb the ground, and take down the mother-fortress.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to fly (arrow keys on PC). Your zapper fires at AIR enemies by itself.</li><li>GROUND targets can only be hit by bombs: tap <b>🎯 GROUND BOMB</b> (SPACE) — the bomb lands on the sight in front of you.</li><li>Fly the whole distance to clear the stage. Every 10th stage: the mother-fortress — bomb its glowing core!</li></ul>`,
-  tutorial:[{text:'Line the sight up with a ground turret and tap 🎯 GROUND BOMB!',ev:'bombhit'},{text:'Zap the air, bomb the ground!',time:5}],
-  stageIntro:{1:'ZAP THE AIR · BOMB THE GROUND'},bossName:'MOTHER-FORTRESS!',ending:{"0":["#STRIKE","The land is free."],"1":["#ACE","Ace of the strike force."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={auto:8,rapid:8,shield:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pl(){return pl;}, get air(){return air;}, get gnd(){return gnd;}, get lost(){return lost;}}; },
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick flies your fighter. PC: arrow keys or WASD (or drag with the mouse).</li><li><b>Right thumb:</b> <b>🔫 FIRE</b> — TAP for a quick burst, HOLD for steady fire (PC: SPACE). It only fires when you press it. Zaps AIR enemies (saucers, spinners).</li><li><b>💣 BOMB</b> (PC: X) — the bomb lands on the yellow sight in front of you. Only bombs can hit GROUND targets (turrets, tanks). The sight turns RED when a target is under it.</li><li>Fly the whole distance to clear the stage. Every 10th stage: the mother-fortress — bomb its glowing core!</li></ul>`,
+  tutorial:[{text:'Fly with the arrow keys. Press <b>SPACE</b> to fire (tap = burst, hold = steady) — zap the flying enemy!',touch:'Left thumb flies. TAP or HOLD <b>🔫 FIRE</b> — zap the flying enemy!',ev:'kill'},
+    {text:'Line the sight up with a ground turret and press <b>X</b> to BOMB it!',touch:'Line the sight up with a ground turret and tap <b>💣 BOMB</b>!',ev:'bombhit'},{text:'Zap the air, bomb the ground!',time:5}],
+  stageIntro:{1:'🔫 ZAP THE AIR · 💣 BOMB THE GROUND'},bossName:'MOTHER-FORTRESS!',ending:{"0":["#STRIKE","The land is free."],"1":["#ACE","Ace of the strike force."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ const tot={auto:8,rapid:8,shield:6}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return {get pl(){return pl;}, get air(){return air;}, get gnd(){return gnd;}, get ebul(){return ebul;}, get lost(){return lost;}, get done(){return done;}, get dist(){return dist;}, get goal(){return goal;},
+    get boss(){return boss;}, get shots(){return shots;}, get bombs(){return bombs;}, get deaths(){return deaths;}, SIGHT,
+    sig(){ return goal+'|'+plan.g.slice(0,10).map(g=>g.k[0]+Math.round(g.d)+':'+Math.round(g.y)).join(',')+'|'+plan.a.slice(0,6).map(a=>Math.round(a.d)+':'+Math.round(a.y)+a.n).join(','); }}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1.5; bombCD=0; eff={auto:-9,rapid:-9,shield:-9}; shots=[]; bombs=[]; air=[]; gnd=[]; ebul=[]; fireT=0; spawnA=1.5; spawnG=0.5; scroll=0; dist=0; boss=null; mouse=null;
-    goal=a.content===0?2500:Math.round(a.dv([6000,8000,10000],12000,15000)); pl={x:W/2,y:H-170}; },
-  respawn(){ lost=false; grace=2.5; pl.x=W/2; pl.y=H-170; ebul=[]; },
+  startStage(n,a){ api=a; rng=mulberry(Math.floor(Math.random()*2147483647));   // the ONLY randomness the stage layout uses
+    t=0; done=false; lost=false; grace=2; bombCD=0; burstN=0; hintT=0; eff={auto:-9,rapid:-9,shield:-9}; shots=[]; bombs=[]; air=[]; gnd=[]; ebul=[]; fireT=0; scroll=0; dist=0; boss=null; mouse=null; deaths=[];
+    goal=a.content===0?2600:beg10()?Math.round(4200+a.level*250):Math.round(a.dv([6000,8000,10000],12000,15000));
+    seekT=a.content===0?5:beg10()?6:3.5;
+    // stage plan (world distance where each thing appears)
+    plan={g:[],a:[]}; const gs=a.content===0?260:beg10()?300-a.level*4:a.dv([260,190,140],110,80);
+    for(let d=500;d<goal-500;d+=gs*(0.7+rng()*0.6)) plan.g.push({d,k:rng()<0.6?'turret':'tank',y:120+rng()*500,f:1+rng()*2});
+    const as=a.content===0?900:beg10()?700-a.level*15:a.dv([520,380,280],220,160);
+    for(let d=700;d<goal-500;d+=as*(0.7+rng()*0.6)) plan.a.push({d,y:110+rng()*400,n:1+Math.floor(rng()*(beg10()?(a.level<=3?1:2):3)),k:rng()<(beg10()?0.15:0.25)?'spinner':'saucer'});
+    pl={x:340,y:380}; },
+  respawn(){ lost=false; grace=2.5; if(!boss) dist=Math.max(0,dist-1000); pl.x=340; pl.y=380; ebul=[]; air=air.filter(e=>e.x>pl.x+500); mouse=null; burstN=0; seekT=Math.max(seekT,2.5);
+    gnd=[]; bombs=[]; plan.g.forEach(g=>{ if(g.d>dist) g.used=false; }); plan.a.forEach(w=>{ if(w.d>dist) w.used=false; }); },
   stageBonus(){ return 300; },
-  useAbility(id){ if(done||lost) return false; if(id==='bomb') return dropBomb(); eff[id]={auto:8,rapid:8,shield:6}[id]; api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(type==='down') mouse={x,y,px:pl.x,py:pl.y}; else if(type==='move'&&mouse){ pl.x=Math.max(24,Math.min(W-24,mouse.px+(x-mouse.x)*1.2)); pl.y=Math.max(320,Math.min(H-40,mouse.py+(y-mouse.y)*1.2)); } else if(type==='up') mouse=null; },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; bombCD-=dt; if(lost) return;
-    const v=api.dv([110,130,150],165,190); if(!boss) { scroll+=v*dt; dist+=v*dt; }
-    const d=api.input.dir(); pl.x=Math.max(24,Math.min(W-24,pl.x+d.x*330*dt)); pl.y=Math.max(320,Math.min(H-40,pl.y+d.y*330*dt));
-    if(api.input.keys.Space&&!this._s) dropBomb(); this._s=api.input.keys.Space; if(eff.auto>0&&bombCD<=0&&gnd.some(g=>Math.abs(g.x-pl.x)<40&&g.y<pl.y-120&&g.y>pl.y-320)) dropBomb();
-    fireT-=dt; if(fireT<=0){ fireT=0.14; (eff.rapid>0?[-18,0,18]:[-6,6]).forEach(o=>shots.push({x:pl.x+o,y:pl.y-20})); api.sfx.shoot(); }
-    shots.forEach(s=>s.y-=900*dt); shots=shots.filter(s=>s.y>-10&&!s.hit);
-    bombs.forEach(b=>{ b.p+=dt/0.55; b.ty+=v*dt; if(b.p>=1){ b.gone=true; api.fx.burst(b.tx,b.ty,'#ff9f1c',14,180,.4,3);
-      gnd.forEach(g=>{ if(!g.dead&&Math.hypot(g.x-b.tx,g.y-b.ty)<34){ g.dead=true; api.addScore(g.k==='core'?3000:200*(1+api.dk*.5),g.x,g.y); api.fx.burst(g.x,g.y,'#ff3bd4',20,240,.5,3); api.sfx.boom(); api.event('bombhit'); } });
-      if(boss&&!boss.dead&&Math.hypot(boss.x-b.tx,boss.y-b.ty)<40){ boss.hp--; api.fx.flash('#ff3bd4',.15); if(boss.hp<=0){ boss.dead=true; api.addScore(5000,boss.x,boss.y); api.fx.burst(boss.x,boss.y,'#ff3bd4',90,400,.9,4); api.sfx.boom(); win(); } } } }); bombs=bombs.filter(b=>!b.gone);
-    // ground targets scroll with the land
-    spawnG-=dt; if(!boss&&spawnG<=0&&dist<goal-400){ spawnG=api.dv([1.6,1.2,0.9],0.7,0.45); gnd.push({k:Math.random()<0.6?'turret':'tank',x:50+Math.random()*(W-100),y:-30,vx:0,fire:1+Math.random()*2}); }
-    gnd.forEach(g=>{ g.y+=v*dt; if(g.k==='tank') g.x+=Math.sin(t+g.y*0.01)*40*dt; g.fire-=dt; if(g.fire<=0&&g.y>0&&g.y<pl.y-60){ g.fire=api.dv([2.4,1.7,1.2],0.9,0.6); const a=Math.atan2(pl.y-g.y,pl.x-g.x), sp=api.dv([170,220,270],300,380); ebul.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp}); } if(g.y>H+40) g.gone=true; });
+  useAbility(id){ if(done||lost) return false;
+    if(id==='fire'){ if(burstN<=0) burstN=3; return true; }          // tap = one 3-shot burst; holding keeps firing (update reads Space)
+    if(id==='bomb') return dropBomb();
+    eff[id]={auto:8,rapid:8,shield:6}[id]; api.sfx.power(); return true; },
+  onPointer(type,x,y,id,pt){ if(pt==='touch'||pt==='pen') return;   // phones fly with the shell joystick; a mouse may drag
+    if(type==='down') mouse={id,x,y,px:pl.x,py:pl.y}; else if(type==='move'&&mouse&&mouse.id===id){ mouse.tx=Math.max(PXMIN,Math.min(PXMAX,mouse.px+(x-mouse.x)*1.2)); mouse.ty=Math.max(PY0,Math.min(PY1,mouse.py+(y-mouse.y)*1.2)); } else if(type==='up') mouse=null; },
+  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; bombCD-=dt; hintT-=dt; if(lost) return;
+    const K=api.input.keys, v=beg10()?110+api.level*3:api.dv([130,150,170],185,205); if(!boss){ scroll+=v*dt; dist+=v*dt; }
+    // flying: stick / keys, or a mouse drag (speed-limited)
+    const d=api.input.dir(), sp=380; let mx=d.x*sp*dt, my=d.y*sp*dt;
+    if(mouse&&mouse.tx!==undefined){ const dx=mouse.tx-pl.x, dy=mouse.ty-pl.y, m=Math.hypot(dx,dy), lim=560*dt; if(m>lim){ mx=dx/m*lim; my=dy/m*lim; } else { mx=dx; my=dy; } }
+    pl.x=Math.max(PXMIN,Math.min(PXMAX,pl.x+mx)); pl.y=Math.max(PY0,Math.min(PY1,pl.y+my));
+    // zapper: ONLY when FIRE is pressed — tap = burst of 3, hold = steady
+    fireT-=dt; if((K.Space||burstN>0)&&fireT<=0){ fireT=0.12; if(burstN>0) burstN--; (eff.rapid>0?[-16,0,16]:[-6,6]).forEach(o=>shots.push({x:pl.x+24,y:pl.y+o,vy:eff.rapid>0?o*4:0})); api.sfx.shoot(); }
+    if(K.KeyX&&bombCD<=0) dropBomb();
+    shots.forEach(s=>{ s.x+=1000*dt; s.y+=s.vy*dt; }); shots=shots.filter(s=>s.x<W+10&&!s.hit);
+    const big=eff.auto>0?80:(beg10()?44:34);
+    bombs.forEach(b=>{ b.p+=dt/0.55; if(!boss) b.tx-=v*dt; if(b.p>=1){ b.gone=true; api.fx.burst(b.tx,b.ty,'#ff9f1c',big>60?30:14,big>60?300:180,.4,3);
+      gnd.forEach(g=>{ if(!g.dead&&Math.hypot(g.x-b.tx,g.y-b.ty)<big){ g.dead=true; api.addScore(200*(1+api.dk*.5),g.x,g.y); api.fx.burst(g.x,g.y,'#ff3bd4',20,240,.5,3); api.sfx.boom(); api.event('bombhit'); } });
+      if(boss&&!boss.dead&&Math.hypot(boss.x-b.tx,boss.y-b.ty)<(beg10()?52:40)){ boss.hp--; api.fx.flash('#ff3bd4',.15); api.sfx.boom(); if(boss.hp<=0){ boss.dead=true; ebul=[]; api.addScore(5000,boss.x,boss.y); api.fx.burst(boss.x,boss.y,'#ff3bd4',90,400,.9,4); api.sfx.boom(); win(); } } } }); bombs=bombs.filter(b=>!b.gone);
+    // ground targets (from the stage plan) scroll in from the right with the land
+    plan.g.forEach(g=>{ if(!g.used&&dist+W+30>=g.d){ g.used=true; gnd.push({k:g.k,x:W+30-(dist+W+30-g.d),y:g.y,fire:g.f+(beg10()?1.5:0),ph:g.y}); } });
+    const gRate=api.content===0?99:beg10()?Math.max(3,5.2-api.level*0.2):api.dv([2.4,1.7,1.2],0.9,0.6), bsp=beg10()?105+api.level*4:api.dv([170,220,270],300,380);
+    gnd.forEach(g=>{ g.x-=v*dt; if(g.k==='tank') g.y+=Math.sin(t+g.ph*0.01)*40*dt; g.fire-=dt;
+      if(g.fire<=0&&g.x<W-330&&g.x>pl.x+80&&!(api.content===0)){ g.fire=gRate; g.n=(g.n||0)+1; if(!(beg10()&&(api.level<=2||g.k==='tank'||g.n>(api.level<=5?1:2)))){ const a=Math.atan2(pl.y-g.y,pl.x-g.x); ebul.push({x:g.x,y:g.y,vx:Math.cos(a)*bsp,vy:Math.sin(a)*bsp}); } }
+      if(g.x<-40) g.gone=true; });
     gnd=gnd.filter(g=>!g.dead&&!g.gone);
-    // air enemies
-    spawnA-=dt; if(!boss&&spawnA<=0&&dist<goal-400){ spawnA=api.dv([1.4,1,0.7],0.55,0.35); const side=Math.random()<.5; const n=1+Math.floor(Math.random()*3); for(let k=0;k<n;k++) air.push({x:side?-20-k*30:W+20+k*30,y:80+Math.random()*160,vx:side?160:-160,vy:30,t:k*0.3,k:Math.random()<0.25?'spinner':'saucer'}); }
-    air.forEach(e=>{ e.t+=dt; if(e.k==='spinner'){ e.x+=(pl.x-e.x)*dt*0.8; e.y+=140*dt; } else { e.x+=e.vx*dt; e.y+=Math.sin(e.t*2)*50*dt+e.vy*dt; }
-      shots.forEach(s=>{ if(!s.hit&&Math.abs(s.x-e.x)<20&&Math.abs(s.y-e.y)<16){ s.hit=true; e.dead=true; api.addScore(100*(1+api.dk*.5),e.x,e.y,true); api.fx.burst(e.x,e.y,'#3dffd8',12,200,.35,2); api.sfx.small(); } });
-      if(Math.random()<dt*api.dv([0.3,0.5,0.8],1,1.6)){ const a=Math.atan2(pl.y-e.y,pl.x-e.x), sp=api.dv([180,230,280],320,400); ebul.push({x:e.x,y:e.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp}); }
-      if(grace<=0&&eff.shield<=0&&Math.hypot(e.x-pl.x,e.y-pl.y)<26) die();
-      if(e.x<-80||e.x>W+80||e.y>H+40) e.gone=true; }); air=air.filter(e=>!e.dead&&!e.gone);
-    // boss
-    if(!boss&&dist>=goal){ if(api.boss){ boss={x:W/2,y:-160,hp:Math.round(api.dv([6,9,12],14,20)),max:0,t:0}; boss.max=boss.hp; api.toast('MOTHER-FORTRESS!'); } else win(); }
-    if(boss&&!boss.dead){ boss.t+=dt; boss.y=Math.min(260,boss.y+80*dt); boss.x=W/2+Math.sin(boss.t*0.6)*120;
-      if(Math.random()<dt*api.dv([2,3,4],5,7)){ for(let k=-2;k<=2;k++){ const a=Math.PI/2+k*0.25; ebul.push({x:boss.x,y:boss.y+40,vx:Math.cos(a)*220,vy:Math.sin(a)*220}); } } }
-    ebul.forEach(b=>{ b.x+=b.vx*dt; b.y+=b.vy*dt; if(grace<=0&&eff.shield<=0&&Math.hypot(b.x-pl.x,b.y-pl.y)<12){ b.gone=true; die(); } }); ebul=ebul.filter(b=>!b.gone&&b.y<H+20&&b.y>-20&&b.x>-20&&b.x<W+20);
+    // air waves (from the stage plan) + one spinner that always comes for YOU (no hands = no win)
+    const asp=beg10()?110+api.level*4:api.dv([150,175,200],220,240);
+    plan.a.forEach(w=>{ if(!w.used&&dist>=w.d-W*0.3){ w.used=true; for(let k=0;k<w.n;k++) air.push({x:W+20+k*40,y:w.y+k*18,vx:-asp,t:k*0.3,k:w.k,vis:0}); } });
+    seekT-=dt; if(seekT<=0&&!boss&&dist<goal-300){ seekT=api.content===0?6:beg10()?Math.max(4,6.5-api.level*0.2):api.dv([4,3,2.5],2.2,1.8); air.push({x:W+20,y:Math.max(110,Math.min(520,pl.y)),vx:-asp*0.9,t:0,k:'spinner',seek:true,vis:0}); }
+    const track=beg10()?55+api.level*3:api.dv([80,110,140],160,180), aRate=api.content===0?0:beg10()?(api.level<=3?0:0.06+api.level*0.012):api.dv([0.3,0.5,0.8],1,1.6), absp=beg10()?125:api.dv([180,230,280],320,400);
+    air.forEach(e=>{ e.t+=dt; if(e.x<W) e.vis+=dt; e.x+=e.vx*dt;
+      if(e.k==='spinner'){ if(e.x>pl.x) e.y+=Math.sign(pl.y-e.y)*Math.min(Math.abs(pl.y-e.y),track*dt); } else e.y+=Math.sin(e.t*2)*60*dt;
+      shots.forEach(s=>{ if(!s.hit&&Math.abs(s.x-e.x)<(beg10()?26:20)&&Math.abs(s.y-e.y)<(beg10()?24:16)){ s.hit=true; e.dead=true; api.addScore(100*(1+api.dk*.5),e.x,e.y,true); api.fx.burst(e.x,e.y,'#3dffd8',12,200,.35,2); api.sfx.small(); api.event('kill'); } });
+      if(e.x<W-320&&e.x>pl.x+120&&Math.random()<dt*aRate){ const a=Math.atan2(pl.y-e.y,pl.x-e.x); ebul.push({x:e.x,y:e.y,vx:Math.cos(a)*absp,vy:Math.sin(a)*absp}); }
+      if(!e.dead&&grace<=0&&eff.shield<=0&&Math.hypot(e.x-pl.x,e.y-pl.y)<(beg10()?22:26)) die('HIT BY A '+(e.k==='spinner'?'SPINNER':'SAUCER')+'!',e.k,e);
+      if(e.x<-60||e.y<40||e.y>H+40) e.gone=true; }); air=air.filter(e=>!e.dead&&!e.gone);
+    // boss: the mother-fortress, ahead on the right
+    if(!boss&&dist>=goal){ if(api.boss){ boss={x:W+160,y:360,hp:beg10()?4:Math.round(api.dv([6,9,12],14,20)),max:0,t:0,cool:2}; boss.max=boss.hp; api.toast('BOMB THE GLOWING CORE!'); } else win(); }
+    if(boss&&!boss.dead){ boss.t+=dt; boss.x=Math.max(870,boss.x-90*dt); boss.y=360+Math.sin(boss.t*0.5)*(beg10()?110:150); boss.cool-=dt;
+      if(boss.cool<=0&&boss.x<1000){ boss.cool=beg10()?2.6:api.dv([1.6,1.1,0.8],0.6,0.45); const n=beg10()?1:2, s=beg10()?150:220; for(let k=-n;k<=n;k++){ const a=Math.PI+k*0.28; ebul.push({x:boss.x-60,y:boss.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s}); } }
+      if(grace<=0&&eff.shield<=0&&Math.abs(pl.x-boss.x)<130&&Math.abs(pl.y-boss.y)<95) die('CRASHED INTO THE FORTRESS!','boss',{vis:9}); }
+    const hr=beg10()?9:12;
+    ebul.forEach(b=>{ b.x+=b.vx*dt; b.y+=b.vy*dt; b.a=(b.a||0)+dt; if(grace<=0&&eff.shield<=0&&Math.hypot(b.x-pl.x,b.y-pl.y)<hr){ b.gone=true; die('SHOT DOWN!','bullet',{vis:b.a}); } }); ebul=ebul.filter(b=>!b.gone&&b.y<H+20&&b.y>-20&&b.x>-20&&b.x<W+20);
     api.counter(boss?'🏰 CORE':'🛩️ TO GO',boss?Math.max(0,boss.hp)+' hits':Math.max(0,Math.ceil((goal-dist)/40))+'km'); },
   render(c){ c.fillStyle='#16301c'; c.fillRect(0,0,W,H);
-    for(let k=0;k<14;k++){ const y=((k*130+scroll)%(H+260))-130; c.fillStyle=k%3?'#1c3a22':'#244a2a'; c.beginPath(); c.ellipse((k*173)%W,y,120,60,0,0,7); c.fill(); }
-    for(let k=0;k<6;k++){ const y=((k*300+scroll*1.0)%(H+300))-150; c.strokeStyle='#5a4a3a'; c.lineWidth=14; c.beginPath(); c.moveTo(0,y); c.bezierCurveTo(200,y-80,400,y+80,W,y); c.stroke(); }
-    gnd.forEach(g=>{ c.fillStyle=g.k==='turret'?'#6a6a7a':'#5a6a3a'; c.beginPath(); c.arc(g.x,g.y,18,0,7); c.fill(); c.fillStyle='#ff3bd4'; c.beginPath(); c.arc(g.x,g.y,7,0,7); c.fill(); if(g.k==='tank'){ c.fillStyle='#3a4a2a'; c.fillRect(g.x-22,g.y-12,6,24); c.fillRect(g.x+16,g.y-12,6,24); } });
-    if(boss&&!boss.dead){ c.fillStyle='#3a3a50'; c.beginPath(); for(let k=0;k<8;k++){ const a=k*Math.PI/4+Math.PI/8; c.lineTo(boss.x+Math.cos(a)*120,boss.y+Math.sin(a)*90); } c.fill(); c.fillStyle=(t*6|0)%2?'#ff3bd4':'#ffd23f'; c.shadowColor='#ff3bd4'; c.shadowBlur=24; c.beginPath(); c.arc(boss.x,boss.y,26,0,7); c.fill(); c.shadowBlur=0; c.fillStyle='#000'; c.fillRect(boss.x-80,boss.y-110,160,8); c.fillStyle='#ff3bd4'; c.fillRect(boss.x-80,boss.y-110,160*boss.hp/boss.max,8); }
-    bombs.forEach(b=>{ const x=b.sx+(b.tx-b.sx)*b.p, y=b.sy+(b.ty-b.sy)*b.p, s=8*(1-b.p)+3; c.fillStyle='#ffd23f'; c.beginPath(); c.arc(x,y,s,0,7); c.fill(); });
-    air.forEach(e=>{ c.save(); c.translate(e.x,e.y); if(e.k==='spinner'){ c.rotate(t*8); c.fillStyle='#ff9f1c'; c.fillRect(-14,-3,28,6); c.fillRect(-3,-14,6,28); } else { c.fillStyle='#c0c8d8'; c.beginPath(); c.ellipse(0,0,20,8,0,0,7); c.fill(); c.fillStyle='#3dffd8'; c.beginPath(); c.arc(0,-3,7,Math.PI,0); c.fill(); } c.restore(); });
-    c.fillStyle='#ff5050'; ebul.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,5,0,7); c.fill(); });
-    c.fillStyle='#3dffd8'; shots.forEach(s=>c.fillRect(s.x-2,s.y-10,4,14));
-    if(!lost){ const sx=pl.x, sy=pl.y-220; c.strokeStyle=bombCD>0?'rgba(255,255,255,.3)':gnd.some(g=>Math.hypot(g.x-sx,g.y-sy)<34)||(boss&&Math.hypot(boss.x-sx,boss.y-sy)<40)?'#ff3b3b':'#ffd23f'; c.lineWidth=2; c.beginPath(); c.arc(sx,sy,16,0,7); c.moveTo(sx-24,sy); c.lineTo(sx-8,sy); c.moveTo(sx+8,sy); c.lineTo(sx+24,sy); c.moveTo(sx,sy-24); c.lineTo(sx,sy-8); c.moveTo(sx,sy+8); c.lineTo(sx,sy+24); c.stroke(); }
-    if(!lost&&(grace<=0||(t*10|0)%2)){ const col=api.cos('Fighter').colors[0]; c.fillStyle='rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(pl.x+20,pl.y+30,16,8,0,0,7); c.fill(); c.fillStyle=col; c.beginPath(); c.moveTo(pl.x,pl.y-24); c.lineTo(pl.x+20,pl.y+16); c.lineTo(pl.x,pl.y+8); c.lineTo(pl.x-20,pl.y+16); c.fill(); c.fillStyle='#3dffd8'; c.fillRect(pl.x-3,pl.y-10,6,10);
-      if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(pl.x,pl.y,32,0,7); c.stroke(); } }
+    for(let k=0;k<16;k++){ const x=W+130-((k*173+(scroll||0))%(W+260)); c.fillStyle=k%3?'#1c3a22':'#244a2a'; c.beginPath(); c.ellipse(x,(k*131)%H,90,140,0,0,7); c.fill(); }
+    for(let k=0;k<6;k++){ const x=W+150-((k*300+(scroll||0))%(W+300)); c.strokeStyle='#5a4a3a'; c.lineWidth=14; c.beginPath(); c.moveTo(x,0); c.bezierCurveTo(x-80,240,x+80,480,x,H); c.stroke(); }
+    if(!pl) return;
+    gnd.forEach(g=>{ c.fillStyle=g.k==='turret'?'#6a6a7a':'#5a6a3a'; c.beginPath(); c.arc(g.x,g.y,20,0,7); c.fill(); c.fillStyle='#ff3bd4'; c.shadowColor='#ff3bd4'; c.shadowBlur=8; c.beginPath(); c.arc(g.x,g.y,8,0,7); c.fill(); c.shadowBlur=0;
+      if(g.k==='tank'){ c.fillStyle='#3a4a2a'; c.fillRect(g.x-14,g.y-25,28,6); c.fillRect(g.x-14,g.y+19,28,6); } else { const a=Math.atan2(pl.y-g.y,pl.x-g.x); c.strokeStyle='#4a4a5a'; c.lineWidth=6; c.beginPath(); c.moveTo(g.x,g.y); c.lineTo(g.x+Math.cos(a)*26,g.y+Math.sin(a)*26); c.stroke(); } });
+    if(boss&&!boss.dead){ c.fillStyle='#3a3a50'; c.beginPath(); for(let k=0;k<8;k++){ const a=k*Math.PI/4+Math.PI/8; c.lineTo(boss.x+Math.cos(a)*120,boss.y+Math.sin(a)*90); } c.fill(); c.strokeStyle='#5a5a78'; c.lineWidth=4; c.stroke();
+      c.fillStyle=(t*6|0)%2?'#ff3bd4':'#ffd23f'; c.shadowColor='#ff3bd4'; c.shadowBlur=24; c.beginPath(); c.arc(boss.x,boss.y,26,0,7); c.fill(); c.shadowBlur=0; c.fillStyle='#000'; c.fillRect(boss.x-80,boss.y-110,160,8); c.fillStyle='#ff3bd4'; c.fillRect(boss.x-80,boss.y-110,160*boss.hp/boss.max,8); }
+    bombs.forEach(b=>{ const x=b.sx+(b.tx-b.sx)*b.p, y=b.sy+(b.ty-b.sy)*b.p, s=9*(1-b.p)+4; c.fillStyle='#ffd23f'; c.beginPath(); c.arc(x,y,s,0,7); c.fill(); });
+    air.forEach(e=>{ c.save(); c.translate(e.x,e.y); if(e.k==='spinner'){ c.rotate(t*8); c.fillStyle=e.seek?'#ff5ad0':'#ff9f1c'; c.shadowColor=c.fillStyle; c.shadowBlur=10; c.fillRect(-16,-4,32,8); c.fillRect(-4,-16,8,32); } else { c.fillStyle='#c0c8d8'; c.beginPath(); c.ellipse(0,0,22,9,0,0,7); c.fill(); c.fillStyle='#3dffd8'; c.beginPath(); c.arc(0,-3,8,Math.PI,0); c.fill(); } c.restore(); });
+    c.fillStyle='#ff5050'; c.shadowColor='#ff5050'; c.shadowBlur=8; ebul.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,6,0,7); c.fill(); }); c.shadowBlur=0;
+    c.fillStyle='#7df9ff'; shots.forEach(s=>c.fillRect(s.x-10,s.y-2,20,4));
+    if(!lost){ const sx=pl.x+SIGHT, sy=pl.y, big=eff.auto>0; c.strokeStyle=bombCD>0?'rgba(255,255,255,.3)':gnd.some(g=>Math.hypot(g.x-sx,g.y-sy)<(big?80:40))||(boss&&!boss.dead&&Math.hypot(boss.x-sx,boss.y-sy)<44)?'#ff3b3b':'#ffd23f'; c.lineWidth=3;
+      const r=big?30:18; c.beginPath(); c.arc(sx,sy,r,0,7); c.moveTo(sx-r-10,sy); c.lineTo(sx-r+8,sy); c.moveTo(sx+r-8,sy); c.lineTo(sx+r+10,sy); c.moveTo(sx,sy-r-10); c.lineTo(sx,sy-r+8); c.moveTo(sx,sy+r-8); c.lineTo(sx,sy+r+10); c.stroke(); }
+    if(!lost&&(grace<=0||(t*10|0)%2)){ const col=api.cos('Fighter').colors[0]; c.fillStyle='rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(pl.x-20,pl.y+30,16,8,0,0,7); c.fill();
+      c.fillStyle=col; c.beginPath(); c.moveTo(pl.x+28,pl.y); c.lineTo(pl.x-18,pl.y-24); c.lineTo(pl.x-8,pl.y); c.lineTo(pl.x-18,pl.y+24); c.fill(); c.fillStyle='#3dffd8'; c.fillRect(pl.x-4,pl.y-3,12,6);
+      if((api.input.keys.Space||burstN>0)&&!done){ c.fillStyle='rgba(180,250,255,.9)'; c.beginPath(); c.arc(pl.x+30,pl.y,4+Math.random()*3,0,7); c.fill(); }
+      if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(pl.x,pl.y,36,0,7); c.stroke(); } }
+    c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(300,H-16,W-620,8); c.fillStyle='#3dffd8'; c.fillRect(300,H-16,(W-620)*Math.min(1,(dist||0)/(goal||1)),8);
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#16301c'; c.fillRect(0,0,W,H); c.fillStyle='#e8f0ff'; c.beginPath(); c.moveTo(300,420); c.lineTo(330,480); c.lineTo(270,480); c.fill(); }
+  attract(c,tt){ c.fillStyle='#16301c'; c.fillRect(0,0,W,H); for(let k=0;k<10;k++){ c.fillStyle=k%2?'#1c3a22':'#244a2a'; c.beginPath(); c.ellipse(W-((k*173+tt*120)%(W+200))+100,(k*131)%H,90,140,0,0,7); c.fill(); }
+    const y=360+Math.sin(tt*1.5)*80; c.fillStyle='#e8f0ff'; c.save(); c.translate(500,y); c.scale(2.4,2.4); c.beginPath(); c.moveTo(28,0); c.lineTo(-18,-24); c.lineTo(-8,0); c.lineTo(-18,24); c.fill(); c.restore(); }
 };
-function dropBomb(){ if(done||lost||bombCD>0) return false; bombCD=0.6; bombs.push({sx:pl.x,sy:pl.y-10,tx:pl.x,ty:pl.y-220,p:0}); api.sfx.blip(); return true; }
+function dropBomb(){ if(done||lost||bombCD>0) return false; bombCD=0.5; bombs.push({sx:pl.x+10,sy:pl.y,tx:pl.x+SIGHT,ty:pl.y,p:0}); api.sfx.blip(); return true; }
 function win(){ if(done) return; done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1000); }
-function die(){ if(lost||done) return; lost=true; api.fx.burst(pl.x,pl.y,'#3dffd8',40,300,.7,3); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1000); }
+function die(msg,cause,src){ if(lost||done) return; lost=true; deaths.push({cause,vis:+((src&&src.vis)||0).toFixed(2),dist:Math.round(dist)}); api.toast(msg); api.fx.burst(pl.x,pl.y,'#3dffd8',40,300,.7,3); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1000); }
 })();
 
 </script>
