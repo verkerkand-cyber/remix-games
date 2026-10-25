@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-PX-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-PX-1.1 · 2026-10-26">
 <title>Pixel Crossing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-PX-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-PX-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,10 +489,12 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* PIXEL CROSSING — blocky road / river / rail hopper remix. 100 stages. Hop forward, never stop — the storm hawk is right behind you. */
+/* PIXEL CROSSING — blocky road / river / rail hopper remix. 100 stages. Hop forward, never stop — the storm hawk is right behind you.
+   PX-1.1 (26 Oct): LANDSCAPE 1280x720 (SHELL-LANDSCAPE-1) with a wider road view, race:true, gentle Beginner 1-10,
+   side hops fixed: every swipe / edge tap / ◀ ▶ button = exactly ONE tile (inputs during a hop are queued, never dropped). */
 (function(){
-const W=600,H=900,COLS=9,CW=58,RH=62,SK=9,BASE=740,SPAN=21;
-let api,t,rows,p,camR,camX,done,lost,eff,grace,goal,maxR,push,started,sw,segQ,queue,eagle,boss,flashT,deathK,wasRoad,genTop;
+const W=1280,H=720,COLS=9,CW=64,RH=54,SK=8,BASE=700,SPAN=33,XL=-12,XR=21;
+let api,t,rows,p,ptr={},camR,camX,done,lost,eff,grace,goal,maxR,push,started,sw,segQ,queue,eagle,boss,flashT,deathK,wasRoad,genTop;
 function R(a,b){ return a+Math.random()*(b-a); }
 function RI(a,b){ return Math.floor(R(a,b+1)); }
 function proj(x,r,h){ return [W/2+(x-camX)*CW+(r-camR-2.5)*SK, BASE-(r-camR)*RH-(h||0)]; }
@@ -502,32 +504,36 @@ function box(c,x,r,w,d,b,h,top,front,side){
   quad(c,bb,cb,ct,bt,side); quad(c,at,bt,ct,dt,top); quad(c,a,bb,bt,at,front); return [a,bb,bt,at]; }
 const HGT={grass:10,road:0,rail:4,river:-8};
 const CARS=[['#ff3b5c','#a3182f'],['#3dd8ff','#1a6b8a'],['#ffd23f','#a37a12'],['#b14bff','#5a1f8a'],['#ff7a2e','#a3401a'],['#f2f2f2','#9a9aaa']];
-function itemX(row,it){ return ((it.x0+row.dir*row.sp*row.rt)%SPAN+SPAN)%SPAN-6; }
+function itemX(row,it){ return ((it.x0+row.dir*row.sp*row.rt)%SPAN+SPAN)%SPAN+XL; }
+const easy=()=>!!api&&api.diff===0&&api.level<=10&&api.content!==0;   // Beginner stages 1-10: extra gentle
 const GAME=window.GAME={
   id:'pixel-crossing',title:'Pixel Crossing',titleHTML:'PIXEL<br>CROSSING',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-PX-1.0 · 2026-10-17',theme:{a:'#3bff7a',b:'#ffd23f',bg:'#0b1a2a'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🐤',joystick:false,coinPts:40,
+  build:'BUILD-PX-1.1 · 2026-10-26',theme:{a:'#3bff7a',b:'#ffd23f',bg:'#0b1a2a'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🐤',joystick:false,coinPts:40,
   abilities:[
-    {id:'hop',icon:'🐾',name:'HOP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — hop one row forward. Or just tap the game (↑ / W on PC).'},
+    {id:'hopL',icon:'◀',name:'LEFT',cd:0,key:'ArrowLeft',keyLabel:'←',desc:'FREE — hop exactly one tile left. Or swipe left / tap the left edge (← / A on PC).'},
+    {id:'hop',icon:'🐾',name:'HOP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — hop one row forward. Or just tap the middle of the game (↑ / W on PC).'},
+    {id:'hopR',icon:'▶',name:'RIGHT',cd:0,key:'ArrowRight',keyLabel:'→',desc:'FREE — hop exactly one tile right. Or swipe right / tap the right edge (→ / D on PC).'},
     {id:'slow',icon:'🐌',name:'SLOW TIME',cd:18,key:'Digit1',keyLabel:'1',desc:'Cars, logs, trains and the storm move at a crawl for 5 seconds.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:18,key:'Digit2',keyLabel:'2',desc:'Cars, trains, water and the creature can\'t hurt you for 6 seconds.'},
     {id:'super',icon:'🦘',name:'SUPER HOP',cd:15,key:'Digit3',keyLabel:'3',desc:'One giant leap 3 rows forward over everything.'}],
   shop:[{id:'c_w',cat:'Critter',name:'Pixel Chick',cost:0,colors:['#ffffff','#ff3b3b'],desc:'Classic.'},{id:'c_f',cat:'Critter',name:'Neon Frog',cost:150,colors:['#3bff7a','#ffd23f'],desc:'Born to hop.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3bff7a,#ffd23f)'}],
   story:`<h3>PIXEL CROSSING</h3><p>Pixel lives on the wrong side of the busiest roads, rivers and railways in Blockland. A storm hawk is circling behind — so there is only one way to go: forward!</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap</b> to hop forward (PC: ↑ W or SPACE).</li><li><b>Swipe left / right / down</b> to hop sideways or back (PC: ← → ↓ or A D S).</li><li>Dodge cars. Ride the logs — the water is deadly. When the rail lights flash red, a train is coming!</li><li>Keep moving! If you fall behind the screen, the storm hawk grabs you.</li><li>Reach the number of rows shown at the top. Every 10th stage: the highway storm creature sweeps whole lanes — watch for the red warning.</li></ul>`,
-  tutorial:[{text:'Tap (or SPACE / ↑) to hop forward!',ev:'hop'},{text:'Swipe left/right (← →) to dodge. Cross the road!',ev:'cross'},{text:'Keep moving — the storm hawk is behind you!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Hold your phone sideways.</b></li><li><b>Tap the middle</b> or press <b>🐾 HOP</b> to hop forward (PC: ↑ W or SPACE).</li><li><b>Sideways:</b> press <b>◀ / ▶</b> (bottom-right), <b>swipe left / right</b>, or <b>tap the left / right edge</b> of the screen — every press is exactly one tile (PC: ← → or A D).</li><li><b>Swipe down</b> to hop back (PC: ↓ S).</li><li>Dodge cars. Ride the logs — the water is deadly. When the rail lights flash red, a train is coming!</li><li>Keep moving! If you fall behind the screen, the storm hawk grabs you.</li><li>Reach the number of rows shown at the top. Every 10th stage: the highway storm creature sweeps whole lanes — watch for the red warning.</li></ul>`,
+  tutorial:[{text:'Tap the middle (or SPACE / ↑) to hop forward!',touch:'Tap the middle or press 🐾 HOP to hop forward!',ev:'hop'},{text:'← → hop one tile sideways. Cross the road!',touch:'◀ ▶ buttons, a swipe, or a tap on the left/right edge = one tile sideways. Cross the road!',ev:'cross'},{text:'Keep moving — the storm hawk is behind you!',time:5}],
   stageIntro:{1:'HOP TO THE FINISH LINE'},bossName:'THE STORM SERPENT!',ending:{"0":["#HOME","Pixel made it across."],"1":["#HOPPER","Nothing can stop those little feet."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const tot={slow:5,shield:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get p(){return p;}, get rows(){return rows;}, get camR(){return camR;}, get lost(){return lost;}, get done(){return done;}, get maxR(){return maxR;}, get goal(){return goal;}, get boss(){return boss;}, itemX, hop:(dc,dr)=>hop(dc,dr)}; },
+  _dbg(){ return {get p(){return p;}, get rows(){return rows;}, get camR(){return camR;}, get lost(){return lost;}, get done(){return done;}, get maxR(){return maxR;}, get goal(){return goal;}, get boss(){return boss;}, itemX, hop:(dc,dr)=>hop(dc,dr), get queue(){return queue;}, get eff(){return eff;}, get started(){return started;}, get camX(){return camX;}, proj:(x,r,h)=>proj(x,r,h), get W(){return W;}, sides:0,
+    sig:()=>{ const o=[]; for(let r=0;r<goal+3;r++){ const w=rows[r]; if(!w){ o.push('?'); continue; } o.push(w.type[0]+w.trees.join('')+w.items.map(i=>i.x0.toFixed(2)).join(',')); } return o.join('|'); }}; },
   init(a){ api=a; },
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1; eff={slow:-9,shield:-9}; flashT=3; deathK=null; queue=null; sw=null; started=false; wasRoad=false; eagle=null;
-    const tut=a.content===0; goal=tut?16:Math.round(a.dv([34,54,70],85,110)); if(a.boss) goal=Math.round(goal*1.15);
-    push=tut?0.2:a.dv([0.3,0.45,0.6],0.72,0.95);
+  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1; eff={slow:-9,shield:-9}; flashT=3; deathK=null; queue=[]; sw=null; ptr={}; started=false; wasRoad=false; eagle=null;
+    const tut=a.content===0; goal=tut?16:easy()?20+a.level*2:Math.round(a.dv([34,54,70],85,110)); if(a.boss) goal=Math.round(goal*1.15);
+    push=tut?0.2:easy()?0.16+a.level*0.01:a.dv([0.3,0.45,0.6],0.72,0.95);
     boss=a.boss?{cd:3.5,sw:null,t:0}:null;
     rows={}; segQ=[]; genTop=-7; p={x:4.5,r:1,fx:4.5,fr:1,tx:4.5,tr:1,hop:1,dur:.13,face:0,sq:0,big:0}; maxR=1; camR=-1.5; camX=4.5;
-    for(let r=-7;r<16;r++) gen(r); },
-  respawn(){ lost=false; deathK=null; eagle=null; grace=2.2; queue=null; if(boss) boss.sw=null;
+    for(let r=-7;r<goal+22;r++) gen(r); },
+  respawn(){ lost=false; deathK=null; eagle=null; grace=easy()?3:2.2; queue=[]; ptr={}; if(boss) boss.sw=null;
     let r=null; const lo=Math.ceil(camR+0.6);
     for(let k=p.r;k>=lo;k--) if(rows[k]&&rows[k].type==='grass'){ r=k; break; }
     if(r===null) for(let k=Math.max(p.r,lo);k<p.r+8;k++){ if(!rows[k]) gen(k); if(rows[k].type==='grass'){ r=k; break; } }
@@ -535,39 +541,44 @@ const GAME=window.GAME={
     const row=rows[r]; let x=4.5; if(row.type==='grass'){ for(const dx of [0,1,-1,2,-2,3,-3,4,-4]) if(!row.trees.includes(4+dx)){ x=4.5+dx; break; } }
     p.r=p.fr=p.tr=r; p.x=p.fx=p.tx=x; p.hop=1; p.sq=0; camR=Math.min(camR,r-2.2); },
   stageBonus(){ return goal*10; },
-  useAbility(id){ if(done||lost) return false; if(id==='hop') return hop(0,1);
+  useAbility(id){ if(done||lost) return false; if(id==='hop') return hop(0,1); if(id==='hopL') return hop(-1,0); if(id==='hopR') return hop(1,0);
     if(id==='super') return superHop();
     eff[id]={slow:5,shield:6}[id]; api.sfx.power(); return true; },
   onKey(code,down){ if(!down) return;
     if(code==='ArrowUp'||code==='KeyW') hop(0,1); else if(code==='ArrowDown'||code==='KeyS') hop(0,-1);
-    else if(code==='ArrowLeft'||code==='KeyA') hop(-1,0); else if(code==='ArrowRight'||code==='KeyD') hop(1,0); },
-  onPointer(type,x,y){ if(type==='down'){ sw={x,y,used:false}; return; } if(!sw) return;
-    const dx=x-sw.x, dy=y-sw.y, m=Math.hypot(dx,dy);
-    if(!sw.used&&m>38){ sw.used=true; if(Math.abs(dx)>Math.abs(dy)) hop(dx>0?1:-1,0); else hop(0,dy<0?1:-1); }
-    if(type==='up'){ if(!sw.used) hop(0,1); sw=null; } },
+    else if(code==='KeyA') hop(-1,0); else if(code==='KeyD') hop(1,0); },   // ← → are the ◀ ▶ abilities (the shell calls them) — not handled here too, or one press = two tiles
+  // one finger = one hop. Every finger is tracked on its own (two thumbs never cancel each other).
+  // swipe (>= 30 game px, ~18 screen px) = that direction; tap on the left / right edge = side hop; tap in the middle = forward.
+  onPointer(type,x,y,id){ id=id===undefined?0:id;
+    if(type==='down'){ ptr[id]={x,y,used:false}; return; } const s=ptr[id]; if(!s) return;
+    const dx=x-s.x, dy=y-s.y, m=Math.hypot(dx,dy), side=Math.abs(dx)>=Math.abs(dy)*0.8;
+    if(!s.used&&m>44){ s.used=true; if(side) hop(dx>0?1:-1,0); else hop(0,dy<0?1:-1); }
+    if(type==='up'){ delete ptr[id]; if(s.used) return;
+      if(m>=26){ if(side) hop(dx>0?1:-1,0); else hop(0,dy<0?1:-1); return; }
+      if(s.x<W*0.25) hop(-1,0); else if(s.x>W*0.75) hop(1,0); else hop(0,1); } },
   update(dt){ t+=dt; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt;
     const sf=eff.slow>0?0.35:1, sdt=dt*sf;
     while(genTop<camR+18) gen(genTop);
     for(const k in rows){ if(k<camR-6){ delete rows[k]; continue; } const row=rows[k]; row.rt+=sdt;
-      if(row.type==='rail'){ if(row.tx===null){ row.tt-=sdt; if(row.tt<row.warn&&!row.ws&&k<camR+12){ row.ws=1; if(Math.abs(k-p.r)<5) api.sfx.blip(); } if(row.tt<=0){ row.tx=row.dir>0?-20:COLS+6; } }
-        else { row.tx+=row.dir*26*sdt; if(row.tx>COLS+8||row.tx<-22){ row.tx=null; row.ws=0; row.tt=R(2.5,6)*api.dv([1.1,0.9,0.75],0.65); } } } }
+      if(row.type==='rail'){ if(row.tx===null){ row.tt-=sdt; if(row.tt<row.warn&&!row.ws&&k<camR+12){ row.ws=1; if(Math.abs(k-p.r)<5) api.sfx.blip(); } if(row.tt<=0){ row.tx=row.dir>0?XL-15:XR+1; } }
+        else { row.tx+=row.dir*26*sdt; if(row.tx>XR+2||row.tx<XL-16){ row.tx=null; row.ws=0; row.tt=(2.5+((k*7.31+row.rt*3.7)%1)*3.5)*api.dv([1.1,0.9,0.75],0.65)*(easy()?1.4:1); } } } }
     if(eagle){ eagle.t+=dt; }
     if(boss) bossUpd(dt,sdt);
     camX+=(4.5+(p.x-4.5)*0.35-camX)*Math.min(1,dt*4);
     if(lost||done){ if(deathK==='drown') p.sq=Math.min(1,p.sq+dt*3); return; }
     // camera
-    const tgt=p.r-2.6; if(tgt>camR) camR+=(tgt-camR)*Math.min(1,dt*4); if(started) camR+=push*sdt;
+    const tgt=p.r-2.4; if(tgt>camR) camR+=(tgt-camR)*Math.min(1,dt*4); if(started) camR+=push*sdt;
     // hop animation
     if(p.hop<1){ p.hop=Math.min(1,p.hop+dt/p.dur); p.x=p.fx+(p.tx-p.fx)*p.hop; if(p.hop>=1) land(); }
-    else { const row=rows[p.r]; if(row&&row.type==='river'){ p.x+=row.dir*row.sp*sdt; if(p.x<-0.35||p.x>COLS+0.35){ if(eff.shield>0) p.x=Math.max(0.5,Math.min(COLS-0.5,p.x)); else die('SWEPT AWAY BY THE RIVER!','drown'); }
-      else if(eff.shield<=0&&!row.items.some(it=>{ const ix=itemX(row,it); return p.x>ix-0.2&&p.x<ix+it.len+0.2; })) die('SPLASH! RIDE THE LOGS!','drown'); } }
+    else { const row=rows[p.r]; if(row&&row.type==='river'){ p.x+=row.dir*row.sp*sdt; if(p.x<-0.35||p.x>COLS+0.35){ if(eff.shield>0||easy()){ if(easy()&&!(p._et>t)){ p._et=t+2; api.toast('HOP OFF BEFORE THE EDGE!'); } } if(eff.shield>0||easy()){ p.x=Math.max(0.5,Math.min(COLS-0.5,p.x)); if(easy()) p.pin=1; } else die('SWEPT AWAY BY THE RIVER!','drown'); }
+      else if(eff.shield<=0&&!p.pin&&!row.items.some(it=>{ const ix=itemX(row,it); return p.x>ix-0.2&&p.x<ix+it.len+0.2; })) die('SPLASH! RIDE THE LOGS!','drown'); } }
     p.sq=Math.max(0,p.sq-dt*5);
     // hazards
     const cr=p.hop<0.5?p.fr:p.tr, row=rows[cr], safe=grace>0||eff.shield>0||p.big;
     if(row&&!safe&&!lost){
       if(row.type==='road') for(const it of row.items){ const ix=itemX(row,it); if(Math.abs(p.x-(ix+it.len/2))<it.len/2+0.28){ die('SPLAT! WATCH THE CARS!','car'); break; } }
       if(row.type==='rail'&&row.tx!==null&&p.x>row.tx-0.3&&p.x<row.tx+14.3) die('THE TRAIN GOT YOU!','train');
-      if(boss&&boss.sw&&boss.sw.on&&boss.sw.r===cr){ const hx=boss.sw.hx; if(p.x<hx+0.6&&p.x>hx-9) die('THE STORM SERPENT GOT YOU!','car'); } }
+      if(boss&&boss.sw&&boss.sw.on&&boss.sw.r===cr){ const hx=boss.sw.hx, d=boss.sw.dir; if(d>0?(p.x<hx+0.6&&p.x>hx-9):(p.x>hx-0.6&&p.x<hx+9)) die('THE STORM SERPENT GOT YOU!','car'); } }
     if(!lost&&p.r<camR-1.4&&p.hop>=1){ if(eff.shield>0){ camR=p.r+1.2; } else { eagle={t:0}; die('THE STORM HAWK GRABBED YOU! KEEP HOPPING!','eagle'); } }
     if(started&&!boss&&api.content!==0){ flashT-=dt; }
     api.counter('🏁 ROWS TO GO',Math.max(0,goal-maxR));
@@ -583,48 +594,48 @@ function gen(r){ genTop=Math.max(genTop,r+1); const tut=api.content===0, L=api.l
   else { if(!segQ.length) buildSeg(r,tut,L); type=segQ.shift(); }
   const row={type,dir:r%2?1:-1,sp:0,items:[],trees:[],coin:-1,rt:0,tx:null,tt:R(1,4),warn:0,ws:0};
   const prev=rows[r-1];
-  if(type==='road'){ const fast=boss?1.15:1; row.sp=(tut?1.0:api.dv([1.5,2.2,2.8],3.4,4.4))*R(0.75,1.25)*fast; row.dir=Math.random()<.5?1:-1;
-    const gmin=tut?5:api.dv([4.2,3.4,2.8],2.5,2.1); let x=R(0,3); const big=Math.random()<(boss?.4:.25);
+  if(type==='road'){ const fast=boss?1.15:1; row.sp=(tut?1.0:easy()?1.05+api.level*0.04:api.dv([1.5,2.2,2.8],3.4,4.4))*R(0.75,1.25)*fast; row.dir=Math.random()<.5?1:-1;
+    const gmin=tut?5:easy()?5.2-api.level*0.08:api.dv([4.2,3.4,2.8],2.5,2.1); let x=R(0,3); const big=Math.random()<(boss?.4:.25);
     while(true){ const len=big&&Math.random()<.6?2:1; if(x+len+gmin>SPAN) break; row.items.push({x0:x,len,c:RI(0,CARS.length-1)}); x+=len+gmin+R(0,tut?4:3); }
     if(Math.random()<.18) row.coin=RI(0,8); }
-  else if(type==='river'){ row.sp=(tut?0.8:api.dv([0.9,1.3,1.7],2.0,2.6))*R(0.8,1.2); row.dir=prev&&prev.type==='river'?-prev.dir:(Math.random()<.5?1:-1);
+  else if(type==='river'){ row.sp=(tut?0.8:easy()?0.7+api.level*0.02:api.dv([0.9,1.3,1.7],2.0,2.6))*R(0.8,1.2); row.dir=prev&&prev.type==='river'?-prev.dir:(Math.random()<.5?1:-1);
     if(prev&&prev.type==='river'&&Math.abs(prev.sp-row.sp)<0.2) row.sp+=0.3;
-    const lmax=tut?4:L>=60?3:4, gmax=tut?1.6:api.dv([2,2.6,3],3.2); let x=R(0,1);
+    const lmax=tut?4:L>=60?3:4, gmax=tut||easy()?1.6:api.dv([2,2.6,3],3.2); let x=R(0,1);
     while(true){ const len=RI(2,lmax); if(x+len+1.2>SPAN) break; row.items.push({x0:x,len}); x+=len+R(1.2,gmax); } }
-  else if(type==='rail'){ row.warn=api.dv([1.7,1.3,1.0],0.85,0.7); row.tt=R(1.5,4.5); row.dir=Math.random()<.5?1:-1; }
+  else if(type==='rail'){ row.warn=easy()?2.4:api.dv([1.7,1.3,1.0],0.85,0.7); row.tt=R(1.5,4.5); row.dir=Math.random()<.5?1:-1; }
   else { // grass: trees, but always a way forward
-    const nt=r<=2&&r>=0?0:r<0||r>=goal?0:RI(0,tut?1:Math.round(api.dv([2,3,4],5)));
+    const nt=r<=2&&r>=0?0:r<0||r>=goal?0:RI(0,tut||easy()?1:Math.round(api.dv([2,3,4],5)));
     for(let i=0;i<nt;i++){ const cc=RI(0,8); if(!row.trees.includes(cc)) row.trees.push(cc); }
     if(r<0) row.trees=[0,1,2,6,7,8].filter(()=>Math.random()<.3);
     const pre=prev&&prev.reach?prev.reach:[0,1,2,3,4,5,6,7,8];
     let reach=calcReach(row,pre); while(!reach.length&&row.trees.length){ row.trees.pop(); reach=calcReach(row,pre); }
     row.reach=reach; if(r>2&&r<goal&&Math.random()<.3){ const f=[0,1,2,3,4,5,6,7,8].filter(k=>!row.trees.includes(k)); row.coin=f[RI(0,f.length-1)]; } }
   if(type!=='grass') row.reach=[0,1,2,3,4,5,6,7,8];
-  row.deco=[-1,-2,9,10].filter(()=>Math.random()<(type==='grass'?.6:0)); row.tall=Math.random();
+  row.deco=[-1,-2,-3,-5,9,10,11,13].filter(()=>Math.random()<(type==='grass'?.6:0)); row.tall=Math.random();
   rows[r]=row; }
 function calcReach(row,pre){ const free=k=>k>=0&&k<COLS&&!row.trees.includes(k); const s=new Set(pre.filter(free)); let ch=true;
   while(ch){ ch=false; for(const k of [...s]) for(const n of [k-1,k+1]) if(free(n)&&!s.has(n)){ s.add(n); ch=true; } } return [...s]; }
 function buildSeg(r,tut,L){
   if(tut){ const T=['road','grass','road','road','grass','river','river','grass','rail','grass','road','grass']; segQ.push(T[(r-3)%T.length]); return; }
-  if(boss){ const n=RI(2,Math.min(4,2+Math.floor(L/40))); for(let i=0;i<n;i++) segQ.push('road'); segQ.push('grass'); return; }
+  if(boss){ const n=easy()?RI(1,2):RI(2,Math.min(4,2+Math.floor(L/40))); for(let i=0;i<n;i++) segQ.push('road'); segQ.push('grass'); return; }
   const k=Math.random(); let type,n;
-  if(k<0.42){ type='road'; n=RI(1,Math.min(5,2+Math.floor(L/18))); }
-  else if(k<0.68&&L>=2){ type='river'; n=RI(1,Math.min(4,1+Math.floor(L/22))); }
+  if(k<0.42){ type='road'; n=RI(1,easy()?2:Math.min(5,2+Math.floor(L/18))); }
+  else if(k<0.68&&L>=2){ type='river'; n=RI(1,easy()?2:Math.min(4,1+Math.floor(L/22))); }
   else if(k<0.84&&L>=3){ type='rail'; n=RI(1,L>=25?2:1); }
   else { type='grass'; n=RI(1,2); }
   for(let i=0;i<n;i++) segQ.push(type);
-  if(type!=='grass'&&Math.random()<Math.max(0.35,0.85-L/220)) segQ.push('grass'); }
-function hop(dc,dr){ if(done||lost) return false; if(p.hop<1){ if(p.hop>0.45) queue=[dc,dr]; return false; }
+  if(type!=='grass'&&(easy()||Math.random()<Math.max(0.35,0.85-L/220))) segQ.push('grass'); }
+function hop(dc,dr){ if(done||lost) return false; if(p.hop<1){ if(queue.length<3) queue.push([dc,dr]); return true; }
   const tr=p.r+dr; if(!rows[tr]) gen(tr); const T=rows[tr];
   let tx=p.x+dc; if(T.type!=='river') tx=Math.round(tx-0.5)+0.5;
   p.face=dr>0?0:dr<0?1:dc<0?2:3;
   if(tx<0.4||tx>COLS-0.4){ api.sfx.bump(); return false; }
   if(T.type==='grass'&&T.trees.includes(Math.floor(tx))){ api.sfx.bump(); p.sq=0.6; return false; }
-  started=true; p.fx=p.x; p.fr=p.r; p.tx=tx; p.tr=tr; p.hop=0; p.dur=0.13; p.big=0; api.sfx.blip(); return true; }
+  started=true; p.pin=0; p.fx=p.x; p.fr=p.r; p.tx=tx; p.tr=tr; p.hop=0; p.dur=0.13; p.big=0; if(dc&&!dr) GAME._sides=(GAME._sides||0)+1; api.sfx.blip(); return true; }
 function superHop(){ if(p.hop<1) return false; for(const k of [3,4,2,5]){ const tr=p.r+k; if(!rows[tr]) gen(tr); const T=rows[tr]; let tx=Math.round(p.x-0.5)+0.5;
     if(T.type==='grass'){ if(T.trees.includes(Math.floor(tx))){ const f=[0,1,2,3,4,5,6,7,8].filter(c=>!T.trees.includes(c)).sort((a,b)=>Math.abs(a+0.5-tx)-Math.abs(b+0.5-tx)); if(!f.length) continue; tx=f[0]+0.5; } }
     else if(T.type==='river'){ const lg=T.items.map(it=>({it,x:itemX(T,it)})).filter(o=>o.x+o.it.len>1.2&&o.x<COLS-1.2).sort((a,b)=>Math.abs(a.x+a.it.len/2-tx)-Math.abs(b.x+b.it.len/2-tx))[0]; if(!lg) continue; tx=Math.max(0.5,Math.min(COLS-0.5,lg.x+lg.it.len/2)); }
-    started=true; p.fx=p.x; p.fr=p.r; p.tx=tx; p.tr=tr; p.hop=0; p.dur=0.42; p.big=1; p.face=0; api.sfx.power(); api.event('super'); return true; }
+    started=true; p.pin=0; p.fx=p.x; p.fr=p.r; p.tx=tx; p.tr=tr; p.hop=0; p.dur=0.42; p.big=1; p.face=0; api.sfx.power(); api.event('super'); return true; }
   return false; }
 function land(){ p.r=p.tr; p.x=p.tx; p.sq=0.5; const row=rows[p.r]; const big=p.big; p.big=0; if(big) grace=Math.max(grace,0.6);
   if(row.type==='river'){ const lg=row.items.find(it=>{ const ix=itemX(row,it); return p.x>ix-0.15&&p.x<ix+it.len+0.15; });
@@ -633,7 +644,7 @@ function land(){ p.r=p.tr; p.x=p.tx; p.sq=0.5; const row=rows[p.r]; const big=p.
   if(row.coin>=0&&Math.floor(p.x)===row.coin){ row.coin=-1; const q=proj(p.x,p.r+0.5,30); api.addScore(25,q[0],q[1]); api.sfx.coin(); api.fx.burst(q[0],q[1],'#ffd23f',10,160,.4,3); }
   if(p.r>maxR){ const q=proj(p.x,p.r+0.5,40); api.addScore(10*(p.r-maxR)*(1+api.dk*.3),q[0],q[1],true); maxR=p.r; api.event('hop'); }
   if(row.type==='grass'&&wasRoad) api.event('cross'); wasRoad=row.type==='road'?true:row.type==='grass'?false:wasRoad;
-  if(queue){ const q=queue; queue=null; hop(q[0],q[1]); } }
+  while(queue.length&&!lost&&!done){ const q=queue.shift(); if(hop(q[0],q[1])) break; } }
 function die(msg,k){ if(lost||done) return; lost=true; deathK=k; api.toast(msg); api.sfx.hurt(); api.fx.shake(k==='train'?14:9);
   const q=proj(p.x,p.r+0.5,20), col=api.cos('Critter').colors[0];
   if(k==='drown') api.fx.burst(q[0],q[1]+20,'#9fe8ff',30,260,.7,4); else api.fx.burst(q[0],q[1],col,30,330,.7,4);
@@ -641,10 +652,10 @@ function die(msg,k){ if(lost||done) return; lost=true; deathK=k; api.toast(msg);
   setTimeout(()=>api.loseLife(),k==='eagle'?1300:1000); }
 function bossUpd(dt,sdt){ boss.t+=dt; const s=boss.sw;
   if(!s){ if(!started) return; boss.cd-=sdt; if(boss.cd<=0){ const cand=[0,1,2].map(k=>p.r+k).filter(r=>rows[r]&&rows[r].type==='road');
-      if(cand.length){ const r=cand[Math.random()<.5?0:RI(0,cand.length-1)]; boss.sw={r,warn:api.dv([1.6,1.3,1.05],0.9,0.8),on:false,hx:-4,dir:Math.random()<.5?1:-1}; boss.sw.hx=boss.sw.dir>0?-4:COLS+13; api.sfx.shoot(); }
-      boss.cd=api.dv([3.4,2.6,2.0],1.7,1.4); } return; }
+      if(cand.length){ const r=cand[Math.random()<.5?0:RI(0,cand.length-1)]; boss.sw={r,warn:easy()?2.2:api.dv([1.6,1.3,1.05],0.9,0.8),on:false,hx:-4,dir:Math.random()<.5?1:-1}; boss.sw.hx=boss.sw.dir>0?XL:XR+9; api.sfx.shoot(); }
+      boss.cd=api.dv([3.4,2.6,2.0],1.7,1.4)*(easy()?1.4:1); } return; }
   if(!s.on){ s.warn-=sdt; if(s.warn<=0){ s.on=true; api.sfx.boom(); api.fx.shake(6); } return; }
-  s.hx+=s.dir*30*sdt; if(s.hx>COLS+14||s.hx<-5) boss.sw=null; }
+  s.hx+=s.dir*30*sdt; if(s.hx>XR+10||s.hx<XL-1) boss.sw=null; }
 /* ---------- drawing ---------- */
 function draw(c,live,ahop){
   const sky=c.createLinearGradient(0,0,0,H); sky.addColorStop(0,boss?'#120a2a':'#0b1a2a'); sky.addColorStop(1,boss?'#2a1040':'#123a3a'); c.fillStyle=sky; c.fillRect(0,0,W,H);
@@ -652,14 +663,14 @@ function draw(c,live,ahop){
   for(let r=r1;r>=r0;r--){ const row=rows[r]; if(!row) continue; drawRow(c,row,r); drawThings(c,row,r,live,ahop); }
   // storm at the bottom
   const dz=Math.max(0,Math.min(1,(camR-p.r+3.2)/3)); const sg=c.createLinearGradient(0,H-240,0,H); sg.addColorStop(0,'rgba(20,6,40,0)'); sg.addColorStop(1,`rgba(20,6,40,${0.55+0.4*dz})`); c.fillStyle=sg; c.fillRect(0,H-240,W,240);
-  if(live&&dz>0.45&&!lost){ c.fillStyle=`rgba(255,59,90,${(dz-0.45)*0.5*(0.6+0.4*Math.sin(t*12))})`; c.fillRect(0,H-160,W,160); c.fillStyle='#fff'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.fillText('⚠ HOP FORWARD! ⚠',W/2,H-40); }
+  if(live&&dz>0.45&&!lost){ c.fillStyle=`rgba(255,59,90,${(dz-0.45)*0.5*(0.6+0.4*Math.sin(t*12))})`; c.fillRect(0,H-160,W,160); c.fillStyle='#fff'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.fillText('⚠ HOP FORWARD! ⚠',W/2,H-24); }
   if(eagle) drawEagle(c);
-  if(boss){ drawSerpentHead(c); c.strokeStyle='rgba(180,200,255,.35)'; c.lineWidth=2; for(let i=0;i<40;i++){ const x=(i*97+t*120)%W, y=(i*233+t*900)%H; c.beginPath(); c.moveTo(x,y); c.lineTo(x-8,y+26); c.stroke(); }
+  if(boss){ drawSerpentHead(c); c.strokeStyle='rgba(180,200,255,.35)'; c.lineWidth=2; for(let i=0;i<70;i++){ const x=(i*97+t*120)%W, y=(i*233+t*900)%H; c.beginPath(); c.moveTo(x,y); c.lineTo(x-8,y+26); c.stroke(); }
     if(live&&Math.sin(t*0.9)>0.995){ c.fillStyle='rgba(220,230,255,.35)'; c.fillRect(0,0,W,H); } }
-  if(live&&!started&&!lost){ c.fillStyle='#fff'; c.font='bold 30px sans-serif'; c.textAlign='center'; c.globalAlpha=.6+.4*Math.sin(t*6); c.shadowColor='#3bff7a'; c.shadowBlur=14; c.fillText('TAP TO HOP',W/2,H-110); c.shadowBlur=0; c.globalAlpha=1; }
+  if(live&&!started&&!lost){ c.fillStyle='#fff'; c.font='bold 30px sans-serif'; c.textAlign='center'; c.globalAlpha=.6+.4*Math.sin(t*6); c.shadowColor='#3bff7a'; c.shadowBlur=14; c.fillText('TAP TO HOP',W/2,H-100); c.font='bold 18px sans-serif'; c.fillText('◀ ▶ · SWIPE · EDGE TAP = ONE TILE SIDEWAYS',W/2,H-72); c.shadowBlur=0; c.globalAlpha=1; }
   if(eff&&eff.slow>0){ c.fillStyle='rgba(60,120,255,.10)'; c.fillRect(0,0,W,H); }
   if(lost){ c.fillStyle='rgba(0,0,0,.3)'; c.fillRect(0,0,W,H); } }
-function drawRow(c,row,r){ const h=HGT[row.type], X0=-6, X1=15;
+function drawRow(c,row,r){ const h=HGT[row.type], X0=XL-2, X1=XR+2;
   const A=proj(X0,r,h),B=proj(X1,r,h),C=proj(X1,r+1,h),D=proj(X0,r+1,h);
   let top,front;
   if(row.type==='grass'){ top=r%2?'#3fae4a':'#4cbf57'; front='#2a7a32'; if(boss){ top=r%2?'#2a7a5a':'#318a66'; } }
@@ -670,12 +681,12 @@ function drawRow(c,row,r){ const h=HGT[row.type], X0=-6, X1=15;
   if(row.type==='grass'){ for(let x=X0;x<X1;x++) if((x+r)%2===0) quad(c,proj(x,r,h),proj(x+1,r,h),proj(x+1,r+1,h),proj(x,r+1,h),'rgba(255,255,255,.05)'); }
   if(row.type==='road'){ const nx=rows[r+1]; if(nx&&nx.type==='road'){ for(let x=X0;x<X1;x+=1){ quad(c,proj(x+0.2,r+0.97,0),proj(x+0.65,r+0.97,0),proj(x+0.65,r+1.03,0),proj(x+0.2,r+1.03,0),'rgba(255,255,255,.75)'); } }
     quad(c,proj(X0,r,0),proj(X1,r,0),proj(X1,r+0.05,0),proj(X0,r+0.05,0),'rgba(255,210,63,.35)'); }
-  if(row.type==='river'){ c.strokeStyle='rgba(180,230,255,.45)'; c.lineWidth=2; for(let i=0;i<9;i++){ const x=((i*2.6+row.dir*row.rt*row.sp*0.6)%SPAN+SPAN)%SPAN-6, rr=r+0.25+(i%3)*0.25; const a=proj(x,rr,h),b=proj(x+0.8,rr,h); c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); } }
+  if(row.type==='river'){ c.strokeStyle='rgba(180,230,255,.45)'; c.lineWidth=2; for(let i=0;i<13;i++){ const x=((i*2.6+row.dir*row.rt*row.sp*0.6)%SPAN+SPAN)%SPAN+XL, rr=r+0.25+(i%3)*0.25; const a=proj(x,rr,h),b=proj(x+0.8,rr,h); c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); } }
   if(row.type==='rail'){ for(let x=X0;x<X1;x+=0.5) quad(c,proj(x,r+0.12,h),proj(x+0.18,r+0.12,h),proj(x+0.18,r+0.88,h),proj(x,r+0.88,h),'#6a4a2a');
     const hot=row.tx!==null||row.tt<row.warn; c.strokeStyle=hot?'#ff8a8a':'#c8d0e0'; c.lineWidth=3; if(hot){ c.shadowColor='#ff3b3b'; c.shadowBlur=10; }
     for(const rr of [r+0.3,r+0.7]){ const a=proj(X0,rr,h+2),b=proj(X1,rr,h+2); c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); } c.shadowBlur=0; }
   // darken outside the play area
-  quad(c,proj(X0,r,h),proj(0,r,h),proj(0,r+1,h),proj(X0,r+1,h),'rgba(0,0,20,.4)'); quad(c,proj(COLS,r,h),proj(X1,r,h),proj(X1,r+1,h),proj(COLS,r+1,h),'rgba(0,0,20,.4)');
+  quad(c,proj(X0,r,h),proj(0,r,h),proj(0,r+1,h),proj(X0,r+1,h),'rgba(0,0,20,.5)'); quad(c,proj(COLS,r,h),proj(X1,r,h),proj(X1,r+1,h),proj(COLS,r+1,h),'rgba(0,0,20,.5)');
   if(r===goal){ for(let x=0;x<COLS*2;x++) for(let y=0;y<2;y++) if((x+y)%2) quad(c,proj(x/2,r+y/2,h),proj(x/2+0.5,r+y/2,h),proj(x/2+0.5,r+y/2+0.5,h),proj(x/2,r+y/2+0.5,h),'rgba(255,255,255,.75)'); }
   if(boss&&boss.sw&&boss.sw.r===r&&!boss.sw.on){ c.globalAlpha=0.45+0.25*Math.sin(t*20); quad(c,A,B,C,D,'#ff2e4d'); c.globalAlpha=1; c.fillStyle='#ffd23f'; c.font='bold 28px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.shadowColor='#ff2e4d'; c.shadowBlur=12; for(const x of [1,4.5,8]){ const m=proj(x,r+0.5,h+6); c.fillText('⚠',m[0],m[1]); } c.shadowBlur=0; c.textBaseline='alphabetic'; } }
 function drawThings(c,row,r,live,ahop){ const h=HGT[row.type];
@@ -683,10 +694,10 @@ function drawThings(c,row,r,live,ahop){ const h=HGT[row.type];
   if(row.type==='rail'){ const hot=row.tx===null&&row.tt<row.warn&&Math.floor(t*8)%2, on=row.tx!==null; for(const px of [-0.3,COLS+0.12]){ box(c,px,r+0.05,0.18,0.18,h,52,'#555','#333','#444'); const q=proj(px+0.09,r+0.1,h+50);
     for(const dx of [-8,8]){ c.fillStyle=(hot||on&&Math.floor(t*8)%2)?'#ff2e2e':'#4a1010'; if(hot||on){ c.shadowColor='#ff2e2e'; c.shadowBlur=22; } c.beginPath(); c.arc(q[0]+dx,q[1],6,0,7); c.fill(); c.shadowBlur=0; } } }
   if(row.coin>=0){ const q=proj(row.coin+0.5,r+0.5,h+20+Math.sin(t*4+r)*4); const w=Math.max(2,10*Math.abs(Math.cos(t*4+r))); c.fillStyle='#ffd23f'; c.shadowColor='#ffd23f'; c.shadowBlur=14; c.beginPath(); c.ellipse(q[0],q[1],w,11,0,0,7); c.fill(); c.shadowBlur=0; }
-  if(row.type==='river') row.items.forEach(it=>{ const x=itemX(row,it); if(x>13||x+it.len<-5) return; box(c,x+0.04,r+0.14,it.len-0.08,0.72,-12,14,'#9a6236','#6a3e1e','#c89060'); for(let k=0;k<it.len;k++){ const a=proj(x+k+0.2,r+0.5,2.5),b=proj(x+k+0.8,r+0.5,2.5); c.strokeStyle='rgba(60,30,10,.5)'; c.lineWidth=2; c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); } });
+  if(row.type==='river') row.items.forEach(it=>{ const x=itemX(row,it); if(x>XR||x+it.len<XL) return; box(c,x+0.04,r+0.14,it.len-0.08,0.72,-12,14,'#9a6236','#6a3e1e','#c89060'); for(let k=0;k<it.len;k++){ const a=proj(x+k+0.2,r+0.5,2.5),b=proj(x+k+0.8,r+0.5,2.5); c.strokeStyle='rgba(60,30,10,.5)'; c.lineWidth=2; c.beginPath(); c.moveTo(a[0],a[1]); c.lineTo(b[0],b[1]); c.stroke(); } });
   const pr=p.hop<1?Math.min(p.fr,p.tr):p.r;
   if(pr===r&&!(row.type==='river'&&deathK==='drown'&&p.sq>0.9)) drawPlayer(c,live,ahop);
-  if(row.type==='road') row.items.forEach(it=>{ const x=itemX(row,it); if(x>13||x+it.len<-5) return; car(c,x,r,it,row.dir); });
+  if(row.type==='road') row.items.forEach(it=>{ const x=itemX(row,it); if(x>XR||x+it.len<XL) return; car(c,x,r,it,row.dir); });
   if(row.type==='rail'&&row.tx!==null) train(c,row.tx,r,h,row.dir);
   if(boss&&boss.sw&&boss.sw.on&&boss.sw.r===r) serpent(c,boss.sw,r,h); }
 function tree(c,x,r,h,tall){ box(c,x+0.4,r+0.42,0.2,0.2,h,10,'#7a4a24','#5a3418','#6a3e1e');
@@ -727,8 +738,8 @@ function drawEagle(c){ const q=proj(p.x,p.r+0.5,20), k=Math.min(1,eagle.t/0.45),
 function serpent(c,s,r,h){ for(let i=10;i>=0;i--){ const x=s.hx-s.dir*i*0.9, wob=Math.sin(t*14+i*0.8)*10, sz=i===0?1:0.75;
     c.shadowColor='#b14bff'; c.shadowBlur=18; box(c,x-sz/2,r+0.5-sz/2,sz,sz,h+wob+4,sz*46,i%2?'#7a3aff':'#3dffd8','#3a1a8a','#5a2ac8'); }
   c.shadowBlur=0; const q=proj(s.hx,r+0.2,h+38); c.fillStyle='#ffd23f'; c.shadowColor='#ffd23f'; c.shadowBlur=14; c.fillRect(q[0]-12,q[1]-6,8,8); c.fillRect(q[0]+6,q[1]-6,8,8); c.shadowBlur=0; }
-function drawSerpentHead(c){ const y=150+Math.sin(boss.t*1.1)*20; c.save(); c.globalAlpha=0.85; c.fillStyle='#1a0a30';
-  for(let i=0;i<7;i++){ c.beginPath(); c.arc(40+i*90,y-50+Math.sin(i+boss.t)*8,70,0,7); c.fill(); }
+function drawSerpentHead(c){ const y=120+Math.sin(boss.t*1.1)*20; c.save(); c.globalAlpha=0.85; c.fillStyle='#1a0a30';
+  for(let i=0;i<15;i++){ c.beginPath(); c.arc(40+i*90,y-50+Math.sin(i+boss.t)*8,70,0,7); c.fill(); }
   c.globalAlpha=1; const hx=W-110+Math.sin(boss.t*0.7)*30; c.fillStyle='#3a1a8a'; c.shadowColor='#b14bff'; c.shadowBlur=30; c.beginPath(); c.ellipse(hx,y+10,64,40,0,0,7); c.fill(); c.shadowBlur=0;
   c.fillStyle='#ffd23f'; c.shadowColor='#ffd23f'; c.shadowBlur=18; c.beginPath(); c.arc(hx-26,y,9,0,7); c.arc(hx+26,y,9,0,7); c.fill(); c.shadowBlur=0;
   c.fillStyle='#fff'; for(let i=0;i<6;i++){ c.beginPath(); c.moveTo(hx-30+i*12,y+30); c.lineTo(hx-24+i*12,y+44); c.lineTo(hx-18+i*12,y+30); c.fill(); }
