@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-WH-1.1 · 2026-10-24">
+<meta name="build" content="BUILD-WH-1.2 · 2026-10-25">
 <title>Word Hunt</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -413,10 +413,18 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 #app #rotate{pointer-events:auto!important;font-size:14px!important;padding:8px 10px!important;background:#14061fee!important;border-bottom:2px solid #ffd23f!important}
 #rotate #rotGo{display:block;margin:6px auto 0;font:800 14px system-ui,sans-serif;border:0;border-radius:10px;padding:10px 14px;background:linear-gradient(90deg,#ffd23f,#ff3bd4);color:#14061f}
 
+/* SHELL-LANDSCAPE-3b: 'now turn your phone' tip after the screen is turned */
+#turnTip{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10001;background:#14061fee;border:2px solid #ffd23f;border-radius:18px;padding:16px 22px;color:#fff;font:700 15px system-ui,sans-serif;text-align:center;pointer-events:none;box-shadow:0 0 30px #ffd23f66}
+#turnTip.hidden{display:none}
+#turnTip b{display:block;color:#ffd23f;font-size:18px;margin:6px 0}
+#turnTip span{font-size:13px;opacity:.85}
+#turnTip .tt-ph{font-size:44px;display:inline-block;animation:ttrot 1.2s ease-in-out infinite}
+@keyframes ttrot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+
 </style>
 </head>
 <body>
-<!-- BUILD-WH-1.1 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-WH-1.2 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -495,7 +503,7 @@ const W6=sp('animal anchor artist autumn banana barrel basket beaver bottle brid
 const W7=sp('rainbow dolphin kitchen blanket chicken popcorn monster pumpkin unicorn giraffe penguin octopus volcano library picture teacher holiday morning thunder balloon cabbage captain compass diamond blossom crystal feather lantern mermaid pancake pyramid sandbox seagull snowman');
 const W8=sp('elephant sandwich dinosaur mountain umbrella treasure notebook airplane football sunshine starfish backpack keyboard hedgehog kangaroo squirrel flamingo pinecone lollipop');
 const LISTS={3:W3,4:W4,5:W5,6:W6,7:W7,8:W8};
-const DIRS=[[0,1],[1,0],[1,1],[-1,1],[0,-1],[-1,0],[-1,-1],[1,-1]];   // dr,dc
+const DIRS=[[0,1],[1,0],[1,1],[1,-1],[-1,1],[0,-1],[-1,0],[-1,-1]];   // → ↓ ↘ ↙ ↗ ← ↑ ↖ (WH-1.2: ↙ top-right→bottom-left from stage 3)   // dr,dc
 const PAL=['#2ee87a','#ffc83d','#3db8ff','#ff5ec4','#ff8a3d','#b07cff','#5ef0e0','#ff5a6a','#c6f04a','#ffa0d0','#7ab8ff','#f0e05e'];
 const FILL='ABCDEFGHIKLMNOPRSTUWY';
 let api,t,N,grid,words,found,lines,sel,anchor,drag,cursor,kbd,miss,hint,flashW,freezeT,clock,limit,timed,done,lost,bg,shakeT,lastBars=0,raceOn=false;
@@ -503,7 +511,7 @@ function R(a,b){ return a+Math.random()*(b-a); }
 const easy=()=>api&&api.diff===0&&api.level<=5;
 const GAME=window.GAME={
   id:'word-hunt',title:'Word Hunt',titleHTML:'WORD<br>HUNT',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-WH-1.1 · 2026-10-24',theme:{a:'#2ee87a',b:'#ffc83d',bg:'#0c0820'},
+  build:'BUILD-WH-1.2 · 2026-10-25',theme:{a:'#2ee87a',b:'#ffc83d',bg:'#0c0820'},
   landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'📖',joystick:false,coinPts:40,
   abilities:[
     {id:'cancel',icon:'✋',name:'CANCEL',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — drop the letter you picked and start your line again.'},
@@ -513,7 +521,7 @@ const GAME=window.GAME={
   shop:[{id:'t_n',cat:'Tiles',name:'Neon Green',cost:0,colors:['#2ee87a'],desc:'Classic.'},{id:'t_b',cat:'Tiles',name:'Electric Blue',cost:150,colors:['#3db8ff'],desc:'Cool and calm.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#2ee87a,#ffc83d)'}],
   story:`<h3>WORD HUNT</h3><p>The Word Vault has hidden its secret words in a jumble of letters. Find every one before the clock runs out!</p>`,
-  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>The words to find are listed on the <b>right</b>. They are hidden in the letter grid — in a straight line.</li><li><b>Phone:</b> put your finger on the first letter and <b>slide</b> to the last letter, then let go. Or <b>tap</b> the first letter, then <b>tap</b> the last letter.</li><li><b>PC:</b> drag with the mouse (or click first + last letter). Or move with the <b>arrow keys</b> and press <b>ENTER</b> on the first and last letter.</li><li>Found words light up and get ticked off the list. Find them all to clear the stage.</li><li>Beginner starts with tiny grids and short words going → and ↓. Later words also go diagonally and backwards.</li><li>If the clock runs out you lose a life (your found words stay). Every 10th stage is a SPEED HUNT.</li><li><b>✋ CANCEL</b> (SPACE) drops a picked letter. Abilities on PC: 1 first letter, 2 show word, 3 freeze clock.</li></ul>`,
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>The words to find are listed on the <b>right</b>. They are hidden in the letter grid — in a straight line.</li><li><b>Phone:</b> put your finger on the first letter and <b>slide</b> to the last letter, then let go. Or <b>tap</b> the first letter, then <b>tap</b> the last letter.</li><li><b>PC:</b> drag with the mouse (or click first + last letter). Or move with the <b>arrow keys</b> and press <b>ENTER</b> on the first and last letter.</li><li>Found words light up and get ticked off the list. Find them all to clear the stage.</li><li>Words go → and ↓, and from stage 3 also on a slant ↘ and ↙ (top-right to bottom-left). Later they also go backwards.</li><li>If the clock runs out you lose a life (your found words stay). Every 10th stage is a SPEED HUNT.</li><li><b>✋ CANCEL</b> (SPACE) drops a picked letter. Abilities on PC: 1 first letter, 2 show word, 3 freeze clock.</li></ul>`,
   tutorial:[{text:'Find <b>CAT</b>! Click the C and drag to the T (or click C, then click T).',touch:'Find <b>CAT</b>! Put your finger on the C and <b>slide</b> to the T.',ev:'found'},
     {text:'Great! The list on the right shows what is left. Find another word!',ev:'found2'},{text:'Find the last word!',time:5}],
   stageIntro:{1:'SLIDE ACROSS THE WORDS'},bossName:'SPEED HUNT!',ending:{"0":["#UNLOCKED","The Word Vault is open."],"1":["#WORD HUNTER","No word can hide from you."],"2":["#LEGEND","Impossible. You did it."]},
@@ -529,7 +537,7 @@ const GAME=window.GAME={
     if(a.boss) nW=Math.min(13,nW+(D===0&&Lv<=12?1:2));
     let lo=3, hi= tut?3 : (D===0&&Lv<=5)?3 : (D===0&&Lv<=12)?4 : Math.round(a.dv([5,7,8],8,8));
     if(Lv>=40) lo=4; if(Lv>=110) lo=5; hi=Math.min(hi,N,8); lo=Math.min(lo,hi);
-    let nd= (tut||Lv<=2)?1 : Lv<=12?2 : Lv<=34?3 : Lv<=59?4 : Lv<=89?6 : 8;
+    let nd= tut?1 : Lv<=2?2 : Lv<=20?4 : Lv<=34?5 : Lv<=59?6 : Lv<=89?7 : 8;
     const kid=tut||(D===0&&Lv<=12);
     gen(nW,lo,hi,nd,kid,tut?'cat':null);
     timed=!tut; limit=0;
@@ -639,7 +647,7 @@ function gen(nW,lo,hi,nd,kid,force){
     grid=g; words=out; return; }
   grid=Array.from({length:N},()=>Array(N).fill('A')); words=[]; }   // (never reached with these sizes)
 function place(g,w,nd,kid){ const L=w.length;
-  for(let k=0;k<150;k++){ const d=DIRS[Math.random()<.45?0:Math.random()*nd|0], dr=d[0], dc=d[1];
+  for(let k=0;k<150;k++){ const d=DIRS[(nd>=4&&k<60&&Math.random()<.5)?(2+(Math.random()*2|0)) : Math.random()<.3?0:Math.random()*nd|0], dr=d[0], dc=d[1];
     const r=Math.random()*N|0, c=Math.random()*N|0, re=r+dr*(L-1), ce=c+dc*(L-1); if(re<0||re>=N||ce<0||ce>=N) continue;
     let ok=true; for(let i=0;i<L&&ok;i++){ const v=g[r+dr*i][c+dc*i]; if(v&&(kid||v!==w[i])) ok=false; } if(!ok) continue;
     for(let i=0;i<L;i++) g[r+dr*i][c+dc*i]=w[i]; return {r,c,dr,dc}; }
@@ -1592,8 +1600,10 @@ function landCheck(){
    right after a tap — so we ask for fullscreen + landscape on the hint button and on taps while upright. Works even when
    the phone's auto-rotate is off. iPhones don't allow it: they keep the hint and play upright (smaller). */
 function landForce(){ try{ const d=document.documentElement, fs=document.fullscreenElement||document.webkitFullscreenElement;
-  const go=()=>landLock(); if(!fs && (d.requestFullscreen||d.webkitRequestFullscreen)){ const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'}); if(r&&r.then) r.then(go,go); else go(); } else go(); }catch(e){ landLock(); } }
+  const go=()=>{ landLock(); landTurnTip(); }; if(!fs && (d.requestFullscreen||d.webkitRequestFullscreen)){ const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'}); if(r&&r.then) r.then(go,go); else go(); } else go(); }catch(e){ landLock(); } }
 if(LAND) window.addEventListener('pointerdown', ()=>{ if(window.innerHeight>window.innerWidth*1.05 && landTouch() && state!=='loading') landForce(); }, true);
+function landTurnTip(){ try{ if(landTurnTip.t && Date.now()-landTurnTip.t<8000) return; landTurnTip.t=Date.now(); let el=document.getElementById('turnTip'); if(!el){ el=document.createElement('div'); el.id='turnTip'; el.innerHTML='<div class="tt-ph">📱</div><b>NOW TURN YOUR PHONE SIDEWAYS</b><span>Hold it with both hands, thumbs on the buttons</span>'; document.body.appendChild(el); }
+  el.classList.remove('hidden'); clearTimeout(landTurnTip.h); landTurnTip.h=setTimeout(()=>el.classList.add('hidden'),3500); }catch(e){} }
 function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
