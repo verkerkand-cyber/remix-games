@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-PF-1.2 · 2026-10-24">
+<meta name="build" content="BUILD-PF-1.3 · 2026-10-25">
 <title>Pipe Flow</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -424,7 +424,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-PF-1.2 · 2026-10-24 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-PF-1.3 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -485,35 +485,36 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 <script>
 /* PIPE FLOW — Pipe Mania remix. 100 stages. Lay pipes from the queue before the glowing goo starts flowing.
    1.2 (24 Oct): LANDSCAPE 1280x720, RACE mode (board + queue come from the seeded stage RNG), Beginner 1-10 easy
-   (small boards, slow goo, long countdown, hint route + green 'next pipe fits here' square, 6s grace before a leak). */
+   (small boards, slow goo, long countdown, hint route + green 'next pipe fits here' square, 6s grace before a leak).
+   1.3 (25 Oct): a tap puts the pipe EXACTLY in the tapped square (taps just outside the board snap to the nearest square);
+   tapping one of your pipes no longer swaps it — first tap marks it (orange flash), a SECOND tap on the same pipe replaces
+   it (costs 2 s). SOLVABLE QUEUE: every stage's queue = its own solution route, piece by piece in order, with a few spare
+   pieces mixed in (same seed = same queue for both racers). Beginner shows 4 pieces, tags the one the route needs. */
 (function(){
 const W=1280,H=720,HOLD=6,DX=[0,1,0,-1],DY=[-1,0,1,0];
 const QT=[10,5,3,6,12,9,15],QW=[1.3,1.3,1,1,1,1,.6],QWE=[1.5,1.5,1,1,1,1,.2];
 let api,t=0,grid,GW,GH,CS,bx,by,BY0,queue,flows,N,filled,cd,cd0,ft,done,lost,eff,bomb,lock,speed,spBonus,seed,sol,cur,showCur,tut,boss,srcs,drain,leakAt,doneT,easy,qs,solParts,top=96,bot=640,raceT=0;
-let hiC=null,hiT=0; let rs=1; function rnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+let hiC=null,hiT=0,arm=null,need=[],ni=0,gap=0; let rs=1; function rnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
 const ri=n=>Math.floor(rnd()*n), inb=(x,y)=>x>=0&&y>=0&&x<GW&&y<GH, bit=d=>1<<d, opp=d=>(d+2)%4;
 // queue pieces use their OWN seeded generator so both racers get the exact same pieces in the same order
 function qr(){ qs=qs+0x6D2B79F5|0; let q=Math.imul(qs^qs>>>15,1|qs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
-let solQ=[],sqi=0;   // Beginner 1-10: half the pieces come from the stage's own solution, in order (still seeded = same for both racers)
-function rq(){ if(easy&&solQ.length&&qr()<.5) return solQ[sqi++%solQ.length]; const w=easy||tut?QWE:QW; let s=0; w.forEach(v=>s+=v); let r=qr()*s; for(let i=0;i<QT.length;i++){ r-=w[i]; if(r<=0) return QT[i]; } return 10; }
+// SOLVABLE QUEUE (1.3): the pieces of the stage's solution route in route order, with at most 1 (Beginner) or 2 spare
+// pieces between two route pieces; after the whole route it starts the route again (so mistakes can still be fixed).
+function extra(){ const w=easy||tut?QWE:QW; let s=0; w.forEach(v=>s+=v); let r=qr()*s; for(let i=0;i<QT.length;i++){ r-=w[i]; if(r<=0) return QT[i]; } return 10; }
+function rq(){ const pE=tut?0:easy?.25:boss?.3:.35, mx=easy||tut?1:2;
+  if(!need.length||(gap<mx&&qr()<pE)){ gap++; return extra(); }
+  gap=0; return need[ni++%need.length]; }
+const fits=(have,want)=>have===want||(have===15&&(want===5||want===10));
+// the route cells still missing (in route order): empty, or holding a pipe that doesn't fit the route there
+function routeTodo(){ const out=[]; if(!solParts) return out; const parts=solParts.map(pt=>pt.filter(q=>!q.fx));
+  for(let i=0;i<Math.max(...parts.map(p=>p.length));i++) for(const pt of parts){ const q=pt[i]; if(!q) continue; const c=grid[q.y][q.x];
+    if(!c||(c.k==='p'&&!c.f.length&&!fits(c.m,q.m))) out.push({x:q.x,y:q.y,m:q.m,wrong:!!c}); } return out; }
 function acc(c,en){ return !!c&&c.k!=='blk'&&c.k!=='src'&&(c.k==='drn'||!!(c.m&bit(en)))&&!(c.k==='one'&&en!==opp(c.d)); }
 // follow the pipes already laid from a tank: how long is the pipeline and where does it need the next pipe?
 function trace(s){ let x=s.x+DX[s.d], y=s.y+DY[s.d], ent=opp(s.d), len=0; const seen=new Set();
   for(let k=0;k<300;k++){ if(!inb(x,y)) return {len}; const c=grid[y][x]; if(!c) return {len,end:{x,y,ent}}; if(c.k==='drn') return {len,drain:true};
     if(!acc(c,ent)) return {len,bad:{x,y}}; const key=x+','+y+','+(ent%2); if(seen.has(key)) return {len}; seen.add(key);
     const o=c.m===15?opp(ent):[0,1,2,3].find(d=>d!==ent&&(c.m&bit(d))); len+=c.k==='bon'?2:1; x+=DX[o]; y+=DY[o]; ent=opp(o); } return {len}; }
-// can the pipeline still grow 'need' more pipes from (x,y)? (so the green hint never leads into a dead end)
-function canExt(x0,y0,ent0,need){ let it=0; const seen=new Set();
-  const go=(x,y,ent,cnt)=>{ if(++it>4000) return true; if(!inb(x,y)) return false; const k=x+','+y; if(seen.has(k)) return false; const c=grid[y][x]; let outs;
-    if(!c) outs=[0,1,2,3].filter(d=>d!==ent); else { if(c.k==='drn') return boss; if(!acc(c,ent)||(c.f.length&&c.m!==15)) return false; outs=[c.m===15?opp(ent):[0,1,2,3].find(d=>d!==ent&&(c.m&bit(d)))]; }
-    const add=c&&c.k==='bon'?2:1; if(!boss&&cnt+add>=need) return true; seen.add(k); for(const o of outs) if(go(x+DX[o],y+DY[o],opp(o),cnt+add)) return true; seen.delete(k); return false; };
-  return go(x0,y0,ent0,0); }
-function fitsAt(e,len,q){ if(!(q&bit(e.ent))) return false; if(!boss&&len+1>=N) return true; const o=q===15?opp(e.ent):[0,1,2,3].find(d=>d!==e.ent&&(q&bit(d))), nx=e.x+DX[o], ny=e.y+DY[o];
-  if(!inb(nx,ny)) return false;
-  if(boss){ if(drain&&nx===drain.x&&ny===drain.y) return true; if(grid[ny][nx]) return false; // twin tanks: the pipe must lead CLOSER to the drain
-    const D=new Map([[drain.x+','+drain.y,0]]), qq=[[drain.x,drain.y]]; for(let h=0;h<qq.length;h++){ const [x,y]=qq[h]; for(let d=0;d<4;d++){ const X=x+DX[d],Y=y+DY[d],k=X+','+Y; if(!inb(X,Y)||D.has(k)||(grid[Y][X]&&!(X===e.x&&Y===e.y))) continue; D.set(k,D.get(x+','+y)+1); qq.push([X,Y]); } }
-    const a=D.get(nx+','+ny), b=D.get(e.x+','+e.y); return a!==undefined&&b!==undefined&&a<b; }
-  grid[e.y][e.x]={k:'p',m:q,fx:0,f:[]}; const r=canExt(nx,ny,opp(o),N-len-1); grid[e.y][e.x]=null; return r; }
 function shuf(a){ for(let i=a.length-1;i>0;i--){ const j=ri(i+1); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 /* ---------- stage generator: the required length is always possible (checked with a path search) ---------- */
 function freeCell(avoid){ for(let k=0;k<200;k++){ const x=ri(GW),y=ri(GH); if(!grid[y][x]&&!avoid.has(x+','+y)) return [x,y]; } return null; }
@@ -574,12 +575,17 @@ function checkBoss(){ if(!flows.every(f=>f.st==='ok'||f.st==='merge')) return; i
 function goo(){ return api.cos('Goo').colors[0]; }
 function place(x,y){ if(lost||done||!inb(x,y)) return; const c=grid[y][x];
   if(bomb){ if(c&&!c.fx&&!c.f.length){ grid[y][x]=null; bomb=false; api.setActive(2,false); const p=pc(x,y); api.fx.burst(p.x,p.y,'#ff9a30',24,240,.5,3); api.sfx.boom(); api.fx.shake(5); api.event('bomb'); } else { api.toast('BOMB: TAP ONE OF YOUR PIPES'); api.sfx.bump(); } return; }
-  if(c&&(c.fx||c.f.length)){ api.sfx.bump(); return; }
+  if(c&&(c.fx||c.f.length)){ arm=null; api.sfx.bump(); api.toast(c.f.length?'GOO IS IN THAT PIPE — CAN\'T CHANGE IT':'THAT SQUARE IS FIXED'); return; }
   if(lock>0){ api.sfx.bump(); return; }
   const p=pc(x,y);
-  if(c){ if(cd>0){ cd=Math.max(0.01,cd-2); api.fx.text(p.x,p.y-20,'-2s','#ff5a5a',18); } else { lock=0.9; api.fx.text(p.x,p.y-20,'WAIT!','#ff5a5a',18); } api.sfx.small(); }
-  grid[y][x]={k:'p',m:queue.shift(),fx:0,f:[],pop:0.25}; queue.push(rq()); hiT=0; hiC=null; api.addScore(10,p.x,p.y,true); api.sfx.click(); api.event('place'); }
-function cellAt(x,y){ const cx=Math.floor((x-bx)/CS), cy=Math.floor((y-by)/CS); return inb(cx,cy)?[cx,cy]:null; }
+  if(c){ // REPLACE rule (1.3): never change a pipe on one tap. 1st tap marks it, 2nd tap on the SAME pipe within 3 s replaces it
+    if(!arm||arm.x!==x||arm.y!==y){ arm={x,y,t:3}; api.sfx.small(); api.toast('TAP AGAIN TO REPLACE (−2s)'); return; }
+    if(cd>0){ cd=Math.max(0.01,cd-2); api.fx.text(p.x,p.y-20,'-2s','#ff5a5a',18); } else { lock=0.9; api.fx.text(p.x,p.y-20,'WAIT!','#ff5a5a',18); }
+    api.fx.flash('#ff5a3c',.18); api.fx.burst(p.x,p.y,'#ffb02e',16,180,.4,3); api.sfx.small(); }
+  arm=null; grid[y][x]={k:'p',m:queue.shift(),fx:0,f:[],pop:0.25}; queue.push(rq()); hiT=0; hiC=null; api.addScore(10,p.x,p.y,true); api.sfx.click(); api.event('place'); }
+// tap -> square: the square under the finger; a tap up to half a square outside the board snaps to the nearest edge square
+function cellAt(x,y){ const fx=(x-bx)/CS, fy=(y-by)/CS; if(fx<-.5||fy<-.5||fx>GW+.5||fy>GH+.5) return null;
+  return [Math.max(0,Math.min(GW-1,Math.floor(fx))),Math.max(0,Math.min(GH-1,Math.floor(fy)))]; }
 /* ---------- drawing ---------- */
 function curve(c,cx,cy,s,a,b,p){ const e=d=>d<0?[cx,cy]:[cx+DX[d]*s/2,cy+DY[d]*s/2]; const A=e(a),B=e(b);
   if(p>=1){ c.beginPath(); c.moveTo(A[0],A[1]); c.quadraticCurveTo(cx,cy,B[0],B[1]); c.stroke(); return; }
@@ -613,13 +619,14 @@ function hintInfo(){ // what the right-hand panel and the board hints show
   const tr=srcs.map(s=>trace(s)); const h={tr,len:tr[0]?tr[0].len:0};
   if(!boss&&!tut&&tr[0]) h.ready=tr[0].len>=N; else if(tut) h.ready=tr[0].len>=N;
   if(boss) h.ready=tr.every(r=>r.drain);
-  if((easy||tut)&&!h.ready){ const j=tr.findIndex(r=>r.bad&&grid[r.bad.y][r.bad.x].k==='p'&&!grid[r.bad.y][r.bad.x].f.length);
-    if(j>=0) h.bad=tr[j].bad; else { const i=tr.findIndex(r=>r.end); if(i>=0){ h.end=tr[i].end; h.fits=fitsAt(h.end,tr[i].len,queue[0]); } } }
+  if((easy||tut)&&!h.ready){ const todo=routeTodo(), w=todo.find(q=>q.wrong);
+    if(w) h.bad=w; else if(todo.length){ // next route square + which queue piece fits it
+      const nx=todo.find(q=>fits(queue[0],q.m)); h.end=nx||todo[0]; h.fits=!!nx; h.spare=!nx; h.qi=queue.slice(0,4).findIndex(m=>fits(m,todo[0].m)); } }
   return h; }
 /* ---------- game object ---------- */
 const GAME=window.GAME={
   id:'pipe-flow',title:'Pipe Flow',titleHTML:'PIPE<br>FLOW',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-PF-1.2 · 2026-10-24',theme:{a:'#39ff6a',b:'#ffd23f',bg:'#050a16'},
+  build:'BUILD-PF-1.3 · 2026-10-25',theme:{a:'#39ff6a',b:'#ffd23f',bg:'#050a16'},
   landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🧪',joystick:false,coinPts:60,
   abilities:[
     {id:'speed',icon:'⏩',name:'SPEED FLOW',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — done building? Make the goo rush through at top speed. Every pipe filled fast = BONUS points. Also starts the flow early.'},
@@ -629,22 +636,23 @@ const GAME=window.GAME={
   shop:[{id:'g_g',cat:'Goo',name:'Toxic Green',cost:0,colors:['#39ff6a'],desc:'Classic glow.'},{id:'g_p',cat:'Goo',name:'Plasma Pink',cost:150,colors:['#ff3bd4'],desc:'Hot pink plasma.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#39ff6a,#ffd23f)'}],
   story:`<h3>PIPE FLOW</h3><p>The lab's glowing goo tank is about to blow. Build a pipeline — fast — and keep every drop inside the pipes.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>📱 <b>Hold your phone sideways.</b></li><li><b>Tap a square</b> to drop the NEXT pipe (the queue on the left) there. PC: click, or arrows + ENTER.</li><li>When the countdown on the tank hits 0, the goo flows. It must pass through the number of pipes shown at the top.</li><li>If the goo reaches an open end — <b>LEAK</b> — you lose a life and the stage restarts. On Beginner stages 1-10 the goo waits a few seconds first so you can still add the pipe.</li><li>Beginner 1-10: a faint line shows a good route and a <b>green square</b> shows where the next pipe fits.</li><li>Tapping a pipe you already placed swaps it, but costs 2 seconds (or a short wait once the goo flows).</li><li>✚ Crosses can be used twice. ⭐ pipes count double. Yellow arrows only flow one way. Glass tanks slow the goo down.</li><li><b>⏩ SPEED FLOW</b> (button bottom-right, PC: SPACE) when you're done = bonus points.</li><li>Abilities on the left: 🐌 1 · 💣 2 · 👁️ 3.</li></ul>`,
+  howto:`<h3>HOW TO PLAY</h3><ul><li>📱 <b>Hold your phone sideways.</b></li><li><b>Tap an empty square</b> — the NEXT pipe (top of the queue on the left) goes exactly there. PC: click, or arrows + ENTER.</li><li>The queue always holds the pipes for a full route, in order, plus a few <b>spare</b> pipes: put spares on any square off your route.</li><li>When the countdown on the tank hits 0, the goo flows. It must pass through the number of pipes shown at the top.</li><li>If the goo reaches an open end — <b>LEAK</b> — you lose a life and the stage restarts. On Beginner stages 1-10 the goo waits a few seconds first so you can still add the pipe.</li><li>Beginner 1-10: a dotted line shows the route, a <b>green square</b> shows where the next pipe goes, and the queue marks the pipe the route needs (ROUTE) and spares (SPARE).</li><li><b>Replacing:</b> one tap on your own pipe never changes it — it only flashes orange. Tap the SAME pipe again within 3 seconds to replace it with the next pipe (costs 2 seconds, or a short wait once the goo flows). Or use 💣.</li><li>✚ Crosses can be used twice. ⭐ pipes count double. Yellow arrows only flow one way. Glass tanks slow the goo down.</li><li><b>⏩ SPEED FLOW</b> (button bottom-right, PC: SPACE) when you're done = bonus points.</li><li>Abilities on the left: 🐌 1 · 💣 2 · 👁️ 3.</li></ul>`,
   tutorial:[{text:'Tap the GREEN square next to the goo tank to lay a pipe!',ev:'place'},{text:'Lay 3 pipes in a row, then tap <b>⏩ SPEED FLOW</b> (bottom-right · SPACE) to start the goo!',ev:'flow'},{text:'Fill 3 pipes to win!',time:6}],
   stageIntro:{1:'TAP THE GREEN SQUARE · DON\'T LET IT LEAK',4:'WATCH OUT FOR BLOCKS',8:'⭐ PIPES COUNT DOUBLE',15:'ARROW PIPES FLOW ONE WAY ONLY',30:'GLASS TANKS SLOW THE GOO'},bossName:'TWIN TANKS! CONNECT BOTH TO THE DRAIN',
   ending:{"0":["#PLUMBER","Not one drop spilled."],"1":["#MASTER","The lab is saved."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(!eff) return null; if(id==='bomb') return bomb?{left:1,total:1,label:'TAP'}:null; const tot={slow:6,peek:12}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get grid(){return grid;}, get queue(){return queue;}, get sol(){return sol;}, get flows(){return flows;}, get N(){return N;}, get filled(){return filled;}, get cd(){return cd;}, get cd0(){return cd0;}, get ft(){return ft;}, get lock(){return lock;}, get done(){return done;}, get lost(){return lost;}, get GW(){return GW;}, get GH(){return GH;}, get boss(){return boss;}, get easy(){return easy;}, get seed(){return seed;}, get srcs(){return srcs;}, get box(){return {bx,by,CS,top};}, hint:()=>hintInfo(), place:(x,y)=>place(x,y), speed:()=>GAME.useAbility('speed')}; },
+  _dbg(){ return {get grid(){return grid;}, get queue(){return queue;}, get sol(){return sol;}, get flows(){return flows;}, get N(){return N;}, get filled(){return filled;}, get cd(){return cd;}, get cd0(){return cd0;}, get ft(){return ft;}, get lock(){return lock;}, get done(){return done;}, get lost(){return lost;}, get GW(){return GW;}, get GH(){return GH;}, get boss(){return boss;}, get easy(){return easy;}, get seed(){return seed;}, get srcs(){return srcs;}, get box(){return {bx,by,CS,top};}, hint:()=>hintInfo(), place:(x,y)=>place(x,y), get arm(){return arm;}, get solParts(){return solParts;}, setCd:v=>{ if(cd>0) cd=v; }, todo:()=>routeTodo(), cellAt:(x,y)=>cellAt(x,y), fits, speed:()=>GAME.useAbility('speed')}; },
   init(a){ api=a; },
   startStage(n,a){ api=a; seed=(Math.random()*1e9)|0; this.respawn(); },   // in a RACE the shell seeds Math.random, so both phones get this same seed
   respawn(){ const a=api; done=false; lost=false; leakAt=null; filled=0; speed=false; spBonus=0; bomb=false; lock=0; flows=[]; eff={slow:0,peek:0};
-    hiC=null; hiT=0; tut=a.content===0; easy=!tut&&a.diff===0&&a.level<=10; gen(a); a.setActive(2,false);
+    hiC=null; hiT=0; arm=null; tut=a.content===0; easy=!tut&&a.diff===0&&a.level<=10; gen(a); a.setActive(2,false);
     // landscape layout: queue x140-300, board x320-975, info panel x995-1265 (above the ⏩ button); tutorial box covers the top-left, so drop below it
     top=tut?262:96; bot=640; raceT=0; layout();
     const L=a.level, ramp=a.diff===0&&L<=20?20-L:0;
     cd0=cd=tut?30:easy?(boss?34:30)-L*.6:boss?a.dv([28,20,15],13,10)+ramp*.4:a.dv([20,14,10],8,6)+ramp*.4;
     ft=(tut?4.5:easy?4.6-L*.05:a.dv([3.6,2.4,1.7],1.4,1.0)+ramp*.06)*(boss?1.25:1);
-    qs=seed^0x5bd1e995; solQ=sol.filter(q=>!q.fx).map(q=>q.m); sqi=0; queue=[]; for(let i=0;i<10;i++) queue.push(tut&&i<4?10:rq()); cur=cur||{x:0,y:0}; cur.x=Math.min(cur.x,GW-1); cur.y=Math.min(cur.y,GH-1); },
+    qs=seed^0x5bd1e995; need=[]; ni=0; gap=0; { const parts=solParts.map(pt=>pt.filter(q=>!q.fx)); for(let i=0;i<Math.max(...parts.map(p=>p.length));i++) parts.forEach(pt=>{ if(pt[i]) need.push(pt[i].m); }); }
+    queue=[]; for(let i=0;i<10;i++) queue.push(rq()); cur=cur||{x:0,y:0}; cur.x=Math.min(cur.x,GW-1); cur.y=Math.min(cur.y,GH-1); },
   stageBonus(){ return spBonus; },
   useAbility(id){ if(done||lost) return false;
     if(id==='speed'){ if(speed) return false; if(cd>0){ api.addScore(Math.ceil(cd)*30,bx+GW*CS/2,by+GH*CS/2); startFlow(); } speed=true; api.sfx.power(); api.fx.flash(goo(),.2); api.toast('⏩ SPEED FLOW!'); return true; }
@@ -653,7 +661,7 @@ const GAME=window.GAME={
   onPointer(type,x,y,id,pt){ const c=cellAt(x,y); if(type==='move'){ if(c&&pt==='mouse'){ cur.x=c[0]; cur.y=c[1]; showCur=true; } return; } if(type!=='down') return; if(c){ cur.x=c[0]; cur.y=c[1]; place(c[0],c[1]); } },
   onKey(code,down){ if(!down) return; const m={ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0],ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1]}[code];
     if(m){ cur.x=Math.max(0,Math.min(GW-1,cur.x+m[0])); cur.y=Math.max(0,Math.min(GH-1,cur.y+m[1])); showCur=true; } if(code==='Enter'||code==='KeyE'||code==='KeyX'){ showCur=true; place(cur.x,cur.y); } },
-  update(dt){ t+=dt; if(!grid) return; if((raceT-=dt)<=0){ raceT=.5; raceFit(); } if((hiT-=dt)<=0){ hiT=.2; hiC=hintInfo(); } for(const k in eff) if(eff[k]>0) eff[k]-=dt; if(lock>0) lock-=dt; if(leakAt) leakAt.t+=dt;
+  update(dt){ t+=dt; if(!grid) return; if((raceT-=dt)<=0){ raceT=.5; raceFit(); } if((hiT-=dt)<=0){ hiT=.2; hiC=hintInfo(); } for(const k in eff) if(eff[k]>0) eff[k]-=dt; if(lock>0) lock-=dt; if(arm&&(arm.t-=dt)<=0) arm=null; if(leakAt) leakAt.t+=dt;
     grid.forEach(r=>r.forEach(c=>{ if(c&&c.pop>0) c.pop-=dt; }));
     if(done||lost) return;
     const sl=eff.slow>0?.4:1;
@@ -679,19 +687,24 @@ const GAME=window.GAME={
         else { const p=pc(f.x,f.y); c.beginPath(); c.arc(p.x+DX[f.b]*CS*.55,p.y+DY[f.b]*CS*.55,CS*.18,0,7); c.stroke(); } } });
     for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){ const cell=grid[y][x]; if(cell){ const p=pc(x,y); drawCell(c,x,y,cell,CS,p.x,p.y); } }
     // HINT: the square where the next pipe goes — green = the NEXT piece fits there
-    if(hi.end&&!done&&!lost&&!flows.some(f=>f.st==='hold')){ const e=hi.end, col=hi.fits?'#39ff6a':'#ffb02e', pu=.55+.45*Math.sin(t*6);
-      c.save(); c.shadowColor=col; c.shadowBlur=18; c.strokeStyle=col; c.globalAlpha=pu; c.lineWidth=5; c.beginPath(); c.roundRect(bx+e.x*CS+4,by+e.y*CS+4,CS-8,CS-8,8); c.stroke(); c.globalAlpha=.25*pu; c.fillStyle=col; c.fill(); c.restore();
+    if(hi.end&&!done&&!lost&&!flows.some(f=>f.st==='hold')){ const e=hi.end, col=hi.fits?'#39ff6a':'#7d8bb0', pu=.55+.45*Math.sin(t*6);
+      c.save(); c.shadowColor=col; c.shadowBlur=hi.fits?18:0; c.strokeStyle=col; c.globalAlpha=hi.fits?pu:.6; c.lineWidth=hi.fits?5:3; if(!hi.fits) c.setLineDash([8,6]); c.beginPath(); c.roundRect(bx+e.x*CS+4,by+e.y*CS+4,CS-8,CS-8,8); c.stroke(); if(hi.fits){ c.globalAlpha=.25*pu; c.fillStyle=col; c.fill(); } c.restore();
       if(hi.fits){ c.save(); c.globalAlpha=.35; drawPipe(c,bx+e.x*CS+CS/2,by+e.y*CS+CS/2,CS*.8,queue[0]); c.restore(); } }
     if(hi.bad&&!done&&!lost){ const e=hi.bad, pu=.55+.45*Math.sin(t*6); c.save(); c.strokeStyle='#ffb02e'; c.shadowColor='#ffb02e'; c.shadowBlur=18; c.globalAlpha=pu; c.lineWidth=5; c.setLineDash([10,6]); c.beginPath(); c.roundRect(bx+e.x*CS+4,by+e.y*CS+4,CS-8,CS-8,8); c.stroke(); c.restore(); }
     flows.forEach(f=>{ if(f.st!=='run'&&f.st!=='hold') return; const cell=grid[f.y][f.x], q=cell.f[cell.f.length-1]; if(!q) return; const p=pc(f.x,f.y), A=q.a<0?[p.x,p.y]:[p.x+DX[q.a]*CS/2,p.y+DY[q.a]*CS/2], Bp=[p.x+DX[q.b]*CS/2,p.y+DY[q.b]*CS/2], u=Math.min(1,f.p), v=1-u;
       const hx=v*v*A[0]+2*v*u*p.x+u*u*Bp[0], hy=v*v*A[1]+2*v*u*p.y+u*u*Bp[1]; c.save(); c.shadowColor='#fff'; c.shadowBlur=16; c.fillStyle='#fff'; c.beginPath(); c.arc(hx,hy,CS*.09+Math.sin(t*20)*1.5,0,7); c.fill(); c.restore(); if(Math.random()<.3) api.fx.spark(hx,hy,(Math.random()-.5)*60,(Math.random()-.5)*60,gc,.3,2); });
     if(leakAt){ const p=pc(flows.length?leakAt.x-DX[leakAt.d]:0,leakAt.y-DY[leakAt.d]), lx=p.x+DX[leakAt.d]*CS/2, ly=p.y+DY[leakAt.d]*CS/2; c.fillStyle=gc; c.globalAlpha=.75; c.beginPath(); c.ellipse(lx+DX[leakAt.d]*leakAt.t*20,ly+DY[leakAt.d]*leakAt.t*20+leakAt.t*10,10+leakAt.t*30,8+leakAt.t*16,0,0,7); c.fill(); c.globalAlpha=1; }
+    if(arm&&!done){ const pu=.5+.5*Math.sin(t*14); c.save(); c.strokeStyle='#ffb02e'; c.shadowColor='#ffb02e'; c.shadowBlur=20; c.lineWidth=6; c.globalAlpha=.5+.5*pu; c.beginPath(); c.roundRect(bx+arm.x*CS+3,by+arm.y*CS+3,CS-6,CS-6,8); c.stroke(); c.shadowBlur=0; c.globalAlpha=1;
+      c.fillStyle='rgba(10,14,30,.85)'; c.beginPath(); c.roundRect(bx+arm.x*CS+CS/2-48,by+arm.y*CS-30,96,24,8); c.fill(); c.fillStyle='#ffb02e'; c.font='bold 13px sans-serif'; c.textAlign='center'; c.fillText('TAP AGAIN',bx+arm.x*CS+CS/2,by+arm.y*CS-13); c.restore(); }
     if(showCur&&!done){ c.strokeStyle=bomb?'#ff9a30':'#fff'; c.setLineDash([6,4]); c.lineWidth=3; c.strokeRect(bx+cur.x*CS+3,by+cur.y*CS+3,CS-6,CS-6); c.setLineDash([]); }
     // queue panel (left, clear of the ability column)
-    const QX=190, peek=eff.peek>0, nq=tut?3:4; c.fillStyle='rgba(15,25,48,.9)'; c.beginPath(); c.roundRect(140,top-10,100,nq===3?272:340,14); c.fill(); c.strokeStyle='rgba(120,160,255,.35)'; c.lineWidth=2; c.stroke();
+    const QX=190, peek=eff.peek>0, nq=4; c.fillStyle='rgba(15,25,48,.9)'; c.beginPath(); c.roundRect(140,top-10,100,340,14); c.fill(); c.strokeStyle='rgba(120,160,255,.35)'; c.lineWidth=2; c.stroke();
     c.fillStyle=gc; c.font='bold 16px sans-serif'; c.textAlign='center'; c.fillText('NEXT',QX,top+12);
     let qy=top+24; for(let i=0;i<nq;i++){ const s=i===0?80:62; if(i===0){ c.save(); c.shadowColor=gc; c.shadowBlur=14; c.strokeStyle=gc; c.lineWidth=3; c.beginPath(); c.roundRect(QX-s/2-2,qy-2,s+4,s+4,10); c.stroke(); c.restore(); }
-      c.fillStyle='#121c33'; c.beginPath(); c.roundRect(QX-s/2,qy,s,s,8); c.fill(); drawPipe(c,QX,qy+s/2,s*.9,queue[i]); qy+=s+(i===0?14:6); }
+      c.fillStyle='#121c33'; c.beginPath(); c.roundRect(QX-s/2,qy,s,s,8); c.fill(); drawPipe(c,QX,qy+s/2,s*.9,queue[i]);
+      if((easy||tut)&&!done&&hi.end){ const route=i===hi.qi, sp=i===0&&hi.spare; if(route||sp){ const col=route?'#39ff6a':'#ffb02e', lb=route?'ROUTE':'SPARE';
+        c.save(); if(route&&i){ c.strokeStyle=col; c.lineWidth=3; c.beginPath(); c.roundRect(QX-s/2,qy,s,s,8); c.stroke(); } c.fillStyle=col; c.beginPath(); c.roundRect(QX-27,qy+s-12,54,16,6); c.fill(); c.fillStyle='#061016'; c.font='bold 11px sans-serif'; c.textAlign='center'; c.fillText(lb,QX,qy+s); c.restore(); } }
+      qy+=s+(i===0?14:6); }
     if(peek){ c.fillStyle='rgba(15,25,48,.9)'; c.beginPath(); c.roundRect(246,top-10,58,310,12); c.fill(); c.strokeStyle='rgba(125,249,255,.4)'; c.stroke(); c.fillStyle='#7df9ff'; c.font='bold 12px sans-serif'; c.fillText('👁️ PEEK',275,top+10);
       let py=top+22; for(let i=4;i<9;i++){ c.fillStyle='rgba(125,249,255,.08)'; c.beginPath(); c.roundRect(275-23,py,46,46,8); c.fill(); drawPipe(c,275,py+23,41,queue[i]); py+=52; } }
     // info panel (right, above the ⏩ button)
@@ -712,11 +725,12 @@ const GAME=window.GAME={
     let msg, mc='#cfd8f0';
     if(done){ msg=boss?'BOTH TANKS DRAINED!':'PIPELINE COMPLETE!'; mc=gc; }
     else if(bomb){ msg='💣 TAP ONE OF YOUR PIPES TO BLOW IT UP'; mc='#ff9a30'; }
-    else if(lock>0){ msg='SWAPPING… WAIT'; mc='#ff5a5a'; }
+    else if(lock>0){ msg='REPLACING… WAIT'; mc='#ff5a5a'; }
+    else if(arm){ msg='TAP THE ORANGE PIPE AGAIN TO REPLACE IT (−2s) — OR TAP AN EMPTY SQUARE'; mc='#ffb02e'; }
     else if(hold){ msg='QUICK! PUT A PIPE IN THE FLASHING RED SQUARE'; mc='#ff8080'; }
     else if(hi.ready&&cd>0){ msg='✅ LONG ENOUGH! TAP ⏩ TO START THE GOO = BONUS'; mc=gc; }
-    else if(hi.bad){ msg='THE ORANGE PIPE DOESN\'T JOIN UP — TAP IT TO SWAP IT FOR THE NEXT ONE'; mc='#ffb02e'; }
-    else if(hi.end){ msg=hi.fits?'✅ NEXT PIPE FITS THE GREEN SQUARE — TAP IT!':'NEXT PIPE DOESN\'T FIT THE ORANGE SQUARE — DROP IT ON A SPARE SQUARE'; mc=hi.fits?gc:'#ffb02e'; }
+    else if(hi.bad){ msg='THE ORANGE PIPE DOESN\'T FIT THE ROUTE — TAP IT TWICE TO REPLACE IT'; mc='#ffb02e'; }
+    else if(hi.end){ msg=hi.fits?'✅ NEXT PIPE FITS THE GREEN SQUARE — TAP IT!':'SPARE PIPE — PUT IT ON ANY EMPTY SQUARE OFF THE DOTTED ROUTE'; mc=hi.fits?gc:'#ffb02e'; }
     else if(cd>0) msg=boss?'JOIN BOTH TANKS TO THE DRAIN':'BUILD A PIPELINE FROM THE TANK';
     else msg=speed?'SPEED BONUS FOR EVERY PIPE!':'KEEP BUILDING AHEAD OF THE GOO';
     c.fillStyle=mc; const nl=wrap(c,msg,cx,y,PW-30,21); y+=nl*21+(tut?4:14);
