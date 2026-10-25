@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RR-1.3 · 2026-10-19">
+<meta name="build" content="BUILD-RR-1.4 · 2026-10-26">
 <title>Robo Riot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-RR-1.3 · 2026-10-19 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-RR-1.4 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -490,11 +490,14 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </div>
 <script>
 /* ROBO RIOT — Robotron remix (#37). Survive the robot riot and save the family.
-   1.3: real online 2-player CO-OP (NET-1). Host runs the game for both heroes; guest draws snapshots. */
+   1.3: real online 2-player CO-OP (NET-1). Host runs the game for both heroes; guest draws snapshots.
+   1.4: LANDSCAPE 1280x720. Twin-stick for phones: left thumb = shell joystick (move), right thumb = AIM-STICK
+        (drag anywhere on the right half = aim + fire while held) or hold the FIRE button (shoots where you face).
+        A dotted aim line always shows where your shots go. Beginner 1-10 much easier. */
 (function(){
-const W=600,H=900,TOP=100;
+const W=1280,H=720,TOP=70, AL=96, AR=W-10, AT=TOP+6, AB=H-10; // arena walls (left 90px = ability column)
 const KINDS=['grunt','hulk','mine','boss'], HCOL=['#ffd23f','#ff7ab8','#7df9ff'], TAGC=['#00e5ff','#ff3bd4'];
-let api,t,pl,pls,ens,shots,hum,sparks,done,lost,eff,ptrs={},moveId=null,p2pts=[],p2touch=false;
+let api,t,pl,pls,ens,shots,hum,sparks,done,lost,eff,stick=null,mouse=null,stick2=null,EZ=false;
 let nid=0,evq=[],evSeq=0,evSeen=0,snapN=0,snapSeen=0,lastCnt=null,stLeft=0,shotSfxT=0;
 function rnd(a,b){ return a+Math.random()*(b-a); }
 function net(){ return api&&api.net; }
@@ -504,17 +507,18 @@ function me(){ return (isGuest()&&pls&&pls[1])||pl; }
 function ev(k,...a){ if(!isHost()) return; evq.push([++evSeq,t,k,...a]); if(evq.length>30) evq.shift(); }
 function T(msg){ api.toast(msg); ev('toast',msg); }
 function nm(i){ const n=net(); return String((n&&n.names[i])||('P'+(i+1))).slice(0,12); }
-function mkPl(i,x){ return {i,x,y:H/2+40,face:{x:0,y:-1},aim:null,fireT:0,grace:1.5,dead:false,respT:0,eff:{spread:-9,shield:-9},firing:false}; }
+function mkPl(i,x){ return {i,x,y:H/2+20,face:{x:1,y:0},aim:{x:1,y:0},fireT:0,grace:1.5,dead:false,respT:0,eff:{spread:-9,shield:-9},firing:false}; }
 // nearest living hero (single player: always the hero)
 function near(o){ if(!pls||pls.length<2) return pl; let best=null,bd=1e9; for(const p of pls){ if(p.dead) continue; const d=Math.hypot(p.x-o.x,p.y-o.y); if(d<bd){ bd=d; best=p; } } return best||pl; }
-function spawnFar(k,extra){ let x,y,n=0; do{ x=rnd(30,W-30); y=rnd(TOP+30,H-30); n++; } while(n<200&&pls.some(p=>Math.hypot(x-p.x,y-p.y)<220));
+function spawnFar(k,extra){ let x,y,n=0; do{ x=rnd(AL+30,AR-30); y=rnd(AT+30,AB-30); n++; } while(n<200&&pls.some(p=>Math.hypot(x-p.x,y-p.y)<(EZ?340:260)));
   return Object.assign({id:++nid,k,x,y,vx:0,vy:0,t:Math.random()*5,hp:k==='hulk'?99:k==='boss'?30:1,max:30,dead:false},extra||{}); }
 const GAME=window.GAME={
   id:'robo-riot',title:'Robo Riot',titleHTML:'ROBO<br>RIOT',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-RR-1.3 · 2026-10-19',theme:{a:'#3bff7a',b:'#ff3b5c',bg:'#060a10'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🧑‍🚀',joystick:true,coinPts:40,
+  build:'BUILD-RR-1.4 · 2026-10-26',theme:{a:'#3bff7a',b:'#ff3b5c',bg:'#060a10'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🧑‍🚀',joystick:true,coinPts:40,
   net:{mode:'coop'},
   abilities:[
+    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — HOLD to shoot the way you are facing (follow the dotted aim line). Or drag your right thumb anywhere on the right side to aim + shoot.'},
     {id:'bomb',icon:'💥',name:'EMP BOMB',cd:18,key:'Digit1',keyLabel:'1',desc:'Destroys every robot near you (not hulks).'},
     {id:'freeze',icon:'❄️',name:'FREEZE',cd:20,key:'Digit2',keyLabel:'2',desc:'Freezes all robots for 4 seconds. Frozen robots can\'t hurt you.'},
     {id:'spread',icon:'🔱',name:'SPREAD',cd:15,key:'Digit3',keyLabel:'3',desc:'Triple shots for 8 seconds.'},
@@ -522,56 +526,55 @@ const GAME=window.GAME={
   shop:[{id:'h_b',cat:'Hero',name:'Neon Blue',cost:0,colors:['#00e5ff'],desc:'Classic.'},{id:'h_o',cat:'Hero',name:'Orange',cost:150,colors:['#ff9f1c'],desc:'Bright.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3bff7a,#ff3b5c)'}],
   story:`<h3>ROBO RIOT</h3><p>The factory robots have turned on the city. You're the last hero in the arena — blast them and get the families to safety.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Two thumbs:</b> your FIRST finger on the screen moves you (a stick appears). Put a SECOND finger down and hold it where you want to shoot — you fire toward it.</li><li>PC: WASD to move, ARROW keys or hold the mouse button to shoot toward the cursor.</li><li>You only shoot when YOU aim — stand still and the robots will get you!</li><li>Touch people to rescue them for big points.</li><li>Big green HULKS can't be destroyed — just push them back and keep away.</li><li>Destroy every red robot to clear the wave.</li><li><b>Play together:</b> two heroes share lives and score. Robots chase whoever is closer. A hit hero is back in 2 seconds — but the team loses a life.</li></ul>`,
-  tutorial:[{text:'One finger drags to move. Hold a SECOND finger where you want to shoot (PC: arrows or mouse)!',ev:'kill'},{text:'Touch the person to rescue them!',ev:'save'},{text:'Clear every robot!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Hold your phone sideways.</b></li><li><b>Left thumb</b> (left half of the screen): drag to move.</li><li><b>Right thumb</b>: drag anywhere on the right half to AIM — you shoot that way while your thumb is down. Or hold the 🔫 FIRE button to shoot the way you are facing. The dotted line shows where your shots go.</li><li>PC: WASD to move, ARROW keys to aim + shoot, SPACE = fire where you face, or hold the mouse button to shoot at the cursor.</li><li>You only shoot when YOU shoot — stand still and the robots will get you!</li><li>Touch people to rescue them for big points.</li><li>Big green HULKS can't be destroyed — just push them back and keep away.</li><li>Destroy every red robot to clear the wave.</li><li><b>Play together:</b> two heroes share lives and score. Robots chase whoever is closer. A hit hero is back in 2 seconds — but the team loses a life.</li></ul>`,
+  tutorial:[{text:'WASD moves. ARROWS aim + shoot (or SPACE / mouse). Shoot a robot!',touch:'Left thumb moves. Drag your RIGHT thumb toward a robot to shoot it (or hold 🔫 FIRE)!',ev:'kill'},{text:'Touch the person to rescue them!',ev:'save'},{text:'Clear every robot!',time:5}],
   stageIntro:{1:'SAVE THE FAMILY'},bossName:'BRAIN BOT!',ending:{"0":["#HERO","The city is safe."],"1":["#LEGEND","Robot-proof."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const tot={freeze:4,spread:8,shield:6}[id]; if(!tot||!eff) return null; const p=me(); const v=id==='freeze'?eff.freeze:(p?p.eff[id]:0); return {left:Math.max(0,v),total:tot}; },
-  onPointer(type,x,y,id,ptype){ if(ptype==='mouse'){ if(type==='down') ptrs.m={x,y}; else if(type==='move'&&ptrs.m) ptrs.m={x,y}; else if(type==='up') delete ptrs.m; return; }
-    if(type==='down'){ if(moveId===null) moveId=id; else ptrs[id]={x,y}; } else if(type==='move'){ if(ptrs[id]) ptrs[id]={x,y}; } else if(type==='up'){ if(id===moveId) moveId=null; delete ptrs[id]; } },
-  // P2 (guest) touches arrive without finger ids: the guest's first touch finger is its move stick, so track the points and aim at the non-stick one
-  onPointer2(type,x,y){ if(!pls||!pls[1]) return; // the shell never forwards the guest's move-stick finger, so every pointer here is the AIM finger
-    if(type==='down'||type==='move') p2pts=[{x,y,t0:t}]; else if(type==='up') p2pts=[]; },
-  _dbg(){ return {get pl(){return pl;}, get pls(){return pls;}, get ens(){return ens;}, get lost(){return lost;}, get done(){return done;}, get shots(){return shots;}, get p2pts(){return p2pts;},
+  // touch: a finger that lands on the RIGHT half (the shell's joystick owns the left half) is the AIM-STICK: drag = aim, held = fire
+  onPointer(type,x,y,id,ptype){ if(ptype==='mouse'){ if(type==='down') mouse={x,y}; else if(type==='move'&&mouse) mouse={x,y}; else if(type==='up') mouse=null; return; }
+    if(type==='down'){ if(!stick&&x>=W*0.5) stick={id,sx:x,sy:y,x,y}; } else if(type==='move'){ if(stick&&stick.id===id){ stick.x=x; stick.y=y; } } else if(type==='up'){ if(stick&&stick.id===id) stick=null; } },
+  // guest touches arrive without ids; the shell never forwards the guest's joystick finger, so this is the guest's aim-stick
+  onPointer2(type,x,y){ if(!pls||!pls[1]) return;
+    if(type==='down') stick2={sx:x,sy:y,x,y}; else if(type==='move'){ if(stick2){ stick2.x=x; stick2.y=y; } else stick2={sx:x,sy:y,x,y}; } else if(type==='up') stick2=null; },
+  _dbg(){ return {get pl(){return pl;}, get pls(){return pls;}, get ens(){return ens;}, get lost(){return lost;}, get done(){return done;}, get shots(){return shots;}, get stick(){return stick;}, get stick2(){return stick2;}, get EZ(){return EZ;},
     get net2(){ return {role:net()&&net().role, p:(pls||[]).map(p=>[Math.round(p.x),Math.round(p.y),p.dead?1:0,p.aim?[+p.aim.x.toFixed(2),+p.aim.y.toFixed(2)]:null]), ens:(ens||[]).length, shots:(shots||[]).length, done, lives:api.lives}; }}; },
-  init(a){api=a;},
-  startStage(n,a){ api=a; ptrs={}; moveId=null; p2pts=[]; t=0; done=false; lost=false; nid=0; evq=[]; lastCnt=null; eff={freeze:-9}; shots=[]; sparks=[];
+  init(a){api=a; guestStick();},
+  startStage(n,a){ api=a; stick=null; mouse=null; stick2=null; EZ=a.diff===0&&a.level<=10&&a.content!==0; t=0; done=false; lost=false; nid=0; evq=[]; lastCnt=null; eff={freeze:-9}; shots=[]; sparks=[];
     const N2=!!net(); pl=mkPl(0,N2?W/2-60:W/2); pls=[pl]; if(N2) pls.push(mkPl(1,W/2+60));
-    const m=N2?1.3:1;
-    ens=[]; const tut=a.content===0; const N=tut?3:Math.round(a.dv([10,18,26],32,50)*m);
+    const m=N2?1.3:1, L=a.level;
+    ens=[]; const tut=a.content===0; const N=tut?3:EZ?Math.round((4+L*0.6)*m):Math.round(a.dv([10,18,26],32,50)*m);
     for(let i=0;i<N;i++) ens.push(spawnFar('grunt'));
-    if(!tut) for(let i=0;i<Math.round(a.dv([1,3,5],6,9));i++) ens.push(spawnFar('hulk'));
-    if(!tut&&a.level>=2) for(let i=0;i<Math.round(a.dv([4,7,10],12,18)*m);i++) ens.push(spawnFar('mine'));
-    if(a.boss){ const b=spawnFar('boss'); b.hp=b.max=Math.round(30*m); ens.push(b); }
+    if(!tut) for(let i=0;i<(EZ?(L<=4?0:1):Math.round(a.dv([1,3,5],6,9)));i++) ens.push(spawnFar('hulk'));
+    if(!tut&&a.level>=2) for(let i=0;i<(EZ?(L>=6?2:0):Math.round(a.dv([4,7,10],12,18)*m));i++) ens.push(spawnFar('mine'));
+    if(a.boss){ const b=spawnFar('boss'); b.hp=b.max=Math.round((EZ?16:30)*m); ens.push(b); }
     hum=[]; for(let i=0;i<(tut?1:4);i++){ const h=spawnFar('h'); hum.push({x:h.x,y:h.y,vx:rnd(-30,30),vy:rnd(-30,30),ci:i%3,c:HCOL[i%3]}); } },
   respawn(){ if(net()) return; // co-op: the hit hero comes back on its own timer; the level stays as it is
-    lost=false; pl.x=W/2; pl.y=H/2+40; pl.grace=2; sparks=[]; ens.forEach(e=>{ if(Math.hypot(e.x-pl.x,e.y-pl.y)<200&&e.k!=='mine'){ e.x=e.x<W/2?30:W-30; } }); },
-  netRevive(){ if(!pls) return; p2pts=[]; pls.forEach(p=>{ if(p.dead) respawnP(p); p.grace=Math.max(p.grace,3); }); },
+    lost=false; stick=null; pl.x=W/2; pl.y=H/2+20; pl.grace=EZ?3:2; sparks=[]; ens.forEach(e=>{ if(Math.hypot(e.x-pl.x,e.y-pl.y)<(EZ?320:220)&&e.k!=='mine'){ e.x=e.x<W/2?AL+20:AR-20; } }); },
+  netRevive(){ if(!pls) return; stick2=null; pls.forEach(p=>{ if(p.dead) respawnP(p); p.grace=Math.max(p.grace,3); }); },
   useAbility(id){ return useAb(pl,id); },
   useAbility2(id){ if(!pls||!pls[1]) return false; return useAb(pls[1],id); },
   update(dt){ t+=dt; if(done) return; if(eff.freeze>-2) eff.freeze-=dt;
     pls.forEach(p=>{ for(const k in p.eff) if(p.eff[k]>-2) p.eff[k]-=dt; p.grace-=dt; });
     const frozen=eff.freeze>0, harmless=eff.freeze>-1;
     // ---- heroes ----
-    { let pa=null; const k=Object.keys(ptrs)[0]; if(k!==undefined) pa=ptrs[k]; hero(pl,api.input.dir(),api.input.keys,pa,dt); }
-    if(pls[1]){ const d2=api.input2.dir(), K2=api.input2.keys;
-      const pa=p2pts.length?p2pts[0]:null;
-      hero(pls[1],d2,K2,pa,dt); }
-    shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; }); shots=shots.filter(s=>s.x>0&&s.x<W&&s.y>TOP&&s.y<H&&!s.hit);
-    const gs=api.dv([45,70,95],110,170);
+    hero(pl,api.input.dir(),api.input.keys,stick,mouse,dt);
+    if(pls[1]) hero(pls[1],api.input2.dir(),api.input2.keys,stick2,null,dt);
+    shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; }); shots=shots.filter(s=>s.x>AL&&s.x<AR&&s.y>AT&&s.y<AB&&!s.hit);
+    const gs=EZ?30+api.level*2.5:api.dv([45,70,95],110,170), ramp=1+Math.min(EZ?0.3:1,t/40);
     ens.forEach(e=>{ e.t+=dt; if(!frozen){ const tg=near(e);
-      if(e.k==='grunt'){ const a=Math.atan2(tg.y-e.y,tg.x-e.x); e.x+=Math.cos(a)*gs*dt*(1+Math.min(1,t/40)); e.y+=Math.sin(a)*gs*dt*(1+Math.min(1,t/40)); }
+      if(e.k==='grunt'){ const a=Math.atan2(tg.y-e.y,tg.x-e.x); e.x+=Math.cos(a)*gs*dt*ramp; e.y+=Math.sin(a)*gs*dt*ramp; }
       else if(e.k==='hulk'){ if(Math.random()<dt*.6){ const a=Math.random()<.5?Math.atan2(tg.y-e.y,tg.x-e.x):Math.random()*7; e.vx=Math.cos(a)*45; e.vy=Math.sin(a)*45; } e.x+=e.vx*dt; e.y+=e.vy*dt;
-        hum.forEach(h=>{ if(!h.gone&&Math.hypot(h.x-e.x,h.y-e.y)<26){ h.gone=true; T('A HULK GOT THEM!'); api.fx.burst(h.x,h.y,'#ff3b3b',10,120,.4,2); ev('eat',Math.round(h.x),Math.round(h.y)); } }); }
-      else if(e.k==='boss'){ e.x+=Math.cos(e.t*.8)*90*dt; e.y+=Math.sin(e.t*1.1)*70*dt; if(Math.random()<dt*api.dv([0.8,1.3,1.8],2.4,4)){ const a=Math.atan2(tg.y-e.y,tg.x-e.x); sparks.push({x:e.x,y:e.y,vx:Math.cos(a)*220,vy:Math.sin(a)*220,l:4}); } }
-      e.x=Math.max(14,Math.min(W-14,e.x)); e.y=Math.max(TOP+14,Math.min(H-14,e.y)); }
-      shots.forEach(s=>{ if(!s.hit&&Math.hypot(s.x-e.x,s.y-e.y)<(e.k==='boss'?34:e.k==='hulk'?22:14)){ s.hit=true; if(e.k==='hulk'){ e.x+=s.vx*0.012; e.y+=s.vy*0.012; } else e.hp--; } });
+        hum.forEach(h=>{ if(!h.gone&&Math.hypot(h.x-e.x,h.y-e.y)<34){ h.gone=true; T('A HULK GOT THEM!'); api.fx.burst(h.x,h.y,'#ff3b3b',10,120,.4,2); ev('eat',Math.round(h.x),Math.round(h.y)); } }); }
+      else if(e.k==='boss'){ e.x+=Math.cos(e.t*.8)*90*dt; e.y+=Math.sin(e.t*1.1)*70*dt; if(Math.random()<dt*(EZ?0.5:api.dv([0.8,1.3,1.8],2.4,4))){ const a=Math.atan2(tg.y-e.y,tg.x-e.x); const v=EZ?140:220; sparks.push({x:e.x,y:e.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:EZ?6:4}); } }
+      e.x=Math.max(AL+14,Math.min(AR-14,e.x)); e.y=Math.max(AT+14,Math.min(AB-14,e.y)); }
+      shots.forEach(s=>{ if(!s.hit&&Math.hypot(s.x-e.x,s.y-e.y)<(e.k==='boss'?40:e.k==='hulk'?30:EZ?30:26)){ s.hit=true; if(e.k==='hulk'){ e.x+=s.vx*0.012; e.y+=s.vy*0.012; } else e.hp--; } });
       if(e.hp<=0&&!e.dead){ e.dead=true; const p={grunt:100,mine:25,boss:2000}[e.k]||0; api.addScore(p*(1+api.dk*.5),e.x,e.y,e.k==='mine'); api.fx.burst(e.x,e.y,e.k==='boss'?'#ff3bd4':'#ff3b5c',e.k==='boss'?60:14,280,.5,3); api.sfx.small(); api.event('kill'); ev('kill',Math.round(e.x),Math.round(e.y),e.k==='boss'?1:0); }
-      if(!lost&&!harmless&&!e.dead) for(const p of pls){ if(!p.dead&&p.grace<=0&&Math.hypot(e.x-p.x,e.y-p.y)<(e.k==='boss'?40:e.k==='hulk'?28:20)) hit(p); } });
+      if(!lost&&!harmless&&!e.dead) for(const p of pls){ if(!p.dead&&p.grace<=0&&Math.hypot(e.x-p.x,e.y-p.y)<(e.k==='boss'?44:e.k==='hulk'?38:EZ?22:26)) hit(p); } });
     ens=ens.filter(e=>!e.dead);
     if(!frozen) sparks.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; s.l-=dt; }); sparks=sparks.filter(s=>s.l>0);
-    sparks.forEach(s=>{ if(!lost&&!harmless) for(const p of pls){ if(s.l>0&&!p.dead&&p.grace<=0&&Math.hypot(s.x-p.x,s.y-p.y)<14){ s.l=0; hit(p); } } });
-    hum.forEach(h=>{ if(h.gone) return; h.x+=h.vx*dt; h.y+=h.vy*dt; if(h.x<20||h.x>W-20) h.vx*=-1; if(h.y<TOP+20||h.y>H-20) h.vy*=-1;
-      if(!lost) for(const p of pls){ if(!h.gone&&!p.dead&&Math.hypot(h.x-p.x,h.y-p.y)<26){ h.gone=true; api.addScore(1000,h.x,h.y); api.sfx.pickup(); api.event('save'); ev('save',Math.round(h.x),Math.round(h.y)); } } });
+    sparks.forEach(s=>{ if(!lost&&!harmless) for(const p of pls){ if(s.l>0&&!p.dead&&p.grace<=0&&Math.hypot(s.x-p.x,s.y-p.y)<(EZ?14:18)){ s.l=0; hit(p); } } });
+    hum.forEach(h=>{ if(h.gone) return; h.x+=h.vx*dt; h.y+=h.vy*dt; if(h.x<AL+20||h.x>AR-20) h.vx*=-1; if(h.y<AT+20||h.y>AB-20) h.vy*=-1;
+      if(!lost) for(const p of pls){ if(!h.gone&&!p.dead&&Math.hypot(h.x-p.x,h.y-p.y)<34){ h.gone=true; api.addScore(1000,h.x,h.y); api.sfx.pickup(); api.event('save'); ev('save',Math.round(h.x),Math.round(h.y)); } } });
     const left=ens.filter(e=>e.k!=='hulk').length; stLeft=left; api.counter('🤖 ROBOTS',left);
     if(!left&&!lost){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); ev('clear'); setTimeout(()=>api.stageClear(),900); } },
   stageBonus(){ return hum.filter(h=>!h.gone).length*300; },
@@ -583,12 +586,12 @@ const GAME=window.GAME={
     hum.forEach((o,i)=>{ if(!o.gone) h.push(i,R(o.x),R(o.y),R(o.vx),R(o.vy)); });
     const b=ens.find(o=>o.k==='boss');
     return {n:++snapN,
-      p:pls.map(p=>[R(p.x),R(p.y),p.aim?R(p.aim.x*100):0,p.aim?R(p.aim.y*100):-100,p.dead?Math.max(1,R(p.respT*10)):0,Math.max(0,R(p.grace*10)),Math.max(0,R(p.eff.spread*10)),Math.max(0,R(p.eff.shield*10)),p.aim?1:0]),
+      p:pls.map(p=>[R(p.x),R(p.y),R(p.aim.x*100),R(p.aim.y*100),p.dead?Math.max(1,R(p.respT*10)):0,Math.max(0,R(p.grace*10)),Math.max(0,R(p.eff.spread*10)),Math.max(0,R(p.eff.shield*10)),p.firing?1:0]),
       f:Math.max(-20,R(eff.freeze*10)),e,s,k,h,B:b?[b.hp,b.max]:0,d:done?1:0,L:stLeft,
       v:evq.filter(x=>t-x[1]<1.2).slice(-20).map(x=>[x[0],...x.slice(2)])}; },
   netApply(s){ if(!s||!s.p||!pls) return; if(s.n&&s.n<=snapSeen) return; snapSeen=s.n||snapSeen;
     s.p.forEach((a,i)=>{ let p=pls[i]; if(!p) p=pls[i]=mkPl(i,a[0]); const wasDead=p.dead;
-      setT(p,a[0],a[1]); p.aim=a[8]?{x:a[2]/100,y:a[3]/100}:p.aim; p.dead=a[4]>0; p.respT=a[4]/10; p.grace=a[5]/10; p.eff.spread=a[6]/10; p.eff.shield=a[7]/10;
+      setT(p,a[0],a[1]); p.aim={x:a[2]/100,y:a[3]/100}; p.firing=!!a[8]; p.dead=a[4]>0; p.respT=a[4]/10; p.grace=a[5]/10; p.eff.spread=a[6]/10; p.eff.shield=a[7]/10;
       if(wasDead&&!p.dead){ p.x=p.tx; p.y=p.ty; } });
     pl=pls[0]; eff.freeze=s.f/10;
     const em={}; ens.forEach(o=>em[o.id]=o); const ne=[];
@@ -609,48 +612,75 @@ const GAME=window.GAME={
     ens.forEach(o=>{ L(o); o.t=(o.t||0)+dt; }); hum.forEach(o=>{ if(!o.gone){ if(o.tx!==undefined){ o.tx+=o.vx*dt; o.ty+=o.vy*dt; } L(o); } });
     shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; }); if(!frozen) sparks.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; }); },
   render(c){ c.fillStyle='#060a10'; c.fillRect(0,0,W,H);
-    c.strokeStyle='rgba(59,255,122,.08)'; c.lineWidth=1; for(let x=0;x<W;x+=40){ c.beginPath(); c.moveTo(x,TOP); c.lineTo(x,H); c.stroke(); } for(let y=TOP;y<H;y+=40){ c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); }
-    c.strokeStyle='#3bff7a'; c.lineWidth=3; c.shadowColor='#3bff7a'; c.shadowBlur=12; c.strokeRect(4,TOP+2,W-8,H-TOP-6); c.shadowBlur=10;
-    hum.forEach(h=>{ if(h.gone) return; c.shadowColor=c.fillStyle=h.c; c.beginPath(); c.arc(h.x,h.y-10,5,0,7); c.fill(); c.fillRect(h.x-4,h.y-5,8,12); });
-    ens.forEach(e=>{ const fz=eff.freeze>0;
+    c.strokeStyle='rgba(59,255,122,.08)'; c.lineWidth=1; for(let x=AL;x<AR;x+=40){ c.beginPath(); c.moveTo(x,AT); c.lineTo(x,AB); c.stroke(); } for(let y=AT;y<AB;y+=40){ c.beginPath(); c.moveTo(AL,y); c.lineTo(AR,y); c.stroke(); }
+    c.strokeStyle='#3bff7a'; c.lineWidth=3; c.shadowColor='#3bff7a'; c.shadowBlur=12; c.strokeRect(AL,AT,AR-AL,AB-AT); c.shadowBlur=10;
+    hum.forEach(h=>{ if(h.gone) return; c.save(); BIG(c,h); c.shadowColor=c.fillStyle=h.c; c.beginPath(); c.arc(h.x,h.y-10,5,0,7); c.fill(); c.fillRect(h.x-4,h.y-5,8,12); c.restore(); });
+    ens.forEach(e=>{ const fz=eff.freeze>0; c.save(); if(e.k!=='boss') BIG(c,e);
       if(e.k==='grunt'){ c.shadowColor=c.fillStyle=fz?'#7df9ff':'#ff3b5c'; c.fillRect(e.x-10,e.y-12,20,16); c.fillStyle='#ffd23f'; c.fillRect(e.x-7,e.y-8,4,4); c.fillRect(e.x+3,e.y-8,4,4); c.fillStyle=fz?'#7df9ff':'#ff3b5c'; const l=Math.sin(e.t*14)*3; c.fillRect(e.x-8,e.y+4,5,8+l); c.fillRect(e.x+3,e.y+4,5,8-l); }
       else if(e.k==='hulk'){ c.shadowColor=c.fillStyle=fz?'#7df9ff':'#3bff7a'; c.fillRect(e.x-16,e.y-18,32,26); c.fillRect(e.x-20,e.y-14,6,18); c.fillRect(e.x+14,e.y-14,6,18); c.fillStyle='#000'; c.fillRect(e.x-10,e.y-12,20,5); c.fillStyle=fz?'#7df9ff':'#3bff7a'; c.fillRect(e.x-12,e.y+8,9,10); c.fillRect(e.x+3,e.y+8,9,10); }
       else if(e.k==='mine'){ c.shadowColor=c.fillStyle=(e.t*4|0)%2?'#ff9f1c':'#b14bff'; c.beginPath(); for(let i=0;i<8;i++){ const a=i*Math.PI/4; c.lineTo(e.x+Math.cos(a)*(i%2?5:12),e.y+Math.sin(a)*(i%2?5:12)); } c.fill(); }
-      else { c.shadowColor=c.fillStyle='#ff3bd4'; c.beginPath(); c.arc(e.x,e.y,30,0,7); c.fill(); c.fillStyle='#ffb3f0'; for(let i=0;i<5;i++){ c.beginPath(); c.arc(e.x-14+i*7,e.y-8+Math.sin(t*4+i)*4,6,0,7); c.fill(); } c.fillStyle='#fff'; c.fillRect(e.x-30,e.y+38,60*e.hp/(e.max||30),5); } });
+      else { c.shadowColor=c.fillStyle='#ff3bd4'; c.beginPath(); c.arc(e.x,e.y,30,0,7); c.fill(); c.fillStyle='#ffb3f0'; for(let i=0;i<5;i++){ c.beginPath(); c.arc(e.x-14+i*7,e.y-8+Math.sin(t*4+i)*4,6,0,7); c.fill(); } c.fillStyle='#fff'; c.fillRect(e.x-30,e.y+38,60*e.hp/(e.max||30),5); } c.restore(); });
     c.shadowColor=c.fillStyle='#ff3bd4'; sparks.forEach(s=>{ c.beginPath(); c.arc(s.x,s.y,5,0,7); c.fill(); });
-    c.shadowColor=c.fillStyle='#fff'; shots.forEach(s=>{ c.beginPath(); c.arc(s.x,s.y,3,0,7); c.fill(); });
+    c.shadowColor='#fff'; c.strokeStyle='#fffbe0'; c.lineWidth=5; c.lineCap='round'; shots.forEach(s=>{ c.beginPath(); c.moveTo(s.x-s.vx*0.022,s.y-s.vy*0.022); c.lineTo(s.x,s.y); c.stroke(); }); c.lineCap='butt';
     const N=net();
     pls.forEach(p=>{
-      if(p.dead){ if(N){ c.shadowBlur=0; c.globalAlpha=0.55+0.3*Math.sin(t*8); c.fillStyle=TAGC[p.i]; c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillText('↻ '+nm(p.i).toUpperCase()+' '+Math.max(0,p.respT).toFixed(1),W/2+(p.i?60:-60),H/2+90); c.globalAlpha=1; c.shadowBlur=10; } return; }
+      if(p.dead){ if(N){ c.shadowBlur=0; c.globalAlpha=0.55+0.3*Math.sin(t*8); c.fillStyle=TAGC[p.i]; c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillText('↻ '+nm(p.i).toUpperCase()+' '+Math.max(0,p.respT).toFixed(1),W/2+(p.i?90:-90),H/2+90); c.globalAlpha=1; c.shadowBlur=10; } return; }
       if(lost) return;
-      if(p.grace<=0||(t*10|0)%2){ const col=N?TAGC[p.i]:api.cos('Hero').colors[0]; c.shadowColor=c.fillStyle=col; c.beginPath(); c.arc(p.x,p.y-12,7,0,7); c.fill(); c.fillRect(p.x-7,p.y-5,14,14); c.fillRect(p.x-6,p.y+9,4,8); c.fillRect(p.x+2,p.y+9,4,8);
-        if(p.aim){ c.strokeStyle=col; c.lineWidth=3; c.beginPath(); c.moveTo(p.x,p.y); c.lineTo(p.x+p.aim.x*20,p.y+p.aim.y*20); c.stroke(); }
+      if(p.grace<=0||(t*10|0)%2){ const col=N?TAGC[p.i]:api.cos('Hero').colors[0]; c.save(); BIG(c,p); c.shadowColor=c.fillStyle=col; c.beginPath(); c.arc(p.x,p.y-12,7,0,7); c.fill(); c.fillRect(p.x-7,p.y-5,14,14); c.fillRect(p.x-6,p.y+9,4,8); c.fillRect(p.x+2,p.y+9,4,8); c.restore();
+        const A=p.aim||p.face; c.strokeStyle=col; c.lineWidth=4; c.beginPath(); c.moveTo(p.x,p.y); c.lineTo(p.x+A.x*24,p.y+A.y*24); c.stroke();
+        // aim line: dotted, brighter while firing
+        c.save(); c.shadowBlur=0; c.globalAlpha=p.firing?0.8:0.4; c.setLineDash([8,10]); c.lineWidth=2; c.beginPath(); c.moveTo(p.x+A.x*30,p.y+A.y*30); c.lineTo(p.x+A.x*200,p.y+A.y*200); c.stroke(); c.restore();
         if(p.eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(p.x,p.y,26,0,7); c.stroke(); } }
       if(N){ const s=nm(p.i); c.shadowBlur=0; c.font='bold 16px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.75)'; const lx=Math.max(50,Math.min(W-50,p.x)); c.strokeText(s,lx,p.y-30);
         c.fillStyle=TAGC[p.i]; c.shadowColor=TAGC[p.i]; c.shadowBlur=8; c.fillText(s,lx,p.y-30); c.shadowBlur=10; } });
-    c.shadowBlur=0; if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#060a10'; c.fillRect(0,0,W,H); c.fillStyle='#ff3b5c'; for(let i=0;i<8;i++){ const a=i*Math.PI/4+tt; c.fillRect(300+Math.cos(a)*150-10,450+Math.sin(a)*150-10,20,20); } }
+    c.shadowBlur=0;
+    // the aim-stick ring under the right thumb (this phone's own stick only)
+    if(stick&&!isGuest()){ c.save(); c.globalAlpha=0.35; c.strokeStyle='#fff'; c.lineWidth=3; c.beginPath(); c.arc(stick.sx,stick.sy,60,0,7); c.stroke();
+      let dx=stick.x-stick.sx, dy=stick.y-stick.sy; const m=Math.hypot(dx,dy); if(m>60){ dx=dx/m*60; dy=dy/m*60; } c.globalAlpha=0.55; c.fillStyle='#ff3b5c'; c.beginPath(); c.arc(stick.sx+dx,stick.sy+dy,24,0,7); c.fill(); c.restore(); }
+    if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
+  attract(c,tt){ c.fillStyle='#060a10'; c.fillRect(0,0,W,H); c.fillStyle='#ff3b5c'; for(let i=0;i<8;i++){ const a=i*Math.PI/4+tt; c.fillRect(W/2+Math.cos(a)*220-12,H/2+Math.sin(a)*220-12,24,24); } }
 };
+// GUEST phone: its aim-stick drags may not reach the host when the direct link fails (the backup link only carries keys
+// 10x a second), so the guest also turns its right-thumb drag into 8-way ARROW keys, which always reach the host.
+let gSt=null;
+function guestStick(){ if(window.__rrGS) return; window.__rrGS=1; const K=()=>api&&api.input&&api.input.keys, AR4=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
+  const clr=()=>{ const k=K(); if(k) AR4.forEach(c=>k[c]=false); };
+  window.addEventListener('pointerdown',e=>{ if(!isGuest()||e.pointerType==='mouse'||gSt) return; if(e.target.closest&&e.target.closest('button,#tut,#bar,#actbar,#hudTop,#modal')) return;
+    if(e.clientX>=window.innerWidth*0.5) gSt={id:e.pointerId,sx:e.clientX,sy:e.clientY}; });
+  window.addEventListener('pointermove',e=>{ if(!gSt||e.pointerId!==gSt.id) return; const k=K(); if(!k) return; const dx=e.clientX-gSt.sx, dy=e.clientY-gSt.sy, m=Math.hypot(dx,dy);
+    if(m<8){ clr(); return; } const cx=dx/m, cy=dy/m; k.ArrowRight=cx>0.38; k.ArrowLeft=cx<-0.38; k.ArrowDown=cy>0.38; k.ArrowUp=cy<-0.38; });
+  const up=e=>{ if(gSt&&e.pointerId===gSt.id){ gSt=null; clr(); } }; window.addEventListener('pointerup',up); window.addEventListener('pointercancel',up); }
+function BIG(c,o){ c.translate(o.x,o.y); c.scale(1.5,1.5); c.translate(-o.x,-o.y); } // sprites 1.5x so they read on a phone held sideways
 function setT(o,x,y){ if(o.tx===undefined||Math.hypot(x-o.x,y-o.y)>160){ o.x=x; o.y=y; } o.tx=x; o.ty=y; }
-// move + aim + fire one hero. Nobody fires unless that player aims (arrows / held aim finger / mouse).
-function hero(p,d,K,pa,dt){
+// move + aim + fire one hero. Nobody fires unless that player shoots: ARROWS / aim-stick held / mouse held / FIRE (Space) = shoot where you face.
+function hero(p,d,K,st,ms,dt){
   if(p.dead){ p.firing=false; p.respT-=dt; if(p.respT<=0) respawnP(p); return; }
   if(lost) return;
-  const sp=250; p.x=Math.max(16,Math.min(W-16,p.x+d.x*sp*dt)); p.y=Math.max(TOP+16,Math.min(H-16,p.y+d.y*sp*dt));
-  let ax=(K.ArrowRight?1:0)-(K.ArrowLeft?1:0), ay=(K.ArrowDown?1:0)-(K.ArrowUp?1:0);
-  if(!ax&&!ay&&pa){ ax=pa.x-p.x; ay=pa.y-p.y; }
-  const m=Math.hypot(ax,ay); if(m>0) p.aim={x:ax/m,y:ay/m}; else p.aim=p.aim||{x:0,y:-1}; p.firing=m>0;
-  p.fireT-=dt; if(p.fireT<=0&&m>0){ p.fireT=0.14; const a0=Math.atan2(p.aim.y,p.aim.x); (p.eff.spread>0?[-0.22,0,0.22]:[0]).forEach(o=>shots.push({x:p.x,y:p.y,vx:Math.cos(a0+o)*800,vy:Math.sin(a0+o)*800})); api.sfx.shoot(); } }
+  { // ARROWS aim (twin-stick), they never move you: take them back out of the shell's direction (WASD / joystick still move)
+    const ax=(K.ArrowRight?1:0)-(K.ArrowLeft?1:0), ay=(K.ArrowDown?1:0)-(K.ArrowUp?1:0), wx=(K.KeyD?1:0)-(K.KeyA?1:0), wy=(K.KeyS?1:0)-(K.KeyW?1:0);
+    if((ax||ay)&&d.x===ax+wx&&d.y===ay+wy) d={x:wx,y:wy}; }
+  const sp=260; p.x=Math.max(AL+16,Math.min(AR-16,p.x+d.x*sp*dt)); p.y=Math.max(AT+16,Math.min(AB-16,p.y+d.y*sp*dt));
+  const dm=Math.hypot(d.x,d.y); if(dm>0.25) p.face={x:d.x/dm,y:d.y/dm};
+  let ax=0, ay=0, fire=false;
+  if(st){ const dx=st.x-st.sx, dy=st.y-st.sy; if(Math.hypot(dx,dy)>14){ ax=dx; ay=dy; fire=true; } }   // dragged aim-stick = analog aim
+  if(!fire){ ax=(K.ArrowRight?1:0)-(K.ArrowLeft?1:0); ay=(K.ArrowDown?1:0)-(K.ArrowUp?1:0); fire=!!(ax||ay); }
+  if(!fire&&st) fire=true;   // aim-stick held but not dragged yet = fire where you face
+  if(!fire&&ms){ fire=true; ax=ms.x-p.x; ay=ms.y-p.y; }
+  if(!fire&&K.Space) fire=true;
+  const m=Math.hypot(ax,ay); if(m>0){ p.face={x:ax/m,y:ay/m}; }
+  p.aim={x:p.face.x,y:p.face.y}; p.firing=fire;
+  p.fireT-=dt; if(p.fireT<=0&&fire){ p.fireT=0.12; const a0=Math.atan2(p.aim.y,p.aim.x); (p.eff.spread>0?[-0.22,0,0.22]:[0]).forEach(o=>shots.push({x:p.x+p.aim.x*18,y:p.y+p.aim.y*18,vx:Math.cos(a0+o)*820,vy:Math.sin(a0+o)*820})); api.sfx.shoot(); } }
 function useAb(p,id){ if(done||lost||!p||p.dead) return false;
+  if(id==='fire') return true;
   if(id==='bomb'){ ens.forEach(e=>{ if(e.k!=='hulk'&&Math.hypot(e.x-p.x,e.y-p.y)<260) e.hp-= e.k==='boss'?8:99; }); api.fx.burst(p.x,p.y,'#7df9ff',60,520,.6,3); api.fx.flash('#7df9ff',.3); api.sfx.boom(); ev('bomb',Math.round(p.x),Math.round(p.y)); return true; }
   const v={freeze:4,spread:8,shield:6}[id]; if(v===undefined) return false;
   if(id==='freeze') eff.freeze=v; else p.eff[id]=v; api.sfx.power(); ev('sfx','power'); return true; }
-function respawnP(p){ p.dead=false; p.grace=2; p.respT=0; p.x=W/2+(p.i?40:-40); p.y=H/2+40; p.aim=p.aim||{x:0,y:-1};
-  ens.forEach(e=>{ if(Math.hypot(e.x-p.x,e.y-p.y)<200&&e.k!=='mine'){ e.x=e.x<W/2?30:W-30; } });
+function respawnP(p){ p.dead=false; p.grace=2; p.respT=0; p.x=W/2+(p.i?40:-40); p.y=H/2+20;
+  ens.forEach(e=>{ if(Math.hypot(e.x-p.x,e.y-p.y)<200&&e.k!=='mine'){ e.x=e.x<W/2?AL+20:AR-20; } });
   sparks=sparks.filter(s=>Math.hypot(s.x-p.x,s.y-p.y)>200); ev('resp',Math.round(p.x),Math.round(p.y),p.i); }
 function hit(p){ if(!net()){ die(); return; }
   if(p.dead||done||p.eff.shield>0||p.grace>0) return;
-  p.dead=true; p.respT=2; p.firing=false; if(p.i===1) p2pts=[];
+  p.dead=true; p.respT=2; p.firing=false; if(p.i===1) stick2=null;
   T('OUCH! '+nm(p.i).toUpperCase()+' GOT HIT'); api.fx.burst(p.x,p.y,TAGC[p.i],40,300,.7,3); api.sfx.hurt(); api.fx.shake(10); ev('hurt',Math.round(p.x),Math.round(p.y),p.i);
   api.loseLife(); }
 function netFx(a){ const k=a[1], F=api.fx, S=api.sfx;
