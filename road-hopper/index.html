@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RH-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-RH-1.2 · 2026-10-25">
 <title>Road Hopper</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,63 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
+
+/* SHELL-LANDSCAPE-2: upright hint is a small strip, never a blocking cover */
+#app #rotate{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:auto!important;height:auto!important;inset:0 0 auto 0!important;padding:6px 10px!important;background:#000c!important;font:700 12px system-ui,sans-serif!important;color:#ffd23f!important;text-align:center!important;z-index:40!important;pointer-events:none!important;display:block}
+#app #rotate.hidden{display:none!important}
+
+/* SHELL-LANDSCAPE-3 hint strip: always visible upright, tappable */
+#app #rotate{pointer-events:auto!important;font-size:14px!important;padding:8px 10px!important;background:#14061fee!important;border-bottom:2px solid #ffd23f!important}
+#rotate #rotGo{display:block;margin:6px auto 0;font:800 14px system-ui,sans-serif;border:0;border-radius:10px;padding:10px 14px;background:linear-gradient(90deg,#ffd23f,#ff3bd4);color:#14061f}
+
+/* SHELL-LANDSCAPE-3b: 'now turn your phone' tip after the screen is turned */
+#turnTip{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10001;background:#14061fee;border:2px solid #ffd23f;border-radius:18px;padding:16px 22px;color:#fff;font:700 15px system-ui,sans-serif;text-align:center;pointer-events:none;box-shadow:0 0 30px #ffd23f66}
+#turnTip.hidden{display:none}
+#turnTip b{display:block;color:#ffd23f;font-size:18px;margin:6px 0}
+#turnTip span{font-size:13px;opacity:.85}
+#turnTip .tt-ph{font-size:44px;display:inline-block;animation:ttrot 1.2s ease-in-out infinite}
+@keyframes ttrot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 
 </style>
 </head>
 <body>
-<!-- BUILD-RH-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-RH-1.2 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,22 +483,38 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* ROAD HOPPER — Frogger remix (#33) — PROTOTYPE: 3 test stages. Hop a hare across Mzansi roads and a river. */
+/* ROAD HOPPER — Frogger remix (#33). Hop a hare across Mzansi roads and a river. LANDSCAPE 1280x720 (SHELL-LANDSCAPE-1) + race.
+   Board = 15 columns in the middle (clear of the stick bottom-left and buttons bottom-right); traffic runs the full width so you see it coming.
+   Beginner 1-10 (easy()): slow traffic, wide gaps, long logs + non-diving turtles, generous home slots, no edge deaths. */
 (function(){
-const W=600,H=900,CS=50,COLS=12,ROWS=16,OY=70;
-let api,t,hop,lanes,homes,done,lost,eff,timeLeft,timeMax,filled,swipe;
-function laneDefs(a){ const sp=s=>s*(api.content===0?0.7:a.dv([1,1.5,2],2.6,5));
-  // row 0 = goal bank, 1-5 river, 6 safe, 7-13 road, 14 start
-  const L=[]; for(let r=0;r<ROWS;r++) L[r]={type:'safe',items:[],dir:1,sp:0};
+const W=1280,H=720,CS=46,COLS=15,ROWS=13,OY=82,PX0=Math.round((W-COLS*CS)/2),MG=300;
+// rows: 0 = homes bank, 1-5 river, 6 safe median, 7-11 road, 12 start
+const HX=i=>PX0+(i+0.5)*(COLS*CS/5);          // home centres (world x)
+const colX=c=>PX0+c*CS;
+let api,t,hop,lanes,done,lost,eff,timeLeft,timeMax,filled,swipe,hold,moves;
+function easy(){ return api.content!==0 && api.diff===0 && api.level<=10; }
+function laneDefs(a){ const E=easy(), lv=a.level;
+  const f= a.content===0?0.5 : E?0.5+0.03*(lv-1) : a.dv([1,1.5,2],2.6,5)*(a.diff===0?Math.min(1,0.78+0.022*(lv-10)):1);
+  const sp=s=>s*f*(a.boss?1.15:1);
+  const L=[]; for(let r=0;r<ROWS;r++) L[r]={type:'safe',items:[],dir:1,sp:0,span:1};
   L[0].type='goal';
-  [[1,-1,60,'log',3],[2,1,45,'turtle',2],[3,-1,70,'log',4],[4,1,50,'turtle',3],[5,-1,55,'log',3]].forEach(([r,d,s,k,len])=>{ L[r]={type:'river',dir:d,sp:sp(s),kind:k,items:[]}; for(let x=0;x<W+200;x+=len*CS+150+Math.random()*80) L[r].items.push({x,len}); });
-  [[7,1,70,'taxi',2],[8,-1,50,'car',1],[9,1,90,'car',1],[10,-1,40,'truck',3],[11,1,65,'taxi',2],[12,-1,100,'car',1],[13,1,55,'bus',2]].forEach(([r,d,s,k,len])=>{ L[r]={type:'road',dir:d,sp:sp(s),kind:k,items:[]}; const gap=api.content===0?380:a.dv([300,220,170],150,90); for(let x=0;x<W+200;x+=len*CS+gap+Math.random()*100) L[r].items.push({x,len}); });
+  const fill=(L,len,gap,rnd)=>{ let x=-MG; while(x<W+MG){ const n=typeof len==='function'?len():len; L.items.push({x,len:n}); x+=n*CS+gap+Math.random()*rnd; } L.span=x+MG; };
+  const soft=a.content===0||E;
+  // river: Beginner 1-10 / tutorial = long logs (top one longest), close together, turtles never dive
+  [[1,-1,55,'log',soft?6:3],[2,1,45,'turtle',soft?4:2],[3,-1,65,'log',soft?5:4],[4,1,50,'turtle',soft?4:3],[5,-1,55,'log',soft?5:3]].forEach(([r,d,s,k,len])=>{
+    L[r]={type:'river',dir:d,sp:sp(s),kind:k,items:[],dive:!soft&&k==='turtle'};
+    fill(L[r],len,soft?70:a.dv([140,170,200],220,260),soft?50:80); });
+  [[7,1,70,'taxi',2],[8,-1,50,'car',1],[9,1,85,'car',1],[10,-1,40,'truck',3],[11,1,60,'bus',2]].forEach(([r,d,s,k,len])=>{
+    L[r]={type:'road',dir:d,sp:sp(s),kind:k,items:[]};
+    const gap=a.content===0?460: E?440-8*(lv-1) : a.dv([300,220,170],150,90);
+    fill(L[r],len,gap,soft?140:100); });
   return L; }
-function reset(){ hop={c:5,r:14,x:5*CS,y:0,anim:0}; }
+function reset(){ hop={c:7,r:12,x:colX(7),anim:0}; }
+function sunk(L,it){ return L.dive && Math.sin(t*1.5+it.x0*0.01)<-0.85; }
 const GAME=window.GAME={
   id:'road-hopper',title:'Road Hopper',titleHTML:'ROAD<br>HOPPER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-RH-1.1 · 2026-10-17',theme:{a:'#3bff7a',b:'#ffcc00',bg:'#0b1a12'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🐇',joystick:false,coinPts:40,
+  build:'BUILD-RH-1.2 · 2026-10-25',theme:{a:'#3bff7a',b:'#ffcc00',bg:'#0b1a12'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🐇',joystick:true,coinPts:40,
   abilities:[
     {id:'freeze',icon:'⏸️',name:'FREEZE',cd:20,key:'Digit1',keyLabel:'1',desc:'Stops all traffic and the river for 4 seconds.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'Survive one hit or splash for 8 seconds.'},
@@ -455,55 +523,87 @@ const GAME=window.GAME={
   shop:[{id:'h_hare',cat:'Hopper',name:'Hare',cost:0,colors:['#d9b38c'],desc:'Brown hare.'},{id:'h_gold',cat:'Hopper',name:'Golden Hare',cost:200,colors:['#ffd23f'],desc:'Shiny.'},{id:'b_day',cat:'World',name:'Daytime',cost:0,colors:['#2a6a3a'],desc:'Sunny.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3bff7a,#ffcc00)'}],
   story:`<h3>ROAD HOPPER</h3><p>Get the hares home across the busy taxi road and the crocodile river.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Swipe</b> or tap above/below/left/right of the hare to hop (arrow keys on PC).</li><li>Dodge taxis and cars. In the river, ride logs and turtles — the water is deadly.</li><li>Fill all 5 homes at the top before time runs out.</li></ul>`,
-  tutorial:[{text:'Swipe up (or tap above the hare) to hop forward.',ev:'hop'},{text:'Reach a home at the top!',ev:'home'},{text:'Fill every home to win!',time:6}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> push the stick — the hare hops one square that way. Keep holding to keep hopping. You can also swipe on the right side. PC: arrow keys or WASD.</li><li>Dodge taxis and cars. In the river, ride logs and turtles — the water is deadly.</li><li>Fill all 5 homes at the top before time runs out. Beginner stages 1-10: slow traffic, long logs and big home doors.</li><li>Abilities (left side, PC keys 1-4): Freeze, Shield, Super Leap, +Time.</li></ul>`,
+  tutorial:[{text:'Press UP (arrow key) to hop forward.',touch:'Push the stick UP (left thumb) to hop forward.',ev:'hop'},{text:'Reach a home at the top!',ev:'home'},{text:'Fill every home to win!',time:6}],
   stageIntro:{1:'GET THE HARES HOME'},bossName:'RUSH HOUR!',ending:{"0":["#HOME","Every hare is safe."],"1":["#HERO","Hero of the highway."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='freeze') return {left:Math.max(0,eff.freeze),total:4}; if(id==='shield') return {left:Math.max(0,eff.shield),total:8}; return null; },
-  _dbg(){ return {get hop(){return hop;}, move:(dx,dy)=>move(dx,dy), get lost(){return lost;}, get filled(){return filled;}}; },
+  _dbg(){ return {get hop(){return hop;}, move:(dx,dy)=>move(dx,dy), get lost(){return lost;}, get done(){return done;}, get filled(){return filled;}, get lanes(){return lanes;}, get t(){return t;}, get eff(){return eff;}, get timeMax(){return timeMax;}, get moves(){return moves;}, get timeLeft(){return timeLeft;},
+    CS,COLS,PX0,HX,colX,sunk:(L,it)=>sunk(L,it), easy:()=>easy(), sig:()=>lanes.map(L=>L.items.map(i=>Math.round(i.x0)+':'+i.len).join(',')).join('|')}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; this._n=n; t=0; done=false; lost=false; eff={freeze:0,shield:0}; lanes=laneDefs(a); filled=[false,false,false,false,false]; if(n===0) filled=[true,true,false,true,true];
-    timeMax=Math.round(n===0?90:a.dv([75,55,40],32,14)); timeLeft=timeMax; reset(); },
-  respawn(){ lost=false; reset(); },
+  startStage(n,a){ api=a; this._n=n; t=0; done=false; lost=false; moves=0; eff={freeze:0,shield:0}; hold={d:null,t:0}; swipe=null; lanes=laneDefs(a); lanes.forEach(L=>L.items.forEach(it=>it.x0=it.x));
+    filled=[false,false,false,false,false]; if(n===0) filled=[true,true,false,true,true];
+    timeMax=Math.round(n===0?120: easy()?150-3*(a.level-1) : a.dv([75,55,40],32,14)); if(n!==0&&a.diff===0&&!easy()) timeMax=Math.max(timeMax,Math.round(120-1.5*(a.level-10)));
+    timeLeft=timeMax; reset(); },
+  respawn(){ lost=false; reset(); timeLeft=Math.max(timeLeft,Math.round(timeMax*0.6)); },   // a new hare gets fresh time (TIME UP used to chain-kill every life)
   stageBonus(){ return Math.round(timeLeft*20); },
   useAbility(id){ if(done||lost) return false;
-    if(id==='leap'){ for(let k=0;k<3;k++) move(0,-1,true); api.sfx.power(); return true; }
+    if(id==='leap'){ for(let k=0;k<3;k++){ if(!move(0,-1,true)) break; } api.sfx.power(); return true; }
     if(id==='time'){ timeLeft+=15; timeMax=Math.max(timeMax,timeLeft); api.sfx.power(); return true; }
     eff[id]= id==='freeze'?4:8; api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(done||lost) return; if(type==='down') swipe={x,y}; else if(type==='up'&&swipe){ const dx=x-swipe.x, dy=y-swipe.y; let mx=0,my=0;
+  // PC keys: every press = one hop (never lost between frames)
+  onKey(code,down){ if(!down||done||lost) return; const d={ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0],ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1]}[code]; if(d){ move(d[0],d[1]); this._kh=true; } },
+  // swipe / tap: touch only on the RIGHT half (left half = stick); a mouse anywhere
+  onPointer(type,x,y,id,pt){ if(done||lost) return; const touch=pt==='touch'||pt==='pen';
+    if(type==='down'){ if(touch&&x<W/2) return; swipe={x,y,id}; return; }
+    if(type==='up'&&swipe&&swipe.id===id){ const dx=x-swipe.x, dy=y-swipe.y; let mx=0,my=0;
       if(Math.hypot(dx,dy)>25){ if(Math.abs(dx)>Math.abs(dy)) mx=Math.sign(dx); else my=Math.sign(dy); }
-      else { const hx=hop.c*CS+CS/2, hy=OY+hop.r*CS+CS/2, ex=x-hx, ey=y-hy; if(Math.abs(ex)>Math.abs(ey)) mx=Math.sign(ex); else my=Math.sign(ey); }
+      else { const hx=hop.x+CS/2, hy=OY+hop.r*CS+CS/2, ex=x-hx, ey=y-hy; if(Math.max(Math.abs(ex),Math.abs(ey))<CS*0.5){ swipe=null; return; } if(Math.abs(ex)>Math.abs(ey)) mx=Math.sign(ex); else my=Math.sign(ey); }
       move(mx,my); swipe=null; } },
   update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>0) eff[k]-=dt;
-    const k=api.input.keys; if(!this._k){ if(k.ArrowUp) move(0,-1); else if(k.ArrowDown) move(0,1); else if(k.ArrowLeft) move(-1,0); else if(k.ArrowRight) move(1,0); } this._k=k.ArrowUp||k.ArrowDown||k.ArrowLeft||k.ArrowRight;
-    if(eff.freeze<=0) lanes.forEach(L=>L.items.forEach(it=>{ it.x+=L.dir*L.sp*dt; const span=W+400; if(L.dir>0&&it.x>W+50) it.x-=span; if(L.dir<0&&it.x+it.len*CS<-50) it.x+=span; }));
+    if(eff.freeze<=0) lanes.forEach(L=>{ if(!L.sp) return; L.items.forEach(it=>{ it.x+=L.dir*L.sp*dt; if(L.dir>0&&it.x>=-MG+L.span) it.x-=L.span; if(L.dir<0&&it.x<-MG) it.x+=L.span; }); });
     if(lost) return; if(hop.anim>0) hop.anim-=dt*6;
+    // stick (and held keys): a new direction hops at once; holding repeats every 0.2 s
+    const k=api.input.keys, keyHeld=k.ArrowUp||k.ArrowDown||k.ArrowLeft||k.ArrowRight||k.KeyW||k.KeyA||k.KeyS||k.KeyD;
+    const d=api.input.dir4();
+    if(d!==hold.d){ hold.d=d; hold.t=0; if(d&&!keyHeld) step(d); } else if(d){ hold.t+=dt; if(hold.t>=0.32){ hold.t-=0.2; step(d); } }
     timeLeft=Math.max(0,timeLeft-dt); if(timeLeft<=0){ die('TIME UP!'); return; }
-    const L=lanes[hop.r], hx=hop.c*CS+CS/2+(hop.x-hop.c*CS);
-    if(L.type==='road'){ if(L.items.some(it=>hx>it.x+6&&hx<it.x+it.len*CS-6)) die('SPLAT!'); }
-    if(L.type==='river'){ const on=L.items.find(it=>hx>it.x+4&&hx<it.x+it.len*CS-4 && !(L.kind==='turtle'&&Math.sin(t*1.5+it.x*0.01)<-0.85));
-      if(!on) die('SPLASH!'); else if(eff.freeze<=0){ hop.x+=L.dir*L.sp*dt; if(hop.x<-20||hop.x>W-CS+20) die('SWEPT AWAY!'); hop.c=Math.round(hop.x/CS); } }
+    const L=lanes[hop.r], hx=hop.x+CS/2, E=easy();
+    if(L.type==='road'){ const m=E?13:6; if(L.items.some(it=>hx>it.x+m&&hx<it.x+it.len*CS-m)) die('SPLAT!'); }
+    if(L.type==='river'){ const m=E?-6:4; const on=L.items.find(it=>hx>it.x+m&&hx<it.x+it.len*CS-m && !sunk(L,it));
+      if(!on) die('SPLASH!'); else if(eff.freeze<=0){ hop.x+=L.dir*L.sp*dt; const lo=colX(0), hi=colX(COLS-1);
+        if(hop.x<lo||hop.x>hi){ if(E||hop.x>lo-20&&hop.x<hi+20) hop.x=Math.max(lo,Math.min(hi,hop.x)); else die('SWEPT AWAY!'); }
+        hop.c=Math.round((hop.x-PX0)/CS); } }
     api.counter('⏱ TIME',Math.ceil(timeLeft)+'s',timeLeft<10?'empty':timeLeft<20?'low':''); },
-  render(c){ for(let r=0;r<ROWS;r++){ const L=lanes[r], y=OY+r*CS; c.fillStyle= L.type==='river'?'#0b4a7a': L.type==='road'?'#2a2c33': L.type==='goal'?'#1f5a2a':'#2f7a3a'; c.fillRect(0,y,W,CS);
-      if(L.type==='road'&&r<13){ c.strokeStyle='rgba(255,255,255,.3)'; c.setLineDash([20,20]); c.beginPath(); c.moveTo(0,y+CS); c.lineTo(W,y+CS); c.stroke(); c.setLineDash([]); }
-      L.items.forEach(it=>{ const x=it.x,w=it.len*CS;
-        if(L.type==='river'){ if(L.kind==='log'){ c.fillStyle='#7a4a22'; c.fillRect(x,y+8,w,CS-16); c.fillStyle='#5a3418'; for(let k=x+10;k<x+w;k+=30) c.fillRect(k,y+12,4,CS-24); }
-          else { const sub=Math.sin(t*1.5+it.x*0.01)<-0.6; for(let k=0;k<it.len;k++){ c.fillStyle=sub?'rgba(46,160,90,.35)':'#2ea05a'; c.beginPath(); c.arc(x+k*CS+CS/2,y+CS/2,CS*0.38,0,7); c.fill(); } } }
-        else if(L.type==='road'){ const col={taxi:'#f4f4f0',car:'#ff3b5c',truck:'#ffb000',bus:'#2e7bff'}[L.kind]; c.fillStyle=col; c.fillRect(x+3,y+7,w-6,CS-14); c.fillStyle='#223'; c.fillRect(L.dir>0?x+w-18:x+6,y+12,12,CS-24); if(L.kind==='taxi'){ c.fillStyle='#ffcc00'; c.fillRect(x+6,y+CS/2-3,w-12,6); } } }); }
-    for(let i=0;i<5;i++){ const x=30+i*120; c.fillStyle='#0b2a12'; c.fillRect(x,OY+4,70,CS-8); if(filled[i]){ c.font='30px sans-serif'; c.textAlign='center'; c.fillText('🐇',x+35,OY+36); } }
-    if(!lost){ const x=(lanes[hop.r].type==='river'?hop.x:hop.c*CS)+CS/2, y=OY+hop.r*CS+CS/2-Math.sin(Math.max(0,hop.anim)*Math.PI)*10; c.font='34px sans-serif'; c.textAlign='center'; c.fillText('🐇',x,y+12); if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(x,y,24,0,7); c.stroke(); } }
-    c.fillStyle='rgba(255,255,255,.12)'; c.fillRect(30,OY+ROWS*CS+16,W-60,8); c.fillStyle=timeLeft<10?'#ff3b3b':'#3bff7a'; c.fillRect(30,OY+ROWS*CS+16,(W-60)*timeLeft/timeMax,8);
+  render(c){ const E=easy();
+    for(let r=0;r<ROWS;r++){ const L=lanes[r], y=OY+r*CS; c.fillStyle= L.type==='river'?'#0b4a7a': L.type==='road'?'#2a2c33': L.type==='goal'?'#1f5a2a':'#2f7a3a'; c.fillRect(0,y,W,CS);
+      if(L.type==='river'){ c.fillStyle='rgba(255,255,255,.06)'; for(let x=((t*30*L.dir)%60)-60;x<W;x+=60) c.fillRect(x,y+CS/2,24,2); }
+      if(L.type==='road'&&r<11){ c.strokeStyle='rgba(255,255,255,.3)'; c.lineWidth=2; c.setLineDash([20,20]); c.beginPath(); c.moveTo(0,y+CS); c.lineTo(W,y+CS); c.stroke(); c.setLineDash([]); }
+      L.items.forEach(it=>{ const x=it.x,w=it.len*CS; if(x>W||x+w<0) return;
+        if(L.type==='river'){ if(L.kind==='log'){ c.fillStyle='#7a4a22'; c.fillRect(x,y+6,w,CS-12); c.fillStyle='#9a6232'; c.fillRect(x,y+6,w,4); c.fillStyle='#5a3418'; for(let k=x+10;k<x+w;k+=30) c.fillRect(k,y+12,4,CS-24); }
+          else { const sub=L.dive&&Math.sin(t*1.5+it.x0*0.01)<-0.6; for(let k=0;k<it.len;k++){ c.fillStyle=sub?'rgba(46,160,90,.35)':'#2ea05a'; c.beginPath(); c.arc(x+k*CS+CS/2,y+CS/2,CS*0.4,0,7); c.fill(); if(!sub){ c.fillStyle='#1d7a40'; c.beginPath(); c.arc(x+k*CS+CS/2,y+CS/2,CS*0.22,0,7); c.fill(); } } } }
+        else if(L.type==='road'){ const col={taxi:'#f4f4f0',car:'#ff3b5c',truck:'#ffb000',bus:'#2e7bff'}[L.kind]; c.fillStyle=col; c.fillRect(x+3,y+7,w-6,CS-14); c.fillStyle='#223'; c.fillRect(L.dir>0?x+w-18:x+6,y+12,12,CS-24); c.fillStyle='rgba(255,250,200,.8)'; c.fillRect(L.dir>0?x+w-4:x+1,y+10,3,CS-20); if(L.kind==='taxi'){ c.fillStyle='#ffcc00'; c.fillRect(x+6,y+CS/2-3,w-12,6); } } }); }
+    // board edges (the hare can't go past these)
+    c.fillStyle='rgba(0,0,0,.28)'; c.fillRect(0,OY,PX0,ROWS*CS); c.fillRect(PX0+COLS*CS,OY,W-PX0-COLS*CS,ROWS*CS);
+    // homes (Beginner 1-10: wide doors)
+    const hw=E||api.content===0?96:70;
+    for(let i=0;i<5;i++){ const x=HX(i)-hw/2; c.fillStyle='#0b2a12'; c.fillRect(x,OY+3,hw,CS-6); c.strokeStyle=filled[i]?'#3bff7a':'rgba(255,204,0,.6)'; c.lineWidth=2; c.strokeRect(x,OY+3,hw,CS-6);
+      if(filled[i]){ c.font='30px sans-serif'; c.textAlign='center'; c.fillText('🐇',HX(i),OY+34); } }
+    if(!lost){ const x=hop.x+CS/2, y=OY+hop.r*CS+CS/2-Math.sin(Math.max(0,hop.anim)*Math.PI)*10; c.font='32px sans-serif'; c.textAlign='center'; c.fillText('🐇',x,y+11); if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(x,y,23,0,7); c.stroke(); } }
+    const by=OY+ROWS*CS+8; c.fillStyle='rgba(255,255,255,.12)'; c.fillRect(PX0,by,COLS*CS,8); c.fillStyle=timeLeft<10?'#ff3b3b':'#3bff7a'; c.fillRect(PX0,by,COLS*CS*timeLeft/timeMax,8);
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#2a2c33'; c.fillRect(0,0,W,H); c.font='60px sans-serif'; c.fillText('🐇',W/2-30,500+Math.sin(tt*4)*20); }
+  attract(c,tt){ c.fillStyle='#2a2c33'; c.fillRect(0,0,W,H); c.font='60px sans-serif'; c.textAlign='center'; c.fillText('🐇',W/2,420+Math.sin(tt*4)*20); }
 };
-function move(dx,dy,free){ if(done||lost) return; hop.c=Math.max(0,Math.min(COLS-1,(lanes[hop.r].type==='river'?Math.round(hop.x/CS):hop.c)+dx)); hop.r=Math.max(0,Math.min(14,hop.r+dy)); hop.x=hop.c*CS; hop.anim=1; if(!free) api.sfx.blip(); api.event('hop');
-  if(dy<0) api.addScore(10,hop.c*CS,OY+hop.r*CS,true);
-  if(hop.r===0){ const i=Math.round((hop.c*CS+CS/2-65)/120); if(i>=0&&i<5&&!filled[i]&&Math.abs(hop.c*CS+CS/2-(65+i*120))<45){ filled[i]=true; api.addScore(200*(1+api.dk*0.5),65+i*120,OY); api.sfx.pickup(); api.event('home'); if(filled.every(Boolean)){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); } else reset(); } else die('MISSED THE HOME!'); } }
+function step(d){ const v={L:[-1,0],R:[1,0],U:[0,-1],D:[0,1]}[d]; if(v) move(v[0],v[1]); }
+// returns false when the hop ended the run of hops (home reached / reset / death)
+function move(dx,dy,free){ if(done||lost||(!dx&&!dy)) return false; const onRiver=lanes[hop.r].type==='river';
+  hop.c=Math.max(0,Math.min(COLS-1,(onRiver?Math.round((hop.x-PX0)/CS):hop.c)+dx)); const nr=Math.max(0,Math.min(ROWS-1,hop.r+dy));
+  // river hops keep the exact x the hare is at (you land where you see), land rows snap to the grid
+  if(dx) hop.x=onRiver?Math.max(colX(0),Math.min(colX(COLS-1),hop.x+dx*CS)):colX(hop.c); else if(!(onRiver||lanes[nr].type==='river')) hop.x=colX(hop.c); hop.r=nr; hop.anim=1; moves++; if(!free) api.sfx.blip(); api.event('hop');
+  if(dy<0) api.addScore(10,hop.x+CS/2,OY+hop.r*CS,true);
+  if(hop.r!==0) return true;
+  const hx=hop.x+CS/2, E=easy()||api.content===0; let best=-1,bd=1e9;
+  for(let i=0;i<5;i++){ if(filled[i]) continue; const dd=Math.abs(hx-HX(i)); if(dd<bd){ bd=dd; best=i; } }
+  const reach=api.content===0?100: easy()?(api.level<=5?9999:210):42;   // Beginner 1-5: any empty home; 6-10: about 1.5 doors either side
+  if(best>=0 && bd<reach){ filled[best]=true; api.addScore(200*(1+api.dk*0.5),HX(best),OY); api.sfx.pickup(); api.event('home');
+    if(filled.every(Boolean)){ done=true; hop.x=HX(best)-CS/2; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); } else { api.toast('HOME! '+filled.filter(Boolean).length+'/5'); reset(); } return false; }
+  if(E){ api.toast('AIM FOR AN EMPTY HOME!'); api.sfx.bump&&api.sfx.bump(); hop.r=6; hop.anim=1; return false; }   // Beginner: no death, back to the safe strip
+  die('MISSED THE HOME!'); return false; }
 function die(msg){ if(lost||done) return; if(eff.shield>0 && msg!=='TIME UP!'){ eff.shield=0; api.toast('SHIELD SAVED YOU!'); reset(); return; } lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>api.loseLife(),900); }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -590,8 +690,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<b>🔄 TURN YOUR PHONE SIDEWAYS</b> <button id="rotGo" type="button">TAP HERE TO TURN THE SCREEN</button>'; rt.addEventListener('pointerdown',e=>{ e.stopPropagation(); }); rt.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); landForce(); });
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -616,6 +734,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -633,6 +774,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -739,7 +884,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -763,6 +908,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -812,8 +959,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1184,7 +1331,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1358,6 +1505,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1368,10 +1516,32 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  // SHELL-LANDSCAPE-2 (25 Oct): NEVER block the game. Many phones have auto-rotate switched off, so the page never turns
+  // and the old "turn your phone" cover got stuck. Upright now just plays (smaller) with a small hint strip at the top.
+  const want = up && state!=='loading';  // SHELL-LANDSCAPE-3: hint shows on menu AND in play whenever the phone is upright
+  if(state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+/* SHELL-LANDSCAPE-3: force sideways. Phones only allow a screen lock in fullscreen or in the installed app, and only
+   right after a tap — so we ask for fullscreen + landscape on the hint button and on taps while upright. Works even when
+   the phone's auto-rotate is off. iPhones don't allow it: they keep the hint and play upright (smaller). */
+function landForce(){ try{ const d=document.documentElement, fs=document.fullscreenElement||document.webkitFullscreenElement;
+  const go=()=>{ landLock(); landTurnTip(); }; if(!fs && (d.requestFullscreen||d.webkitRequestFullscreen)){ const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'}); if(r&&r.then) r.then(go,go); else go(); } else go(); }catch(e){ landLock(); } }
+if(LAND) window.addEventListener('pointerdown', ()=>{ if(window.innerHeight>window.innerWidth*1.05 && landTouch() && state!=='loading') landForce(); }, true);
+function landTurnTip(){ try{ if(landTurnTip.t && Date.now()-landTurnTip.t<8000) return; landTurnTip.t=Date.now(); let el=document.getElementById('turnTip'); if(!el){ el=document.createElement('div'); el.id='turnTip'; el.innerHTML='<div class="tt-ph">📱</div><b>NOW TURN YOUR PHONE SIDEWAYS</b><span>Hold it with both hands, thumbs on the buttons</span>'; document.body.appendChild(el); }
+  el.classList.remove('hidden'); clearTimeout(landTurnTip.h); landTurnTip.h=setTimeout(()=>el.classList.add('hidden'),3500); }catch(e){} }
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1388,7 +1558,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1424,7 +1594,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1463,6 +1633,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
