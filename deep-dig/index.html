@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-DD-1.2 · 2026-10-19">
+<meta name="build" content="BUILD-DD-1.3 · 2026-10-25">
 <title>Deep Dig</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,51 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
+
+/* SHELL-LANDSCAPE-2: upright hint is a small strip, never a blocking cover */
+#app #rotate{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:auto!important;height:auto!important;inset:0 0 auto 0!important;padding:6px 10px!important;background:#000c!important;font:700 12px system-ui,sans-serif!important;color:#ffd23f!important;text-align:center!important;z-index:40!important;pointer-events:none!important;display:block}
+#app #rotate.hidden{display:none!important}
 
 </style>
 </head>
 <body>
-<!-- BUILD-DD-1.2 · 2026-10-19 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-DD-1.3 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -432,13 +472,25 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </div>
 <script>
 /* DEEP DIG — Dig Dug remix (#32)
-   1.2: real online 2-player CO-OP (NET-1). Host runs the mine for both diggers; guest draws snapshots. */
+   1.2: real online 2-player CO-OP (NET-1). Host runs the mine for both diggers; guest draws snapshots.
+   1.3 (25 Oct): LANDSCAPE wide mine. Monsters now walk ONLY through dug tunnels, cell by cell (they can never stop in a
+   dead end — they turn round). When they can't reach you through tunnels they turn into GHOST EYES (only the eyes show,
+   slow, floating through the earth) and turn solid again as soon as they reach a tunnel — like the arcade original.
+   SHOOT is HOLD-to-pump (no auto pump any more). Thumb corners are solid bedrock so nothing happens under your thumbs. */
 (function(){
-const W=600, H=900, CS=40, GW=15, GH=20, OY=60, TAGC=['#00e5ff','#ff3bd4'], SPAWNX=[6,8];
-let graceT=0, frz=0, api,t,dirt,pl,pls,mons,rocks,done,lost,speedM;
+const W=1280, H=720, CS=40, OX=100, OY=80, GW=27, GH=15, TAGC=['#00e5ff','#ff3bd4'], MIDX=13, SPAWNX=[12,14];
+const DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
+let graceT=0, frz=0, api,t,dirt,pl,pls,mons,rocks,done,lost,dist,distT=0;
 let evq=[],evSeq=0,evSeen=0,snapN=0,snapSeen=0,stSnap=0,stN=0,digQ=[],lastFull=-9,lastCnt=null;
-function cx(x){ return x*CS+CS/2; } function cy(y){ return OY+y*CS+CS/2; }
-function dug(x,y){ return x>=0&&y>=0&&x<GW&&y<GH&&!dirt[y][x]; }
+function cx(x){ return OX+x*CS+CS/2; } function cy(y){ return OY+y*CS+CS/2; }
+function gxOf(px){ return Math.round((px-OX-CS/2)/CS); } function gyOf(py){ return Math.round((py-OY-CS/2)/CS); }
+// solid bedrock in the two bottom corners: the thumbs (stick bottom-left, SHOOT bottom-right) never cover the play
+function bed(x,y){ return y>=11&&(x<=3||x>=GW-5); }
+function inG(x,y){ return x>=0&&y>=0&&x<GW&&y<GH; }
+function dug(x,y){ return inG(x,y)&&!bed(x,y)&&!dirt[y][x]; }
+function rockAt(x,y){ return rocks&&rocks.some(r=>r.state<2&&r.x===x&&r.y===y); }
+function open(x,y){ return dug(x,y)&&!rockAt(x,y); }                     // a monster may walk here
+function easy(){ return api.content===0||(api.diff===0&&api.level<=10); }  // Beginner 1-10: extra gentle
 function net(){ return api&&api.net; }
 function isHost(){ const n=net(); return !!(n&&n.role==='host'); }
 function isGuest(){ const n=net(); return !!(n&&n.role==='guest'); }
@@ -447,19 +499,70 @@ function nick(i){ const n=net(); return String((n&&n.names[i])||('P'+(i+1))).sli
 function ev(k,...a){ if(!isHost()) return; evq.push([++evSeq,t,k,...a]); if(evq.length>30) evq.shift(); }
 function T(msg){ api.toast(msg); ev('toast',msg); }
 function S(k){ api.sfx[k](); ev('sfx',k); }
-function mkPl(i,x,y){ return {i,x,y,fx:0,fy:1,pump:0,act:0,shootT:0,beam:null,mouse:null,eff:{speed:0,shield:0},dead:false,respT:0}; }
-function makeStage(n,a){ dirt=[...Array(GH)].map((_,y)=>Array(GW).fill(y>=2)); for(let y=0;y<=GH/2;y++) dirt[y][7]=y<2?false:dirt[y][7]; for(let y=2;y<=9;y++) dirt[y][7]=false;
-  mons=[]; let nm=n===0?1:Math.min(12,Math.round(a.dv([2,4,6],8,14))); if(net()&&n>0) nm=Math.min(14,Math.round(nm*1.3)); // co-op: monsters x1.3
-  for(let i=0;i<nm;i++){ const x=1+Math.floor(Math.random()*(GW-2)), y=6+Math.floor(Math.random()*(GH-8)), h=Math.random()<.5; for(let k=-1;k<=1;k++){ const tx=h?x+k:x, ty=h?y:y+k; if(tx>=0&&tx<GW&&ty<GH) dirt[ty][tx]=false; } mons.push({x:cx(x),y:cy(y),inf:0,ghostT:0,fire:Math.random()<.4&&n>0,sp:a.dv([55,80,105],125,220),dead:false}); }
-  rocks=[]; const nr=n===0?1:3; for(let i=0;i<nr;i++){ const x=1+Math.floor(Math.random()*(GW-2)), y=4+Math.floor(Math.random()*8); if(dirt[y][x]) rocks.push({x,y,fy:cy(y),state:0,t:0}); }
-  speedM=a.dv([1,1,1],1,1); }
+function mkPl(i,x,y){ return {i,x,y,fx:0,fy:1,act:0,shootT:0,beam:null,mouse:null,eff:{speed:0,shield:0},dead:false,respT:0}; }
+function mkMon(x,y,o){ return Object.assign({x:cx(x),y:cy(y),hx:x,hy:y,nx:x,ny:y,dir:-1,inf:0,ghost:false,gT:0,gw:-Math.random()*4,fx:1,fire:false,big:false,hp:3,sp:60,dead:false},o); }
+function makeStage(n,a){ dirt=[...Array(GH)].map((_,y)=>Array(GW).fill(y>=2));
+  const E=easy(); for(let y=2;y<=(E?7:6);y++) dirt[y][MIDX]=false;           // the starting shaft down from the surface
+  mons=[]; rocks=[]; const hits=E?2:3;
+  let nm= n===0?1 : E? (a.level<=3?2:3) : Math.round(a.dv([3,5,7],10,15)); if(a.boss&&n>0) nm+=1;
+  if(net()&&n>0) nm=Math.min(16,Math.round(nm*1.3));                      // co-op: monsters x1.3
+  const sp=n===0?40: E?44+a.level*1.2 : a.dv([62,88,110],130,200);
+  const taken=new Set();
+  for(let i=0;i<nm;i++){ let x,y,h,ok=false;
+    for(let k=0;k<200&&!ok;k++){ h=Math.random()<.5; x=1+Math.floor(Math.random()*(GW-2)); y=(n===0?6:4)+Math.floor(Math.random()*(n===0?2:GH-5));
+      if(n===0){ x=MIDX+4+Math.floor(Math.random()*3); y=6; h=true; }
+      ok=true; for(let q=-1;q<=1;q++){ const tx=h?x+q:x, ty=h?y:y+q; if(!inG(tx,ty)||ty<4||bed(tx,ty)||taken.has(ty*GW+tx)) ok=false; }
+      if(Math.abs(x-MIDX)<=2&&y<=8) ok=false; }                           // never right next to the start shaft
+    if(!ok) continue;
+    for(let q=-1;q<=1;q++){ const tx=h?x+q:x, ty=h?y:y+q; dirt[ty][tx]=false; for(let u=-1;u<=1;u++) for(let v=-1;v<=1;v++) taken.add((ty+v)*GW+tx+u); }
+    const boss=a.boss&&n>0&&i===0;
+    mons.push(mkMon(x,y,{fire:!boss&&n>0&&Math.random()<.4,big:boss,hp:boss?hits*2:hits,sp:boss?sp*0.8:sp*(0.92+Math.random()*0.16)})); }
+  const nr=n===0?1:E?2:3+(a.level>30?1:0);
+  for(let k=0;k<300&&rocks.length<nr;k++){ const x=1+Math.floor(Math.random()*(GW-2)), y=3+Math.floor(Math.random()*7);
+    if(x===MIDX||bed(x,y)||!dirt[y][x]||!dirt[y+1][x]||rocks.some(r=>Math.abs(r.x-x)<3&&Math.abs(r.y-y)<2)) continue; rocks.push({x,y,fy:cy(y),state:0,t:0}); }
+  dist=null; distT=0; }
+// tunnel distance from every cell to the nearest living digger (monsters use it to chase through the tunnels)
+function calcDist(){ dist=new Int16Array(GW*GH).fill(-1); const q=[];
+  pls.forEach(p=>{ if(p.dead||lost) return; const x=gxOf(p.x), y=gyOf(p.y); if(inG(x,y)&&dist[y*GW+x]<0){ dist[y*GW+x]=0; q.push(y*GW+x); } });
+  for(let h=0;h<q.length;h++){ const c=q[h], x=c%GW, y=(c/GW)|0; for(const [dx,dy] of DIRS){ const nx=x+dx, ny=y+dy; if(open(nx,ny)&&dist[ny*GW+nx]<0){ dist[ny*GW+nx]=dist[c]+1; q.push(ny*GW+nx); } } } }
+function dAt(x,y){ return dist&&inG(x,y)? dist[y*GW+x] : -1; }
+function ghostWait(){ return easy()?11: api.dv([8,5,3],2.5,1.2); }
+function startGhost(m){ m.ghost=true; m.gT=0; m.gx0=gxOf(m.x); m.gy0=gyOf(m.y); }
+// pick the next tunnel cell: never stands still — dead end = turn round
+function choose(m){ const x=m.nx, y=m.ny; let o=DIRS.map((d,i)=>i).filter(i=>open(x+DIRS[i][0],y+DIRS[i][1]));
+  if(!o.length){ startGhost(m); return false; }
+  if(o.length>1&&m.dir>=0) o=o.filter(i=>i!==(m.dir^1));
+  const here=dAt(x,y), wander=easy()?0.4:api.dv([0.25,0.12,0.05],0.03);
+  let pick=o[Math.floor(Math.random()*o.length)];
+  if(here>=0&&Math.random()>wander){ let b=1e9; o.forEach(i=>{ const d=dAt(x+DIRS[i][0],y+DIRS[i][1]); if(d>=0&&d<b){ b=d; pick=i; } }); }
+  m.dir=pick; m.nx=x+DIRS[pick][0]; m.ny=y+DIRS[pick][1]; if(DIRS[pick][0]) m.fx=DIRS[pick][0]; return true; }
+function moveMon(m,dt){
+  if(m.ghost){ m.gT+=dt; const x=gxOf(m.x), y=gyOf(m.y), s=m.sp*(easy()?0.42:0.5)*dt;
+    // over a tunnel that leads to a digger (after 1.2 s): float to its centre and turn solid there; otherwise drift at the digger
+    const land=m.gT>1.2&&open(x,y)&&(x!==m.gx0||y!==m.gy0||m.gT>8)&&(dAt(x,y)>=0||m.gT>8);
+    const tg=land?{x:cx(x),y:cy(y)}:target(m), dx=tg.x-m.x, dy=tg.y-m.y, d=Math.hypot(dx,dy)||1;
+    if(land&&d<=s){ m.x=tg.x; m.y=tg.y; m.ghost=false; m.gw=-Math.random()*3; m.nx=x; m.ny=y; m.dir=-1; m.solidT=0.35; return; }   // solid again, in the tunnel
+    m.x=Math.max(cx(0),Math.min(cx(GW-1),m.x+dx/d*s)); m.y=Math.max(cy(0),Math.min(cy(GH-1),m.y+dy/d*s)); if(Math.abs(dx)>4) m.fx=Math.sign(dx);
+    return; }
+  // safety: if something moved the monster off its path, put it back on the grid (or float out as a ghost)
+  if(Math.abs(m.x-cx(m.nx))+Math.abs(m.y-cy(m.ny))>CS*1.1||!open(m.nx,m.ny)){ const x=gxOf(m.x), y=gyOf(m.y);
+    if(open(x,y)){ m.nx=x; m.ny=y; m.dir=-1; } else { startGhost(m); return; } }
+  const x0=gxOf(m.x), y0=gyOf(m.y); if(dAt(x0,y0)>=0) m.gw=Math.max(0,m.gw-dt); else m.gw+=dt;
+  if(m.gw>ghostWait()){ const live=mons.filter(o=>!o.dead), gh=live.filter(o=>o.ghost).length;   // only a few float at once
+    if(gh<Math.max(1,Math.ceil(live.length/3))){ startGhost(m); return; } m.gw=ghostWait()-0.5-Math.random(); }
+  let s=m.sp*dt;
+  for(let k=0;k<3&&s>0;k++){ const ex=cx(m.nx), ey=cy(m.ny), dx=ex-m.x, dy=ey-m.y, d=Math.abs(dx)+Math.abs(dy);
+    if(d>s){ // move along one axis at a time (straighten up first) so the body stays inside the tunnel
+      if(Math.abs(dx)>0.5&&Math.abs(dy)>0.5){ if(Math.abs(dx)<Math.abs(dy)){ const u=Math.min(s,Math.abs(dx)); m.x+=Math.sign(dx)*u; s-=u; } else { const u=Math.min(s,Math.abs(dy)); m.y+=Math.sign(dy)*u; s-=u; } continue; }
+      if(Math.abs(dx)>0.5) m.x+=Math.sign(dx)*s; else m.y+=Math.sign(dy)*s; s=0; }
+    else { m.x=ex; m.y=ey; s-=d; if(!choose(m)) return; } } }
 const GAME = window.GAME = {
   id:'deep-dig', title:'Deep Dig', titleHTML:'DEEP<br>DIG', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-DD-1.2 · 2026-10-19', theme:{a:'#ffb000', b:'#ff3b5c', bg:'#1a0e06'},
-  w:W, h:H, stages:100,  lives:3, livesIcon:'⛏️', joystick:true, coinPts:40,
+  build:'BUILD-DD-1.3 · 2026-10-25', theme:{a:'#ffb000', b:'#ff3b5c', bg:'#1a0e06'},
+  landscape:true, w:W, h:H, stages:100,  lives:3, livesIcon:'⛏️', joystick:true, coinPts:40,
   net:{mode:'coop'},
   abilities:[
-    {id:'pump', icon:'🔫', name:'SHOOT', cd:0, key:'Space', keyLabel:'SPC', desc:'FREE — fire your pump at the monster in front of you. 3 hits pops it.'},
+    {id:'pump', icon:'🔫', name:'SHOOT', cd:0, key:'Space', keyLabel:'SPC', desc:'FREE — HOLD to keep pumping the monster in front of you. 3 pumps pop it (2 on Beginner 1-10). Nothing fires unless you press it.'},
     {id:'blast', icon:'💨', name:'BIG PUMP', cd:15, key:'Digit1', keyLabel:'1', desc:'Pops the closest monster instantly.'},
     {id:'freeze', icon:'❄️', name:'FREEZE', cd:20, key:'Digit2', keyLabel:'2', desc:'Freezes all monsters for 5 seconds.'},
     {id:'speed', icon:'👟', name:'SPEED', cd:15, key:'Digit3', keyLabel:'3', desc:'Dig twice as fast for 8 seconds.'},
@@ -467,18 +570,20 @@ const GAME = window.GAME = {
   shop:[{id:'d_m',cat:'Digger',name:'Miner',cost:0,colors:['#ffb000'],desc:'Classic miner.'},{id:'s_e',cat:'Soil',name:'Earth',cost:0,colors:['#5a3418','#3a2010'],desc:'Brown earth.'},{id:'s_r',cat:'Soil',name:'Red Sand',cost:180,colors:['#7a3418','#4a1a0a'],desc:'Red Karoo sand.'}],
   premium:[{name:'Ultimate Pack', price:'$3', desc:'Everything in the shop.', swatch:'linear-gradient(90deg,#ffb000,#ff3b5c)'}],
   story:`<h3>DEEP DIG</h3><p>Monsters have moved into the old gold mine. Dig your tunnels, pump them up, and take the mine back.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>Drag (or arrow keys) to dig and move.</li><li>Face a monster and tap <b>🔫 SHOOT</b> (or SPACE) to pump it — 3 hits pops it. While you are digging, your pump also fires by itself when one is close in front of you.</li><li>Dig under a rock to drop it on monsters.</li><li>Pop every monster to clear the stage.</li><li><b>Play together:</b> two diggers in the same mine share lives and score. Either digger caught costs the team one life; that digger climbs back in at the top 2 seconds later. HELMET and SPEED work on whoever taps them, FREEZE freezes every monster.</li></ul>`,
-  tutorial:[{text:'Drag to dig towards the monster, face it, then tap <b>🔫 SHOOT</b> (or SPACE). 3 hits pops it!', ev:'pop'},{text:'Pop every monster!', time:6}],
-  stageIntro:{1:'FACE A MONSTER · TAP 🔫 SHOOT'}, bossName:'MONSTER NEST!', ending:{"0":["#GOLD","The mine is yours."],"1":["#DEEPER","You found the mother lode."],"2":["#LEGEND","Impossible. You did it."]},
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick digs and moves your miner (PC: arrow keys or WASD, or drag with the mouse). You face the way you dig.</li><li><b>Right thumb:</b> HOLD <b>🔫 SHOOT</b> (PC: hold SPACE) to pump the monster in front of you — 3 pumps pop it (2 on Beginner 1-10). Nothing fires unless you press it.</li><li>Monsters only walk through <b>tunnels</b>. When they can't reach you they turn into <b>👀 floating eyes</b> and drift slowly through the earth — they turn solid again at the next tunnel. Eyes still bite!</li><li>Dig under a rock to drop it on monsters.</li><li>Pop every monster to clear the stage. Every 10th stage: a big MOTHER monster.</li><li><b>Play together:</b> two diggers in the same mine share lives and score. Either digger caught costs the team one life; that digger climbs back in at the top 2 seconds later. HELMET and SPEED work on whoever taps them, FREEZE freezes every monster.</li></ul>`,
+  tutorial:[{text:'Dig with the arrow keys towards the monster.',touch:'Left thumb: the stick digs. Dig towards the monster.',ev:'move'},
+    {text:'Face it and <b>HOLD SPACE</b> to pump it — 2 pumps pop it!',touch:'Face it and <b>HOLD 🔫 SHOOT</b> to pump it — 2 pumps pop it!',ev:'pop'},{text:'Pop every monster!', time:5}],
+  stageIntro:{1:'DIG · FACE A MONSTER · HOLD 🔫 SHOOT'}, bossName:'MONSTER NEST!', ending:{"0":["#GOLD","The mine is yours."],"1":["#DEEPER","You found the mother lode."],"2":["#LEGEND","Impossible. You did it."]},
   _dbg(){ return {get mons(){return mons;}, get pl(){return pl;}, get pls(){return pls;}, get dirt(){return dirt;}, get rocks(){return rocks;}, get lost(){return lost;}, get done(){return done;},
+    geo:{OX,OY,CS,GW,GH,MIDX,SPAWNX}, bed, dug, open, gxOf, gyOf, cx, cy, get frz(){return frz;}, get graceT(){return graceT;},
     get net2(){ return {role:net()&&net().role, p:(pls||[]).map(p=>[Math.round(p.x),Math.round(p.y),p.dead?1:0]), mons:(mons||[]).filter(m=>!m.dead).length, dug:dirt?dirt.reduce((s,r)=>s+r.filter(v=>!v).length,0):0, done, lives:api.lives}; }}; },
   abTime(id){ const tot={freeze:5,speed:8,shield:6}[id]; if(!tot) return null; const p=me(); const left= id==='freeze'? frz : (p? p.eff[id] : 0); return {left:Math.max(0,left),total:tot}; },
   init(a){ api=a; },
   startStage(n,a){ api=a; this._n=n; stN=n; t=0; graceT=0; frz=0; done=false; lost=false; evq=[]; digQ=[]; lastFull=-9; stSnap=0; lastCnt=null;
-    pl=mkPl(0,cx(net()?SPAWNX[0]:7),cy(1)); pls=[pl]; makeStage(n,a);
+    pl=mkPl(0,cx(net()?SPAWNX[0]:MIDX),cy(1)); pls=[pl]; makeStage(n,a);
     if(net()){ pls.push(mkPl(1,cx(SPAWNX[1]),cy(1))); setTimeout(()=>{ if(!done&&isHost()&&state0()) T('TEAM UP · POP THEM ALL!'); },3200); } },
   respawn(){ if(net()) return; // co-op: the caught digger climbs back in on its own timer; the mine stays as it is
-    lost=false; pl.x=cx(7); pl.y=cy(1); pl.fx=0; pl.fy=1; pl.eff.shield=2.5; },
+    lost=false; pl.x=cx(MIDX); pl.y=cy(1); pl.fx=0; pl.fy=1; pl.mouse=null; pl.eff.shield=easy()?3.5:2.5; clearSpawn(); },
   netRevive(){ if(!pls) return; lost=false; pls.forEach(p=>{ if(p.dead) getUp(p); p.eff.shield=Math.max(p.eff.shield,3); }); },
   stageBonus(){ return 0; },
   useAbility(id){ return useAb(pl,id); },
@@ -488,24 +593,22 @@ const GAME = window.GAME = {
   onPointer2(type,x,y){ if(pls&&pls[1]) ptr(pls[1],type,x,y); },
   update(dt){ t+=dt; if(done) return; if(frz>0) frz-=dt; pls.forEach(p=>{ for(const k in p.eff) if(p.eff[k]>0) p.eff[k]-=dt; });
     if(!lost){ ctl(pl,api.input.dir(),dt); if(pls[1]) ctl(pls[1],api.input2.dir(),dt); }
-    pls.forEach(p=>{ if(p.shootT>0) p.shootT-=dt; if(p.beam){ p.beam.t-=dt; if(p.beam.t<=0) p.beam=null; } });
-    // frozen monsters (and 1 s after the freeze ends) can't hurt you
-    if(frz>0) graceT=1; else if(graceT>0) graceT-=dt;
-    mons.forEach(m=>{ if(m.dead) return; if(m.inf>0) m.inf=Math.max(0,m.inf-dt*0.5); if(frz>0||m.inf>=1||graceT>0) return;
-      const tg=target(m), dx=tg.x-m.x, dy=tg.y-m.y, gx=Math.round((m.x-CS/2)/CS), gy=Math.round((m.y-OY-CS/2)/CS);
-      const step=m.sp*dt; let moved=false;
-      const tryM=(sx,sy)=>{ const nx=m.x+sx*step, ny=m.y+sy*step; const tx=Math.round((nx-CS/2+sx*CS*0.45)/CS), ty=Math.round((ny-OY-CS/2+sy*CS*0.45)/CS); if(dug(tx,ty)){ m.x=nx; m.y=ny; if(sx) m.y+= (cy(gy)-m.y)*0.3; if(sy) m.x+=(cx(gx)-m.x)*0.3; return true; } return false; };
-      if(Math.abs(dx)>Math.abs(dy)) moved=tryM(Math.sign(dx),0)||tryM(0,Math.sign(dy)); else moved=tryM(0,Math.sign(dy))||tryM(Math.sign(dx),0);
-      if(!moved){ m.ghostT+=dt; if(m.ghostT>api.dv([6,4,2.5],1.5,0.4)){ const d=Math.hypot(dx,dy)||1; m.x+=dx/d*step*0.7; m.y+=dy/d*step*0.7; } } else m.ghostT=0;
-      pls.forEach(p=>{ if(!lost && !p.dead && p.eff.shield<=0 && graceT<=0 && m.inf<1 && Math.hypot(m.x-p.x,m.y-p.y)<CS*0.7) die(p); }); });
+    pls.forEach((p,i)=>{ if(p.shootT>0) p.shootT-=dt; if(p.beam){ p.beam.t-=dt; if(p.beam.t<=0) p.beam=null; }
+      const K=i?api.input2.keys:api.input.keys; if(K&&K.Space&&!lost&&!p.dead&&p.shootT<=0){ p.shootT=0.24; firePump(p); } });   // HOLD = keep pumping
+    if(frz>0) graceT=1; else if(graceT>0) graceT-=dt;    // frozen monsters (and 1 s after the freeze ends) can't hurt you
+    distT-=dt; if(distT<=0||!dist){ distT=0.2; calcDist(); }
+    mons.forEach(m=>{ if(m.dead) return; if(m.inf>0) m.inf=Math.max(0,m.inf-dt*0.5); if(m.solidT>0) m.solidT-=dt; if(frz>0||m.inf>=1||graceT>0) return;
+      moveMon(m,dt);
+      const rr=CS*(m.big?0.85:0.7);
+      pls.forEach(p=>{ if(!lost && !p.dead && p.eff.shield<=0 && graceT<=0 && m.inf<1 && Math.hypot(m.x-p.x,m.y-p.y)<rr) die(p); }); });
     rocks.forEach(r=>{ if(r.state===0 && dug(r.x,r.y+1)){ r.state=1; r.t=0.6; } if(r.state===1){ r.t-=dt; if(r.t<=0) r.state=2; } if(r.state===2){ r.fy+=400*dt; mons.forEach(m=>{ if(!m.dead&&Math.abs(m.x-cx(r.x))<CS*0.7&&Math.abs(m.y-r.fy)<CS*0.7) pop(m,true); });
       pls.forEach(p=>{ if(!lost&&!p.dead&&Math.abs(p.x-cx(r.x))<CS*0.6&&Math.abs(p.y-r.fy)<CS*0.6&&p.eff.shield<=0) die(p); });
-      const ry=Math.floor((r.fy-OY)/CS)+1; if(ry>=GH||dirt[ry][r.x]){ r.state=3; S('boom'); api.fx.shake(6); ev('sh',6); } } });
+      const ry=Math.floor((r.fy-OY)/CS)+1; if(ry>=GH||dirt[ry][r.x]||bed(r.x,ry)){ r.state=3; S('boom'); api.fx.shake(6); ev('sh',6); } } });
     const left=mons.filter(m=>!m.dead).length; api.counter('👾 MONSTERS', left+' left', '');
     if(!left && !done){ done=true; S('clear'); api.fx.flash('#fff',.3); ev('clear'); setTimeout(()=>api.stageClear(),900); } },
   // ===== NET-1 co-op: host -> guest snapshot (small flat arrays; dug tiles as changes + a full copy every ~2 s) =====
   netState(){ const R=Math.round, m=[], r=[];
-    mons.forEach((o,i)=>{ if(!o.dead) m.push(i,R(o.x),R(o.y),R(o.inf*10),o.ghostT>1?1:0,o.fire?1:0); });
+    mons.forEach((o,i)=>{ if(!o.dead) m.push(i,R(o.x),R(o.y),R(o.inf*10),o.ghost?1:0,(o.fire?1:0)|(o.big?2:0)|(o.fx<0?4:0)); });
     rocks.forEach(o=>r.push(o.x,R(o.fy),o.state));
     const s={n:++snapN,st:stN,d:done?1:0,f:frz>0?R(frz*10):0,g:graceT>0?1:0,
       p:pls.map(p=>{ const b=p.beam; return [R(p.x),R(p.y),p.fx,p.fy,p.dead?Math.max(1,R(p.respT*10)):0,Math.max(0,R(p.eff.shield*10)),Math.max(0,R(p.eff.speed*10)),b?[R(b.x),R(b.y),b.dx,b.dy,R(b.len),b.hit?1:0]:0]; }),
@@ -521,7 +624,7 @@ const GAME = window.GAME = {
       const b=a[7]; p.beam=b?{x:b[0],y:b[1],dx:b[2],dy:b[3],len:b[4],hit:!!b[5],t:0.15}:null; });
     pl=pls[0];
     mons.forEach(o=>o.dead=true);
-    for(let i=0;i<s.m.length;i+=6){ const k=s.m[i]; let o=mons[k]; if(!o) o=mons[k]={x:s.m[i+1],y:s.m[i+2]}; o.dead=false; setT(o,s.m[i+1],s.m[i+2]); o.inf=s.m[i+3]/10; o.ghostT=s.m[i+4]?2:0; o.fire=!!s.m[i+5]; }
+    for(let i=0;i<s.m.length;i+=6){ const k=s.m[i]; let o=mons[k]; if(!o) o=mons[k]={x:s.m[i+1],y:s.m[i+2]}; o.dead=false; setT(o,s.m[i+1],s.m[i+2]); o.inf=s.m[i+3]/10; o.ghost=!!s.m[i+4]; const f=s.m[i+5]; o.fire=!!(f&1); o.big=!!(f&2); o.fx=f&4?-1:1; }
     const old=rocks; rocks=[]; for(let i=0;i<s.r.length;i+=3) rocks.push({x:s.r[i],y:(old[i/3]||{}).y||0,fy:s.r[i+1],state:s.r[i+2],t:0});
     const left=mons.filter(o=>!o.dead).length; if(left!==lastCnt){ lastCnt=left; api.counter('👾 MONSTERS', left+' left', ''); }
     (s.v||[]).forEach(a=>{ if(a[0]>evSeen){ evSeen=a[0]; try{ netFx(a); }catch(e){} } }); },
@@ -529,56 +632,75 @@ const GAME = window.GAME = {
     const L=o=>{ if(o&&o.tx!==undefined){ o.x+=(o.tx-o.x)*k; o.y+=(o.ty-o.y)*k; } };
     pls.forEach(p=>{ L(p); if(p.dead) p.respT-=dt; for(const q in p.eff) if(p.eff[q]>0) p.eff[q]-=dt; if(p.beam){ p.beam.t-=dt; if(p.beam.t<=0) p.beam=null; } });
     mons.forEach(o=>{ if(!o.dead) L(o); }); if(frz>0) frz-=dt; },
-  render(c){ const s=api.cos('Soil').colors, N=net(); c.fillStyle='#1a0e06'; c.fillRect(0,0,W,H); c.fillStyle='#4a90d0'; c.fillRect(0,0,W,OY+2*CS);
-    for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){ if(dirt[y][x]){ c.fillStyle=y%5<2?s[0]:s[1]; c.fillRect(x*CS,OY+y*CS,CS,CS); } else if(y>=2){ c.fillStyle='#120a04'; c.fillRect(x*CS,OY+y*CS,CS,CS); } }
-    rocks.forEach(r=>{ if(r.state===3) return; c.fillStyle='#8a8a92'; c.beginPath(); c.arc(cx(r.x)+(r.state===1?Math.sin(t*40)*2:0),r.fy,CS*0.45,0,7); c.fill(); });
-    mons.forEach(m=>{ if(m.dead) return; const r=CS*0.4*(1+m.inf*0.25); c.save(); c.globalAlpha=m.ghostT>1?0.5:1; c.fillStyle=m.fire?'#3bff7a':'#ff3b5c'; c.beginPath(); c.arc(m.x,m.y,r,0,7); c.fill(); c.fillStyle='#fff'; c.fillRect(m.x-8,m.y-6,6,6); c.fillRect(m.x+2,m.y-6,6,6); if(frz>0){ c.strokeStyle='#bff4ff'; c.lineWidth=2; c.stroke(); } c.restore(); });
+  render(c){ const s=api.cos('Soil').colors, N=net();
+    const sky=c.createLinearGradient(0,0,0,OY+2*CS); sky.addColorStop(0,'#0b1a3a'); sky.addColorStop(1,'#3d7fc4'); c.fillStyle=sky; c.fillRect(0,0,W,OY+2*CS);
+    c.fillStyle='#2a1a0e'; c.fillRect(0,OY+2*CS,W,H-OY-2*CS);                                   // mine walls left/right/bottom
+    c.fillStyle='#3b8a2a'; c.fillRect(0,OY+2*CS-6,W,6);
+    const strata=[s[0],s[1],'#6a3a1a','#4a2410'];
+    for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){ const px=OX+x*CS, py=OY+y*CS;
+      if(bed(x,y)){ c.fillStyle='#3a3a44'; c.fillRect(px,py,CS,CS); c.strokeStyle='#22222a'; c.lineWidth=2; c.strokeRect(px+1,py+1,CS-2,CS-2); c.fillStyle='#4c4c58'; c.fillRect(px+6+(x*7%14),py+8+(y*5%12),8,5); continue; }
+      if(dirt[y][x]){ c.fillStyle=strata[Math.min(3,((y-2)/3.3)|0)]; c.fillRect(px,py,CS,CS); c.fillStyle='rgba(0,0,0,.18)'; c.fillRect(px+((x*13+y*7)%30),py+((x*5+y*11)%30),5,4); }
+      else if(y>=2){ c.fillStyle='#0d0703'; c.fillRect(px,py,CS,CS); } }
+    c.strokeStyle='rgba(255,176,0,.25)'; c.lineWidth=2; c.strokeRect(OX,OY+2*CS,GW*CS,(GH-2)*CS);
+    rocks.forEach(r=>{ if(r.state===3) return; const rx=cx(r.x)+(r.state===1?Math.sin(t*40)*2:0); c.fillStyle='#8a8a92'; c.beginPath(); c.arc(rx,r.fy,CS*0.45,0,7); c.fill(); c.fillStyle='#b4b4bc'; c.beginPath(); c.arc(rx-5,r.fy-6,CS*0.16,0,7); c.fill(); });
+    mons.forEach(m=>{ if(m.dead) return; const r=CS*(m.big?0.62:0.45)*(1+m.inf*0.25), f=m.fx<0?-1:1; c.save();
+      if(m.ghost){ // GHOST: only the eyes show, flickering, drifting through the earth
+        const R=CS*(m.big?0.62:0.46), bob=Math.sin(t*5+m.hx)*3; c.globalAlpha=0.35; c.strokeStyle=m.fire?'#3bff7a':'#ff3b5c'; c.lineWidth=2; c.setLineDash([5,5]); c.beginPath(); c.arc(m.x,m.y+bob,R,0,7); c.stroke(); c.setLineDash([]);
+        c.globalAlpha=0.8+0.2*Math.sin(t*12); c.shadowColor='#fff'; c.shadowBlur=14;
+        for(const e of [-1,1]){ c.fillStyle='#fff'; c.beginPath(); c.ellipse(m.x+e*R*0.42,m.y+bob,R*0.36,R*0.48,0,0,7); c.fill(); c.shadowBlur=0; c.fillStyle='#111'; c.beginPath(); c.arc(m.x+e*R*0.42+f*R*0.14,m.y+bob+3,R*0.18,0,7); c.fill(); }
+        c.restore(); return; }
+      c.shadowColor=m.fire?'#3bff7a':'#ff3b5c'; c.shadowBlur=m.big?18:8; c.fillStyle=m.big?'#ff7a1a':m.fire?'#3bff7a':'#ff3b5c'; c.beginPath(); c.arc(m.x,m.y,r,0,7); c.fill(); c.shadowBlur=0;
+      c.fillStyle='rgba(255,255,255,.9)'; c.fillRect(m.x-r*0.7,m.y-r*0.45,r*1.4,r*0.5); c.fillStyle='#111'; c.fillRect(m.x-r*0.45+f*3,m.y-r*0.35,r*0.3,r*0.3); c.fillRect(m.x+r*0.15+f*3,m.y-r*0.35,r*0.3,r*0.3);
+      if(m.fire){ c.fillStyle='#1d8a3a'; c.beginPath(); c.moveTo(m.x-f*r*0.9,m.y); c.lineTo(m.x-f*r*1.4,m.y-r*0.6); c.lineTo(m.x-f*r*0.6,m.y-r*0.5); c.fill(); }
+      if(m.solidT>0){ c.strokeStyle='rgba(255,255,255,'+(m.solidT*2)+')'; c.lineWidth=2; c.beginPath(); c.arc(m.x,m.y,r+6,0,7); c.stroke(); }
+      if(frz>0){ c.strokeStyle='#bff4ff'; c.lineWidth=3; c.beginPath(); c.arc(m.x,m.y,r+2,0,7); c.stroke(); } c.restore(); });
     pls.forEach(p=>{ const beam=p.beam; if(beam){ c.strokeStyle=beam.hit?'#7df9ff':'rgba(125,249,255,0.5)'; c.lineWidth=5; c.setLineDash([10,6]); c.beginPath(); c.moveTo(beam.x,beam.y); c.lineTo(beam.x+beam.dx*beam.len,beam.y+beam.dy*beam.len); c.stroke(); c.setLineDash([]); } });
-    pls.forEach(p=>{ if(lost||p.dead) return; const col=N?TAGC[p.i]:'#ffb000';
+    pls.forEach(p=>{ if(lost||p.dead) return; const col=N?TAGC[p.i]:api.cos('Digger').colors[0]||'#ffb000';
       c.save(); c.shadowColor=col; c.shadowBlur=12; c.fillStyle=col; c.beginPath(); c.arc(p.x,p.y,CS*0.38,0,7); c.fill(); c.restore(); c.fillStyle='#fff'; c.fillRect(p.x-12,p.y-16,24,6); c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.moveTo(p.x,p.y); c.lineTo(p.x+p.fx*CS*0.8,p.y+p.fy*CS*0.8); c.stroke(); if(p.eff.shield>0){ c.strokeStyle='#7df9ff'; c.beginPath(); c.arc(p.x,p.y,CS*0.6,0,7); c.stroke(); } });
     if(N) pls.forEach(p=>{ const col=TAGC[p.i], nmx=nick(p.i), o=pls[1-p.i];
       c.font='bold 22px sans-serif'; c.textAlign='center'; c.lineWidth=5; c.strokeStyle='rgba(0,0,0,.9)';
-      if(p.dead){ // "back in 1.2" pill on the surface, P1 on the left, P2 on the right
-        const m='↻ '+nmx.toUpperCase()+' '+Math.max(0,p.respT).toFixed(1), w=c.measureText(m).width+20, x=p.i?W-w/2-8:w/2+8, y=OY+CS+10;
+      if(p.dead){ // "back in 1.2" pill on the surface, P1 left of the shaft, P2 right of it
+        const m='↻ '+nmx.toUpperCase()+' '+Math.max(0,p.respT).toFixed(1), w=c.measureText(m).width+20, x=p.i?W/2+w/2+60:W/2-w/2-60, y=OY+CS+10;
         c.globalAlpha=0.75+0.25*Math.sin(t*8); c.fillStyle='rgba(0,0,0,.7)'; c.fillRect(x-w/2,y-20,w,28); c.strokeStyle=col; c.lineWidth=2; c.strokeRect(x-w/2,y-20,w,28); c.fillStyle=col; c.fillText(m,x,y); c.globalAlpha=1; return; }
-      // label above the digger; P2's goes below when the two are side by side so the names never overlap
       const close=o&&!o.dead&&Math.abs(o.x-p.x)<130&&Math.abs(o.y-p.y)<40, below=close&&p.i===1;
       const hw=c.measureText(nmx).width/2+4, x=Math.max(hw,Math.min(W-hw,p.x)), y=below?p.y+40:Math.max(OY+20,p.y-26);
       c.strokeText(nmx,x,y); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=8; c.fillText(nmx,x,y); c.shadowBlur=0; }); },
-  attract(c,tt){ c.fillStyle='#5a3418'; c.fillRect(0,0,W,H); c.fillStyle='#120a04'; c.fillRect(0,400,W,40); c.fillStyle='#ffb000'; c.beginPath(); c.arc((tt*120)%W,420,16,0,7); c.fill(); }
+  attract(c,tt){ c.fillStyle='#5a3418'; c.fillRect(0,0,W,H); c.fillStyle='#120a04'; c.fillRect(0,340,W,40); c.fillStyle='#ffb000'; c.beginPath(); c.arc((tt*160)%W,360,16,0,7); c.fill();
+    c.fillStyle='#fff'; const gx=((tt*160)%W+W-220)%W; c.beginPath(); c.arc(gx-7,360,6,0,7); c.arc(gx+7,360,6,0,7); c.fill(); }
 };
 function state0(){ return !!pls; }
 function setT(o,x,y){ if(o.tx===undefined||Math.hypot(x-o.x,y-o.y)>160){ o.x=x; o.y=y; } o.tx=x; o.ty=y; }
 function ptr(p,type,x,y){ if(type==='down') p.mouse={x,y}; else if(type==='move'&&p.mouse) p.mouse={x,y}; else if(type==='up') p.mouse=null; }
+// after a single-player catch, monsters camping at the top go back to their nests so you aren't caught again at once
+function clearSpawn(){ mons.forEach(m=>{ if(!m.dead&&Math.abs(gxOf(m.x)-MIDX)<=4&&gyOf(m.y)<=5){ m.x=cx(m.hx); m.y=cy(m.hy); m.nx=m.hx; m.ny=m.hy; m.dir=-1; m.ghost=false; m.gw=0; } }); }
 // monsters chase the closest digger that is still in the mine
 function target(m){ if(pls.length<2) return pl; let b=null,bd=1e9; for(const p of pls){ if(p.dead) continue; const d=Math.hypot(p.x-m.x,p.y-m.y); if(d<bd){ bd=d; b=p; } } return b||pl; }
-// one digger: moves on the grid lines from its own controls, digs, auto-pumps
+function canDig(x,y){ return inG(x,y)&&!bed(x,y)&&!rockAt(x,y); }
+// one digger: moves on the grid lines from its own controls and digs (never moves or shoots by itself)
 function ctl(p,d,dt){ if(p.dead){ p.respT-=dt; if(p.respT<=0) getUp(p); return; }
   if(p.mouse){ const dx=p.mouse.x-p.x, dy=p.mouse.y-p.y; d=Math.hypot(dx,dy)>10?{x:dx,y:dy}:{x:0,y:0}; }
   let mx=0,my=0; if(Math.abs(d.x)>Math.abs(d.y)&&Math.abs(d.x)>0.2) mx=Math.sign(d.x); else if(Math.abs(d.y)>0.2) my=Math.sign(d.y);
-  // stay on the grid lines: move along one axis, snap the other
-  const sp=(p.eff.speed>0?260:150)*dt;
-  if(mx){ const ty=cy(Math.round((p.y-OY-CS/2)/CS)); if(Math.abs(p.y-ty)>2) p.y+=Math.sign(ty-p.y)*Math.min(sp,Math.abs(ty-p.y)); else { p.x=Math.max(CS/2,Math.min(W-CS/2,p.x+mx*sp)); p.fx=mx; p.fy=0; } }
-  else if(my){ const tx=cx(Math.round((p.x-CS/2)/CS)); if(Math.abs(p.x-tx)>2) p.x+=Math.sign(tx-p.x)*Math.min(sp,Math.abs(tx-p.x)); else { p.y=Math.max(cy(0),Math.min(cy(GH-1),p.y+my*sp)); p.fy=my; p.fx=0; } }
+  const sp=(p.eff.speed>0?260:150)*dt, gx=gxOf(p.x), gy=gyOf(p.y);
+  if(mx){ const ty=cy(gy); p.fx=mx; p.fy=0; if(Math.abs(p.y-ty)>2) p.y+=Math.sign(ty-p.y)*Math.min(sp,Math.abs(ty-p.y));
+    else { const nx=Math.max(cx(0),Math.min(cx(GW-1),p.x+mx*sp)); if(canDig(gxOf(nx+mx*CS*0.45),gy)||Math.abs(nx-cx(gx))<Math.abs(p.x-cx(gx))) p.x=nx; else p.x=cx(gx); } }
+  else if(my){ const tx=cx(gx); p.fy=my; p.fx=0; if(Math.abs(p.x-tx)>2) p.x+=Math.sign(tx-p.x)*Math.min(sp,Math.abs(tx-p.x));
+    else { const ny=Math.max(cy(0),Math.min(cy(GH-1),p.y+my*sp)); if(canDig(gx,gyOf(ny+my*CS*0.45))||Math.abs(ny-cy(gy))<Math.abs(p.y-cy(gy))) p.y=ny; else p.y=cy(gy); } }
   if(mx||my){ api.event('move'); p.act=3; } else if(p.act>0) p.act-=dt;
-  const gx=Math.round((p.x-CS/2)/CS), gy=Math.round((p.y-OY-CS/2)/CS); if(dirt[gy]&&dirt[gy][gx]){ dirt[gy][gx]=false; api.addScore(1,p.x,p.y,true); if(pls.length>1){ digQ.push([gy*GW+gx,t]); if(digQ.length>200) digQ.splice(0,100); } }
-  // auto pump — only while you are playing (no hands = no win)
-  p.pump-=dt; if(p.pump<=0&&p.act>0){ p.pump=0.45; firePump(p,false); } }
-function getUp(p){ p.dead=false; p.respT=0; p.x=cx(SPAWNX[p.i]||7); p.y=cy(1); p.fx=0; p.fy=1; p.mouse=null; p.eff.shield=Math.max(p.eff.shield,2.5); delete p.tx;
+  const ex=gxOf(p.x), ey=gyOf(p.y); if(dirt[ey]&&dirt[ey][ex]&&!bed(ex,ey)){ dirt[ey][ex]=false; api.addScore(1,p.x,p.y,true); if(pls.length>1){ digQ.push([ey*GW+ex,t]); if(digQ.length>200) digQ.splice(0,100); } } }
+function getUp(p){ p.dead=false; p.respT=0; p.x=cx(SPAWNX[p.i]||MIDX); p.y=cy(1); p.fx=0; p.fy=1; p.mouse=null; p.eff.shield=Math.max(p.eff.shield,2.5); delete p.tx;
   ev('up',Math.round(p.x),Math.round(p.y),p.i); api.fx.burst(p.x,p.y,TAGC[p.i]||'#ffb000',16,180,.4,3); }
 function useAb(p,id){ if(done||lost||!p||p.dead) return false;
-  p.act=3; if(id==='pump'){ if(p.shootT>0) return false; p.shootT=0.18; firePump(p,true); return true; }
+  if(id==='pump'){ if(p.shootT>0) return true; p.shootT=0.24; firePump(p); return true; }
   if(id==='blast'){ const m=mons.filter(q=>!q.dead).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0]; if(!m) return false; pop(m); return true; }
   if(id==='freeze') frz=5; else p.eff[id]= id==='speed'?8:6; S('power'); return true; }
-function firePump(p,manual){
+function firePump(p){
   // hits the nearest monster in front of you (same tunnel line, up to 3.5 blocks)
   const tgt=mons.filter(m=>!m.dead && Math.hypot(m.x-p.x,m.y-p.y)<CS*3.5 && ((p.fx && Math.abs(m.y-p.y)<CS*0.7 && Math.sign(m.x-p.x)===p.fx) || (p.fy && Math.abs(m.x-p.x)<CS*0.7 && Math.sign(m.y-p.y)===p.fy))).sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y))[0];
-  if(!tgt && !manual) return;
   const len = tgt? Math.hypot(tgt.x-p.x,tgt.y-p.y) : CS*3.5;
   p.beam={x:p.x,y:p.y,dx:p.fx,dy:p.fy,len,t:0.15,hit:!!tgt};
-  if(tgt){ tgt.inf+=1; S('blip'); api.fx.burst(tgt.x,tgt.y,'#7df9ff',6,120,.25,2); if(tgt.inf>=3) pop(tgt); } else if(manual) S('click');
+  if(tgt){ tgt.inf+=3/tgt.hp; S('blip'); api.fx.burst(tgt.x,tgt.y,'#7df9ff',6,120,.25,2); if(tgt.inf>=2.99) pop(tgt); } else S('click');
 }
-function pop(m,crush){ m.dead=true; api.addScore((crush?500:200)*(1+api.dk*0.5),m.x,m.y); api.fx.burst(m.x,m.y,m.fire?'#3bff7a':'#ff3b5c',24,240,.6,3); S('small'); ev('pop',Math.round(m.x),Math.round(m.y),m.fire?1:0); api.event('pop'); }
+function pop(m,crush){ m.dead=true; api.addScore((crush?500:200)*(m.big?3:1)*(1+api.dk*0.5),m.x,m.y); api.fx.burst(m.x,m.y,m.fire?'#3bff7a':'#ff3b5c',24,240,.6,3); S('small'); ev('pop',Math.round(m.x),Math.round(m.y),m.fire?1:0); api.event('pop'); }
 function die(p){ if(!net()){ lost=true; api.fx.burst(p.x,p.y,'#ffb000',30,260,.8,3); api.sfx.hurt(); api.toast('CAUGHT!'); setTimeout(()=>api.loseLife(),900); return; }
   // co-op: this digger is out for 2 s, the team loses one life, the other keeps digging
   if(p.dead||done) return; p.dead=true; p.respT=2; p.mouse=null; p.beam=null;
@@ -596,7 +718,7 @@ function netFx(a){ const k=a[1], F=api.fx, SF=api.sfx;
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -683,8 +805,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='🔄 Turn your phone sideways for a bigger screen (switch on auto-rotate)';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -709,6 +849,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -726,6 +889,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -832,7 +999,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -856,6 +1023,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -905,8 +1074,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1277,7 +1446,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1451,6 +1620,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1461,10 +1631,24 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  // SHELL-LANDSCAPE-2 (25 Oct): NEVER block the game. Many phones have auto-rotate switched off, so the page never turns
+  // and the old "turn your phone" cover got stuck. Upright now just plays (smaller) with a small hint strip at the top.
+  const want = up && state==='play';
+  if(state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1481,7 +1665,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1517,7 +1701,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1556,6 +1740,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
