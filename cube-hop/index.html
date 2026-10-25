@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CH-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-CH-1.2 · 2026-10-25">
 <title>Cube Hop</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,63 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
+
+/* SHELL-LANDSCAPE-2: upright hint is a small strip, never a blocking cover */
+#app #rotate{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:auto!important;height:auto!important;inset:0 0 auto 0!important;padding:6px 10px!important;background:#000c!important;font:700 12px system-ui,sans-serif!important;color:#ffd23f!important;text-align:center!important;z-index:40!important;pointer-events:none!important;display:block}
+#app #rotate.hidden{display:none!important}
+
+/* SHELL-LANDSCAPE-3 hint strip: always visible upright, tappable */
+#app #rotate{pointer-events:auto!important;font-size:14px!important;padding:8px 10px!important;background:#14061fee!important;border-bottom:2px solid #ffd23f!important}
+#rotate #rotGo{display:block;margin:6px auto 0;font:800 14px system-ui,sans-serif;border:0;border-radius:10px;padding:10px 14px;background:linear-gradient(90deg,#ffd23f,#ff3bd4);color:#14061f}
+
+/* SHELL-LANDSCAPE-3b: 'now turn your phone' tip after the screen is turned */
+#turnTip{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10001;background:#14061fee;border:2px solid #ffd23f;border-radius:18px;padding:16px 22px;color:#fff;font:700 15px system-ui,sans-serif;text-align:center;pointer-events:none;box-shadow:0 0 30px #ffd23f66}
+#turnTip.hidden{display:none}
+#turnTip b{display:block;color:#ffd23f;font-size:18px;margin:6px 0}
+#turnTip span{font-size:13px;opacity:.85}
+#turnTip .tt-ph{font-size:44px;display:inline-block;animation:ttrot 1.2s ease-in-out infinite}
+@keyframes ttrot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 
 </style>
 </head>
 <body>
-<!-- BUILD-CH-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-CH-1.2 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,94 +483,150 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* CUBE HOP — Q*bert remix (#35) — PROTOTYPE: 3 test stages. Hop the pyramid and paint every cube. */
+/* CUBE HOP — Q*bert remix (#35). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1) + RACE.
+   Andrew 25 Oct: "you shouldn't be able to hop off the game page" -> a hop off the pyramid is BLOCKED (hopper stays, small bump),
+   except onto a floating 🛸 disc (rides you to the top, the chasing snake falls off). "No way to kill the enemy" -> 💥 STOMP
+   (right thumb / SPACE) squashes every enemy on your cube or a cube next to you. Beginner 1-10: 1 paint per cube, few slow enemies. */
 (function(){
-const W=600,H=900,S=40,R=7,TOPY=210;
-let stg=0,api,t,cubes,pl,ens,done,lost,eff,swipe,steps,toggle,spawnT,COL;
-const pos=(r,c)=>({x:W/2+(c-r/2)*2*S, y:TOPY+r*1.5*S});
+const W=1280,H=720,S=46,R=7,TOPY=128,CX=W/2;
+let api,t,cubes,pl,ens,done,lost,eff,swipe,steps,toggle,spawnT,COL,discs,rings,stompCD,grace,idleT,hold,buf,edgeTold,ci;
+const pos=(r,c)=>({x:CX+(c-r/2)*2*S, y:TOPY+r*1.5*S});
 const ok=(r,c)=>r>=0&&r<R&&c>=0&&c<=r;
+const DIR={UL:[-1,-1],UR:[-1,0],DL:[1,0],DR:[1,1]};
+const easy=()=>api.diff===0&&!api.tutorial&&api.level<=10;     // Beginner stages 1-10: much easier
+const near=(a,b,c,d)=>(a===c&&b===d)||(a-1===c&&(b-1===d||b===d))||(a===c&&Math.abs(b-d)===1)||(a+1===c&&(b===d||b+1===d));
 function mk(){ cubes=[]; for(let r=0;r<R;r++){ cubes[r]=[]; for(let c=0;c<=r;c++) cubes[r][c]=0; } }
-function newEnemy(k){ const c=Math.random()<.5?0:1; return {k,r:1,c,fr:0,fc:0,a:1,hopT:0,y0:-60,falling:true,fy:-80,gone:false}; }
+function newEnemy(k){ const c=Math.random()<.5?0:1; return {k,r:1,c,fr:1,fc:c,a:1,hopT:0,falling:true,fy:-260,gone:false}; }
+function quad(x,y){ if(Math.hypot(x,y)<0.4) return null; if(y===0) return x<0?'UL':'DR'; if(x===0) return y<0?'UR':'DL'; return y<0?(x<0?'UL':'UR'):(x<0?'DL':'DR'); }
 const GAME=window.GAME={
   id:'cube-hop',title:'Cube Hop',titleHTML:'CUBE<br>HOP',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-CH-1.1 · 2026-10-17',theme:{a:'#ff9f1c',b:'#00e5ff',bg:'#0a0620'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🟠',joystick:false,coinPts:30,
+  build:'BUILD-CH-1.2 · 2026-10-25',theme:{a:'#ff9f1c',b:'#00e5ff',bg:'#0a0620'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🟠',joystick:true,coinPts:30,
   abilities:[
+    {id:'stomp',icon:'💥',name:'STOMP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — stomp your cube: every ball or snake on your cube or a cube touching it is squashed. Needs a moment to recharge (ring under your hopper).'},
     {id:'freeze',icon:'❄️',name:'FREEZE',cd:20,key:'Digit1',keyLabel:'1',desc:'Freezes every enemy for 5 seconds. Frozen enemies can\'t hurt you.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'6 seconds of safety.'},
     {id:'paint',icon:'🖌️',name:'PAINT',cd:15,key:'Digit3',keyLabel:'3',desc:'Paints 3 unfinished cubes for you.'},
-    {id:'disc',icon:'🛸',name:'DISC',cd:15,key:'Digit4',keyLabel:'4',desc:'Fly back to the top cube and shake off chasers.'}],
+    {id:'disc',icon:'🛸',name:'DISC',cd:15,key:'Digit4',keyLabel:'4',desc:'Fly back to the top cube and shake off the snake.'}],
   shop:[{id:'p_o',cat:'Hopper',name:'Orange',cost:0,colors:['#ff9f1c'],desc:'Classic.'},{id:'p_p',cat:'Hopper',name:'Pink',cost:150,colors:['#ff3bd4'],desc:'Pink.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff9f1c,#00e5ff)'}],
   story:`<h3>CUBE HOP</h3><p>Hop across the neon pyramid and paint every cube before the bouncing balls and the coily snake catch you.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap</b> up-left, up-right, down-left or down-right of your hopper to jump that way (or swipe). PC: arrow keys ↖↗↙↘ = ← ↑ ↓ →.</li><li>Landing on a cube changes its colour. Paint them ALL to the target colour (top left).</li><li>Don't hop off the edge! Dodge red balls and the purple snake.</li><li>Catch a green ball to freeze everyone.</li></ul>`,
-  tutorial:[{text:'Tap down-right or down-left of your hopper to jump. Paint the cubes!',ev:'paint'},{text:'Paint every cube to the target colour!',time:6}],
-  stageIntro:{1:'PAINT EVERY CUBE'},bossName:'SNAKE PIT!',ending:{"0":["#PAINTED","The pyramid glows."],"1":["#MASTER","Master hopper."],"2":["#LEGEND","Impossible. You did it."]},
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> push the stick diagonally (↖ ↗ ↙ ↘) — the hopper jumps one cube that way. You can also swipe on the right side. PC: ← = ↖, ↑ = ↗, ↓ = ↙, → = ↘ (or click next to the hopper).</li><li>Landing on a cube changes its colour. Paint them ALL to the TARGET colour (left).</li><li>You <b>can't fall off</b>: a hop off the pyramid is blocked — the hopper just bumps and stays put.</li><li><b>Enemies — how to beat them:</b> <b>Right thumb: 💥 STOMP</b> (PC: SPACE) squashes every red ball or snake on your cube or a cube touching it. The ring under your hopper shows when it's ready again.</li><li>🛸 <b>Floating discs</b> beside the pyramid: hop onto one and it flies you to the top — the purple snake chasing you falls off!</li><li>Catch a <b>green ball</b> to freeze everyone. Red balls just roll down — dodge or stomp them.</li><li>Every 10th stage: SNAKE PIT (two snakes).</li></ul>`,
+  tutorial:[{text:'Arrow keys hop diagonally (← ↖, ↑ ↗, ↓ ↙, → ↘). Paint the cubes!',touch:'Left thumb: push the stick diagonally to hop. Paint the cubes!',ev:'paint'},
+    {text:'Press <b>SPACE</b> to 💥 STOMP — it squashes enemies next to you.',touch:'Tap <b>💥 STOMP</b> — it squashes enemies next to you.',ev:'stomp'},{text:'Paint every cube to the target colour!',time:5}],
+  stageIntro:{1:'PAINT EVERY CUBE · 💥 STOMP ENEMIES'},bossName:'SNAKE PIT!',ending:{"0":["#PAINTED","The pyramid glows."],"1":["#MASTER","Master hopper."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='freeze') return {left:Math.max(0,eff.freeze),total:5}; if(id==='shield') return {left:Math.max(0,eff.shield),total:6}; return null; },
-  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}, hop:(dr,dc)=>hop(dr,dc), get cubes(){return cubes;}}; },
+  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}, get done(){return done;}, get cubes(){return cubes;}, get steps(){return steps;}, get discs(){return discs;}, get stompCD(){return stompCD;},
+    hop:k=>want(k), stomp:()=>stomp(), sig:()=>JSON.stringify([ci,steps,toggle,discs.map(d=>d.r+':'+d.c)]), pos}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; stg=n; t=0; done=false; lost=false; eff={freeze:-9,shield:-9}; mk(); ens=[]; spawnT=a.content===0?999:2.5;
-    steps=(a.boss||a.level>=8)?2:1; toggle=a.dk>=2.2; COL=[['#2e3bff','#ffd23f','#ffd23f'],['#7a2eff','#ff9f1c','#3bff7a'],['#1f6a8a','#ff3bd4','#00e5ff']][(n+2)%3];
+  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={freeze:-9,shield:-9}; mk(); ens=[]; rings=[]; stompCD=0; idleT=0; hold={d:null,t:0}; buf=null; swipe=null; edgeTold=false;
+    const E=easy(); spawnT=a.content===0?999:E?4:2.5; grace=E?3:1.5;
+    steps=E?1:(a.boss||a.level>=8)?2:1; toggle=a.dk>=2.2; ci=(n+2)%3; COL=[['#2e3bff','#ffd23f','#ffd23f'],['#7a2eff','#ff9f1c','#3bff7a'],['#1f6a8a','#ff3bd4','#00e5ff']][ci];
     if(a.content===0){ for(let r=0;r<R;r++) for(let c=0;c<=r;c++) cubes[r][c]= r>=3?steps:0; }
+    // 🛸 discs beside the pyramid — ONLY Math.random, at stage start (race = same seed = same discs on every phone)
+    discs=[]; const nd=E||a.content===0?2:a.level<60?2:1; const rows=[1,2,3,4,5];
+    for(let i=0;i<nd;i++){ const r=rows.splice(Math.floor(Math.random()*rows.length),1)[0]; discs.push({r,c:i%2?r+1:-1,used:false}); }
     pl={r:0,c:0,fr:0,fc:0,a:1}; },
-  respawn(){ lost=false; pl={r:0,c:0,fr:0,fc:0,a:1}; ens=[]; spawnT=2; },
+  respawn(){ lost=false; pl={r:0,c:0,fr:0,fc:0,a:1}; ens=[]; spawnT=easy()?3:2; grace=2; buf=null; idleT=0; },
   useAbility(id){ if(done||lost) return false;
+    if(id==='stomp') return stomp();
     if(id==='paint'){ let k=0; for(let r=0;r<R&&k<3;r++) for(let c=0;c<=r&&k<3;c++) if(cubes[r][c]<steps){ cubes[r][c]=steps; k++; const p=pos(r,c); api.fx.burst(p.x,p.y,COL[2],10,150,.4,3); } check(); api.sfx.power(); return true; }
-    if(id==='disc'){ pl={r:0,c:0,fr:0,fc:0,a:1}; ens=ens.filter(e=>e.k!=='snake'); api.sfx.power(); api.fx.flash('#00e5ff',.2); return true; }
+    if(id==='disc'){ pl={r:0,c:0,fr:0,fc:0,a:1}; lure(); api.sfx.power(); api.fx.flash('#00e5ff',.2); return true; }
     eff[id]=id==='freeze'?5:6; api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(done||lost) return; if(type==='down') swipe={x,y}; else if(type==='up'&&swipe){ let dx=x-swipe.x, dy=y-swipe.y;
-      if(Math.hypot(dx,dy)<25){ const p=pos(pl.r,pl.c); dx=x-p.x; dy=y-(p.y+S*0.4); }
-      if(dy<0) hop(-1,dx<0?-1:0); else hop(1,dx<0?0:1); swipe=null; } },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt;
-    const k=api.input.keys; if(!this._k){ if(k.ArrowLeft) hop(-1,-1); else if(k.ArrowUp) hop(-1,0); else if(k.ArrowDown) hop(1,0); else if(k.ArrowRight) hop(1,1); } this._k=k.ArrowUp||k.ArrowDown||k.ArrowLeft||k.ArrowRight;
-    if(pl.a<1) pl.a=Math.min(1,pl.a+dt*4.5);
-    if(pl.off){ pl.fy=(pl.fy||0)+dt*900; if(pl.fy>500&&!lost) die('FELL OFF!',true); return; }
+  onPointer(type,x,y,id,pt){ if(done||lost) return; const touch=pt==='touch'||pt==='pen';
+    if(type==='down'){ if(touch&&x<W/2) return; swipe={x,y,id}; return; }
+    if(type==='up'&&swipe&&swipe.id===id){ let dx=x-swipe.x, dy=y-swipe.y; swipe=null;
+      if(Math.hypot(dx,dy)<25){ const p=pos(pl.r,pl.c); dx=x-p.x; dy=y-(p.y-S*0.2); if(Math.hypot(dx,dy)<20) return; }
+      want(dy<0?(dx<0?'UL':'UR'):(dx<0?'DL':'DR')); } },
+  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; stompCD-=dt; grace-=dt; idleT+=dt;
+    rings.forEach(g=>g.t+=dt); rings=rings.filter(g=>g.t<0.5);
+    if(pl.bump) { pl.bump.t-=dt; if(pl.bump.t<=0) pl.bump=null; }
     if(lost) return;
-    spawnT-=dt; if(spawnT<=0&&eff.freeze<=0){ spawnT=api.dv([4,2.6,1.6],1.1,0.5); const r=Math.random(); const snake=api.level>=2&&api.content!==0&&!ens.some(e=>e.k==='snake')&&r<0.45;
-      ens.push(newEnemy(snake?'snake':r<0.15?'green':'red')); }
-    const ht=api.dv([0.75,0.55,0.42],0.32,0.2);
-    if(eff.freeze<=0) ens.forEach(e=>{ if(e.falling){ e.fy+=dt*600; if(e.fy>=0){ e.falling=false; e.fy=0; } return; }
-      if(e.a<1){ e.a=Math.min(1,e.a+dt/ht*1.4); return; } e.hopT+=dt; if(e.hopT<ht) return; e.hopT=0;
+    // stick / arrow keys: a NEW direction hops at once; holding repeats after 0.3 s
+    const d=api.input.dir(), q=quad(d.x,d.y);
+    if(q!==hold.d){ hold.d=q; hold.t=0; if(q) want(q); } else if(q){ hold.t+=dt; if(hold.t>=0.3&&pl.a>=1&&!pl.ride&&!buf){ hold.t=0.12; want(q); } }
+    if(pl.ride){ const R2=pl.ride; R2.t+=dt; if(R2.t>=1.1){ pl={r:0,c:0,fr:0,fc:0,a:0.5}; grace=1.2; } }
+    else if(pl.a<1){ pl.a=Math.min(1,pl.a+dt*4.5); if(pl.a>=1) land(); }
+    if(pl.a>=1&&!pl.ride&&buf){ const b=buf; buf=null; hop(b); }
+    // enemies
+    const E=easy(), snakes=ens.filter(e=>e.k==='snake').length, maxSn=api.boss?2:1, maxEn=E?2+(api.level>=6?1:0):api.dv([3,5,7],8,10);
+    spawnT-=dt; if(spawnT<=0&&eff.freeze<=0){ spawnT=E?5.2-api.level*0.15:api.dv([4,2.6,1.6],1.1,0.5); const r=Math.random();
+      const wantSnake=idleT>12||(api.content!==0&&(E?api.level>=4:api.level>=2)&&r<0.45);
+      if(ens.length<maxEn||idleT>12){ if(wantSnake&&snakes<maxSn) ens.push(newEnemy('snake')); else ens.push(newEnemy(r<(E?0.3:0.15)?'green':'red')); } }
+    const ht=api.dv([0.75,0.55,0.42],0.32,0.2)*(E?1.35:1);
+    if(eff.freeze<=0) ens.forEach(e=>{ if(e.falling){ e.fy+=dt*700; if(e.fy>=0){ e.falling=false; e.fy=0; } return; }
+      const sh=e.k==='snake'&&e.hatched?ht*(E?1.5:1.15):ht;
+      if(e.a<1){ e.a=Math.min(1,e.a+dt/sh*1.4); return; } e.hopT+=dt; if(e.hopT<sh) return; e.hopT=0;
       let dr=1,dc=Math.random()<.5?0:1;
-      if(e.k==='snake'&&(e.hatched||e.r===R-1)){ e.hatched=true; const up=pl.r<e.r; dr=up?-1:1; dc=up?(pl.c<e.c||(pl.c===e.c&&pl.c-e.c<=0&&Math.random()<.5)? -1:0):(pl.c>e.c?1:0); if(!ok(e.r+dr,e.c+dc)){ dr=1; dc=pl.c>e.c?1:0; } if(!ok(e.r+dr,e.c+dc)){ dr=-1; dc=0; } }
+      if(e.k==='snake'&&(e.hatched||e.r===R-1)){ e.hatched=true; const tp=pos(pl.r,pl.c); let best=null;
+        for(const k in DIR){ const [a,b]=DIR[k], nr=e.r+a, nc=e.c+b; if(!ok(nr,nc)) continue; const p=pos(nr,nc), s=Math.hypot(p.x-tp.x,p.y-tp.y)+Math.random()*(E?90:20); if(!best||s<best.s) best={s,a,b}; }
+        dr=best.a; dc=best.b; }
       e.fr=e.r; e.fc=e.c; e.r+=dr; e.c+=dc; e.a=0; if(!ok(e.r,e.c)) e.gone=true; });
     ens=ens.filter(e=>!e.gone);
-    ens.forEach(e=>{ if(e.falling||lost) return; if(e.a>=0.6&&pl.a>=0.6&&e.r===pl.r&&e.c===pl.c){ if(e.k==='green'){ e.gone=true; eff.freeze=5; api.toast('FREEZE!'); api.addScore(100,pos(e.r,e.c).x,pos(e.r,e.c).y); api.sfx.pickup(); }
-        else if(eff.freeze<=-1) die(e.k==='snake'?'BITTEN!':'SQUASHED!'); } });
+    if(!pl.ride) ens.forEach(e=>{ if(e.falling||lost) return; if(e.a>=0.6&&pl.a>=0.6&&e.r===pl.r&&e.c===pl.c){ const p=pos(e.r,e.c);
+        if(e.k==='green'){ e.gone=true; eff.freeze=5; api.toast('FREEZE!'); api.addScore(100,p.x,p.y); api.sfx.pickup(); }
+        else if(eff.freeze<=-1&&grace<=0) die(e.k==='snake'?'BITTEN!':'SQUASHED!'); } });
     ens=ens.filter(e=>!e.gone);
     let left=0; for(let r=0;r<R;r++) for(let c=0;c<=r;c++) if(cubes[r][c]<steps) left++; api.counter('🎯 LEFT',left); },
-  render(c){ const g=c.createRadialGradient(W/2,420,50,W/2,420,600); g.addColorStop(0,'#24104a'); g.addColorStop(1,'#05030f'); c.fillStyle=g; c.fillRect(0,0,W,H);
-    for(let i=0;i<50;i++){ c.fillStyle='rgba(255,255,255,.4)'; c.fillRect((i*131)%W,(i*71+t*8)%H,2,2); }
-    c.font='bold 18px sans-serif'; c.textAlign='left'; c.fillStyle='#fff'; c.fillText('TARGET',20,110); cubeDraw(c,110,110,22,COL[steps]);
+  render(c){ const g=c.createRadialGradient(CX,380,60,CX,380,760); g.addColorStop(0,'#24104a'); g.addColorStop(1,'#05030f'); c.fillStyle=g; c.fillRect(0,0,W,H);
+    for(let i=0;i<90;i++){ c.fillStyle='rgba(255,255,255,.4)'; c.fillRect((i*131)%W,(i*71+t*8)%H,2,2); }
+    // left panel: target colour
+    c.textAlign='center'; c.font='bold 20px sans-serif'; c.fillStyle='#fff'; c.fillText('TARGET',200,120); cubeDraw(c,200,165,30,COL[steps]);
+    if(steps>1){ c.font='14px sans-serif'; c.fillStyle='#ccc'; c.fillText(toggle?'2 hops · watch out, hops undo!':'2 hops per cube',200,240); }
+    // right panel: enemy guide
+    c.textAlign='left'; c.font='bold 18px sans-serif'; c.fillStyle='#ffd23f'; c.fillText('HOW TO BEAT THEM',990,118); c.font='15px sans-serif';
+    const leg=[['#ff3bd4','💥','STOMP next to you'],['#ff3b3b','●','red ball: dodge or stomp'],['#b14bff','●','snake: stomp, or lure it'],['#00e5ff','🛸','hop on a disc = escape'],['#3bff7a','●','green: catch = freeze']];
+    leg.forEach((l,i)=>{ c.fillStyle=l[0]; c.fillText(l[1],990,150+i*28); c.fillStyle='#ddd'; c.fillText(l[2],1018,150+i*28); });
     for(let r=0;r<R;r++) for(let cc=0;cc<=r;cc++){ const p=pos(r,cc); cubeDraw(c,p.x,p.y,S,COL[Math.min(cubes[r][cc],2)]); }
-    const drawObj=(o,f)=>{ const a=pos(o.fr??o.r,o.fc??o.c), b=pos(o.r,o.c), k=Math.min(1,o.a), x=a.x+(b.x-a.x)*k, y=a.y+(b.y-a.y)*k-Math.sin(k*Math.PI)*40+(o.fy||0)-S*0.15; f(x,y); };
-    ens.forEach(e=>drawObj(e,(x,y)=>{ c.shadowBlur=14; if(e.k==='snake'&&e.hatched){ c.shadowColor=c.fillStyle='#b14bff'; for(let i=3;i>=0;i--){ c.beginPath(); c.arc(x+Math.sin(t*6+i)*6,y+i*7-10,12-i*2,0,7); c.fill(); } c.fillStyle='#fff'; c.fillRect(x-6,y-16,4,4); c.fillRect(x+3,y-16,4,4); }
-      else { c.shadowColor=c.fillStyle=e.k==='green'?'#3bff7a':e.k==='snake'?'#b14bff':'#ff3b3b'; c.beginPath(); c.arc(x,y,13,0,7); c.fill(); c.fillStyle='rgba(255,255,255,.5)'; c.beginPath(); c.arc(x-4,y-4,4,0,7); c.fill(); }
-      if(eff.freeze>0){ c.strokeStyle='#7df9ff'; c.lineWidth=2; c.strokeRect(x-16,y-16,32,32); } c.shadowBlur=0; }));
-    if(!lost||pl.off) drawObj(pl,(x,y)=>{ const col=api.cos('Hopper').colors[0]; c.shadowBlur=16; c.shadowColor=c.fillStyle=col; c.beginPath(); c.arc(x,y,17,0,7); c.fill(); c.shadowBlur=0;
-      c.fillStyle='#fff'; c.beginPath(); c.arc(x-6,y-5,5,0,7); c.arc(x+6,y-5,5,0,7); c.fill(); c.fillStyle='#000'; c.beginPath(); c.arc(x-5,y-4,2.5,0,7); c.arc(x+7,y-4,2.5,0,7); c.fill();
-      c.fillStyle=col; c.fillRect(x-4,y+4,8,12); if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(x,y,26,0,7); c.stroke(); } });
-    if(lost&&!pl.off){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#0a0620'; c.fillRect(0,0,W,H); for(let r=0;r<4;r++) for(let cc=0;cc<=r;cc++){ const p=pos(r,cc); cubeDraw(c,p.x,p.y+200,S,(r+cc+(tt|0))%2?'#ff9f1c':'#2e3bff'); } }
+    discs.forEach(d=>{ if(d.used) return; const p=pos(d.r,d.c), y=p.y+Math.sin(t*3+d.r)*5; c.shadowBlur=18; c.shadowColor='#00e5ff'; c.fillStyle=`hsl(${(t*200+d.r*60)%360},100%,60%)`; c.beginPath(); c.ellipse(p.x,y,24,9,0,0,7); c.fill(); c.shadowBlur=0; c.fillStyle='rgba(255,255,255,.7)'; c.beginPath(); c.ellipse(p.x,y-2,10,3,0,0,7); c.fill(); });
+    const drawObj=(o,f)=>{ const a=pos(o.fr??o.r,o.fc??o.c), b=pos(o.r,o.c), k=Math.min(1,o.a), x=a.x+(b.x-a.x)*k, y=a.y+(b.y-a.y)*k-Math.sin(k*Math.PI)*44+(o.fy||0)-S*0.15; f(x,y); };
+    ens.forEach(e=>drawObj(e,(x,y)=>{ c.shadowBlur=14; if(e.k==='snake'&&e.hatched){ c.shadowColor=c.fillStyle='#b14bff'; for(let i=3;i>=0;i--){ c.beginPath(); c.arc(x+Math.sin(t*6+i)*6,y+i*7-10,13-i*2,0,7); c.fill(); } c.fillStyle='#fff'; c.fillRect(x-6,y-17,4,4); c.fillRect(x+3,y-17,4,4); }
+      else { c.shadowColor=c.fillStyle=e.k==='green'?'#3bff7a':e.k==='snake'?'#b14bff':'#ff3b3b'; c.beginPath(); c.arc(x,y,14,0,7); c.fill(); c.fillStyle='rgba(255,255,255,.5)'; c.beginPath(); c.arc(x-4,y-4,4,0,7); c.fill(); }
+      if(eff.freeze>0){ c.strokeStyle='#7df9ff'; c.lineWidth=2; c.strokeRect(x-17,y-17,34,34); } c.shadowBlur=0; }));
+    rings.forEach(gg=>{ const k=gg.t/0.5; c.strokeStyle=`rgba(255,59,212,${1-k})`; c.lineWidth=6; c.beginPath(); c.ellipse(gg.x,gg.y,30+k*110,14+k*55,0,0,7); c.stroke(); });
+    if(!lost){ let ox=0,oy=0; if(pl.bump){ const [a,b]=DIR[pl.bump.d], k=Math.sin((1-pl.bump.t/0.25)*Math.PI)*10; ox=(b-a/2)*2*k*0.5; oy=a*k*0.6; }
+      const hopper=(x,y)=>{ const col=api.cos('Hopper').colors[0]; x+=ox; y+=oy;
+        if(!pl.ride&&pl.a>=1){ c.lineWidth=4; c.strokeStyle='rgba(255,255,255,.15)'; c.beginPath(); c.ellipse(x,y+S*0.35,24,10,0,0,7); c.stroke(); const rd=stompCD<=0;
+          c.strokeStyle=rd?'#ff3bd4':'#ff9f1c'; c.beginPath(); c.ellipse(x,y+S*0.35,24,10,0,-Math.PI/2,-Math.PI/2+7*(rd?1:1-stompCD/stompMax())); c.stroke(); }
+        c.shadowBlur=16; c.shadowColor=c.fillStyle=col; c.beginPath(); c.arc(x,y,18,0,7); c.fill(); c.shadowBlur=0;
+        c.fillStyle='#fff'; c.beginPath(); c.arc(x-6,y-5,5,0,7); c.arc(x+6,y-5,5,0,7); c.fill(); c.fillStyle='#000'; c.beginPath(); c.arc(x-5,y-4,2.5,0,7); c.arc(x+7,y-4,2.5,0,7); c.fill();
+        c.fillStyle=col; c.fillRect(x-4,y+4,8,12); if(eff.shield>0||grace>0&&Math.sin(t*20)>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(x,y,27,0,7); c.stroke(); } };
+      if(pl.ride){ const R2=pl.ride, k=Math.min(1,R2.t/1.1), e=pos(0,0), x=R2.x+(e.x-R2.x)*k, y=R2.y+(e.y-60-R2.y)*k-Math.sin(k*Math.PI)*90;
+        c.shadowBlur=18; c.shadowColor='#00e5ff'; c.fillStyle=`hsl(${(t*200)%360},100%,60%)`; c.beginPath(); c.ellipse(x,y+20,26,9,0,0,7); c.fill(); c.shadowBlur=0; hopper(x,y); }
+      else drawObj(pl,hopper); }
+    else { c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
+  attract(c,tt){ c.fillStyle='#0a0620'; c.fillRect(0,0,W,H); for(let r=0;r<5;r++) for(let cc=0;cc<=r;cc++){ const p=pos(r,cc); cubeDraw(c,p.x,p.y+60,S,(r+cc+(tt|0))%2?'#ff9f1c':'#2e3bff'); } }
 };
+function stompMax(){ return easy()?0.8:api.dv([1.2,2,2.8],3,3.5); }
+function want(k){ if(done||lost) return; if(pl.ride||pl.a<1){ buf=k; return; } hop(k); }
+function hop(k){ if(done||lost||pl.ride||pl.a<1) return; const [dr,dc]=DIR[k], nr=pl.r+dr, nc=pl.c+dc; idleT=0;
+  if(!ok(nr,nc)){ const d=discs.find(d=>!d.used&&d.r===nr&&d.c===nc);
+    if(d){ d.used=true; const p=pos(nr,nc); pl.ride={t:0,x:p.x,y:p.y-S*0.15}; api.sfx.power(); api.toast('🛸 DISC RIDE!'); lure(); return; }
+    pl.bump={d:k,t:0.25}; api.sfx.blip(); if(!edgeTold){ edgeTold=true; api.toast('EDGE! STAY ON THE PYRAMID'); } return; }
+  pl.fr=pl.r; pl.fc=pl.c; pl.r=nr; pl.c=nc; pl.a=0; api.sfx.blip(); }
+function land(){ if(lost||done||!ok(pl.r,pl.c)) return; const v=cubes[pl.r][pl.c], p=pos(pl.r,pl.c);
+  if(v<steps){ cubes[pl.r][pl.c]=v+1; api.addScore(25,p.x,p.y,true); if(v+1===steps) api.event('paint'); }
+  else if(toggle){ cubes[pl.r][pl.c]=v-1; }
+  check(); }
+function lure(){ ens.forEach(e=>{ if(e.k==='snake'&&!e.falling){ e.gone=true; const p=pos(e.r,e.c); api.fx.burst(p.x,p.y,'#b14bff',20,220,.6,4); api.addScore(500,p.x,p.y); api.toast('SNAKE FELL OFF! +500'); } }); ens=ens.filter(e=>!e.gone); }
+function stomp(){ if(done||lost||pl.ride||pl.a<1||stompCD>0) return false; stompCD=stompMax(); idleT=0; const p=pos(pl.r,pl.c); rings.push({x:p.x,y:p.y+S*0.2,t:0});
+  api.sfx.shoot(); api.fx.shake(3); api.event('stomp'); let n=0;
+  ens.forEach(e=>{ if(e.falling&&e.fy<-40) return; if(near(pl.r,pl.c,e.r,e.c)){ e.gone=true; n++; const q=pos(e.r,e.c);
+    if(e.k==='green'){ eff.freeze=5; api.toast('FREEZE!'); }
+    api.fx.burst(q.x,q.y-10,e.k==='snake'?'#b14bff':e.k==='green'?'#3bff7a':'#ff3b3b',16,200,.5,4); api.addScore(e.k==='snake'?300:150,q.x,q.y); } });
+  ens=ens.filter(e=>!e.gone); if(n){ api.sfx.pickup(); if(n>1) api.toast('SQUASHED x'+n+'!'); } return true; }
 function shade(h,f){ const n=parseInt(h.slice(1),16); const r=(n>>16)&255,g=(n>>8)&255,b=n&255; return `rgb(${r*f|0},${g*f|0},${b*f|0})`; }
 function cubeDraw(c,x,y,s,top){ c.fillStyle=top; c.beginPath(); c.moveTo(x,y-s/2); c.lineTo(x+s,y); c.lineTo(x,y+s/2); c.lineTo(x-s,y); c.fill();
   c.fillStyle='#3a2a6a'; c.beginPath(); c.moveTo(x-s,y); c.lineTo(x,y+s/2); c.lineTo(x,y+s*1.5); c.lineTo(x-s,y+s); c.fill();
   c.fillStyle='#1c1238'; c.beginPath(); c.moveTo(x+s,y); c.lineTo(x,y+s/2); c.lineTo(x,y+s*1.5); c.lineTo(x+s,y+s); c.fill();
   c.strokeStyle='rgba(255,255,255,.25)'; c.lineWidth=1; c.beginPath(); c.moveTo(x,y-s/2); c.lineTo(x+s,y); c.lineTo(x,y+s/2); c.lineTo(x-s,y); c.closePath(); c.stroke(); }
-function hop(dr,dc){ if(done||lost||pl.a<1) return; pl.fr=pl.r; pl.fc=pl.c; pl.r+=dr; pl.c+=dc; pl.a=0; api.sfx.blip();
-  if(!ok(pl.r,pl.c)){ pl.off=true; pl.fy=0; return; }
-  setTimeout(()=>{ if(lost||done||!ok(pl.r,pl.c)) return; const v=cubes[pl.r][pl.c];
-    if(v<steps){ cubes[pl.r][pl.c]=v+1; api.addScore(25,pos(pl.r,pl.c).x,pos(pl.r,pl.c).y,true); if(v+1===steps) api.event('paint'); }
-    else if(toggle){ cubes[pl.r][pl.c]=v-1; }
-    check(); },220); }
 function check(){ for(let r=0;r<R;r++) for(let c=0;c<=r;c++) if(cubes[r][c]<steps) return; if(done) return; done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1000); }
-function die(msg,fell){ if(lost||done) return; if(eff.shield>0&&!fell) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>{ pl.off=false; pl.fy=0; api.loseLife(); },900); }
+function die(msg){ if(lost||done) return; if(eff.shield>0) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>{ api.loseLife(); },900); }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -605,8 +713,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<b>🔄 TURN YOUR PHONE SIDEWAYS</b> <button id="rotGo" type="button">TAP HERE TO TURN THE SCREEN</button>'; rt.addEventListener('pointerdown',e=>{ e.stopPropagation(); }); rt.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); landForce(); });
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -631,6 +757,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -648,6 +797,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -754,7 +907,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -778,6 +931,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -827,8 +982,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1199,7 +1354,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1373,6 +1528,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1383,10 +1539,32 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  // SHELL-LANDSCAPE-2 (25 Oct): NEVER block the game. Many phones have auto-rotate switched off, so the page never turns
+  // and the old "turn your phone" cover got stuck. Upright now just plays (smaller) with a small hint strip at the top.
+  const want = up && state!=='loading';  // SHELL-LANDSCAPE-3: hint shows on menu AND in play whenever the phone is upright
+  if(state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+/* SHELL-LANDSCAPE-3: force sideways. Phones only allow a screen lock in fullscreen or in the installed app, and only
+   right after a tap — so we ask for fullscreen + landscape on the hint button and on taps while upright. Works even when
+   the phone's auto-rotate is off. iPhones don't allow it: they keep the hint and play upright (smaller). */
+function landForce(){ try{ const d=document.documentElement, fs=document.fullscreenElement||document.webkitFullscreenElement;
+  const go=()=>{ landLock(); landTurnTip(); }; if(!fs && (d.requestFullscreen||d.webkitRequestFullscreen)){ const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'}); if(r&&r.then) r.then(go,go); else go(); } else go(); }catch(e){ landLock(); } }
+if(LAND) window.addEventListener('pointerdown', ()=>{ if(window.innerHeight>window.innerWidth*1.05 && landTouch() && state!=='loading') landForce(); }, true);
+function landTurnTip(){ try{ if(landTurnTip.t && Date.now()-landTurnTip.t<8000) return; landTurnTip.t=Date.now(); let el=document.getElementById('turnTip'); if(!el){ el=document.createElement('div'); el.id='turnTip'; el.innerHTML='<div class="tt-ph">📱</div><b>NOW TURN YOUR PHONE SIDEWAYS</b><span>Hold it with both hands, thumbs on the buttons</span>'; document.body.appendChild(el); }
+  el.classList.remove('hidden'); clearTimeout(landTurnTip.h); landTurnTip.h=setTimeout(()=>el.classList.add('hidden'),3500); }catch(e){} }
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1403,7 +1581,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1439,7 +1617,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1478,6 +1656,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
