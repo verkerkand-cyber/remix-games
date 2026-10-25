@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SA-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-SA-1.2 · 2026-10-26">
 <title>Sky Ace</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SA-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SA-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,83 +489,113 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* SKY ACE — 1942-style vertical shooter remix (#44). 100 stages. Fly over the ocean, down the squadrons, beat the flying fortress. */
+/* SKY ACE — 1942-style shooter remix (#44). 100 stages. LANDSCAPE 1280x720 (SHELL-LANDSCAPE-1) + race.
+   You fly to the RIGHT over the ocean; squadrons come at you from the right. HOLD FIRE to shoot (no auto-fire).
+   Beginner stages 1-10 are extra gentle: few slow planes, few slow bullets, small hitbox, a 2-hit shield every life.
+   Race: the whole wave list is made from Math.random at stage start, so every phone in a race flies the SAME stage.
+   Keep clear: top 70px (HUD), bottom-left stick, bottom-right FIRE/ROLL buttons — enemies stay between y 100 and 540. */
 (function(){
-const W=600,H=900;
-let api,t,pl,shots,ens,ebul,pows,done,lost,eff,fireT,spawnT,kills,goal,bossOn,grace,sea,clouds,mouse;
-function wave(){ const k=Math.random(), sp=api.dv([110,150,190],220,320);
-  if(k<0.45){ const x0=60+Math.random()*(W-120), n=4+Math.floor(Math.random()*3); for(let i=0;i<n;i++) ens.push({k:'zero',x:x0,y:-40-i*50,vx:0,vy:sp,t:i*0.25,hp:1,amp:80+Math.random()*60,ph:Math.random()*6,x0}); }
-  else if(k<0.75){ const side=Math.random()<.5?-1:1; for(let i=0;i<5;i++) ens.push({k:'swoop',x:side<0?-30-i*40:W+30+i*40,y:120+Math.random()*120,vx:-side*sp*1.2,vy:30,t:0,hp:1}); }
-  else ens.push({k:'bomber',x:80+Math.random()*(W-160),y:-60,vx:0,vy:sp*0.45,t:0,hp:Math.round(api.dv([5,8,11],14,22))}); }
+const W=1280,H=720,PX0=280,PY0=330,EY0=110,EY1=530;
+let api,t,pl,shots,ens,ebul,pows,done,lost,eff,fireT,spawnT,kills,goal,bossOn,grace,sea,clouds,mouse,waves,wi,shield,bossHP,hintT;
+const easy=()=>api.diff===0&&api.level<=10;              // Beginner stages 1-10 (+ tutorial): genuinely easy
+const L=()=>api.level;
+function eSpeed(){ return easy()?80+L()*3:api.dv([110,140,180],220,320); }
+function mkWaves(){ // ONLY Math.random, all at stage start (race = same seed = same stage on every phone)
+  const out=[], E=easy();
+  for(let i=0;i<60;i++){ const k=Math.random();
+    if(i%4===3) out.push({k:'hunt',n:E?1:2,y:EY0+Math.random()*(EY1-EY0)});                      // flies at the player: idle never wins
+    else if(k<0.5){ const amp=E?30+Math.random()*30:60+Math.random()*60; out.push({k:'zero',n:E?3:4+Math.floor(Math.random()*3),amp,ph:Math.random()*6,y:EY0+amp+Math.random()*(EY1-EY0-2*amp)}); }
+    else if(k<0.8||(E&&L()<=3)) out.push({k:'swoop',n:E?3:5,top:Math.random()<.5,y:EY0+60+Math.random()*(EY1-EY0-120)});
+    else out.push({k:'bomber',n:1,y:EY0+60+Math.random()*(EY1-EY0-120),hp:E?3:Math.round(api.dv([5,7,11],14,22))}); }
+  return out; }
+function wave(){ const w=waves[wi++%waves.length], sp=eSpeed();
+  if(w.k==='zero') for(let i=0;i<w.n;i++) ens.push({k:'zero',x:W+40+i*70,y:w.y,y0:w.y,vx:-sp,t:i*0.25,hp:1,amp:w.amp,ph:w.ph,fires:!easy()||i===0});
+  else if(w.k==='swoop') for(let i=0;i<w.n;i++) ens.push({k:'swoop',x:W+30+i*60,y:w.top?EY0:EY1,ty:w.y,vx:-sp*1.2,t:0,hp:1,fires:!easy()||i===1});
+  else if(w.k==='hunt') for(let i=0;i<w.n;i++) ens.push({k:'hunt',x:W+40+i*90,y:w.y,vx:-sp*1.1,t:0,hp:1,fires:false});
+  else ens.push({k:'bomber',x:W+70,y:w.y,vx:-sp*0.45,t:0,hp:w.hp,fires:true}); }
 const GAME=window.GAME={
   id:'sky-ace',title:'Sky Ace',titleHTML:'SKY<br>ACE',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-SA-1.1 · 2026-10-17',theme:{a:'#ffd23f',b:'#2ec4ff',bg:'#04203a'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'✈️',joystick:false,coinPts:40,
+  build:'BUILD-SA-1.2 · 2026-10-26',theme:{a:'#ffd23f',b:'#2ec4ff',bg:'#04203a'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'✈️',joystick:true,coinPts:40,
   abilities:[
-    {id:'roll',icon:'🌀',name:'LOOP ROLL',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — loop out of danger. Nothing can hit you for 1.5 seconds. Needs 2 seconds to recharge.'},
-    {id:'spread',icon:'🔱',name:'SPREAD',cd:15,key:'Digit1',keyLabel:'1',desc:'Five-way guns for 8 seconds.'},
-    {id:'wing',icon:'🛩️',name:'WINGMEN',cd:20,key:'Digit2',keyLabel:'2',desc:'Two wingmen fly and fire with you for 10 seconds.'},
+    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — HOLD to fire your guns. Your guns only shoot while you hold it.'},
+    {id:'roll',icon:'🌀',name:'LOOP ROLL',cd:0,key:'KeyX',keyLabel:'X',desc:'FREE — loop out of danger. Nothing can hit you for 1.5 seconds. Needs 2 seconds to recharge.'},
+    {id:'spread',icon:'🔱',name:'SPREAD',cd:15,key:'Digit1',keyLabel:'1',desc:'Five-way guns for 8 seconds (while you hold FIRE).'},
+    {id:'wing',icon:'🛩️',name:'WINGMEN',cd:20,key:'Digit2',keyLabel:'2',desc:'Two wingmen fly with you for 10 seconds and fire when you fire.'},
     {id:'bomb',icon:'💥',name:'AIR STRIKE',cd:20,key:'Digit3',keyLabel:'3',desc:'Wipes every small plane and bullet off the screen.'}],
   shop:[{id:'a_y',cat:'Plane',name:'Yellow Ace',cost:0,colors:['#ffd23f'],desc:'Classic.'},{id:'a_r',cat:'Plane',name:'Red Baron',cost:200,colors:['#ff3b3b'],desc:'Fearsome.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#2ec4ff)'}],
   story:`<h3>SKY ACE</h3><p>One pilot, one plane, a whole enemy air force over the Indian Ocean. Fly every mission and bring down the flying fortresses.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> anywhere to fly (your finger doesn't cover the plane). PC: arrow keys / WASD.</li><li>Your guns fire by themselves.</li><li>Tap <b>🌀 LOOP ROLL</b> (SPACE) to dodge through bullets.</li><li>Shoot down enough planes to reach the flying fortress, then beat it.</li><li>Grab ⭐ power-ups dropped by red planes.</li></ul>`,
-  tutorial:[{text:'Drag to fly. Your guns fire by themselves — shoot the planes!',ev:'kill'},{text:'Tap 🌀 LOOP ROLL to dodge!',ev:'roll'},{text:'Down the squadron!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick flies your plane — up, down, forward and back. PC: arrow keys or WASD (a mouse can drag too).</li><li><b>Right thumb:</b> HOLD <b>🔫 FIRE</b> to shoot (PC: hold SPACE). Your guns only fire while you hold it.</li><li>Tap <b>🌀 LOOP ROLL</b> (X) to dodge through bullets.</li><li>🛡️ Your shield takes a hit for you (Beginner: 2 hits every life).</li><li>Shoot down enough planes to reach the flying fortress, then beat it.</li><li>Grab ⭐ power-ups dropped by bombers.</li></ul>`,
+  tutorial:[{text:'Fly with the arrow keys. <b>HOLD SPACE</b> to fire — shoot the planes!',touch:'Left thumb flies. <b>HOLD 🔫 FIRE</b> to shoot the planes!',ev:'kill'},
+    {text:'Press <b>X</b> to 🌀 LOOP ROLL through bullets!',touch:'Tap <b>🌀 LOOP ROLL</b> to dodge through bullets!',ev:'roll'},{text:'Down the squadron!',time:5}],
   stageIntro:{1:'DOWN THE SQUADRON'},bossName:'FLYING FORTRESS!',ending:{"0":["#ACE","The skies are free."],"1":["#ACE OF ACES","Legend of the squadron."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const tot={roll:1.5,spread:8,wing:10}[id]; return tot&&eff[id]>0?{left:eff[id],total:tot}:null; },
-  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}}; },
+  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get ebul(){return ebul;}, get lost(){return lost;}, get done(){return done;}, get kills(){return kills;}, get goal(){return goal;}, get shield(){return shield;}, get bossOn(){return bossOn;}, easy, sig(){ return waves.map(w=>w.k[0]+Math.round(w.y)+(w.n||'')).join('|')+'|G'+goal+'|B'+bossHP; }}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={roll:-9,spread:-9,wing:-9}; shots=[]; ens=[]; ebul=[]; pows=[]; fireT=0; spawnT=1; kills=0; bossOn=false; grace=1.5; mouse=null;
-    goal=a.content===0?8:Math.round(a.dv([24,36,48],60,90)); pl={x:W/2,y:H-160,pw:a.content===0?1:1};
-    sea=0; clouds=[...Array(6)].map(()=>({x:Math.random()*W,y:Math.random()*H,s:40+Math.random()*60})); },
-  respawn(){ lost=false; pl.x=W/2; pl.y=H-160; pl.pw=1; grace=2.5; ebul=[]; },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={roll:-9,spread:-9,wing:-9}; shots=[]; ens=[]; ebul=[]; pows=[]; fireT=0; spawnT=easy()?1.5:1; kills=0; bossOn=false; grace=1.5; mouse=null; wi=0; hintT=0;
+    goal=a.content===0?6:easy()?10+L():Math.round(a.dv([22,32,48],60,90)); bossHP=easy()?30+L()*2:Math.round(a.dv([60,80,120],150,240));
+    waves=mkWaves(); pl={x:PX0,y:PY0,pw:1}; shield=maxShield();
+    sea=0; clouds=[...Array(8)].map(()=>({x:Math.random()*W,y:80+Math.random()*(H-160),s:40+Math.random()*60})); },
+  respawn(){ lost=false; pl.x=PX0; pl.y=PY0; pl.pw=1; grace=2.5; ebul=[]; shield=maxShield(); ens.forEach(e=>{ if(e.k!=='boss'&&e.x<PX0+260) e.gone=true; }); },
   stageBonus(){ return pl.pw*300; },
-  useAbility(id){ if(done||lost) return false;
+  useAbility(id){ if(done||lost) return false; if(id==='fire') return true;
     if(id==='roll'){ if(eff.roll>-2) return false; eff.roll=1.5; api.event('roll'); api.sfx.power(); return true; }
     if(id==='bomb'){ ens.forEach(e=>{ if(e.k!=='boss') e.hp=0; else e.hp-=10; }); ebul=[]; api.fx.flash('#fff',.5); api.sfx.boom(); return true; }
     eff[id]={spread:8,wing:10}[id]; api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(type==='down') mouse={x,y,px:pl.x,py:pl.y}; else if(type==='move'&&mouse){ pl.x=Math.max(20,Math.min(W-20,mouse.px+(x-mouse.x)*1.2)); pl.y=Math.max(140,Math.min(H-40,mouse.py+(y-mouse.y)*1.2)); } else if(type==='up') mouse=null; },
-  update(dt){ t+=dt; sea+=dt*60; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; if(lost) return;
-    const d=api.input.dir(); pl.x=Math.max(20,Math.min(W-20,pl.x+d.x*330*dt)); pl.y=Math.max(140,Math.min(H-40,pl.y+d.y*330*dt));
-    fireT-=dt; if(fireT<=0){ fireT=0.13; const ang=eff.spread>0?[-.3,-.15,0,.15,.3]:pl.pw>=2?[-.08,.08]:[0]; ang.forEach(a=>shots.push({x:pl.x+Math.sin(a)*10,y:pl.y-24,vx:Math.sin(a)*800,vy:-Math.cos(a)*800}));
-      if(eff.wing>0) [-46,46].forEach(o=>shots.push({x:pl.x+o,y:pl.y-6,vx:0,vy:-800})); api.sfx.shoot(); }
-    shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; }); shots=shots.filter(s=>s.y>-20&&!s.hit);
-    if(!bossOn){ spawnT-=dt; if(spawnT<=0&&kills<goal){ spawnT=api.dv([2.4,1.7,1.2],0.9,0.5); wave(); }
-      if(kills>=goal&&!ens.length){ if(api.boss){ bossOn=true; ens.push({k:'boss',x:W/2,y:-120,vx:60,vy:40,t:0,hp:Math.round(api.dv([60,90,120],150,240)),max:0}); ens[ens.length-1].max=ens[ens.length-1].hp; api.toast('FLYING FORTRESS!'); } else win(); } }
-    const fire=api.dv([0.25,0.45,0.7],0.9,1.6), bs=api.dv([200,260,320],360,460);
+  onPointer(type,x,y,id,pt){ if(pt==='touch'||pt==='pen') return;   // phones fly with the shell's joystick; a mouse may drag
+    if(type==='down') mouse={x,y,px:pl.x,py:pl.y}; else if(type==='move'&&mouse){ pl.x=clampX(mouse.px+(x-mouse.x)); pl.y=clampY(mouse.py+(y-mouse.y)); } else if(type==='up') mouse=null; },
+  update(dt){ t+=dt; sea+=dt*60; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; hintT-=dt; if(lost) return;
+    const d=api.input.dir(), sp=easy()?380:340; pl.x=clampX(pl.x+d.x*sp*dt); pl.y=clampY(pl.y+d.y*sp*dt);
+    // FIRE: only while the player holds the button / SPACE
+    fireT-=dt; if(api.input.keys.Space&&fireT<=0){ fireT=0.13; const ang=eff.spread>0?[-.3,-.15,0,.15,.3]:pl.pw>=2?[-.06,.06]:[0];
+      ang.forEach(a=>shots.push({x:pl.x+28,y:pl.y+Math.sin(a)*10,vx:Math.cos(a)*900,vy:Math.sin(a)*900}));
+      if(eff.wing>0) [-56,56].forEach(o=>shots.push({x:pl.x+10,y:pl.y+o,vx:900,vy:0})); api.sfx.shoot(); }
+    shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; }); shots=shots.filter(s=>s.x<W+20&&s.y>-20&&s.y<H+20&&!s.hit);
+    if(!bossOn){ spawnT-=dt; if(spawnT<=0&&kills<goal){ spawnT=easy()?Math.max(2.4,3.4-L()*0.08):api.dv([2.4,1.9,1.2],0.9,0.5); wave(); }
+      if(kills>=goal&&!ens.length){ if(api.boss){ bossOn=true; ens.push({k:'boss',x:W+160,y:320,vx:-120,vy:easy()?50:70,t:0,hp:bossHP,max:bossHP,fires:true}); api.toast('FLYING FORTRESS!'); } else win(); } }
+    const E=easy(), fire=E?0.12+L()*0.012:api.dv([0.25,0.4,0.7],0.9,1.6), bs=E?150+L()*4:api.dv([200,240,320],360,460), forg=E?0.55:0.8;
     ens.forEach(e=>{ e.t+=dt;
-      if(e.k==='zero'){ e.y+=e.vy*dt; e.x=e.x0+Math.sin(e.t*2+e.ph)*e.amp; }
-      else if(e.k==='swoop'){ e.x+=e.vx*dt; e.y+=Math.sin(e.t*3)*60*dt+e.vy*dt; }
-      else if(e.k==='bomber'){ e.y+=e.vy*dt; }
-      else { if(e.y<140) e.y+=e.vy*dt; e.x+=e.vx*dt; if(e.x<120||e.x>W-120) e.vx*=-1; }
-      if(e.y>-10&&Math.random()<dt*fire*(e.k==='boss'?5:e.k==='bomber'?2:1)){ const n=e.k==='boss'?5:1; const a0=Math.atan2(pl.y-e.y,pl.x-e.x); for(let i=0;i<n;i++){ const a=a0+(i-(n-1)/2)*0.22; ebul.push({x:e.x,y:e.y+20,vx:Math.cos(a)*bs,vy:Math.sin(a)*bs}); } }
-      const R=e.k==='boss'?70:e.k==='bomber'?34:18; shots.forEach(s=>{ if(!s.hit&&Math.abs(s.x-e.x)<R&&Math.abs(s.y-e.y)<R*0.7){ s.hit=true; e.hp--; } });
-      if(eff.roll<=0&&grace<=0&&Math.abs(pl.x-e.x)<R*0.8+12&&Math.abs(pl.y-e.y)<R*0.6+12) die();
-      if(e.y>H+60||e.x<-200||e.x>W+200) e.gone=true; });
-    ens.filter(e=>e.hp<=0&&!e.gone).forEach(e=>{ e.gone=true; const p={zero:100,swoop:120,bomber:400,boss:5000}[e.k]; kills++; api.addScore(p*(1+api.dk*.5),e.x,e.y); api.fx.burst(e.x,e.y,e.k==='boss'?'#ff3b3b':'#ff9f1c',e.k==='boss'?80:16,300,.6,3); api.sfx[e.k==='boss'||e.k==='bomber'?'boom':'small'](); api.event('kill');
-      if(e.k==='bomber'||Math.random()<0.06) pows.push({x:e.x,y:e.y}); if(e.k==='boss') win(); });
+      if(e.k==='zero'){ e.x+=e.vx*dt; e.y=e.y0+Math.sin(e.t*2+e.ph)*e.amp; }
+      else if(e.k==='swoop'){ e.x+=e.vx*dt; e.y+=(e.ty-e.y)*Math.min(1,dt*1.5); }
+      else if(e.k==='hunt'){ e.x+=e.vx*dt; if(e.x>pl.x+80){ const ty=Math.max(EY0,Math.min(EY1+60,pl.y)); e.y+=Math.sign(ty-e.y)*Math.min(Math.abs(ty-e.y),(E?70:110)*dt); } }
+      else if(e.k==='bomber'){ e.x+=e.vx*dt; }
+      else { if(e.x>1020) e.x+=e.vx*dt; e.y+=e.vy*dt; if(e.y<EY0+40||e.y>EY1-30) e.vy*=-1; }
+      if(e.fires&&e.x<W-20&&e.x>pl.x+60&&Math.random()<dt*fire*(e.k==='boss'?(E?3:5):e.k==='bomber'?2:1)){ const n=e.k==='boss'?(E?3:5):1; const a0=Math.atan2(pl.y-e.y,pl.x-e.x); for(let i=0;i<n;i++){ const a=a0+(i-(n-1)/2)*0.22; ebul.push({x:e.x-20,y:e.y,vx:Math.cos(a)*bs,vy:Math.sin(a)*bs}); } }
+      const R=e.k==='boss'?70:e.k==='bomber'?34:18; shots.forEach(s=>{ if(!s.hit&&Math.abs(s.x-e.x)<R*0.7+4&&Math.abs(s.y-e.y)<R){ s.hit=true; e.hp--; } });
+      if(eff.roll<=0&&grace<=0&&Math.abs(pl.x-e.x)<(R*0.6+12)*forg&&Math.abs(pl.y-e.y)<(R*0.8+12)*forg){ if(e.k!=='boss'){ e.gone=true; api.fx.burst(e.x,e.y,'#ff9f1c',12,240,.5,3); } hit(); }   // a crash is never a kill (idle = no progress)
+      if(e.x<-200||e.y<-200||e.y>H+200) e.gone=true; });
+    ens.filter(e=>e.hp<=0&&!e.gone).forEach(e=>{ e.gone=true; const p={zero:100,swoop:120,hunt:120,bomber:400,boss:5000}[e.k]; kills++; api.addScore(p*(1+api.dk*.5),e.x,e.y); api.fx.burst(e.x,e.y,e.k==='boss'?'#ff3b3b':'#ff9f1c',e.k==='boss'?80:16,300,.6,3); api.sfx[e.k==='boss'||e.k==='bomber'?'boom':'small'](); api.event('kill');
+      if(e.k==='bomber'||Math.random()<(E?0.1:0.06)) pows.push({x:e.x,y:e.y}); if(e.k==='boss') win(); });
     ens=ens.filter(e=>!e.gone);
-    ebul.forEach(b=>{ b.x+=b.vx*dt; b.y+=b.vy*dt; if(eff.roll<=0&&grace<=0&&Math.hypot(b.x-pl.x,b.y-pl.y)<12){ b.gone=true; die(); } }); ebul=ebul.filter(b=>!b.gone&&b.y<H+20&&b.y>-20&&b.x>-20&&b.x<W+20);
-    pows.forEach(p=>{ p.y+=90*dt; if(Math.hypot(p.x-pl.x,p.y-pl.y)<30){ p.gone=true; pl.pw=Math.min(3,pl.pw+1); api.toast('POWER UP!'); api.sfx.pickup(); if(pl.pw>=3) eff.spread=Math.max(eff.spread,5); } }); pows=pows.filter(p=>!p.gone&&p.y<H);
+    const br=E?7:10; ebul.forEach(b=>{ b.x+=b.vx*dt; b.y+=b.vy*dt; if(eff.roll<=0&&grace<=0&&Math.hypot(b.x-pl.x,b.y-pl.y)<br){ b.gone=true; hit(); } }); ebul=ebul.filter(b=>!b.gone&&b.y<H+20&&b.y>-20&&b.x>-20&&b.x<W+20);
+    pows.forEach(p=>{ p.x-=90*dt; if(Math.hypot(p.x-pl.x,p.y-pl.y)<36){ p.gone=true; pl.pw=Math.min(3,pl.pw+1); api.toast('POWER UP!'); api.sfx.pickup(); if(pl.pw>=3) eff.spread=Math.max(eff.spread,5); } }); pows=pows.filter(p=>!p.gone&&p.x>-20);
     api.counter(bossOn?'🏰 FORTRESS':'✈️ TO DOWN',bossOn?(ens[0]?Math.ceil(ens[0].hp/ens[0].max*100)+'%':'0%'):Math.max(0,goal-kills)); },
   render(c){ c.fillStyle='#04406a'; c.fillRect(0,0,W,H);
-    c.strokeStyle='rgba(255,255,255,.07)'; c.lineWidth=2; for(let y=-40;y<H;y+=40){ const yy=(y+sea)%(H+40); c.beginPath(); for(let x=0;x<=W;x+=20) c.lineTo(x,yy+Math.sin(x*0.03+yy*0.02)*4); c.stroke(); }
-    const isl=(sea*0.9)%2400; c.fillStyle='#2a6a3a'; c.beginPath(); c.ellipse(140,isl-300,90,60,0,0,7); c.fill(); c.fillStyle='#e8d8a0'; c.beginPath(); c.ellipse(140,isl-300,100,70,0,0,7); c.fill(); c.fillStyle='#2a6a3a'; c.beginPath(); c.ellipse(140,isl-300,85,55,0,0,7); c.fill();
-    clouds.forEach(cl=>{ const y=(cl.y+sea*1.6)%(H+200)-100; c.fillStyle='rgba(255,255,255,.12)'; c.beginPath(); c.arc(cl.x,y,cl.s,0,7); c.arc(cl.x+cl.s*.8,y+10,cl.s*.7,0,7); c.fill(); });
-    pows.forEach(p=>{ c.font='28px sans-serif'; c.textAlign='center'; c.fillText('⭐',p.x,p.y+10); });
-    ens.forEach(e=>{ if(e.k==='boss'){ plane(c,e.x,e.y,4.2,'#5a6a5a','#3a4a3a',true); c.fillStyle='#000'; c.fillRect(e.x-80,e.y-90,160,8); c.fillStyle='#ff3b3b'; c.fillRect(e.x-80,e.y-90,160*e.hp/e.max,8); }
-      else plane(c,e.x,e.y,e.k==='bomber'?2:1,e.k==='bomber'?'#6a7a6a':e.k==='swoop'?'#ff3b5c':'#9aa8b0','#445',true); });
-    c.fillStyle='#ff9f1c'; ebul.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,5,0,7); c.fill(); });
-    c.fillStyle='#fff6a0'; shots.forEach(s=>c.fillRect(s.x-2,s.y-8,4,14));
+    c.strokeStyle='rgba(255,255,255,.07)'; c.lineWidth=2; for(let x=-60;x<W+60;x+=60){ const xx=((x-sea)%(W+120)+W+120)%(W+120)-60; for(let y=40;y<H;y+=48){ const o=((x/60)|0)%2*24; c.beginPath(); c.moveTo(xx,y+o); c.quadraticCurveTo(xx+12,y+o-6,xx+24,y+o); c.stroke(); } }
+    const isl=W+300-(sea*0.9)%3200; [[isl,560,1],[isl+1500,190,.8]].forEach(([ix,iy,s])=>{ c.fillStyle='#e8d8a0'; c.beginPath(); c.ellipse(ix,iy,110*s,70*s,0,0,7); c.fill(); c.fillStyle='#2a6a3a'; c.beginPath(); c.ellipse(ix,iy,90*s,55*s,0,0,7); c.fill(); });
+    clouds.forEach(cl=>{ const x=((cl.x-sea*1.6)%(W+300)+W+300)%(W+300)-150; c.fillStyle='rgba(255,255,255,.12)'; c.beginPath(); c.arc(x,cl.y,cl.s,0,7); c.arc(x+cl.s*.8,cl.y+10,cl.s*.7,0,7); c.fill(); });
+    pows.forEach(p=>{ c.font='30px sans-serif'; c.textAlign='center'; c.fillText('⭐',p.x,p.y+10); });
+    ens.forEach(e=>{ if(e.k==='boss'){ plane(c,e.x,e.y,4.2,'#5a6a5a','#3a4a3a',-1); c.fillStyle='#000'; c.fillRect(e.x-80,e.y-110,160,8); c.fillStyle='#ff3b3b'; c.fillRect(e.x-80,e.y-110,160*e.hp/e.max,8); }
+      else plane(c,e.x,e.y,e.k==='bomber'?2:1.15,e.k==='bomber'?'#6a7a6a':e.k==='swoop'?'#ff3b5c':e.k==='hunt'?'#c040ff':'#9aa8b0','#445',-1); });
+    c.fillStyle='#ff9f1c'; ebul.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,6,0,7); c.fill(); }); c.fillStyle='#fff3'; ebul.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,10,0,7); c.fill(); });
+    c.fillStyle='#fff6a0'; shots.forEach(s=>c.fillRect(s.x-8,s.y-2,16,4));
     if(!lost&&(grace<=0||(t*10|0)%2)){ const col=api.cos('Plane').colors[0]; const sc=eff.roll>0?Math.abs(Math.cos(eff.roll*4.2)):1;
-      c.save(); c.translate(pl.x,pl.y); c.scale(Math.max(.15,sc),1); plane(c,0,0,1.4,col,'#a07a00',false); c.restore();
-      if(eff.wing>0) [-46,46].forEach(o=>plane(c,pl.x+o,pl.y+14,0.9,col,'#a07a00',false));
-      if(eff.roll>0){ c.strokeStyle='rgba(255,255,255,.6)'; c.lineWidth=2; c.beginPath(); c.arc(pl.x,pl.y,34,0,7); c.stroke(); } }
+      c.save(); c.translate(pl.x,pl.y); c.scale(1,Math.max(.15,sc)); plane(c,0,0,1.5,col,'#a07a00',1); c.restore();
+      if(eff.wing>0) [-56,56].forEach(o=>plane(c,pl.x-14,pl.y+o,0.95,col,'#a07a00',1));
+      if(api.input.keys.Space&&!done){ c.fillStyle='rgba(255,240,150,.85)'; c.beginPath(); c.arc(pl.x+34,pl.y,4+Math.random()*3,0,7); c.fill(); }
+      if(shield>0){ c.strokeStyle=`rgba(125,249,255,${.35+.2*Math.sin(t*6)})`; c.lineWidth=3; c.beginPath(); c.arc(pl.x,pl.y,40,0,7); c.stroke(); c.font='16px sans-serif'; c.textAlign='center'; c.fillStyle='#7df9ff'; c.fillText('🛡️'.repeat(shield),pl.x,pl.y-46); }
+      if(eff.roll>0){ c.strokeStyle='rgba(255,255,255,.6)'; c.lineWidth=2; c.beginPath(); c.arc(pl.x,pl.y,36,0,7); c.stroke(); } }
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#04406a'; c.fillRect(0,0,W,H); plane(c,300+Math.sin(tt)*120,600,2,'#ffd23f','#a07a00',false); }
+  attract(c,tt){ c.fillStyle='#04406a'; c.fillRect(0,0,W,H); plane(c,520+Math.sin(tt)*200,360+Math.cos(tt*1.3)*80,2.2,'#ffd23f','#a07a00',1); }
 };
-function plane(c,x,y,s,col,dark,down){ c.save(); c.translate(x,y); c.scale(s,down?-s:s);
-  c.fillStyle='rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(10,24,16,6,0,0,7); c.fill();
+function maxShield(){ return api.tutorial||easy()?2:api.diff===1&&api.stage<=10?1:0; }
+function clampX(x){ return Math.max(70,Math.min(W*0.62,x)); }
+function clampY(y){ return Math.max(95,Math.min(H-110,y)); }
+function hit(){ if(lost||done||grace>0) return; if(shield>0){ shield--; grace=1.5; api.sfx.hurt(); api.fx.flash('#7df9ff',.25); api.toast(shield?'SHIELD HIT!':'SHIELD GONE — CAREFUL!'); ebul=ebul.filter(b=>Math.hypot(b.x-pl.x,b.y-pl.y)>220); return; } die(); }
+// dir: 1 = nose pointing right (player), -1 = pointing left (enemies)
+function plane(c,x,y,s,col,dark,dir){ c.save(); c.translate(x,y); c.rotate(dir*Math.PI/2); c.scale(s,s);
+  c.fillStyle='rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(10*dir,24,16,6,0,0,7); c.fill();
   c.fillStyle=col; c.beginPath(); c.ellipse(0,0,5,20,0,0,7); c.fill(); c.fillRect(-22,-4,44,8); c.fillRect(-9,14,18,5);
   c.fillStyle=dark; c.fillRect(-22,-4,44,2); c.beginPath(); c.arc(0,-6,3,0,7); c.fill();
   c.fillStyle='rgba(255,255,255,.5)'; c.fillRect(-14,-22,28,2); c.restore(); }
