@@ -1559,7 +1559,8 @@ function landCheck(){
    the phone's auto-rotate is off. iPhones don't allow it: they keep the hint and play upright (smaller). */
 function landForce(){ try{ const d=document.documentElement, fs=document.fullscreenElement||document.webkitFullscreenElement;
   const go=()=>{ landLock(); landTurnTip(); }; if(!fs && (d.requestFullscreen||d.webkitRequestFullscreen)){ const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'}); if(r&&r.then) r.then(go,go); else go(); } else go(); }catch(e){ landLock(); } }
-if(LAND) window.addEventListener('pointerdown', ()=>{ if(window.innerHeight>window.innerWidth*1.05 && landTouch() && state!=='loading') landForce(); }, true);
+// pointerdown does NOT count as a user tap for touch screens (fullscreen would be refused) -> use click / touchend (SHELL-LANDSCAPE-4)
+if(LAND){ const lf=()=>{ if(window.innerHeight>window.innerWidth*1.05 && landTouch()) landForce(); }; window.addEventListener('click', lf, true); window.addEventListener('touchend', lf, true); }
 function landTurnTip(){ try{ if(landTurnTip.t && Date.now()-landTurnTip.t<8000) return; landTurnTip.t=Date.now(); let el=document.getElementById('turnTip'); if(!el){ el=document.createElement('div'); el.id='turnTip'; el.innerHTML='<div class="tt-ph">📱</div><b>NOW TURN YOUR PHONE SIDEWAYS</b><span>Hold it with both hands, thumbs on the buttons</span>'; document.body.appendChild(el); }
   el.classList.remove('hidden'); clearTimeout(landTurnTip.h); landTurnTip.h=setTimeout(()=>el.classList.add('hidden'),3500); }catch(e){} }
 function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
