@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-PR-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-PR-1.1 · 2026-10-26">
 <title>Paper Route</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-PR-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-PR-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,181 +489,213 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* PAPER ROUTE — Paperboy remix (#57). 100 stages. Ride up the street at dusk and throw papers to every glowing subscriber house. */
+/* PAPER ROUTE — Paperboy remix (#57). 100 stages. LANDSCAPE (side-on street, top-down): ride right along the street and THROW papers to the glowing subscriber houses.
+   PR-1.1: landscape 1280x720, joystick steers only, ONE 🗞️ THROW button that flies to the ringed subscriber house, slow Beginner 1-10 + auto-slow near houses, race:true (whole route is generated up front from Math.random). */
 (function(){
-const W=600,H=900,ROADL=185,ROADR=415,XMIN=165,XMAX=435,YMIN=430,YMAX=790,MBL=140,MBR=460,HL=120,HR=480;
-let api,t,bk,houses,hz,papers,bundles,scroll,houseAcc,need,delivered,misses,allow,stock,done,lost,eff,grace,spawnT,bundleT,dog,drag,throwCD,wob,botAim;
+const W=1280,H=720, HT=86,HB=222, LAWN=290, SWB=318, RT=318,RB=562, XMIN=300,XMAX=760,YMIN=304,YMAX=536, SP=290,HW=210, MBY=270;
+let api,t,bk,houses,hz,papers,bundles,scroll,need,delivered,misses,allow,stock,done,lost,eff,grace,dog,throwCD,spPrev,holdT,mouse,wob,tgt,hintT;
 const SUBC=['#ff7a59','#ffb347','#e85d75','#c77dff','#4fd1c5'];
 const GAME=window.GAME={
   id:'paper-route',title:'Paper Route',titleHTML:'PAPER<br>ROUTE',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-PR-1.0 · 2026-10-17',theme:{a:'#ffd23f',b:'#4fd1ff',bg:'#0d1024'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🚲',joystick:false,coinPts:40,
+  build:'BUILD-PR-1.1 · 2026-10-26',theme:{a:'#ffd23f',b:'#4fd1ff',bg:'#0d1024'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🚲',joystick:true,coinPts:40,
   abilities:[
-    {id:'throwL',icon:'⬅️',name:'THROW LEFT',cd:0,key:'KeyQ',keyLabel:'Q',desc:'FREE — throw a paper to the LEFT. Or tap the left half of the game.'},
-    {id:'throwR',icon:'➡️',name:'THROW RIGHT',cd:0,key:'KeyE',keyLabel:'E',desc:'FREE — throw a paper to the RIGHT. Or tap the right half of the game.'},
+    {id:'throw',icon:'🗞️',name:'THROW',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — throw a paper. It flies straight to the house with the RING around its mailbox. No ring = no subscriber in reach.'},
     {id:'helmet',icon:'🪖',name:'CRASH HELMET',cd:15,key:'Digit1',keyLabel:'1',desc:'Smash straight through cars, dogs and drains for 6 seconds.'},
-    {id:'aim',icon:'🎯',name:'GOLDEN ARM',cd:15,key:'Digit2',keyLabel:'2',desc:'For 8 seconds every paper curves into the nearest glowing house.'},
+    {id:'aim',icon:'🎯',name:'GOLDEN ARM',cd:15,key:'Digit2',keyLabel:'2',desc:'For 8 seconds every throw is a PERFECT and reaches twice as far.'},
     {id:'bundle',icon:'📦',name:'EXTRA BUNDLE',cd:12,key:'Digit3',keyLabel:'3',desc:'Get 10 papers right now.'}],
   shop:[{id:'k_y',cat:'Bike',name:'Sunshine Bike',cost:0,colors:['#ffd23f'],desc:'Classic.'},{id:'k_c',cat:'Bike',name:'Neon Cyan Bike',cost:150,colors:['#4fd1ff'],desc:'Glows at night.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#4fd1ff)'}],
   story:`<h3>PAPER ROUTE</h3><p>The town's last paper delivery rider is YOU. Every evening the glowing houses wait for their paper — and every evening the street fights back.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to ride your bike anywhere on the street (arrow keys / WASD on PC). You steer — nothing steers for you.</li><li><b>Tap the left or right half</b> of the game to throw a paper that way (Q / E on PC).</li><li>Hit the ✨ <b>GLOWING</b> houses. Land it in the mailbox for a PERFECT bonus. Dark houses don't pay — break their windows and you lose points.</li><li>Miss too many glowing houses and you lose a life. Ride over 📦 bundles for more papers.</li><li>Dodge drains, cones, cars, dogs and skaters!</li></ul>`,
-  tutorial:[{text:'PRACTICE: drag to ride. Tap the side a GLOWING house is on to throw a paper!',ev:'deliver'},{text:'Ride over a 📦 bundle for more papers!',ev:'bundle'},{text:'Deliver 3 papers to finish!',time:6}],
-  stageIntro:{1:'DELIVER TO THE GLOWING HOUSES'},bossName:'BRUTUS THE GUARD DOG!',
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>. You ride to the right along the street; the houses are at the top.</p><ul><li><b>Your job:</b> give a paper to every ✨ <b>GLOWING</b> house with a 🗞️ on its roof — those are your SUBSCRIBERS. Dark houses don't get a paper.</li><li>When a subscriber is close, a <b>RING</b> appears around its mailbox. Press <b>🗞️ THROW</b> (right thumb · PC: SPACE) and the paper flies right to it. Gold ring = PERFECT bonus.</li><li><b>Left thumb:</b> the stick only steers the bike — dodge drains, cones, cars, dogs and skaters. PC: arrow keys / WASD.</li><li>Let too many subscribers go by without a paper and you lose a life. Ride over 📦 bundles for more papers.</li><li>Beginner stages 1–10 ride slowly and the bike slows down by itself when a subscriber is in reach.</li></ul>`,
+  tutorial:[{text:'GLOWING houses with a 🗞️ are SUBSCRIBERS. When a RING appears on a mailbox, press <b>SPACE</b> — the paper flies right to it!',touch:'GLOWING houses with a 🗞️ are SUBSCRIBERS. When a RING appears on a mailbox, tap <b>🗞️ THROW</b> (right thumb) — the paper flies to it!',ev:'deliver'},
+    {text:'Steer with the arrow keys (up/down) and ride over the 📦 bundle for more papers!',touch:'Your LEFT thumb steers the bike. Ride over the 📦 bundle for more papers!',ev:'bundle'},
+    {text:'Steer around drains and cones. Deliver 3 papers to finish!',time:6}],
+  stageIntro:{1:'RING ON A MAILBOX = PRESS 🗞️ THROW'},bossName:'BRUTUS THE GUARD DOG!',
   ending:{"0":["#PAPER HERO","Every house got its paper."],"1":["#ROUTE LEGEND","Nothing stops the delivery."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={helmet:6,aim:8}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pl(){return bk;}, get houses(){return houses;}, get hz(){return hz;}, get bundles(){return bundles;}, get dog(){return dog;}, get stock(){return stock;}, get delivered(){return delivered;}, get need(){return need;}, get lost(){return lost;}, get done(){return done;}, get v(){return speed();}, throwP:s=>throwP(s), set aimAll(v){botAim=v;}}; },
+  abTime(id){ const tot={helmet:6,aim:8}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return {get pl(){return bk;}, get houses(){return houses;}, get hz(){return hz;}, get bundles(){return bundles;}, get dog(){return dog;}, get stock(){return stock;}, get delivered(){return delivered;}, get need(){return need;}, get misses(){return misses;}, get allow(){return allow;}, get lost(){return lost;}, get done(){return done;}, get v(){return speed();}, get tgt(){return tgt;}, get scroll(){return scroll;},
+    sig(){ return houses.slice(0,40).map(h=>h.sub?1:0).join('')+'|'+hz.slice(0,30).map(h=>h.k+h.g).join(',')+'|'+bundles.slice(0,8).map(b=>Math.round(b.wx)).join(','); }}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1.5; eff={helmet:-9,aim:-9}; houses=[]; hz=[]; papers=[]; bundles=[]; scroll=0; houseAcc=200; delivered=0; misses=0; throwCD=0; drag=null; dog=null; wob=0;
-    const tut=a.content===0; need=tut?3:Math.round(a.dv([18,24,30],38,48)); allow=tut?99:Math.max(1,Math.round(a.dv([6,4,3],2,1))); stock=tut?8:Math.round(a.dv([12,11,10],9,7));
-    spawnT=tut?3:1.5; bundleT=tut?1.4:3.5; bk={x:W/2,y:H-200,vx:0,tx:undefined,ty:undefined,lean:0};
-    for(let y=-140;y<H+40;y+=200) spawnRow(y,true);
-    if(a.boss&&!tut){ const hp=Math.round(a.dv([8,11,14],18,26)); dog={side:-1,x:135,y:bk.y-60,hp,max:hp,st:'trot',tm:2.5,ly:0,vx:0,hit:0}; } },
-  respawn(){ lost=false; grace=2.2; misses=0; hz=hz.filter(h=>h.y<bk.y-260); bk.x=W/2; bk.tx=bk.ty=undefined; drag=null; if(dog){ dog.st='trot'; dog.tm=2.5; dog.x=dog.side<0?135:465; } },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1.5; eff={helmet:-9,aim:-9}; papers=[]; scroll=0; delivered=0; misses=0; throwCD=0; spPrev=false; holdT=0; mouse=null; dog=null; wob=0; tgt=null; hintT=0;
+    const tut=a.content===0, L=a.level, easy=a.diff===0&&L<=10;
+    need=tut?3:easy?6+L:Math.round(a.dv([18,24,30],38,48)); allow=tut?99:easy?6:Math.max(1,Math.round(a.dv([5,4,3],2,1))); stock=tut?10:easy?need+10:Math.round(a.dv([24,30,36],44,54));
+    bk={x:420,y:440,lean:0,vy:0};
+    // ---- the whole route is generated NOW from Math.random (race: both phones get the same street) ----
+    houses=[]; const subP=tut?0.8:easy?0.72:a.dv([0.62,0.55,0.5],0.45,0.42);
+    for(let i=0;i<420;i++){ const sub=Math.random()<subP; houses.push({wx:760+i*SP,sub,del:false,missed:false,fly:0,col:SUBC[Math.floor(Math.random()*SUBC.length)],seed:Math.random()}); }
+    if(!tut&&!a.boss) for(let i=0;i<3;i++) houses[i].sub=true;
+    const END=760+420*SP; hz=[]; bundles=[];
+    const gap=tut?1500:easy?980-L*40:a.dv([560,400,290],230,170), P=pool(L,tut,easy); let x=tut?1700:1500;
+    while(x<END){ const k=P[Math.floor(Math.random()*P.length)], lane=[360,440,520][Math.floor(Math.random()*3)];
+      const h={k,wx:x,y:lane,a:0,ph:Math.random()*6};
+      if(k==='cone') h.y=RT+26+Math.random()*(RB-RT-52);
+      if(k==='car') h.col=['#ff3b3b','#2e7bff','#3bff7a','#e8e8f0','#b14bff'][Math.floor(Math.random()*5)];
+      if(k==='dog'){ h.y=LAWN-8; h.st='wait'; }
+      h.g=Math.round(h.wx)+':'+Math.round(h.y); hz.push(h); x+=gap*(0.7+Math.random()*0.6); }
+    const bg=tut?1200:easy?1100:a.dv([1300,1500,1700],1900,2200);
+    for(let bx=tut?1100:1400;bx<END;bx+=bg*(0.8+Math.random()*0.4)) bundles.push({wx:bx,y:tut?360:[360,440,520][Math.floor(Math.random()*3)]});
+    if(a.boss&&!tut){ const hp=Math.round(a.dv([8,11,14],18,26)); dog={x:900,y:262,hp,max:hp,st:'trot',tm:2.5,vx:0,vy:0,ax:0,ay:0,hit:0,a:0}; } },
+  respawn(){ lost=false; grace=2.2; misses=0; papers=[]; bk.x=420; bk.y=440; mouse=null;
+    hz.forEach(h=>{ const sx=h.wx-scroll; if(sx>-200&&sx<bk.x+520) h.gone=true; });
+    houses.forEach(h=>{ const sx=h.wx-scroll; if(h.sub&&!h.del&&sx<bk.x+120) h.missed=true; });
+    if(dog){ dog.st='trot'; dog.tm=2.5; dog.y=262; } },
   stageBonus(){ return stock*15+(api.boss?0:Math.max(0,allow-misses)*100); },
   useAbility(id){ if(done||lost) return false;
-    if(id==='throwL') return throwP(-1); if(id==='throwR') return throwP(1);
+    if(id==='throw') return true; // the shell holds SPACE while the button is down; update() throws on the press
     if(id==='bundle'){ stock+=10; api.toast('+10 PAPERS'); api.sfx.pickup(); api.fx.burst(bk.x,bk.y,'#fff',14,160,.4,3); return true; }
     eff[id]={helmet:6,aim:8}[id]; api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(done||lost) return;
-    if(type==='down') drag={sx:x,sy:y,bx:bk.x,by:bk.y,t:t,moved:false};
-    else if(type==='move'&&drag){ if(Math.hypot(x-drag.sx,y-drag.sy)>14) drag.moved=true; if(drag.moved){ bk.tx=drag.bx+(x-drag.sx)*1.25; bk.ty=drag.by+(y-drag.sy)*1.25; } }
-    else if(type==='up'&&drag){ if(!drag.moved&&t-drag.t<0.4) throwP(x<W/2?-1:1); drag=null; bk.tx=bk.ty=undefined; } },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; throwCD-=dt; if(lost) return;
-    const v=speed(), L=api.level, tut=api.content===0; scroll+=v*dt; wob+=dt;
-    // --- ride (player always steers) ---
-    const d=api.input.dir(); const ox=bk.x;
-    if(bk.tx!==undefined){ bk.x+=(bk.tx-bk.x)*Math.min(1,dt*12); bk.y+=(bk.ty-bk.y)*Math.min(1,dt*12); }
-    else { bk.x+=d.x*360*dt; bk.y+=d.y*300*dt; }
+  onPointer(type,x,y,id,pt){ if(pt==='touch'||pt==='pen') return; if(done||lost) return; // phones: joystick + THROW button; a mouse may drag / click
+    if(type==='down') mouse={sx:x,sy:y,bx:bk.x,by:bk.y,moved:false};
+    else if(type==='move'&&mouse){ if(Math.hypot(x-mouse.sx,y-mouse.sy)>12) mouse.moved=true; if(mouse.moved){ mouse.tx=mouse.bx+(x-mouse.sx)*1.2; mouse.ty=mouse.by+(y-mouse.sy)*1.2; } }
+    else if(type==='up'&&mouse){ if(!mouse.moved) throwP(); mouse=null; } },
+  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; throwCD-=dt; hintT-=dt; if(lost) return;
+    const tut=api.content===0; wob+=dt;
+    // --- ride: the player always steers (stick / keys / mouse drag) ---
+    const d=api.input.dir(), oy=bk.y;
+    if(mouse&&mouse.ty!==undefined){ bk.x+=(mouse.tx-bk.x)*Math.min(1,dt*10); bk.y+=(mouse.ty-bk.y)*Math.min(1,dt*10); }
+    else { bk.x+=d.x*300*dt; bk.y+=d.y*330*dt; }
     bk.x=Math.max(XMIN,Math.min(XMAX,bk.x)); bk.y=Math.max(YMIN,Math.min(YMAX,bk.y));
-    bk.vx=(bk.x-ox)/Math.max(dt,1e-3); bk.lean+=(Math.max(-1,Math.min(1,bk.vx/300))-bk.lean)*Math.min(1,dt*8);
-    if(Math.abs(bk.x-ox)>1||d.y) api.event('ride');
-    // --- street rows ---
-    houseAcc+=v*dt; if(houseAcc>=200){ houseAcc-=200; spawnRow(-140-houseAcc,false); }
-    houses.forEach(h=>{ h.y+=v*dt; if(h.sub&&!h.del&&!h.missed&&h.y>bk.y+95){ h.missed=true; if(!tut&&!api.boss){ misses++; api.sfx.bump(); api.toast(misses>=allow?'TOO MANY MISSED HOUSES!':'MISSED A HOUSE! ('+misses+'/'+allow+')'); if(misses>=allow) crash(null); } } });
-    houses=houses.filter(h=>h.y<H+160);
+    bk.vy=(bk.y-oy)/Math.max(dt,1e-3); bk.lean+=(Math.max(-1,Math.min(1,bk.vy/300))-bk.lean)*Math.min(1,dt*8);
+    if(d.x||d.y) api.event('ride');
+    tgt=findTarget();
+    const v=speed()*(api.diff===0&&tgt&&tgt.h?(api.level<=10?0.6:0.8):1); scroll+=v*dt;
+    // --- throw: on the press of THROW / SPACE; holding repeats slowly ---
+    const sp=!!api.input.keys.Space; if(sp&&!spPrev){ throwP(); holdT=0; } else if(sp){ holdT+=dt; if(holdT>0.55&&tgt){ holdT=0; throwP(); } } spPrev=sp;
+    // --- houses: a subscriber that slips behind you is a miss ---
+    for(const h of houses){ const sx=h.wx-scroll; if(sx>W+40) break; const mx=sx+HW-26;
+      if(h.sub&&!h.del&&!h.missed&&h.fly===0&&mx<bk.x-90){ h.missed=true; if(!tut&&!api.boss){ misses++; api.sfx.bump(); api.toast(misses>=allow?'TOO MANY MISSED HOUSES!':'MISSED A SUBSCRIBER! ('+misses+'/'+allow+')'); if(misses>=allow){ crash(null); return; } } } }
     // --- bundles ---
-    bundleT-=dt; if(bundleT<=0){ bundleT=tut?6:api.dv([4,4.6,5.2],5.8,7); bundles.push({x:tut?bk.x:ROADL+30+Math.random()*(ROADR-ROADL-60),y:-30}); }
-    bundles.forEach(b=>{ b.y+=v*dt; if(Math.abs(b.x-bk.x)<32&&Math.abs(b.y-bk.y)<38){ b.got=true; stock+=6; api.addScore(30,b.x,b.y,true); api.fx.text(b.x,b.y-20,'+6 🗞️','#fff',18); api.sfx.pickup(); api.event('bundle'); } });
-    bundles=bundles.filter(b=>!b.got&&b.y<H+40);
+    for(const b of bundles){ if(b.got) continue; const sx=b.wx-scroll; if(sx>W+40) break; if(Math.abs(sx-bk.x)<44&&Math.abs(b.y-bk.y)<40){ b.got=true; stock+=6; api.addScore(30,sx,b.y,true); api.fx.text(sx,b.y-24,'+6 🗞️','#fff',20); api.sfx.pickup(); api.event('bundle'); } }
     // --- hazards ---
-    spawnT-=dt; if(spawnT<=0){ spawnT=tut?3.2:api.dv([1.7,1.15,0.8],0.6,0.32)*(api.boss?1.7:1); spawnHazard(tut?['drain']:pool(L)); }
-    hz.forEach(h=>{ h.y+=(v+(h.vy||0))*dt; h.x+=(h.vx||0)*dt; h.a=(h.a||0)+dt;
-      if(h.k==='dog'&&h.st==='wait'&&h.y>bk.y-api.dv([380,330,280],250,200)){ h.st='run'; h.vx=-h.side*api.dv([260,320,380],420,500); api.sfx.bump(); }
-      if(h.k==='skater') h.vx=Math.sin(h.a*1.6+h.ph)*api.dv([70,110,150],180,220);
-      if(h.fly){ h.r=(h.r||0)+dt*12; h.vx=h.fly; } });
-    hz=hz.filter(h=>h.y<H+140&&h.x>-80&&h.x<W+80);
-    if(grace<=0) for(const h of hz){ if(h.fly) continue; const s=hzSize(h); if(Math.abs(h.x-bk.x)<s.w/2+11&&Math.abs(h.y-bk.y)<s.h/2+20){
-      if(eff.helmet>0){ h.fly=(h.x<bk.x?-1:1)*600; api.addScore(50,h.x,h.y); api.fx.burst(h.x,h.y,'#ffd23f',14,220,.4,3); api.sfx.boom(); api.fx.shake(5); }
-      else { crash({drain:'FELL IN A DRAIN!',cone:'HIT A CONE!',car:'HIT BY A CAR!',dog:'THE DOG GOT YOU!',skater:'CRASHED INTO A SKATER!'}[h.k]); return; } } }
-    // --- papers ---
-    papers.forEach(p=>{ const px=p.x; p.x+=p.vx*dt; p.y+=p.vy*dt; p.r+=dt*16;
-      if(eff.aim>0||botAim){ const tg=houses.filter(h=>h.sub&&!h.del&&Math.sign(hx(h))===p.side&&h.y>bk.y-320&&h.y<bk.y+90).sort((A,B)=>Math.abs(A.y-p.y)-Math.abs(B.y-p.y))[0]; if(tg) p.vy+=((tg.y+v*0.05)-p.y)*dt*40-p.vy*dt*4; }
-      // the boss dog sits on the lawn edge
-      if(dog&&dog.st!=='lunge'&&dog.st!=='flee'&&dog.side===p.side&&(px-dog.x)*(p.x-dog.x)<=0&&Math.abs(p.y-dog.y)<48){ p.gone=true; if(dog.hit>0){ api.fx.burst(p.x,p.y,'#ddd',6,90,.3,2); return; } hitDog(); return; }
-      const mb=p.side<0?MBL:MBR;
-      if((px-mb)*(p.x-mb)<=0){ const h=houses.find(h=>h.side===p.side&&h.sub&&!h.del&&Math.abs(p.y-(h.y+44))<22); if(h){ p.gone=true; deliver(h,true,mb,p.y); return; } }
-      if((p.side<0&&p.x<=HL)||(p.side>0&&p.x>=HR)){ p.gone=true; const h=houses.find(h=>h.side===p.side&&Math.abs(p.y-h.y)<=64);
-        if(h){ if(h.sub&&!h.del) deliver(h,false,p.x,p.y); else if(!h.sub&&!h.broken){ h.broken=true; api.addScore(-150,p.x,p.y); api.toast('WRONG HOUSE! −150'); api.sfx.small(); api.fx.burst(p.x,p.y,'#bfefff',16,200,.4,2); } else api.fx.burst(p.x,p.y,'#ddd',5,80,.3,2); }
-        else api.fx.burst(p.x,p.y,'#9fdc8f',6,90,.3,2); } });
-    papers=papers.filter(p=>!p.gone&&p.x>-30&&p.x<W+30);
+    for(const h of hz){ if(h.gone) continue; let sx=h.wx-scroll; if(sx>W+260) break; if(sx<-200){ h.gone=true; continue; } h.a+=dt;
+      if(h.k==='car'&&sx<W+160) h.wx-=carV()*dt;
+      if(h.k==='skater'){ h.wx+=55*dt; h.y=Math.max(RT+20,Math.min(RB-20,h.y+Math.sin(h.a*1.6+h.ph)*hzWob()*dt)); }
+      if(h.k==='dog'){ if(h.st==='wait'&&sx-bk.x<speed()*((bk.y-h.y)/dogV())+30){ h.st='run'; api.sfx.bump(); } if(h.st==='run') h.y+=dogV()*dt; if(h.y>H+40) h.gone=true; }
+      if(h.fly){ h.r=(h.r||0)+dt*12; h.y+=h.fly*dt; h.wx+=300*dt; continue; }
+      sx=h.wx-scroll; if(grace>0) continue; const s=hzSize(h);
+      if(Math.abs(sx-bk.x)<s.w/2+26&&Math.abs(h.y-bk.y)<s.h/2+13){
+        if(eff.helmet>0){ h.fly=(h.y<bk.y?-1:1)*600; api.addScore(50,sx,h.y); api.fx.burst(sx,h.y,'#ffd23f',14,220,.4,3); api.sfx.boom(); api.fx.shake(5); }
+        else if(api.diff===0&&api.level<=5&&!tut){ h.fly=(h.y<bk.y?-1:1)*500; grace=1.5; const lose=Math.min(2,stock); stock-=lose; api.toast('OUCH! −'+lose+' PAPERS — steer around it!'); api.sfx.bump(); api.fx.shake(4); }
+        else { crash({drain:'FELL IN A DRAIN!',cone:'HIT A CONE!',car:'HIT BY A CAR!',dog:'THE DOG GOT YOU!',skater:'CRASHED INTO A SKATER!'}[h.k]); return; } } }
+    // --- papers fly to their target ---
+    papers.forEach(p=>{ p.t+=dt; const k=Math.min(1,p.t/p.dur); let ex,ey;
+      if(p.h){ ex=p.h.wx-scroll+HW-26; ey=MBY; } else if(p.dog){ ex=dog.x; ey=dog.y; } else { ex=p.ex-(scroll-p.s0); ey=p.ey; }
+      p.x=p.sx+(ex-p.sx)*k; p.y=p.sy+(ey-p.sy)*k-Math.sin(k*Math.PI)*70; p.r+=dt*16;
+      if(k>=1){ p.gone=true; if(p.h){ p.h.fly--; deliver(p.h,p.perfect,ex,ey); } else if(p.dog){ if(dog&&dog.st!=='flee'&&dog.hit<=0) hitDog(); else api.fx.burst(ex,ey,'#ddd',6,90,.3,2); } else api.fx.burst(ex,ey,'#9fdc8f',6,90,.3,2); } });
+    papers=papers.filter(p=>!p.gone);
     // --- boss ---
-    if(dog) dogUpdate(dt,v);
+    if(dog) dogUpdate(dt);
     if(!dog&&delivered>=need) win();
     if(dog) api.counter('🐕 BRUTUS',Math.max(0,Math.ceil(dog.hp/dog.max*100))+'%',dog.hp/dog.max<0.34?'low':'');
     else api.counter('🏠 DELIVER',delivered+'/'+need+(tut?'':' · ❌'+misses+'/'+allow),misses>=allow-1&&!tut?'low':'');
-    api.badge(0,stock); api.badge(1,stock); },
+    api.badge(0,stock); },
   render(c){ drawStreet(c,scroll,t);
-    houses.forEach(h=>drawHouse(c,h,t));
-    bundles.forEach(b=>{ c.save(); c.translate(b.x,b.y+Math.sin(t*5+b.x)*3); c.shadowColor='#fff'; c.shadowBlur=18; c.fillStyle='#f4f1e6'; c.fillRect(-16,-11,32,22); c.shadowBlur=0; c.fillStyle='#c9c3b0'; for(let i=-8;i<=8;i+=4) c.fillRect(-16,i,32,1.5); c.fillStyle='#ff3b3b'; c.fillRect(-2,-11,4,22); c.fillStyle='#fff'; c.font='bold 13px sans-serif'; c.textAlign='center'; c.fillText('+6',0,-16); c.restore(); });
-    hz.forEach(h=>drawHazard(c,h,t));
+    for(const h of houses){ const sx=h.wx-scroll; if(sx>W+20) break; if(sx>-HW-20) drawHouse(c,h,sx,t); }
+    if(tgt&&!lost) drawTarget(c);
+    for(const b of bundles){ if(b.got) continue; const sx=b.wx-scroll; if(sx>W+40) break; if(sx<-40) continue; c.save(); c.translate(sx,b.y+Math.sin(t*5+b.wx)*3); c.shadowColor='#fff'; c.shadowBlur=18; c.fillStyle='#f4f1e6'; c.fillRect(-20,-14,40,28); c.shadowBlur=0; c.fillStyle='#c9c3b0'; for(let i=-10;i<=10;i+=5) c.fillRect(-20,i,40,1.5); c.fillStyle='#ff3b3b'; c.fillRect(-2,-14,4,28); c.fillStyle='#fff'; c.font='bold 16px sans-serif'; c.textAlign='center'; c.fillText('📦 +6',0,-20); c.restore(); }
+    for(const h of hz){ if(h.gone) continue; const sx=h.wx-scroll; if(sx>W+200) break; if(sx>-150) drawHazard(c,h,sx,t); }
     if(dog) drawDog(c,dog,t);
-    papers.forEach(p=>{ c.save(); c.translate(p.x,p.y); c.globalAlpha=.25; c.fillStyle='#fff'; c.fillRect(-p.side*24-6,-2,12,4); c.globalAlpha=1; c.rotate(p.r); c.fillStyle='#f4f1e6'; c.fillRect(-9,-5,18,10); c.fillStyle='#ff3b3b'; c.fillRect(-2,-5,4,10); c.restore(); });
+    papers.forEach(p=>{ c.save(); c.translate(p.x,p.y); c.rotate(p.r); c.fillStyle='#f4f1e6'; c.fillRect(-11,-6,22,12); c.fillStyle='#ff3b3b'; c.fillRect(-2,-6,4,12); c.restore(); });
     if(!lost) drawBike(c,bk.x,bk.y,bk.lean,t,api.cos('Bike').colors[0],eff.helmet>0,grace>0);
-    if(!lost){ c.fillStyle='rgba(0,0,0,.55)'; c.beginPath(); c.roundRect?c.roundRect(bk.x+24,bk.y-6,44,22,8):c.rect(bk.x+24,bk.y-6,44,22); c.fill(); c.fillStyle=stock>0?'#fff':'#ff5a5a'; c.font='bold 14px sans-serif'; c.textAlign='left'; c.fillText('🗞️'+stock,bk.x+27,bk.y+10); }
-    const g=c.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H*0.75); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,10,.55)'); c.fillStyle=g; c.fillRect(0,0,W,H);
+    if(!lost){ c.fillStyle='rgba(0,0,0,.6)'; c.beginPath(); c.roundRect?c.roundRect(bk.x-34,bk.y+26,68,24,8):c.rect(bk.x-34,bk.y+26,68,24); c.fill(); c.fillStyle=stock>0?'#fff':'#ff5a5a'; c.font='bold 16px sans-serif'; c.textAlign='center'; c.fillText('🗞️ '+stock,bk.x,bk.y+44); }
+    const g=c.createRadialGradient(W/2,H/2,H*0.45,W/2,H/2,W*0.7); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,10,.5)'); c.fillStyle=g; c.fillRect(0,0,W,H);
     if(lost){ c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ drawStreet(c,tt*220,tt); const fake=[{side:-1,y:((tt*220)%400)-80,sub:true,col:'#ff7a59',del:false},{side:1,y:((tt*220+200)%400)-80,sub:false,col:'#3d4a66'},{side:-1,y:((tt*220)%400)+320,sub:false,col:'#3d4a66'},{side:1,y:((tt*220+200)%400)+320,sub:true,col:'#c77dff',del:true}];
-    fake.forEach(h=>drawHouse(c,h,tt)); drawBike(c,W/2+Math.sin(tt*1.3)*80,H-260,Math.cos(tt*1.3)*0.6,tt,'#ffd23f',false,false); }
+  attract(c,tt){ const sc=tt*150; drawStreet(c,sc,tt); for(let i=0;i<6;i++){ const wx=i*SP; const sx=((wx-sc)%(SP*6)+SP*6)%(SP*6)-SP; drawHouse(c,{sub:i%2===0,del:i%4===2,col:SUBC[i%5],seed:i*.3},sx,tt); }
+    drawBike(c,420+Math.sin(tt*0.9)*60,440+Math.sin(tt*1.3)*70,Math.cos(tt*1.3)*0.6,tt,'#ffd23f',false,false); }
 };
-function speed(){ return api.content===0?190:api.dv([210,250,290],320,380); }
-function hx(h){ return h.side<0?-1:1; }
-function pool(L){ const p=['drain','cone']; if(L>=2) p.push('car'); if(L>=4) p.push('dog'); if(L>=8) p.push('skater'); if(L>=30) p.push('car','dog'); if(L>=60) p.push('skater','car'); if(api.boss) return L>=50?['drain','cone','car']:['drain','cone']; return p; }
-function spawnRow(y,init){ const tut=api.content===0, subP=tut?0.75:api.dv([0.62,0.55,0.5],0.45,0.42);
-  [-1,1].forEach(side=>{ if(Math.random()<0.88||tut) houses.push({side,y:y+(side>0?100:0),sub:Math.random()<subP,del:false,broken:false,missed:init&&false,col:SUBC[Math.floor(Math.random()*SUBC.length)],seed:Math.random()}); }); }
-function spawnHazard(p){ const k=p[Math.floor(Math.random()*p.length)];
-  if(k==='drain') hz.push({k,x:ROADL+30+Math.random()*(ROADR-ROADL-60),y:-40});
-  else if(k==='cone') hz.push({k,x:XMIN+10+Math.random()*(XMAX-XMIN-20),y:-30});
-  else if(k==='car'){ const lanes=[235,300,365]; hz.push({k,x:lanes[Math.floor(Math.random()*3)],y:-170,vy:api.dv([120,190,260],320,420),col:['#ff3b3b','#2e7bff','#3bff7a','#e8e8f0','#b14bff'][Math.floor(Math.random()*5)]}); }
-  else if(k==='dog'){ const side=Math.random()<0.5?-1:1; hz.push({k,side,x:side<0?140:460,y:-40,st:'wait',vx:0}); }
-  else if(k==='skater'){ const side=Math.random()<0.5?-1:1; hz.push({k,x:side<0?172:428,y:-40,vy:60,ph:Math.random()*6,col:['#ff7ab8','#4fd1ff','#ffd23f'][Math.floor(Math.random()*3)]}); } }
-function hzSize(h){ return {drain:{w:34,h:20},cone:{w:22,h:22},car:{w:46,h:84},dog:{w:34,h:22},skater:{w:18,h:26}}[h.k]; }
-function throwP(side){ if(done||lost||throwCD>0) return false; if(stock<=0){ api.toast('OUT OF PAPERS — GRAB A 📦 BUNDLE!'); api.sfx.bump(); return false; }
-  throwCD=0.16; stock--; papers.push({x:bk.x+side*16,y:bk.y-12,vx:side*720,vy:-55,side,r:0}); api.sfx.blip(); return true; }
+function easyStage(){ return api.diff===0&&api.level<=10; }
+function speed(){ return api.content===0?100:easyStage()?130+api.level*6:api.dv([180,240,290],340,400); }
+function carV(){ return easyStage()?70:api.dv([120,190,260],320,420); }
+function dogV(){ return easyStage()?190:api.dv([240,300,360],420,500); }
+function hzWob(){ return easyStage()?60:api.dv([80,120,160],190,230); }
+function pool(L,tut,easy){ if(tut) return ['drain','cone']; if(api.boss) return L>=50?['drain','cone','car']:['drain','cone'];
+  if(easy){ const p=['drain','cone']; if(L>=4) p.push('car'); if(L>=7) p.push('dog'); return p; }
+  const p=['drain','cone','car','dog']; if(L>=8) p.push('skater'); if(L>=30) p.push('car','dog'); if(L>=60) p.push('skater','car'); return p; }
+function reach(){ const r=easyStage()||api.content===0?460:api.dv([400,340,300],270,240); return eff&&eff.aim>0?r*2:r; }
+function findTarget(){ if(dog&&dog.st!=='lunge'&&dog.st!=='flee'&&Math.abs(dog.x-bk.x)<reach()+200) return {dog:true,x:dog.x,y:dog.y,perfect:dog.st==='dizzy'};
+  let best=null; for(const h of houses){ const sx=h.wx-scroll; if(sx>W) break; if(!h.sub||h.del||h.missed||h.fly>0) continue; const mx=sx+HW-26; if(mx<bk.x-80||mx>bk.x+reach()) continue; best=h; break; }
+  if(!best) return null; const mx=best.wx-scroll+HW-26, pz=easyStage()||api.content===0?120:80; return {h:best,x:mx,y:MBY,perfect:(eff.aim>0)||Math.abs(mx-(bk.x+60))<pz}; }
+function hzSize(h){ return {drain:{w:40,h:26},cone:{w:26,h:26},car:{w:100,h:48},dog:{w:36,h:24},skater:{w:30,h:20}}[h.k]; }
+function throwP(){ if(done||lost||throwCD>0) return false; if(stock<=0){ api.toast('OUT OF PAPERS — GRAB A 📦 BUNDLE!'); api.sfx.bump(); return false; }
+  throwCD=0.22; stock--; const T=tgt||findTarget(); api.sfx.blip(); api.event('throw');
+  const p={sx:bk.x+10,sy:bk.y-16,x:bk.x,y:bk.y,t:0,dur:0.42,r:0};
+  if(T&&T.h){ p.h=T.h; T.h.fly++; p.perfect=T.perfect; }
+  else if(T&&T.dog){ p.dog=true; }
+  else { p.ex=bk.x+140; p.ey=LAWN-20; p.s0=scroll; if(hintT<=0){ api.toast('NO RING = NO SUBSCRIBER IN REACH YET'); hintT=3; } }
+  papers.push(p); tgt=findTarget(); return true; }
 function deliver(h,perfect,x,y){ h.del=true; delivered++; const pts=(perfect?250:100)*(1+api.dk*.5); api.addScore(pts,x,y-10); api.fx.burst(x,y,perfect?'#ffd23f':'#7dffb0',perfect?26:14,perfect?240:160,.5,3);
-  if(perfect){ api.fx.text(x,y-34,'PERFECT!','#ffd23f',20); api.sfx.coin(); } else api.sfx.pickup(); api.event('deliver'); }
-function hitDog(){ const d=dog; const dmg=d.st==='dizzy'?2:1; d.hp-=dmg; d.hit=0.7; api.sfx.bump(); api.fx.burst(d.x,d.y,'#ffd23f',12,180,.35,3); api.fx.text(d.x,d.y-40,dmg>1?'YELP! ×2':'YELP!','#ffd23f',18); api.addScore(150,d.x,d.y,true);
-  if(d.hp<=0){ api.addScore(3000,d.x,d.y); api.fx.burst(d.x,d.y,'#ff9f1c',60,360,.9,4); api.fx.shake(10); api.sfx.boom(); api.toast('BRUTUS RAN HOME!'); d.st='flee'; d.vx=d.side*500; setTimeout(()=>win(),700); } }
-function dogUpdate(dt,v){ const d=dog; d.tm-=dt; d.hit-=dt; d.a=(d.a||0)+dt;
-  if(d.st==='flee'){ d.x+=d.vx*dt; return; }
-  if(d.st==='trot'){ d.x+=((d.side<0?135:465)-d.x)*Math.min(1,dt*6); d.y+=((bk.y-40)-d.y)*Math.min(1,dt*1.6); if(d.tm<=0){ d.st='aim'; d.tm=api.dv([0.85,0.7,0.55],0.45,0.35); d.ly=bk.y; api.sfx.hurt(); } }
-  else if(d.st==='aim'){ d.y+=(d.ly-d.y)*Math.min(1,dt*10); if(d.tm<=0){ d.st='lunge'; d.vx=-d.side*api.dv([780,880,980],1100,1250); } }
-  else if(d.st==='lunge'){ d.x+=d.vx*dt; d.y=d.ly;
-    if(grace<=0&&Math.abs(d.x-bk.x)<40&&Math.abs(d.y-bk.y)<44){ if(eff.helmet>0){ d.vx*=-0.4; d.st='dizzy'; d.tm=1.6; hitDog(); } else { crash('BRUTUS GOT YOU!'); return; } }
-    const tgt=d.side<0?465:135; if((d.vx>0&&d.x>=tgt)||(d.vx<0&&d.x<=tgt)){ d.x=tgt; d.side=-d.side; d.st='dizzy'; d.tm=api.dv([1.6,1.3,1],0.8,0.6); api.fx.burst(d.x,d.y,'#9fdc8f',10,140,.3,3); } }
+  if(perfect){ api.fx.text(x,y-34,'PERFECT!','#ffd23f',22); api.sfx.coin(); } else { api.fx.text(x,y-30,'DELIVERED!','#7dffb0',18); api.sfx.pickup(); } api.event('deliver'); }
+function hitDog(){ const d=dog; const dmg=d.st==='dizzy'?2:1; d.hp-=dmg; d.hit=0.5; api.sfx.bump(); api.fx.burst(d.x,d.y,'#ffd23f',12,180,.35,3); api.fx.text(d.x,d.y-44,dmg>1?'YELP! ×2':'YELP!','#ffd23f',20); api.addScore(150,d.x,d.y,true);
+  if(d.hp<=0){ api.addScore(3000,d.x,d.y); api.fx.burst(d.x,d.y,'#ff9f1c',60,360,.9,4); api.fx.shake(10); api.sfx.boom(); api.toast('BRUTUS RAN HOME!'); d.st='flee'; setTimeout(()=>win(),700); } }
+function dogUpdate(dt){ const d=dog; d.tm-=dt; d.hit-=dt; d.a+=dt;
+  if(d.st==='flee'){ d.y-=500*dt; d.x+=200*dt; return; }
+  const homeX=Math.min(1040,bk.x+320);
+  if(d.st==='trot'){ d.x+=(homeX-d.x)*Math.min(1,dt*2.5); d.y+=(262-d.y)*Math.min(1,dt*3); if(d.tm<=0&&Math.abs(d.y-262)<12){ d.st='aim'; d.tm=api.dv([1.1,0.8,0.6],0.5,0.4); d.ax=bk.x; d.ay=bk.y; api.sfx.hurt(); } }
+  else if(d.st==='aim'){ d.ax+=(bk.x-d.ax)*Math.min(1,dt*1.5); d.ay+=(bk.y-d.ay)*Math.min(1,dt*1.5); if(d.tm<=0){ d.st='lunge'; const sp=api.dv([620,760,880],1000,1150), dx=d.ax-d.x, dy=d.ay-d.y, n=Math.hypot(dx,dy)||1; d.vx=dx/n*sp; d.vy=dy/n*sp; } }
+  else if(d.st==='lunge'){ d.x+=d.vx*dt; d.y+=d.vy*dt;
+    if(grace<=0&&Math.abs(d.x-bk.x)<52&&Math.abs(d.y-bk.y)<36){ if(eff.helmet>0){ d.st='dizzy'; d.tm=1.6; d.y=Math.min(d.y,RB+50); hitDog(); } else { crash('BRUTUS GOT YOU!'); return; } }
+    if(d.y>=RB+50||d.x<XMIN-40){ d.y=Math.min(d.y,RB+50); d.x=Math.max(d.x,XMIN); d.st='dizzy'; d.tm=api.dv([2,1.5,1.1],0.9,0.7); api.fx.burst(d.x,d.y,'#9fdc8f',10,140,.3,3); } }
   else if(d.st==='dizzy'){ if(d.tm<=0){ d.st='trot'; d.tm=api.dv([2.4,1.9,1.4],1.1,0.8); } } }
-function crash(msg){ if(lost||done) return; lost=true; if(msg) api.toast(msg); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(bk.x,bk.y,'#f4f1e6',22,240,.6,3); api.fx.burst(bk.x,bk.y,api.cos('Bike').colors[0],12,200,.5,3); setTimeout(()=>api.loseLife(),900); }
+function crash(msg){ if(lost||done) return; lost=true; papers=[]; houses.forEach(h=>h.fly=0); if(msg) api.toast(msg); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(bk.x,bk.y,'#f4f1e6',22,240,.6,3); api.fx.burst(bk.x,bk.y,api.cos('Bike').colors[0],12,200,.5,3); setTimeout(()=>api.loseLife(),900); }
 function win(){ if(done) return; done=true; api.toast(dog?'BOSS BEATEN!':'ROUTE COMPLETE!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); }
 /* ---------- drawing ---------- */
 function drawStreet(c,sc,tt){
-  const lg=c.createLinearGradient(0,0,0,H); lg.addColorStop(0,'#0d2a1c'); lg.addColorStop(1,'#123d26'); c.fillStyle=lg; c.fillRect(0,0,ROADL-35,H); c.fillRect(ROADR+35,0,W-ROADR-35,H);
-  c.fillStyle='rgba(255,255,255,.035)'; for(let i=0;i<14;i++){ const y=((i*71+sc)%(H+40))-20; c.fillRect(0,y,ROADL-35,3); c.fillRect(ROADR+35,y+30,W,3); }
-  c.fillStyle='#4a4a5e'; c.fillRect(ROADL-35,0,35,H); c.fillRect(ROADR,0,35,H); c.fillStyle='#3c3c4e'; for(let y=-40;y<H;y+=40){ const yy=y+(sc%40); c.fillRect(ROADL-35,yy,35,2); c.fillRect(ROADR,yy,35,2); }
-  const rg=c.createLinearGradient(ROADL,0,ROADR,0); rg.addColorStop(0,'#1c1c28'); rg.addColorStop(.5,'#26263a'); rg.addColorStop(1,'#1c1c28'); c.fillStyle=rg; c.fillRect(ROADL,0,ROADR-ROADL,H);
-  c.fillStyle='#8a8aa0'; c.fillRect(ROADL-3,0,3,H); c.fillRect(ROADR,0,3,H);
-  c.fillStyle='#ffd23f'; for(let y=-60;y<H;y+=60){ const yy=y+(sc%60); c.fillRect(W/2-3,yy,6,30); }
-  // street lamps
-  for(let k=0;k<4;k++){ const y=((k*300+sc)%1200)-150; [ROADL-30,ROADR+30].forEach((x,i)=>{ const yy=y+i*150; const gg=c.createRadialGradient(x,yy,4,x,yy,130); gg.addColorStop(0,'rgba(255,220,140,.32)'); gg.addColorStop(1,'rgba(255,220,140,0)'); c.fillStyle=gg; c.fillRect(x-130,yy-130,260,260); c.fillStyle='#222'; c.fillRect(x-3,yy-3,6,6); c.fillStyle='#ffe9b0'; c.shadowColor='#ffd27a'; c.shadowBlur=16; c.beginPath(); c.arc(x,yy,5,0,7); c.fill(); c.shadowBlur=0; }); } }
-function drawHouse(c,h,tt){ const L=h.side<0, x0=L?6:HR+4, w=HL-10, y0=h.y-58, hh=116, glow=h.sub&&!h.del;
-  // lawn path to the sidewalk
-  c.fillStyle='#6a6a7e'; c.fillRect(L?x0+w:ROADR+35,h.y+20,L?ROADL-35-(x0+w):x0-(ROADR+35),12);
-  c.save(); if(glow){ c.shadowColor=h.col; c.shadowBlur=22+Math.sin(tt*5+h.seed*9)*8; }
-  c.fillStyle=h.sub?h.col:'#3d4a66'; c.fillRect(x0,y0,w,hh); c.restore();
-  c.fillStyle='rgba(0,0,0,.25)'; c.fillRect(L?x0:x0+w/2,y0,w/2,hh); // roof shade side
-  c.fillStyle='rgba(255,255,255,.18)'; c.fillRect(x0+w/2-1,y0,2,hh); // ridge
-  c.fillStyle='rgba(0,0,0,.25)'; for(let yy=y0+8;yy<y0+hh;yy+=12) c.fillRect(x0,yy,w,1.5);
-  // chimney
-  c.fillStyle='#5a3a2a'; c.fillRect(L?x0+16:x0+w-30,y0+12,14,14);
-  // windows facing the street
-  const wx=L?x0+w-4:x0-6;
-  for(const wy of [y0+18,y0+hh-38]){ c.fillStyle=h.broken?'#223':(h.sub?'#ffe9a0':'#2a3a5a'); if(h.sub){ c.shadowColor='#ffd27a'; c.shadowBlur=12; } c.fillRect(wx,wy,10,20); c.shadowBlur=0;
-    if(h.broken){ c.strokeStyle='#bfefff'; c.lineWidth=1.5; c.beginPath(); c.moveTo(wx,wy); c.lineTo(wx+10,wy+20); c.moveTo(wx+10,wy+4); c.lineTo(wx+2,wy+14); c.stroke(); } }
-  // door
-  c.fillStyle=h.del?'#7dffb0':'#3a2414'; c.fillRect(L?x0+w-3:x0-5,h.y+14,8,24);
-  // mailbox
-  const mx=L?MBL:MBR, my=h.y+44; c.fillStyle='#555'; c.fillRect(mx-2,my,4,14);
-  c.fillStyle=h.sub?(h.del?'#3bff7a':'#ff3b3b'):'#6a6a7a'; if(glow){ c.shadowColor='#ff3b3b'; c.shadowBlur=10; } c.fillRect(mx-8,my-10,16,11); c.shadowBlur=0;
-  if(glow){ c.fillStyle='#ffd23f'; c.fillRect(mx+(L?6:-8),my-20,3,10); }
-  if(glow){ const by=y0-14+Math.sin(tt*4+h.seed*7)*4; c.font='bold 20px sans-serif'; c.textAlign='center'; c.fillText('🗞️',x0+w/2,by); }
-  if(h.del){ c.fillStyle='#3bff7a'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.shadowColor='#3bff7a'; c.shadowBlur=12; c.fillText('✔',x0+w/2,h.y+10); c.shadowBlur=0; } }
-function drawHazard(c,h,tt){ c.save(); c.translate(h.x,h.y); if(h.fly) c.rotate(h.r);
-  if(h.k==='drain'){ c.fillStyle='#0a0a10'; c.fillRect(-18,-11,36,22); c.strokeStyle='#5a5a70'; c.lineWidth=2; c.strokeRect(-18,-11,36,22); for(let i=-12;i<=12;i+=6){ c.beginPath(); c.moveTo(i,-10); c.lineTo(i,10); c.stroke(); } }
-  else if(h.k==='cone'){ c.fillStyle='rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(4,6,14,8,0,0,7); c.fill(); c.fillStyle='#ff7a1c'; c.shadowColor='#ff7a1c'; c.shadowBlur=10; c.beginPath(); c.arc(0,0,12,0,7); c.fill(); c.shadowBlur=0; c.strokeStyle='#fff'; c.lineWidth=3; c.beginPath(); c.arc(0,0,7,0,7); c.stroke(); c.fillStyle='#ffb070'; c.beginPath(); c.arc(0,0,3,0,7); c.fill(); }
-  else if(h.k==='car'){ // oncoming car with headlights
-    const beam=c.createLinearGradient(0,40,0,170); beam.addColorStop(0,'rgba(255,250,200,.35)'); beam.addColorStop(1,'rgba(255,250,200,0)'); c.fillStyle=beam; c.beginPath(); c.moveTo(-18,40); c.lineTo(-48,170); c.lineTo(48,170); c.lineTo(18,40); c.fill();
-    c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(-21,-38,46,84); const g=c.createLinearGradient(-23,0,23,0); g.addColorStop(0,shade(h.col,-50)); g.addColorStop(.5,h.col); g.addColorStop(1,shade(h.col,-50)); c.fillStyle=g; c.beginPath(); c.roundRect?c.roundRect(-23,-42,46,84,10):c.rect(-23,-42,46,84); c.fill();
-    c.fillStyle='#0d1a2a'; c.fillRect(-17,10,34,16); c.fillRect(-17,-30,34,10); c.fillStyle='rgba(255,255,255,.25)'; c.fillRect(-15,12,12,4);
-    c.fillStyle='#fffbe0'; c.shadowColor='#fffbe0'; c.shadowBlur=16; c.fillRect(-19,36,10,5); c.fillRect(9,36,10,5); c.shadowBlur=0; c.fillStyle='#ff2a2a'; c.fillRect(-19,-42,9,4); c.fillRect(10,-42,9,4); }
-  else if(h.k==='dog'){ const run=h.st==='run'; const leg=run?Math.sin(tt*24)*6:Math.sin(tt*4)*2; c.scale(h.st==='run'?(h.vx>0?1:-1):(-h.side),1);
+  c.fillStyle='#0b0f22'; c.fillRect(0,0,W,HT);
+  const lg=c.createLinearGradient(0,HT,0,LAWN); lg.addColorStop(0,'#0f3020'); lg.addColorStop(1,'#154a2c'); c.fillStyle=lg; c.fillRect(0,HT-14,W,LAWN-HT+14);
+  c.fillStyle='rgba(255,255,255,.035)'; for(let i=0;i<20;i++){ const x=((i*97-sc)%(W+60)+W+60)%(W+60)-30; c.fillRect(x,HT+i%5*40,3,26); }
+  c.fillStyle='#4a4a5e'; c.fillRect(0,LAWN,W,SWB-LAWN); c.fillStyle='#3c3c4e'; for(let x=-sc%44;x<W;x+=44) c.fillRect(x,LAWN,2,SWB-LAWN);
+  const rg=c.createLinearGradient(0,RT,0,RB); rg.addColorStop(0,'#1c1c28'); rg.addColorStop(.5,'#26263a'); rg.addColorStop(1,'#1c1c28'); c.fillStyle=rg; c.fillRect(0,RT,W,RB-RT);
+  c.fillStyle='#8a8aa0'; c.fillRect(0,RT,W,3); c.fillRect(0,RB,W,4);
+  c.fillStyle='rgba(255,210,63,.75)'; for(let x=-(sc%80);x<W;x+=80){ c.fillRect(x,400-2,40,4); c.fillRect(x,480-2,40,4); }
+  // park + hedges below the road
+  const pg=c.createLinearGradient(0,RB,0,H); pg.addColorStop(0,'#123d26'); pg.addColorStop(1,'#0b2618'); c.fillStyle=pg; c.fillRect(0,RB+4,W,H-RB);
+  c.fillStyle='#4a4a5e'; c.fillRect(0,RB+4,W,18);
+  for(let k=-1;k<9;k++){ const x=k*170-((sc*1)%170); c.fillStyle='#0e3a1e'; c.beginPath(); c.arc(x+60,RB+90,34,0,7); c.arc(x+92,RB+82,28,0,7); c.fill(); c.fillStyle='rgba(120,255,160,.08)'; c.beginPath(); c.arc(x+56,RB+80,18,0,7); c.fill(); }
+  // street lamps on the sidewalk
+  for(let k=-1;k<6;k++){ const x=k*300-((sc)%300)+150; const gg=c.createRadialGradient(x,LAWN+14,4,x,LAWN+14,150); gg.addColorStop(0,'rgba(255,220,140,.28)'); gg.addColorStop(1,'rgba(255,220,140,0)'); c.fillStyle=gg; c.fillRect(x-150,LAWN-136,300,300); c.fillStyle='#ffe9b0'; c.shadowColor='#ffd27a'; c.shadowBlur=16; c.beginPath(); c.arc(x,LAWN+14,5,0,7); c.fill(); c.shadowBlur=0; } }
+function drawHouse(c,h,x0,tt){ const glow=h.sub&&!h.del, y0=HT, hh=HB-HT, w=HW-20, x=x0+10;
+  // path from door to sidewalk + mailbox
+  c.fillStyle='#6a6a7e'; c.fillRect(x+w/2-8,HB,16,LAWN-HB);
+  c.save(); if(glow){ c.shadowColor=h.col; c.shadowBlur=26+Math.sin(tt*5+h.seed*9)*10; }
+  c.fillStyle=h.sub?h.col:'#2c3550'; c.fillRect(x,y0,w,hh); c.restore();
+  c.fillStyle='rgba(0,0,0,.25)'; c.fillRect(x,y0,w,hh/2); c.fillStyle='rgba(255,255,255,.18)'; c.fillRect(x,y0+hh/2-1,w,2);
+  c.fillStyle='rgba(0,0,0,.22)'; for(let xx=x+10;xx<x+w;xx+=14) c.fillRect(xx,y0,1.5,hh);
+  c.fillStyle='#5a3a2a'; c.fillRect(x+w-36,y0+14,16,16);
+  for(const wx of [x+18,x+w-46]){ c.fillStyle=h.sub?'#ffe9a0':'#1e2840'; if(h.sub){ c.shadowColor='#ffd27a'; c.shadowBlur=12; } c.fillRect(wx,HB-6,28,10); c.shadowBlur=0; }
+  c.fillStyle=h.del?'#7dffb0':'#3a2414'; c.fillRect(x+w/2-12,HB-6,24,10);
+  const mx=x0+HW-26; c.fillStyle='#555'; c.fillRect(mx-2,MBY,4,16);
+  c.fillStyle=h.sub?(h.del?'#3bff7a':'#ff3b3b'):'#55556a'; if(glow){ c.shadowColor='#ff3b3b'; c.shadowBlur=10; } c.fillRect(mx-11,MBY-12,22,14); c.shadowBlur=0;
+  if(glow){ c.fillStyle='#ffd23f'; c.fillRect(mx+8,MBY-24,4,12); }
+  c.textAlign='center';
+  if(glow){ const by=y0+hh/2+10+Math.sin(tt*4+h.seed*7)*4; c.font='bold 34px sans-serif'; c.fillText('🗞️',x+w/2,by); }
+  else if(!h.sub){ c.fillStyle='rgba(255,255,255,.25)'; c.font='bold 13px sans-serif'; c.fillText('NO PAPER',x+w/2,y0+hh/2+5); }
+  if(h.del){ c.fillStyle='#3bff7a'; c.font='bold 40px sans-serif'; c.shadowColor='#3bff7a'; c.shadowBlur=12; c.fillText('✔',x+w/2,y0+hh/2+14); c.shadowBlur=0; }
+  if(h.missed&&!h.del){ c.fillStyle='#ff5a5a'; c.font='bold 34px sans-serif'; c.fillText('✖',x+w/2,y0+hh/2+12); } }
+function drawTarget(c){ const T=tgt, pulse=1+Math.sin(t*10)*0.12, col=T.perfect?'#ffd23f':'#4fd1ff';
+  c.save(); c.strokeStyle=col; c.lineWidth=4; c.shadowColor=col; c.shadowBlur=14; c.beginPath(); c.arc(T.x,T.y-4,(T.dog?40:26)*pulse,0,7); c.stroke(); c.shadowBlur=0;
+  c.setLineDash([10,8]); c.globalAlpha=.55; c.lineWidth=2; c.beginPath(); c.moveTo(bk.x+10,bk.y-14); c.quadraticCurveTo((bk.x+T.x)/2,Math.min(bk.y,T.y)-80,T.x,T.y); c.stroke(); c.setLineDash([]); c.globalAlpha=1;
+  c.fillStyle=col; c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillText(T.perfect?'PERFECT! THROW':'THROW!',T.x,T.y+(T.dog?-48:44)); c.restore(); }
+function drawHazard(c,h,sx,tt){ c.save(); c.translate(sx,h.y); if(h.fly) c.rotate(h.r);
+  if(h.k==='drain'){ c.fillStyle='#0a0a10'; c.fillRect(-20,-13,40,26); c.strokeStyle='#6a6a80'; c.lineWidth=2; c.strokeRect(-20,-13,40,26); for(let i=-14;i<=14;i+=7){ c.beginPath(); c.moveTo(i,-12); c.lineTo(i,12); c.stroke(); } }
+  else if(h.k==='cone'){ c.fillStyle='rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(4,6,15,8,0,0,7); c.fill(); c.fillStyle='#ff7a1c'; c.shadowColor='#ff7a1c'; c.shadowBlur=10; c.beginPath(); c.arc(0,0,13,0,7); c.fill(); c.shadowBlur=0; c.strokeStyle='#fff'; c.lineWidth=3; c.beginPath(); c.arc(0,0,8,0,7); c.stroke(); c.fillStyle='#ffb070'; c.beginPath(); c.arc(0,0,3,0,7); c.fill(); }
+  else if(h.k==='car'){ // oncoming car (drives LEFT, towards you) with headlights
+    const beam=c.createLinearGradient(-50,0,-200,0); beam.addColorStop(0,'rgba(255,250,200,.35)'); beam.addColorStop(1,'rgba(255,250,200,0)'); c.fillStyle=beam; c.beginPath(); c.moveTo(-50,-16); c.lineTo(-200,-46); c.lineTo(-200,46); c.lineTo(-50,16); c.fill();
+    c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(-46,-20,100,48); const g=c.createLinearGradient(0,-24,0,24); g.addColorStop(0,shade(h.col,-50)); g.addColorStop(.5,h.col); g.addColorStop(1,shade(h.col,-50)); c.fillStyle=g; c.beginPath(); c.roundRect?c.roundRect(-50,-24,100,48,10):c.rect(-50,-24,100,48); c.fill();
+    c.fillStyle='#0d1a2a'; c.fillRect(-30,-19,18,38); c.fillRect(24,-19,12,38); c.fillStyle='rgba(255,255,255,.25)'; c.fillRect(-28,-17,5,14);
+    c.fillStyle='#fffbe0'; c.shadowColor='#fffbe0'; c.shadowBlur=16; c.fillRect(-50,-20,5,10); c.fillRect(-50,10,5,10); c.shadowBlur=0; c.fillStyle='#ff2a2a'; c.fillRect(46,-20,4,9); c.fillRect(46,11,4,9); }
+  else if(h.k==='dog'){ const run=h.st==='run'; const leg=run?Math.sin(tt*24)*6:Math.sin(tt*4)*2; c.rotate(run?Math.PI/2:Math.PI);
     c.fillStyle='rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(0,8,20,7,0,0,7); c.fill(); c.fillStyle='#8a5a2a'; c.fillRect(-12+leg,4,4,8); c.fillRect(8-leg,4,4,8);
     c.beginPath(); c.ellipse(0,0,17,9,0,0,7); c.fill(); c.beginPath(); c.arc(16,-3,8,0,7); c.fill(); c.fillStyle='#5a3a1a'; c.beginPath(); c.ellipse(13,-9,3,6,-.4,0,7); c.fill(); c.fillStyle='#000'; c.fillRect(19,-5,2,2); c.fillRect(23,-2,3,3);
-    c.strokeStyle='#8a5a2a'; c.lineWidth=3; c.beginPath(); c.moveTo(-16,-2); c.lineTo(-24,-8+Math.sin(tt*20)*4); c.stroke(); if(!run){ c.fillStyle='#ff3b3b'; c.font='bold 18px sans-serif'; c.textAlign='center'; c.scale(1,1); c.fillText('!',0,-16); } }
-  else if(h.k==='skater'){ c.fillStyle='#333'; c.fillRect(-6,-14,12,30); c.fillStyle='#ffd23f'; c.fillRect(-7,-12,2,3); c.fillRect(5,-12,2,3); c.fillRect(-7,10,2,3); c.fillRect(5,10,2,3);
-    c.fillStyle=h.col; c.beginPath(); c.ellipse(0,0,11,7,0,0,7); c.fill(); c.fillStyle='#f0c090'; c.beginPath(); c.arc(0,-2,6,0,7); c.fill(); c.fillStyle=h.col; c.fillRect(-6,-6,12,4); }
+    c.strokeStyle='#8a5a2a'; c.lineWidth=3; c.beginPath(); c.moveTo(-16,-2); c.lineTo(-24,-8+Math.sin(tt*20)*4); c.stroke(); c.restore(); c.save(); c.translate(sx,h.y);
+    if(!run){ c.fillStyle='#ff3b3b'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.fillText('!',0,-18); } }
+  else if(h.k==='skater'){ c.rotate(Math.PI/2); c.fillStyle='#333'; c.fillRect(-6,-14,12,30); c.fillStyle='#ffd23f'; c.fillRect(-7,-12,2,3); c.fillRect(5,-12,2,3); c.fillRect(-7,10,2,3); c.fillRect(5,10,2,3);
+    c.fillStyle=h.col||'#ff7ab8'; c.beginPath(); c.ellipse(0,0,11,7,0,0,7); c.fill(); c.fillStyle='#f0c090'; c.beginPath(); c.arc(0,-2,6,0,7); c.fill(); }
   c.restore(); }
-function drawDog(c,d,tt){ c.save(); c.translate(d.x,d.y);
-  if(d.st==='aim'){ c.save(); c.translate(-d.x,0); c.fillStyle='rgba(255,40,60,'+(0.18+Math.sin(tt*20)*0.08)+')'; c.fillRect(0,-34,W,68); c.setLineDash([16,10]); c.strokeStyle='#ff3b5c'; c.lineWidth=3; c.beginPath(); c.moveTo(0,0); c.lineTo(W,0); c.stroke(); c.setLineDash([]); c.restore(); }
-  const dir=d.st==='lunge'?Math.sign(d.vx):-d.side, s=1.9, leg=(d.st==='lunge'||d.st==='trot')?Math.sin(tt*22)*7:0; c.scale(dir*s,s);
+function drawDog(c,d,tt){
+  if(d.st==='aim'){ c.save(); c.strokeStyle='#ff3b5c'; c.lineWidth=4; c.setLineDash([16,10]); c.globalAlpha=.6+Math.sin(tt*20)*.3; c.beginPath(); c.moveTo(d.x,d.y); c.lineTo(d.ax,d.ay); c.stroke(); c.setLineDash([]); c.fillStyle='rgba(255,40,60,.3)'; c.beginPath(); c.arc(d.ax,d.ay,40,0,7); c.fill(); c.restore(); }
+  c.save(); c.translate(d.x,d.y);
+  const ang=d.st==='lunge'?Math.atan2(d.vy,d.vx):Math.PI/2, s=1.9, leg=(d.st==='lunge'||d.st==='trot')?Math.sin(tt*22)*7:0; c.rotate(ang); c.scale(s,s);
   if(d.hit>0) c.globalAlpha=0.6+Math.sin(tt*60)*0.4;
   c.fillStyle='rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(0,10,22,7,0,0,7); c.fill();
   c.fillStyle='#3a2a1e'; c.fillRect(-14+leg,4,5,10); c.fillRect(9-leg,4,5,10);
@@ -671,16 +703,15 @@ function drawDog(c,d,tt){ c.save(); c.translate(d.x,d.y);
   c.fillStyle='#ff3b3b'; c.fillRect(8,-12,4,16); c.fillStyle='#c0c0c8'; for(let i=0;i<3;i++){ c.beginPath(); c.moveTo(9,-12+i*5); c.lineTo(5,-10+i*5); c.lineTo(9,-8+i*5); c.fill(); }
   c.fillStyle='#ff2a2a'; c.shadowColor='#ff2a2a'; c.shadowBlur=8; c.fillRect(21,-8,3,3); c.shadowBlur=0; c.fillStyle='#fff'; c.fillRect(24,0,2,3); c.fillRect(27,0,2,3);
   c.restore();
-  if(d.st==='dizzy'){ for(let i=0;i<3;i++){ const a=tt*6+i*2.1; c.fillStyle='#ffd23f'; c.font='16px sans-serif'; c.textAlign='center'; c.fillText('★',d.x+Math.cos(a)*24,d.y-34+Math.sin(a)*8); } }
-  c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(d.x-34,d.y-50,68,7); c.fillStyle='#ff3b5c'; c.fillRect(d.x-34,d.y-50,68*Math.max(0,d.hp/d.max),7); }
-function drawBike(c,x,y,lean,tt,col,helmet,blink){ if(blink&&Math.floor(tt*12)%2) return; c.save(); c.translate(x,y); c.scale(1.35,1.35); c.rotate(lean*0.25);
+  if(d.st==='dizzy'){ for(let i=0;i<3;i++){ const a=tt*6+i*2.1; c.fillStyle='#ffd23f'; c.font='18px sans-serif'; c.textAlign='center'; c.fillText('★',d.x+Math.cos(a)*26,d.y-36+Math.sin(a)*8); } }
+  c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(d.x-40,d.y-56,80,8); c.fillStyle='#ff3b5c'; c.fillRect(d.x-40,d.y-56,80*Math.max(0,d.hp/d.max),8); }
+function drawBike(c,x,y,lean,tt,col,helmet,blink){ if(blink&&Math.floor(tt*12)%2) return; c.save(); c.translate(x,y); c.rotate(Math.PI/2+lean*0.3); c.scale(1.5,1.5);
   c.fillStyle='rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(5,8,14,30,0,0,7); c.fill();
-  // headlight
   const hg=c.createLinearGradient(0,-30,0,-150); hg.addColorStop(0,'rgba(255,250,210,.4)'); hg.addColorStop(1,'rgba(255,250,210,0)'); c.fillStyle=hg; c.beginPath(); c.moveTo(-6,-30); c.lineTo(-34,-150); c.lineTo(34,-150); c.lineTo(6,-30); c.fill();
-  c.fillStyle='#111'; c.fillRect(-3,-34,6,18); c.fillRect(-3,16,6,18); // wheels
-  c.fillStyle=col; c.shadowColor=col; c.shadowBlur=12; c.fillRect(-2,-18,4,36); c.shadowBlur=0; c.fillRect(-14,-20,28,3); // frame + bars
-  const p=Math.sin(tt*14)*6; c.fillStyle='#2e3a6e'; c.fillRect(-9,-2+p,5,12); c.fillRect(4,-2-p,5,12); // legs pedalling
-  c.fillStyle='#f4f1e6'; c.fillRect(-15,2,8,14); c.fillRect(7,2,8,14); c.fillStyle='#ff3b3b'; c.fillRect(-15,7,8,3); c.fillRect(7,7,8,3); // paper bags
+  c.fillStyle='#111'; c.fillRect(-3,-34,6,18); c.fillRect(-3,16,6,18);
+  c.fillStyle=col; c.shadowColor=col; c.shadowBlur=12; c.fillRect(-2,-18,4,36); c.shadowBlur=0; c.fillRect(-14,-20,28,3);
+  const p=Math.sin(tt*14)*6; c.fillStyle='#2e3a6e'; c.fillRect(-9,-2+p,5,12); c.fillRect(4,-2-p,5,12);
+  c.fillStyle='#f4f1e6'; c.fillRect(-15,2,8,14); c.fillRect(7,2,8,14); c.fillStyle='#ff3b3b'; c.fillRect(-15,7,8,3); c.fillRect(7,7,8,3);
   c.fillStyle='#e8e8f0'; c.beginPath(); c.ellipse(0,-4,11,8,0,0,7); c.fill(); c.fillStyle='#f0c090'; c.fillRect(-15,-21,4,4); c.fillRect(11,-21,4,4);
   c.fillStyle=helmet?'#ffd23f':col; if(helmet){ c.shadowColor='#ffd23f'; c.shadowBlur=18; } c.beginPath(); c.arc(0,-6,7,0,7); c.fill(); c.shadowBlur=0; c.fillStyle='rgba(0,0,0,.3)'; c.fillRect(-7,-14,14,4);
   if(helmet){ c.strokeStyle='rgba(255,210,63,.6)'; c.lineWidth=3; c.beginPath(); c.arc(0,0,34+Math.sin(tt*10)*3,0,7); c.stroke(); }
