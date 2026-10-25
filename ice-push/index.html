@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-IP-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-IP-1.2 · 2026-10-25">
 <title>Ice Push</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,51 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
+
+/* SHELL-LANDSCAPE-2: upright hint is a small strip, never a blocking cover */
+#app #rotate{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:auto!important;height:auto!important;inset:0 0 auto 0!important;padding:6px 10px!important;background:#000c!important;font:700 12px system-ui,sans-serif!important;color:#ffd23f!important;text-align:center!important;z-index:40!important;pointer-events:none!important;display:block}
+#app #rotate.hidden{display:none!important}
 
 </style>
 </head>
 <body>
-<!-- BUILD-IP-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-IP-1.2 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,85 +471,133 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* ICE PUSH — Pengo remix (#46). 100 stages. Kick ice blocks to squash the snow-beasts. */
+/* ICE PUSH — Pengo remix (#46). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1): a wide ice field.
+   Andrew 25 Oct: "the penguin almost doesn't move". Now: EVERY press of the stick / arrow / swipe moves him one tile at once
+   (a press during a step is queued, never lost; holding repeats), and the 🧊 PUSH button (right thumb, SPACE) kicks the
+   ice block he is facing. Walking into a block only turns him to face it. Beginner 1-10: 1-2 slow beasts. */
 (function(){
-const W=600,H=900,CS=46,GW=13,GH=15,OX=(W-13*46)/2,OY=150;
-let api,t,grid,pl,ens,slides,done,lost,eff,grace,swipe,moveT,stunT,eggs;
+const W=1280,H=720,CS=44,GW=17,GH=13,OX=(W-GW*CS)/2,OY=110;
+let api,t,grid,pl,ens,slides,done,lost,eff,grace,swipe,eggs,buf=[],pushBuf,hold,bumpT,moves,hintT,kq=new Set(),idleT=0;
 const cx=i=>OX+i*CS+CS/2, cy=j=>OY+j*CS+CS/2, inb=(i,j)=>i>=0&&j>=0&&i<GW&&j<GH;
+const DIRS={L:[-1,0],R:[1,0],U:[0,-1],D:[0,1]};
+const easy=()=>api.diff===0&&!api.tutorial&&api.level<=10;     // Beginner stages 1-10: much easier
+function raceOn(){ const el=document.getElementById('mpBars'); return !!(el&&el.style.display!=='none'&&el.innerHTML); }
+// the shell slows Beginner 1-10 down (0.65x..0.97x) — the penguin must NOT feel slow, so his steps undo that
+function asc(){ if(api.diff!==0||api.tutorial||!(api.stage>=1)||api.stage>10||raceOn()) return 1; return 0.65+(api.stage-1)*0.035; }
+/* stage generator — ONLY Math.random, all at stage start (race = same seed = same field on every phone) */
 function maze(a){ grid=[...Array(GH)].map(()=>Array(GW).fill(1));
-  // carve a maze (odd cells), then open extra holes
   const st=[[0,0]]; grid[0][0]=0; while(st.length){ const [x,y]=st[st.length-1]; const nb=[[2,0],[-2,0],[0,2],[0,-2]].map(([dx,dy])=>[x+dx,y+dy,x+dx/2,y+dy/2]).filter(([nx,ny])=>inb(nx,ny)&&grid[ny][nx]===1); if(!nb.length){ st.pop(); continue; } const [nx,ny,mx,my]=nb[Math.floor(Math.random()*nb.length)]; grid[my][mx]=0; grid[ny][nx]=0; st.push([nx,ny]); }
-  for(let k=0;k<30;k++){ const x=Math.floor(Math.random()*GW), y=Math.floor(Math.random()*GH); grid[y][x]=0; }
-  const dia=a.content===0?0:3; for(let k=0;k<dia;k++){ for(let tries=0;tries<50;tries++){ const x=Math.floor(Math.random()*GW), y=Math.floor(Math.random()*GH); if(grid[y][x]===1){ grid[y][x]=2; break; } } } }
+  const holes=a.content===0?70:easy()?60:40; for(let k=0;k<holes;k++){ const x=Math.floor(Math.random()*GW), y=Math.floor(Math.random()*GH); grid[y][x]=0; }
+  const dia=a.content===0?0:3; for(let k=0;k<dia;k++){ for(let tries=0;tries<50;tries++){ const x=1+Math.floor(Math.random()*(GW-2)), y=1+Math.floor(Math.random()*(GH-2)); if(grid[y][x]===1){ grid[y][x]=2; break; } } } }
+function reach(){ const seen=new Set([pl.i+','+pl.j]), q=[[pl.i,pl.j]], out=[]; while(q.length){ const [i,j]=q.shift(); out.push([i,j]); for(const [dx,dy] of Object.values(DIRS)){ const ni=i+dx,nj=j+dy,k=ni+','+nj; if(inb(ni,nj)&&!grid[nj][ni]&&!seen.has(k)){ seen.add(k); q.push([ni,nj]); } } } return out; }
 const GAME=window.GAME={
   id:'ice-push',title:'Ice Push',titleHTML:'ICE<br>PUSH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-IP-1.1 · 2026-10-17',theme:{a:'#7df9ff',b:'#ff3bd4',bg:'#061428'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🐧',joystick:false,coinPts:40,
+  build:'BUILD-IP-1.2 · 2026-10-25',theme:{a:'#7df9ff',b:'#ff3bd4',bg:'#061428'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🐧',joystick:true,coinPts:40,
   abilities:[
+    {id:'push',icon:'🧊',name:'PUSH',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — kick the ice block your penguin is facing. It slides until it hits something and squashes every beast in its way. One push per tap.'},
     {id:'freeze',icon:'❄️',name:'FREEZE',cd:20,key:'Digit1',keyLabel:'1',desc:'Freezes all snow-beasts for 5 seconds. Frozen beasts can\'t hurt you — walk over them to squash them!'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'6 seconds of safety.'},
-    {id:'speed',icon:'👟',name:'SPEED',cd:15,key:'Digit3',keyLabel:'3',desc:'Waddle twice as fast for 8 seconds.'},
+    {id:'speed',icon:'👟',name:'SPEED',cd:15,key:'Digit3',keyLabel:'3',desc:'Waddle even faster for 8 seconds.'},
     {id:'quake',icon:'💢',name:'WALL QUAKE',cd:15,key:'Digit4',keyLabel:'4',desc:'Shake the walls: beasts next to the edge are knocked out, the rest are stunned for 3 seconds.'}],
   shop:[{id:'p_b',cat:'Penguin',name:'Blue Penguin',cost:0,colors:['#2e7bff'],desc:'Classic.'},{id:'p_r',cat:'Penguin',name:'Rockhopper',cost:150,colors:['#ffd23f'],desc:'Yellow crest.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#7df9ff,#ff3bd4)'}],
   story:`<h3>ICE PUSH</h3><p>Snow-beasts have hatched all over the ice field. Kick the ice blocks, squash them flat, and line up the three diamond blocks for a big bonus.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Swipe</b> or tap beside the penguin to move (arrow keys on PC).</li><li>Walk INTO an ice block to kick it — it slides until it hits something and squashes any beast in the way.</li><li>Kick a block that's against another block or the wall and it breaks.</li><li>Squash every snow-beast to clear the stage. Line up the 3 💎 blocks for a bonus.</li></ul>`,
-  tutorial:[{text:'Swipe toward an ice block to kick it at the snow-beast!',ev:'squash'},{text:'Squash them all!',time:5}],
-  stageIntro:{1:'SQUASH THE SNOW-BEASTS'},bossName:'BEAST QUEEN!',ending:{"0":["#ICE COLD","The ice field is yours."],"1":["#CHAMPION","Penguin champion."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={freeze:5,shield:6,speed:8}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pl(){return {x:pl.x,y:pl.y};}, get ens(){return ens;}, get lost(){return lost;}, move:(dx,dy)=>step(dx,dy)}; },
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> push the stick — the penguin steps one square straight away. Keep holding to keep walking. You can also swipe on the right side. PC: arrow keys or WASD.</li><li><b>Right thumb:</b> tap <b>🧊 PUSH</b> to kick the ice block in front of the penguin (PC: SPACE). It slides until it hits something and squashes any beast in the way.</li><li>Walking into a block just turns the penguin to face it — the block glows and says PUSH.</li><li>Push a block that's stuck against another block or the wall and it breaks.</li><li>Squash every snow-beast to clear the stage. Line up the 3 💎 blocks for a bonus.</li><li>Every 10th stage: the BEAST QUEEN.</li></ul>`,
+  tutorial:[{text:'Arrow keys move one square per press. Face a block and press <b>SPACE</b> to PUSH it at the snow-beast!',touch:'Left thumb moves one square per push. Face a block and tap <b>🧊 PUSH</b> to kick it at the snow-beast!',ev:'squash'},{text:'Squash them all!',time:5}],
+  stageIntro:{1:'FACE A BLOCK · TAP 🧊 PUSH'},bossName:'BEAST QUEEN!',ending:{"0":["#ICE COLD","The ice field is yours."],"1":["#CHAMPION","Penguin champion."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ const tot={freeze:5,shield:6,speed:8}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get eggs(){return eggs;}, get lost(){return lost;}, get done(){return done;}, get grid(){return grid;}, get slides(){return slides;}, get moves(){return moves;}, GW,GH,
+    sig:()=>grid.map(r=>r.join('')).join('/')+'|'+ens.map(e=>e.i+','+e.j).join(';')+'|'+eggs, move:(dx,dy)=>step(dx,dy)}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={freeze:-9,shield:-9,speed:-9}; slides=[]; grace=1.5; moveT=0; stunT=0; maze(a);
-    pl={i:6,j:7,x:cx(6),y:cy(7),fi:6,fj:7,a:1}; grid[7][6]=0; grid[7][5]=0; grid[7][7]=0;
-    ens=[]; const nE=a.content===0?1:Math.min(10,Math.round(a.dv([3,4,6],7,10))); eggs=a.content===0?0:Math.round(a.dv([2,4,6],8,12)); if(a.boss) eggs+=4;
-    for(let k=0;k<nE;k++) spawnBeast(a.boss&&k===0); },
-  respawn(){ lost=false; grace=2.5; pl.i=6; pl.j=7; pl.x=cx(6); pl.y=cy(7); pl.a=1; grid[7][6]=0; ens.forEach(e=>{ if(Math.abs(e.i-6)+Math.abs(e.j-7)<5){ const p=farCell(); e.i=p[0]; e.j=p[1]; e.x=cx(e.i); e.y=cy(e.j); } }); },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={freeze:-9,shield:-9,speed:-9}; slides=[]; grace=easy()?2.5:1.5; buf=[]; pushBuf=false; hold={d:null,t:0}; bumpT=0; moves=0; idleT=0; hintT=0; swipe=null; maze(a);
+    const si=8,sj=6; pl={i:si,j:sj,x:cx(si),y:cy(sj),fi:si,fj:sj,a:1,fx:1,fy:0}; grid[sj][si]=0; grid[sj][si-1]=0; grid[sj][si+1]=0;
+    if(grid[sj-1][si]) { pl.fx=0; pl.fy=-1; } else if(grid[sj+1][si]) { pl.fx=0; pl.fy=1; }   // start facing a block if one is next to him
+    ens=[]; let nE, ne;
+    if(a.content===0){ nE=1; ne=0; }
+    else if(easy()){ const L=a.level; nE=a.boss?2:L<=3?1:2; ne=a.boss?1:L<=3?0:L<=7?1:2; }
+    else { nE=Math.min(10,Math.round(a.dv([3,4,6],7,10))); ne=Math.round(a.dv([2,4,6],8,12)); if(a.boss) ne+=4; }
+    eggs=ne; for(let k=0;k<nE;k++) spawnBeast(a.boss&&k===0); },
+  respawn(){ lost=false; grace=2.5; buf=[]; pushBuf=false; pl.i=8; pl.j=6; pl.fi=8; pl.fj=6; pl.x=cx(8); pl.y=cy(6); pl.a=1; grid[6][8]=0;
+    ens.forEach(e=>{ if(Math.abs(e.i-8)+Math.abs(e.j-6)<5){ const p=farCell(); e.i=e.fi=p[0]; e.j=e.fj=p[1]; e.x=cx(e.i); e.y=cy(e.j); e.stun=1; } }); },
   stageBonus(){ return 0; },
   useAbility(id){ if(done||lost) return false;
+    if(id==='push'){ if(pl.a>=1) push(); else pushBuf=true; return true; }
     if(id==='quake'){ ens.forEach(e=>{ if(e.i===0||e.j===0||e.i===GW-1||e.j===GH-1) kill(e,'quake'); else e.stun=3; }); api.fx.shake(14); api.sfx.boom(); return true; }
     eff[id]={freeze:5,shield:6,speed:8}[id]; api.sfx.power(); return true; },
-  onPointer(type,x,y){ if(done||lost) return; if(type==='down') swipe={x,y}; else if(type==='up'&&swipe){ let dx=x-swipe.x, dy=y-swipe.y; if(Math.hypot(dx,dy)<25){ dx=x-pl.x; dy=y-pl.y; } if(Math.abs(dx)>Math.abs(dy)) step(Math.sign(dx),0); else step(0,Math.sign(dy)); swipe=null; } },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; if(lost) return;
-    const K=api.input.keys, ps=eff.speed>0?11:6.5; if(pl.a<1) pl.a=Math.min(1,pl.a+dt*ps); pl.x=cx(pl.fi)+(cx(pl.i)-cx(pl.fi))*pl.a; pl.y=cy(pl.fj)+(cy(pl.j)-cy(pl.fj))*pl.a;
-    if(pl.a>=1){ if(K.ArrowLeft||K.KeyA) step(-1,0); else if(K.ArrowRight||K.KeyD) step(1,0); else if(K.ArrowUp||K.KeyW) step(0,-1); else if(K.ArrowDown||K.KeyS) step(0,1); }
+  // PC keys: a press is caught here even if it is released before the next frame — never lost
+  onKey(code,down){ if(!down||done||lost) return; const d={ArrowLeft:'L',KeyA:'L',ArrowRight:'R',KeyD:'R',ArrowUp:'U',KeyW:'U',ArrowDown:'D',KeyS:'D'}[code]; if(d){ want(d); kq.add(d); } },
+  // swipe: on the RIGHT half for touch (the left half is the stick), anywhere for a mouse. Each ~50 game px (~27 screen px on a phone) of drag = one step.
+  onPointer(type,x,y,id,pt){ if(done||lost) return; const touch=pt==='touch'||pt==='pen';
+    if(type==='down'){ if(touch&&x<W/2) return; swipe={x,y,x0:x,y0:y,id,n:0}; return; }
+    if(!swipe||swipe.id!==id) return;
+    if(type==='move'){ const dx=x-swipe.x, dy=y-swipe.y; if(Math.hypot(dx,dy)>=50){ want(Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U')); swipe.x=x; swipe.y=y; swipe.n++; } return; }
+    if(type==='up'){ if(!swipe.n&&!touch&&Math.hypot(x-swipe.x0,y-swipe.y0)<20){ const dx=x-pl.x, dy=y-pl.y; if(Math.max(Math.abs(dx),Math.abs(dy))>CS*0.5) want(Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U')); } swipe=null; } },
+  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; bumpT-=dt; hintT-=dt; idleT+=dt; if(lost) return;   // idleT: a player who does nothing gets hunted down (no hands = no win)
+    const pdt=dt/asc(), ps=eff.speed>0?15:10;   // penguin: 10 squares/second (0.1 s per step) in REAL time
+    // stick / held keys: a NEW direction steps at once; holding repeats after 0.18 s
+    const d=api.input.dir4();
+    if(d!==hold.d){ hold.d=d; hold.t=0; if(d&&!kq.has(d)) want(d); } else if(d) hold.t+=pdt; kq.clear();
+    if(pl.a<1){ pl.a=Math.min(1,pl.a+pdt*ps); }
+    if(pl.a>=1){ if(!buf.length&&d&&hold.t>=0.18) want(d,true); if(buf.length){ const b=buf.shift(); step(DIRS[b.d][0],DIRS[b.d][1],b.rep); } if(pl.a>=1&&pushBuf){ pushBuf=false; push(); } }
+    pl.x=cx(pl.fi)+(cx(pl.i)-cx(pl.fi))*pl.a; pl.y=cy(pl.fj)+(cy(pl.j)-cy(pl.fj))*pl.a;
     // sliding blocks
-    slides.forEach(s=>{ s.p+=dt*14; while(s.p>=1&&!s.stop){ s.p-=1; const ni=s.i+s.dx, nj=s.j+s.dy; if(!inb(ni,nj)||grid[nj][ni]){ s.stop=true; grid[s.j][s.i]=s.v; checkDiamonds(); break; } s.i=ni; s.j=nj; ens.forEach(e=>{ if(!e.dead&&e.i===s.i&&e.j===s.j){ kill(e,'block'); s.kills=(s.kills||0)+1; } }); } s.x=cx(s.i)+s.dx*s.p*CS; s.y=cy(s.j)+s.dy*s.p*CS; });
+    slides.forEach(s=>{ s.p+=dt*14; while(s.p>=1&&!s.stop){ s.p-=1; const ni=s.i+s.dx, nj=s.j+s.dy; if(!inb(ni,nj)||grid[nj][ni]){ s.stop=true; grid[s.j][s.i]=s.v; checkDiamonds(); break; } s.i=ni; s.j=nj; } s.x=cx(s.i)+s.dx*(s.stop?0:s.p)*CS; s.y=cy(s.j)+s.dy*(s.stop?0:s.p)*CS;
+      ens.forEach(e=>{ if(!e.dead&&((e.i===s.i&&e.j===s.j)||Math.hypot(e.x-s.x,e.y-s.y)<CS*0.6)){ kill(e,'block'); s.kills=(s.kills||0)+1; if(s.kills>1) api.toast('MULTI SQUASH! x'+s.kills); } }); });
     slides=slides.filter(s=>!s.stop);
-    const sp=api.dv([2.2,3,3.8],4.4,6)*(api.boss?1.15:1);
+    const E=easy(), sp=E?1.3+api.level*0.06:api.dv([2.2,3,3.8],4.4,6)*(api.boss?1.15:1), chase=idleT>15?0.95:E?0.35:api.dv([0.55,0.7,0.85],0.9,0.95), dig=E?0:api.dv([0.02,0.06,0.1],0.14,0.2);
+    const hunt=idleT>15?distMap():null;   // idle player: beasts take the real shortest path to him
     ens.forEach(e=>{ if(e.dead) return; if(e.stun>0){ e.stun-=dt; return; } if(eff.freeze>0) return; e.a+=dt*sp*(e.queen?0.8:1);
-      if(e.a>=1){ e.a=0; e.fi=e.i; e.fj=e.j; const opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>{ const i=e.i+dx,j=e.j+dy; return inb(i,j)&&(grid[j][i]===0||(e.queen||Math.random()<api.dv([0.02,0.06,0.1],0.14,0.2))&&grid[j][i]===1); });
-        if(opts.length){ opts.sort((A,B)=>(Math.abs(e.i+A[0]-pl.i)+Math.abs(e.j+A[1]-pl.j))-(Math.abs(e.i+B[0]-pl.i)+Math.abs(e.j+B[1]-pl.j))); const pick=Math.random()<api.dv([0.55,0.7,0.85],0.9,0.95)?opts[0]:opts[Math.floor(Math.random()*opts.length)];
+      if(e.a>=1){ e.a=0; e.fi=e.i; e.fj=e.j; const qd=e.queen&&(!E||Math.random()<0.3);
+        const opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>{ const i=e.i+dx,j=e.j+dy; return inb(i,j)&&!slides.some(s=>s.i===i&&s.j===j)&&(grid[j][i]===0||(qd||Math.random()<dig)&&grid[j][i]===1); });
+        if(opts.length){ const dd=hunt?(A)=>{ const v=hunt[(e.j+A[1])*GW+e.i+A[0]]; return v<0?999:v; }:(A)=>Math.abs(e.i+A[0]-pl.i)+Math.abs(e.j+A[1]-pl.j); opts.sort((A,B)=>dd(A)-dd(B)); const pick=Math.random()<chase?opts[0]:opts[Math.floor(Math.random()*opts.length)];
           const ni=e.i+pick[0], nj=e.j+pick[1]; if(grid[nj][ni]===1){ grid[nj][ni]=0; api.fx.burst(cx(ni),cy(nj),'#bfefff',6,100,.3,2); } e.i=ni; e.j=nj; } }
       const k=Math.min(1,e.a); e.x=cx(e.fi)+(cx(e.i)-cx(e.fi))*k; e.y=cy(e.fj)+(cy(e.j)-cy(e.fj))*k;
-      if(grace<=0&&eff.shield<=0&&eff.freeze<=-1&&!(e.stun>0)&&Math.hypot(e.x-pl.x,e.y-pl.y)<CS*0.6) die(); });
+      if(grace<=0&&eff.shield<=0&&eff.freeze<=-1&&!(e.stun>0)&&Math.hypot(e.x-pl.x,e.y-pl.y)<CS*(E?0.5:0.6)) die(); });
     // walk over frozen / stunned beasts squashes them
     ens.forEach(e=>{ if(!e.dead&&(eff.freeze>0||e.stun>0)&&Math.hypot(e.x-pl.x,e.y-pl.y)<CS*0.45) kill(e,'stomp'); });
     ens=ens.filter(e=>!e.dead);
-    while(ens.length<Math.min(4,ens.length+eggs)&&eggs>0&&ens.length<4){ eggs--; spawnBeast(false); }
+    const maxOn=E?2:4; while(eggs>0&&ens.length<maxOn){ eggs--; spawnBeast(false); }
     api.counter('👾 BEASTS',ens.length+eggs);
     if(!ens.length&&!eggs&&!done){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); } },
   render(c){ c.fillStyle='#061428'; c.fillRect(0,0,W,H);
+    // starry snow backdrop in the wide side margins
+    for(let k=0;k<60;k++){ const x=(k*197.3)%W, y=(k*91.7+t*12*(1+k%3))%H; c.fillStyle='rgba(191,239,255,'+(0.15+0.1*(k%4))+')'; c.fillRect(x,y,2,2); }
     c.fillStyle='#0c2a48'; c.fillRect(OX-8,OY-8,GW*CS+16,GH*CS+16); c.strokeStyle='#7df9ff'; c.lineWidth=3; c.shadowColor='#7df9ff'; c.shadowBlur=12; c.strokeRect(OX-8,OY-8,GW*CS+16,GH*CS+16); c.shadowBlur=0;
+    c.strokeStyle='rgba(125,249,255,.06)'; c.lineWidth=1; for(let i=1;i<GW;i++){ c.beginPath(); c.moveTo(OX+i*CS,OY); c.lineTo(OX+i*CS,OY+GH*CS); c.stroke(); } for(let j=1;j<GH;j++){ c.beginPath(); c.moveTo(OX,OY+j*CS); c.lineTo(OX+GW*CS,OY+j*CS); c.stroke(); }
     for(let j=0;j<GH;j++) for(let i=0;i<GW;i++){ const v=grid[j][i]; if(v) block(c,OX+i*CS,OY+j*CS,v); }
     slides.forEach(s=>block(c,s.x-CS/2,s.y-CS/2,s.v));
+    // the block the penguin faces: glow + PUSH label so you know the button will do something
+    if(!lost&&pl.a>=1){ const fi=pl.i+pl.fx, fj=pl.j+pl.fy; if(inb(fi,fj)&&grid[fj][fi]){ const a=0.55+0.45*Math.sin(t*8); c.strokeStyle='rgba(255,210,63,'+a+')'; c.lineWidth=3; c.shadowColor='#ffd23f'; c.shadowBlur=14; c.strokeRect(OX+fi*CS+1,OY+fj*CS+1,CS-2,CS-2); c.shadowBlur=0;
+      c.font='bold 13px Orbitron, sans-serif'; c.textAlign='center'; c.fillStyle='#ffd23f'; c.fillText('PUSH',cx(fi),pl.fy>0?OY+(fj+1)*CS+14:OY+fj*CS-4); } }
     ens.forEach(e=>{ const fz=eff.freeze>0||e.stun>0, s=e.queen?1.4:1; c.fillStyle=fz?'#bfefff':e.queen?'#ff3bd4':'#3bff7a'; c.shadowColor=c.fillStyle; c.shadowBlur=10; c.beginPath(); c.arc(e.x,e.y+2,CS*0.36*s,0,7); c.fill(); c.shadowBlur=0;
       c.fillStyle='#fff'; c.beginPath(); c.arc(e.x-7*s,e.y-4,5*s,0,7); c.arc(e.x+7*s,e.y-4,5*s,0,7); c.fill(); c.fillStyle='#000'; c.beginPath(); c.arc(e.x-6*s,e.y-3,2.5*s,0,7); c.arc(e.x+8*s,e.y-3,2.5*s,0,7); c.fill();
       if(e.queen){ c.fillStyle='#ffd23f'; c.beginPath(); c.moveTo(e.x-14,e.y-18); c.lineTo(e.x-8,e.y-30); c.lineTo(e.x,e.y-20); c.lineTo(e.x+8,e.y-30); c.lineTo(e.x+14,e.y-18); c.fill(); } });
-    if(!lost&&(grace<=0||(t*10|0)%2)){ const col=api.cos('Penguin').colors[0], x=pl.x, y=pl.y, w=Math.sin(t*14)*(pl.a<1?3:0);
-      c.fillStyle='#111'; c.beginPath(); c.ellipse(x,y+2,15,19,0,0,7); c.fill(); c.fillStyle='#fff'; c.beginPath(); c.ellipse(x,y+6,10,13,0,0,7); c.fill();
-      c.fillStyle=col; c.beginPath(); c.arc(x,y-14,11,0,7); c.fill(); c.fillStyle='#fff'; c.beginPath(); c.arc(x-4,y-15,3,0,7); c.arc(x+4,y-15,3,0,7); c.fill(); c.fillStyle='#ff9f1c'; c.beginPath(); c.moveTo(x-4,y-10); c.lineTo(x+4,y-10); c.lineTo(x,y-5); c.fill(); c.fillRect(x-10+w,y+18,8,4); c.fillRect(x+2-w,y+18,8,4);
+    if(!lost&&(grace<=0||(t*10|0)%2)){ const col=api.cos('Penguin').colors[0], x=pl.x, y=pl.y, w=Math.sin(t*28)*(pl.a<1?3:0), fx=pl.fx*4, fy=pl.fy*3;
+      c.fillStyle='#111'; c.beginPath(); c.ellipse(x,y+2,15,19,0,0,7); c.fill(); c.fillStyle='#fff'; c.beginPath(); c.ellipse(x+fx*0.5,y+6,10,13,0,0,7); c.fill();
+      c.fillStyle=col; c.beginPath(); c.arc(x,y-14,11,0,7); c.fill(); c.fillStyle='#fff'; c.beginPath(); c.arc(x-4+fx,y-15+fy,3,0,7); c.arc(x+4+fx,y-15+fy,3,0,7); c.fill();
+      c.fillStyle='#ff9f1c'; c.beginPath(); const bx=x+pl.fx*9, by=y-9+pl.fy*4; c.moveTo(bx-4,by-2); c.lineTo(bx+4,by-2); c.lineTo(bx+pl.fx*6,by+3+Math.max(0,pl.fy)*3); c.fill(); c.fillRect(x-10+w,y+18,8,4); c.fillRect(x+2-w,y+18,8,4);
       if(eff.shield>0){ c.strokeStyle='#ffd23f'; c.lineWidth=3; c.beginPath(); c.arc(x,y,CS*0.62,0,7); c.stroke(); } }
+    // eggs still to hatch: shown on the right of the field
+    if(eggs>0){ c.font='20px sans-serif'; c.textAlign='center'; for(let k=0;k<Math.min(eggs,12);k++) c.fillText('🥚',OX+GW*CS+40+(k%2)*30,OY+30+(k>>1)*34); }
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#061428'; c.fillRect(0,0,W,H); for(let i=0;i<5;i++) block(c,150+i*60,450+Math.sin(tt*2+i)*20,i===2?2:1); }
+  attract(c,tt){ c.fillStyle='#061428'; c.fillRect(0,0,W,H); for(let i=0;i<7;i++) block(c,W/2-154+i*CS,H/2+Math.sin(tt*2+i)*20,i===3?2:1); }
 };
-function block(c,x,y,v){ const g=c.createLinearGradient(x,y,x+CS,y+CS); g.addColorStop(0,v===2?'#ff9ae8':'#bfefff'); g.addColorStop(1,v===2?'#b14bff':'#4ab8e8'); c.fillStyle=g; c.fillRect(x+2,y+2,CS-4,CS-4); c.fillStyle='rgba(255,255,255,.55)'; c.fillRect(x+5,y+5,CS-18,5); if(v===2){ c.font='22px sans-serif'; c.textAlign='center'; c.fillText('💎',x+CS/2,y+CS/2+8); } }
-function farCell(){ for(let k=0;k<200;k++){ const i=Math.floor(Math.random()*GW), j=Math.floor(Math.random()*GH); if(grid[j][i]===0&&Math.abs(i-pl.i)+Math.abs(j-pl.j)>=6) return [i,j]; } for(let j=0;j<GH;j++) for(let i=0;i<GW;i++) if(grid[j][i]===0&&Math.abs(i-pl.i)+Math.abs(j-pl.j)>=4) return [i,j]; return [0,0]; }
-function spawnBeast(queen){ const [i,j]=farCell(); ens.push({i,j,fi:i,fj:j,x:cx(i),y:cy(j),a:Math.random(),queen,stun:1.2,hp:queen?2:1}); api&&api.fx&&api.fx.burst(cx(i),cy(j),'#3bff7a',10,120,.4,2); }
-function step(dx,dy){ if(done||lost||pl.a<1) return; const ni=pl.i+dx, nj=pl.j+dy; if(!inb(ni,nj)) return;
-  const v=grid[nj][ni];
-  if(v){ const bi=ni+dx, bj=nj+dy; if(!inb(bi,bj)||grid[bj][bi]){ if(v===1){ grid[nj][ni]=0; api.fx.burst(cx(ni),cy(nj),'#bfefff',14,180,.4,3); api.sfx.small(); api.addScore(10,cx(ni),cy(nj),true); } else api.sfx.bump(); return; }
-    grid[nj][ni]=0; slides.push({i:ni,j:nj,dx,dy,p:0,v,x:cx(ni),y:cy(nj)}); api.sfx.shoot(); return; }
-  pl.fi=pl.i; pl.fj=pl.j; pl.i=ni; pl.j=nj; pl.a=0; }
+function block(c,x,y,v){ const g=c.createLinearGradient(x,y,x+CS,y+CS); g.addColorStop(0,v===2?'#ff9ae8':'#bfefff'); g.addColorStop(1,v===2?'#b14bff':'#4ab8e8'); c.fillStyle=g; c.fillRect(x+2,y+2,CS-4,CS-4); c.fillStyle='rgba(255,255,255,.55)'; c.fillRect(x+5,y+5,CS-18,5); if(v===2){ c.font='21px sans-serif'; c.textAlign='center'; c.fillText('💎',x+CS/2,y+CS/2+8); } }
+function farCell(){ const r=reach(), far=easy()?8:6; let c=r.filter(([i,j])=>Math.abs(i-pl.i)+Math.abs(j-pl.j)>=far&&!ens.some(e=>e.i===i&&e.j===j)); if(!c.length) c=r.filter(([i,j])=>Math.abs(i-pl.i)+Math.abs(j-pl.j)>=4); if(!c.length) c=r; return c[Math.floor(Math.random()*c.length)]; }
+function spawnBeast(queen){ const [i,j]=farCell(); ens.push({i,j,fi:i,fj:j,x:cx(i),y:cy(j),a:Math.random(),queen,stun:easy()?2.5:1.2,hp:queen?2:1}); api&&api.fx&&api.fx.burst(cx(i),cy(j),'#3bff7a',10,120,.4,2); }
+// every press is queued (up to 4 ahead) so quick taps during a step are never lost
+function distMap(){ const m=new Array(GW*GH).fill(-1), q=[[pl.i,pl.j]]; m[pl.j*GW+pl.i]=0; while(q.length){ const [i,j]=q.shift(); for(const [dx,dy] of Object.values(DIRS)){ const ni=i+dx,nj=j+dy; if(inb(ni,nj)&&!grid[nj][ni]&&m[nj*GW+ni]<0){ m[nj*GW+ni]=m[j*GW+i]+1; q.push([ni,nj]); } } } return m; }
+function want(d,rep){ if(done||lost) return; if(buf.length<4) buf.push({d,rep:!!rep}); }
+// one step: always turns the penguin; moves him one square if it's free (a block in the way = he just faces it)
+function step(dx,dy,rep){ if(done||lost||pl.a<1) return; pl.fx=dx; pl.fy=dy; const ni=pl.i+dx, nj=pl.j+dy;
+  if(!inb(ni,nj)||grid[nj][ni]||slides.some(s=>s.i===ni&&s.j===nj)){ if(!rep&&bumpT<=0){ bumpT=0.25; api.sfx.small(); } return; }
+  pl.fi=pl.i; pl.fj=pl.j; pl.i=ni; pl.j=nj; pl.a=0; moves++; idleT=0; }
+function push(){ if(done||lost) return; const dx=pl.fx, dy=pl.fy, ni=pl.i+dx, nj=pl.j+dy; if(!inb(ni,nj)) { api.sfx.bump(); return; }
+  const v=grid[nj][ni]; if(!v){ api.fx.burst(cx(ni),cy(nj),'#bfefff',5,80,.25,2); if(hintT<=0){ hintT=3; api.toast('FACE A BLOCK FIRST'); } return; }
+  const bi=ni+dx, bj=nj+dy;
+  if(!inb(bi,bj)||grid[bj][bi]){ if(v===1){ grid[nj][ni]=0; api.fx.burst(cx(ni),cy(nj),'#bfefff',14,180,.4,3); api.sfx.small(); api.addScore(10,cx(ni),cy(nj),true); } else api.sfx.bump(); return; }
+  grid[nj][ni]=0; slides.push({i:ni,j:nj,dx,dy,p:0,v,x:cx(ni),y:cy(nj)}); idleT=0; api.sfx.shoot(); api.event('push'); }
 function kill(e,how){ if(e.dead) return; if(e.queen&&--e.hp>0&&how!=='block'){ e.stun=2; return; } e.dead=true; api.addScore((e.queen?1500:how==='block'?400:200)*(1+api.dk*.5),e.x,e.y); api.fx.burst(e.x,e.y,e.queen?'#ff3bd4':'#3bff7a',20,240,.5,3); api.sfx.boom(); api.event('squash'); }
 function checkDiamonds(){ const d=[]; for(let j=0;j<GH;j++) for(let i=0;i<GW;i++) if(grid[j][i]===2) d.push([i,j]); if(d.length!==3) return;
   const row=d.every(p=>p[1]===d[0][1]), col=d.every(p=>p[0]===d[0][0]); if(!row&&!col) return; const xs=d.map(p=>row?p[0]:p[1]).sort((a,b)=>a-b); if(xs[2]-xs[0]!==2) return;
@@ -519,7 +607,7 @@ function die(){ if(lost||done) return; lost=true; api.toast('CAUGHT!'); api.fx.b
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -606,8 +694,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='🔄 Turn your phone sideways for a bigger screen (switch on auto-rotate)';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -632,6 +738,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -649,6 +778,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -755,7 +888,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -779,6 +912,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -828,8 +963,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1200,7 +1335,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1374,6 +1509,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1384,10 +1520,24 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  // SHELL-LANDSCAPE-2 (25 Oct): NEVER block the game. Many phones have auto-rotate switched off, so the page never turns
+  // and the old "turn your phone" cover got stuck. Upright now just plays (smaller) with a small hint strip at the top.
+  const want = up && state==='play';
+  if(state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1404,7 +1554,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1440,7 +1590,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1479,6 +1629,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
