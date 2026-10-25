@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BD-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-BD-1.2 · 2026-10-25">
 <title>Burger Drop</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,51 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
+
+/* SHELL-LANDSCAPE-2: upright hint is a small strip, never a blocking cover */
+#app #rotate{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:auto!important;height:auto!important;inset:0 0 auto 0!important;padding:6px 10px!important;background:#000c!important;font:700 12px system-ui,sans-serif!important;color:#ffd23f!important;text-align:center!important;z-index:40!important;pointer-events:none!important;display:block}
+#app #rotate.hidden{display:none!important}
 
 </style>
 </head>
 <body>
-<!-- BUILD-BD-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-BD-1.2 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,82 +471,120 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* BURGER DROP — BurgerTime remix (#47). 100 stages. Walk over the burger layers to drop them onto the plates while food goons chase you. */
+/* BURGER DROP — BurgerTime remix (#47). 100 stages. Walk over the burger layers to drop them onto the plates while food goons chase you.
+   LANDSCAPE 1280x720 (SHELL-LANDSCAPE-1). Left thumb = stick (walk + climb), right thumb = 🌶️ PEPPER (hold-safe: one shake per press).
+   LADDERS (BD-1.2 fix): at a floor with a ladder going up AND one going down, the stick direction picks the one that can move that way,
+   so you can always climb back DOWN. Ladders snap from 34 px away. Stage layout = Math.random only at stage start (race = same stage). */
 (function(){
-const W=600,H=900,FL=[200,320,440,560,680],LAD_W=26,COLS=[90,230,370,510];
-let api,t,pl,ens,parts,plates,lads,done,lost,eff,grace,pepper,stg;
-function build(a){ lads=[]; // ladders between floors
-  for(let f=0;f<FL.length-1;f++){ const xs=[40,160,300,440,560].filter(()=>Math.random()<0.75); if(xs.length<2) xs.push(40,560); xs.forEach(x=>lads.push({x,y1:FL[f],y2:FL[f+1]})); }
-  lads.push({x:300,y1:FL[0],y2:FL[FL.length-1]});
-  parts=[]; const layers=['bun','lettuce','patty','bunb']; const nc=a.content===0?1:a.level>=10?4:3;
-  COLS.slice(0,nc).forEach((x,ci)=>{ layers.forEach((k,li)=>{ parts.push({k,x,col:ci,y:FL[li],floor:li,stepped:[0,0,0,0],fall:false,vy:0,done:false}); }); });
-  plates=COLS.slice(0,nc).map(x=>({x,y:FL[FL.length-1]+70,stack:0})); }
+const W=1280,H=720,FL=[140,232,324,416,508],FX0=100,FX1=1180,SNAP=34,PLATE_Y=640;
+const LADX=[130,250,410,565,715,870,1030,1150];
+const COLSETS={1:[640],2:[490,790],3:[330,640,950],4:[330,490,790,950],5:[330,490,640,790,950]};
+let api,t,pl,ens,parts,plates,lads,done,lost,eff,grace,pepper,stg,COLS,climbed,hintT;
+const easy=()=>api.diff===0&&api.level<=5;            // Beginner stages 1-5 (+ tutorial): extra gentle
+const begin=()=>api.diff===0&&api.level<=10;          // Beginner 1-10: gentle
+function maxGoons(){ return api.content===0?1:easy()?1:begin()?2:Math.round(api.dv([2,3,5],6,9)); }
+function build(a){ lads=[]; // ladders between floors (only Math.random, only here)
+  const pr=begin()?0.75:0.55;
+  for(let f=0;f<FL.length-1;f++){ let xs=LADX.filter(()=>Math.random()<pr);
+    while(xs.length<3){ const x=LADX[Math.floor(Math.random()*LADX.length)]; if(!xs.includes(x)) xs.push(x); }
+    xs.sort((p,q)=>p-q).forEach(x=>lads.push({x,y1:FL[f],y2:FL[f+1]})); }
+  const nc=a.content===0?1:easy()?2:a.level>=30?5:a.level>=10?4:3; COLS=COLSETS[nc];
+  parts=[]; const layers=['bun','lettuce','patty','bunb'];
+  COLS.forEach((x,ci)=>{ layers.forEach((k,li)=>{ parts.push({k,x,col:ci,y:FL[li],floor:li,stepped:[0,0,0,0],fall:false,vy:0,done:false}); }); });
+  plates=COLS.map(x=>({x,y:PLATE_Y,stack:0})); }
+// ladder the chef can use to move in direction dy (+1 down, -1 up) from (x,y); nearest one wins
+function ladFor(x,y,dy,snap){ let best=null,bd=1e9;
+  for(const l of lads){ const dx=Math.abs(l.x-x); if(dx>snap) continue;
+    const ok=dy>0 ? (y>=l.y1-0.5&&y<l.y2-0.5) : (y>l.y1+0.5&&y<=l.y2+0.5);   // strict: the ladder that really goes that way
+    if(ok&&dx<bd){ bd=dx; best=l; } }
+  return best; }
+const onFloor=y=>FL.find(f=>Math.abs(y-f)<3);
 const GAME=window.GAME={
   id:'burger-drop',title:'Burger Drop',titleHTML:'BURGER<br>DROP',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-BD-1.1 · 2026-10-17',theme:{a:'#ffb000',b:'#ff3b3b',bg:'#140a04'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'👨‍🍳',joystick:true,coinPts:40,
+  build:'BUILD-BD-1.2 · 2026-10-25',theme:{a:'#ffb000',b:'#ff3b3b',bg:'#140a04'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'👨‍🍳',joystick:true,coinPts:40,
   abilities:[
-    {id:'pepper',icon:'🌶️',name:'PEPPER',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE (5 shakes per stage) — stuns goons next to you for 3 seconds.'},
+    {id:'pepper',icon:'🌶️',name:'PEPPER',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE (5 shakes per stage) — stuns goons next to you for 3 seconds. One shake per press.'},
     {id:'freeze',icon:'❄️',name:'FREEZE',cd:20,key:'Digit1',keyLabel:'1',desc:'All goons freeze for 5 seconds and can\'t hurt you.'},
     {id:'speed',icon:'👟',name:'SPEED',cd:15,key:'Digit2',keyLabel:'2',desc:'Run fast for 8 seconds.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit3',keyLabel:'3',desc:'6 seconds of safety.'}],
   shop:[{id:'c_w',cat:'Chef',name:'White Hat',cost:0,colors:['#ffffff'],desc:'Classic.'},{id:'c_g',cat:'Chef',name:'Gold Hat',cost:200,colors:['#ffd23f'],desc:'Head chef.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffb000,#ff3b3b)'}],
   story:`<h3>BURGER DROP</h3><p>The kitchen's gone mad. Rogue sausages, eggs and pickles chase the chef while he builds the biggest burgers in Mzansi.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to walk and climb ladders (arrow keys on PC).</li><li>Walk across a burger layer from end to end to drop it one floor. Get every layer onto the plates.</li><li>A falling layer squashes goons under it.</li><li><b>🌶️ PEPPER</b> (SPACE) stuns nearby goons — you have 5 per stage.</li></ul>`,
-  tutorial:[{text:'Walk all the way across a burger layer to drop it!',ev:'drop'},{text:'Stack every layer on the plate!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick walks the chef left/right. At a ladder push <b>UP</b> to climb up or <b>DOWN</b> to climb down — every ladder works both ways. The chef only moves when you push. PC: arrow keys or WASD.</li><li>A ladder lights up when you're close enough to grab it.</li><li>Walk across a burger layer from end to end to drop it one floor. Get every layer onto the plates.</li><li>A falling layer squashes goons under it.</li><li><b>Right thumb: 🌶️ PEPPER</b> stuns nearby goons — 5 per stage, one per press. PC: SPACE. Abilities: 1 FREEZE, 2 SPEED, 3 SHIELD.</li></ul>`,
+  tutorial:[{text:'Stand at a ladder and press <b>↑</b> or <b>↓</b> to climb up or down.',touch:'Left thumb: walk to a glowing ladder and push the stick <b>UP</b> or <b>DOWN</b> to climb.',ev:'climb'},
+    {text:'Walk all the way across a burger layer to drop it!',touch:'Walk all the way across a burger layer to drop it!',ev:'drop'},{text:'Stack every layer on the plate!',time:5}],
   stageIntro:{1:'BUILD THE BURGERS'},bossName:'MEGA SAUSAGE!',ending:{"0":["#CHEF","Order up!"],"1":["#MASTER CHEF","The kitchen is yours."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ if(id==='pepper') return {left:pepper,total:5,unit:'🌶️'}; const tot={freeze:5,speed:8,shield:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}, get parts(){return parts;}}; },
+  abTime(id){ if(id==='pepper') return {left:pepper,total:5,unit:''}; const tot={freeze:5,speed:8,shield:6}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  _dbg(){ return {get pl(){return pl;}, get ens(){return ens;}, get lost(){return lost;}, get done(){return done;}, get parts(){return parts;}, get lads(){return lads;}, get pepper(){return pepper;}, get plates(){return plates;}, FL, W, H,
+    sig(){ return lads.map(l=>l.x+':'+l.y1).join(',')+'|'+parts.map(p=>p.x).join(','); }}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; stg=n; t=0; done=false; lost=false; grace=1.5; pepper=5; eff={freeze:-9,speed:-9,shield:-9}; build(a); pl={x:300,y:FL[FL.length-1],face:1};
-    ens=[]; const ne=a.content===0?1:Math.round(a.dv([2,3,5],6,9)); for(let i=0;i<ne;i++) ens.push(goon(i)); if(a.boss) ens.push(Object.assign(goon(9),{k:'mega',hp:3})); },
-  respawn(){ lost=false; grace=2.5; pl.x=300; pl.y=FL[FL.length-1]; ens.forEach((e,i)=>{ e.x=i%2?40:560; e.y=FL[0]; e.stun=1; }); },
+  startStage(n,a){ api=a; stg=n; t=0; done=false; lost=false; grace=1.5; pepper=5; climbed=false; hintT=0; this._s=false; eff={freeze:-9,speed:-9,shield:-9}; build(a); pl={x:640,y:FL[FL.length-1],face:1,climb:false};
+    ens=[]; const ne=maxGoons(); for(let i=0;i<ne;i++) ens.push(goon(i)); if(a.boss) ens.push(Object.assign(goon(9),{k:'mega',hp:3})); },
+  respawn(){ lost=false; grace=2.5; pl.x=640; pl.y=FL[FL.length-1]; pl.climb=false; ens.forEach((e,i)=>{ e.x=i%2?LADX[0]:LADX[LADX.length-1]; e.y=FL[0]; e.stun=1; e.climb=0; }); },
   stageBonus(){ return pepper*200; },
   useAbility(id){ if(done||lost) return false;
-    if(id==='pepper'){ if(pepper<=0) return false; pepper--; ens.forEach(e=>{ if(Math.hypot(e.x-pl.x,e.y-pl.y)<130) e.stun=3; }); api.fx.burst(pl.x+pl.face*30,pl.y-30,'#ff3b3b',16,150,.4,2); api.sfx.small(); return true; }
+    if(id==='pepper') return true;          // the button/Space key is read in update(): one shake per press, holding does nothing more
     eff[id]={freeze:5,speed:8,shield:6}[id]; api.sfx.power(); return true; },
-  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; if(lost) return;
-    const d=api.input.dir(), sp=(eff.speed>0?260:170)*dt; const onFloor=FL.find(f=>Math.abs(pl.y-f)<3), lad=lads.find(l=>Math.abs(l.x-pl.x)<LAD_W&&pl.y>=l.y1-2&&pl.y<=l.y2+2);
-    if(Math.abs(d.y)>0.4&&lad){ pl.x+=(lad.x-pl.x)*0.5; pl.y=Math.max(lad.y1,Math.min(lad.y2,pl.y+Math.sign(d.y)*sp)); }
-    else if(onFloor!==undefined&&Math.abs(d.x)>0.2){ pl.y=onFloor; pl.x=Math.max(20,Math.min(W-20,pl.x+Math.sign(d.x)*sp)); pl.face=Math.sign(d.x); }
-    if(api.input.keys.Space&&!this._s) this.useAbility('pepper'); this._s=api.input.keys.Space;
+  shake(){ if(pepper<=0){ api.toast('NO PEPPER LEFT'); return; } pepper--; ens.forEach(e=>{ if(Math.hypot(e.x-pl.x,e.y-pl.y)<150) e.stun=3; }); api.fx.burst(pl.x+pl.face*30,pl.y-30,'#ff3b3b',16,150,.4,2); api.sfx.small(); },
+  update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; hintT-=dt; if(lost) return;
+    const d=api.input.dir(), sp=(eff.speed>0?290:200)*dt, csp=(eff.speed>0?260:180)*dt; const fl=onFloor(pl.y);
+    let moved=false;
+    // CLIMB: vertical push wins when a ladder can take you that way (up OR down); otherwise fall through to walking
+    if(Math.abs(d.y)>0.35&&Math.abs(d.y)>=Math.abs(d.x)*0.5){ const dy=Math.sign(d.y), l=ladFor(pl.x,pl.y,dy,fl!==undefined?SNAP:6);
+      if(l){ pl.x=l.x; pl.y=Math.max(l.y1,Math.min(l.y2,pl.y+dy*csp)); pl.climb=onFloor(pl.y)===undefined; moved=true; if(!climbed){ climbed=true; api.event('climb'); } }
+      else if(fl!==undefined&&Math.abs(d.x)<0.2&&hintT<=0&&easy()){ hintT=3; api.toast(dy<0?'NO LADDER UP HERE — WALK TO A GLOWING LADDER':'NO LADDER DOWN HERE'); } }
+    if(!moved&&Math.abs(d.x)>0.2){
+      let f=fl; if(f===undefined){ const nf=FL.find(y=>Math.abs(pl.y-y)<14); if(nf!==undefined){ pl.y=nf; f=nf; } }   // nearly off a ladder: step onto the floor
+      if(f!==undefined){ pl.y=f; pl.climb=false; pl.x=Math.max(FX0+12,Math.min(FX1-12,pl.x+Math.sign(d.x)*sp)); pl.face=Math.sign(d.x); } }
+    if(api.input.keys.Space&&!this._s) this.shake(); this._s=!!api.input.keys.Space;
     // stepping on burger layers
     parts.forEach(p=>{ if(p.fall||p.done) return; if(Math.abs(pl.y-p.y)<4&&Math.abs(pl.x-p.x)<56){ const seg=Math.max(0,Math.min(3,Math.floor((pl.x-(p.x-56))/28))); p.stepped[seg]=1; if(p.stepped.every(Boolean)) drop(p); } });
     parts.forEach(p=>{ if(!p.fall) return; p.vy+=900*dt; p.y+=p.vy*dt;
-      ens.forEach(e=>{ if(!e.dead&&Math.abs(e.x-p.x)<56&&Math.abs(e.y-p.y)<20){ e.hp=(e.hp||1)-1; if(e.hp<=0){ e.dead=true; api.addScore(e.k==='mega'?2000:500,e.x,e.y); api.fx.burst(e.x,e.y-20,'#ff3b3b',16,200,.5,3); api.sfx.boom(); } } });
+      ens.forEach(e=>{ if(!e.dead&&Math.abs(e.x-p.x)<60&&Math.abs(e.y-p.y)<22){ e.hp=(e.hp||1)-1; if(e.hp<=0){ e.dead=true; api.addScore(e.k==='mega'?2000:500,e.x,e.y); api.fx.burst(e.x,e.y-20,'#ff3b3b',16,200,.5,3); api.sfx.boom(); } else { e.stun=2; e.y=FL[0]; e.climb=0; api.fx.text(e.x,e.y-60,'OUCH!','#ffd23f'); } } });
       if(p.y>=p.ty){ p.y=p.ty; p.fall=false; p.vy=0; p.stepped=[0,0,0,0];
         if(p.toPlate){ p.done=true; plates[p.col].stack++; api.addScore(250,p.x,p.y); api.sfx.pickup(); }
         else { const q=parts.find(q=>q!==p&&q.col===p.col&&!q.fall&&!q.done&&Math.abs(q.y-p.ty)<2); if(q) drop(q); } } });
-    // goons
-    const gs=api.dv([60,85,110],125,170);
-    ens.forEach(e=>{ if(e.dead) return; if(e.stun>0){ e.stun-=dt; return; } if(eff.freeze>0) return;
-      const eLad=lads.find(l=>Math.abs(l.x-e.x)<8&&e.y>=l.y1-2&&e.y<=l.y2+2); const onF=FL.some(f=>Math.abs(e.y-f)<2);
-      if(e.climb){ e.y+=e.climb*gs*dt; const f=FL.find(f=>Math.abs(e.y-f)<3&&f!==e.from); if(f!==undefined||e.y<FL[0]||e.y>FL[FL.length-1]){ e.y=Math.max(FL[0],Math.min(FL[FL.length-1],f!==undefined?f:e.y)); e.climb=0; } }
-      else { if(eLad&&onF&&Math.abs(e.y-pl.y)>10&&Math.random()<0.6&&e.cool<=0){ e.x=eLad.x; e.from=e.y; e.climb=pl.y>e.y?1:-1; if((e.climb>0&&e.y>=eLad.y2-2)||(e.climb<0&&e.y<=eLad.y1+2)) e.climb=0; e.cool=0.6; }
-        else { e.x+=Math.sign(pl.x-e.x||e.dir)*gs*dt*(Math.abs(e.y-pl.y)<10?1:0.8); if(Math.abs(e.y-pl.y)>10){ e.x+=e.dir*gs*dt*0.2; if(e.x<30||e.x>W-30) e.dir*=-1; } } e.cool-=dt; }
-      e.x=Math.max(20,Math.min(W-20,e.x));
-      if(grace<=0&&eff.shield<=0&&eff.freeze<=-1&&Math.hypot(e.x-pl.x,e.y-pl.y)<26) die(); });
+    // goons: walk toward the chef on his floor, otherwise head for a ladder that goes his way
+    const gs=easy()?48:begin()?58:api.dv([60,85,110],125,170);
+    ens.forEach(e=>{ if(e.dead) return; if(e.stun>0){ e.stun-=dt; return; } if(eff.freeze>0) return; e.cool-=dt;
+      if(e.climb){ e.y+=e.climb*gs*dt; if((e.climb>0&&e.y>=e.ty)||(e.climb<0&&e.y<=e.ty)){ e.y=e.ty; e.climb=0; e.cool=0.4; } }
+      else { const same=Math.abs(e.y-pl.y)<10||(pl.climb&&Math.abs(e.x-pl.x)<20);
+        if(same){ e.x+=Math.sign(pl.x-e.x||e.dir)*gs*dt; }
+        else { const dy=pl.y>e.y?1:-1; const here=lads.find(l=>Math.abs(l.x-e.x)<6&&(dy>0?Math.abs(e.y-l.y1)<3:Math.abs(e.y-l.y2)<3));
+          if(here&&e.cool<=0&&Math.random()<0.7){ e.x=here.x; e.climb=dy; e.ty=dy>0?here.y2:here.y1; }
+          else { let tx=null,bd=1e9; lads.forEach(l=>{ if(dy>0?Math.abs(e.y-l.y1)<3:Math.abs(e.y-l.y2)<3){ const dd=Math.abs(l.x-e.x)+Math.abs(l.x-pl.x)*0.5; if(dd<bd){ bd=dd; tx=l.x; } } });
+            if(tx===null) tx=pl.x; if(Math.abs(tx-e.x)<6&&e.cool>0) e.x+=e.dir*gs*dt*0.3; else e.x+=Math.sign(tx-e.x)*Math.min(Math.abs(tx-e.x),gs*dt); } } }
+      e.x=Math.max(FX0+10,Math.min(FX1-10,e.x)); if(e.x<=FX0+12||e.x>=FX1-12) e.dir*=-1;
+      if(grace<=0&&eff.shield<=0&&eff.freeze<=-1&&Math.hypot(e.x-pl.x,e.y-pl.y)<(easy()?20:26)*(e.k==='mega'?1.4:1)) die(); });
     ens=ens.filter(e=>!e.dead);
-    if(ens.length<(api.content===0?1:Math.round(api.dv([2,3,5],6,9)))&&Math.random()<dt*0.25) ens.push(goon(Math.floor(Math.random()*9)));
+    if(ens.length<maxGoons()&&Math.random()<dt*(easy()?0.12:0.25)) ens.push(goon(Math.floor(Math.random()*9)));
     const left=parts.filter(p=>!p.done).length; api.counter('🍔 LAYERS LEFT',left);
     if(!left&&!done){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); } },
-  render(c){ c.fillStyle='#140a04'; c.fillRect(0,0,W,H); c.fillStyle='#2a1608'; for(let y=0;y<H;y+=40) for(let x=(y/40%2)*40;x<W;x+=80) c.fillRect(x,y,40,40);
-    lads.forEach(l=>{ c.strokeStyle='#8a6a3a'; c.lineWidth=3; c.beginPath(); c.moveTo(l.x-10,l.y1); c.lineTo(l.x-10,l.y2); c.moveTo(l.x+10,l.y1); c.lineTo(l.x+10,l.y2); for(let y=l.y1+12;y<l.y2;y+=18){ c.moveTo(l.x-10,y); c.lineTo(l.x+10,y); } c.stroke(); });
-    FL.forEach(y=>{ c.fillStyle='#3a8aff'; c.fillRect(10,y,W-20,6); c.fillStyle='#2a5aaa'; c.fillRect(10,y+6,W-20,3); });
-    plates.forEach(p=>{ c.fillStyle='#ddd'; c.fillRect(p.x-66,p.y+8,132,8); });
-    parts.forEach(p=>{ const col={bun:'#e8a040',lettuce:'#3bd04a',patty:'#7a3a1a',bunb:'#d8902a'}[p.k]; for(let s=0;s<4;s++){ const x=p.x-56+s*28, y=p.y-12+(p.stepped[s]&&!p.fall&&!p.done?4:0); c.fillStyle=col; if(p.k==='bun'){ c.beginPath(); c.moveTo(x,y+12); c.quadraticCurveTo(x+14,s===0||s===3?y-2:y-6,x+28,y+12); c.fill(); c.fillRect(x,y+4,28,8); c.fillStyle='#fff'; c.fillRect(x+10,y+2,3,2); } else if(p.k==='lettuce'){ c.fillRect(x,y+4,28,8); c.beginPath(); for(let k=0;k<4;k++) c.arc(x+3+k*7,y+12,4,0,Math.PI); c.fill(); } else c.fillRect(x,y+2,28,10); } });
-    ens.forEach(e=>{ const fz=eff.freeze>0||e.stun>0, s=e.k==='mega'?1.6:1; c.save(); c.translate(e.x,e.y); c.scale(s,s);
+  render(c){ c.fillStyle='#140a04'; c.fillRect(0,0,W,H); c.fillStyle='#24130a'; for(let y=0;y<H;y+=40) for(let x=(y/40%2)*40;x<W;x+=80) c.fillRect(x,y,40,40);
+    // ladders (the ones you can grab right now glow)
+    const fl=onFloor(pl.y), up=lost?null:ladFor(pl.x,pl.y,-1,fl!==undefined?SNAP:6), dn=lost?null:ladFor(pl.x,pl.y,1,fl!==undefined?SNAP:6);
+    lads.forEach(l=>{ const hot=l===up||l===dn; c.save(); c.strokeStyle=hot?'#ffe08a':'#9a7a44'; c.lineWidth=hot?4:3; if(hot){ c.shadowColor='#ffb000'; c.shadowBlur=14; }
+      c.beginPath(); c.moveTo(l.x-11,l.y1); c.lineTo(l.x-11,l.y2); c.moveTo(l.x+11,l.y1); c.lineTo(l.x+11,l.y2); for(let y=l.y1+12;y<l.y2;y+=16){ c.moveTo(l.x-11,y); c.lineTo(l.x+11,y); } c.stroke(); c.restore(); });
+    c.save(); c.shadowColor='#3a8aff'; c.shadowBlur=10; FL.forEach(y=>{ c.fillStyle='#3a8aff'; c.fillRect(FX0,y,FX1-FX0,6); }); c.restore(); FL.forEach(y=>{ c.fillStyle='#2a5aaa'; c.fillRect(FX0,y+6,FX1-FX0,3); });
+    plates.forEach(p=>{ c.save(); c.shadowColor='#fff'; c.shadowBlur=8; c.fillStyle='#e8e8e8'; c.fillRect(p.x-66,p.y+8,132,8); c.restore(); c.fillStyle='#999'; c.fillRect(p.x-50,p.y+16,100,4); });
+    parts.forEach(p=>{ c.save(); c.translate(0,p.y); c.scale(1,1.7); c.translate(0,-p.y); const col={bun:'#e8a040',lettuce:'#3bd04a',patty:'#7a3a1a',bunb:'#d8902a'}[p.k]; for(let s=0;s<4;s++){ const x=p.x-56+s*28, y=p.y-12+(p.stepped[s]&&!p.fall&&!p.done?4:0); c.fillStyle=col; if(p.k==='bun'){ c.beginPath(); c.moveTo(x,y+12); c.quadraticCurveTo(x+14,s===0||s===3?y-2:y-6,x+28,y+12); c.fill(); c.fillRect(x,y+4,28,8); c.fillStyle='#fff'; c.fillRect(x+10,y+2,3,2); } else if(p.k==='lettuce'){ c.fillRect(x,y+4,28,8); c.beginPath(); for(let k=0;k<4;k++) c.arc(x+3+k*7,y+12,4,0,Math.PI); c.fill(); } else c.fillRect(x,y+2,28,10);
+      if(p.stepped[s]&&!p.fall&&!p.done){ c.fillStyle='rgba(255,255,255,.35)'; c.fillRect(x+2,y+12,24,2); } } c.restore(); });
+    ens.forEach(e=>{ const fz=eff.freeze>0||e.stun>0, s=e.k==='mega'?1.8:1.3; c.save(); c.translate(e.x,e.y); c.scale(s,s);
       if(e.k==='egg'){ c.fillStyle=fz?'#bfefff':'#fff'; c.beginPath(); c.ellipse(0,-18,13,17,0,0,7); c.fill(); c.fillStyle='#ffd23f'; c.beginPath(); c.arc(0,-16,6,0,7); c.fill(); }
       else if(e.k==='pickle'){ c.fillStyle=fz?'#bfefff':'#4aa83a'; c.beginPath(); c.ellipse(0,-18,9,18,0,0,7); c.fill(); }
-      else { c.fillStyle=fz?'#bfefff':'#c0402a'; c.beginPath(); c.ellipse(0,-16,16,10,0,0,7); c.fill(); }
-      c.fillStyle='#000'; c.fillRect(-6,-22,3,4); c.fillRect(3,-22,3,4); c.strokeStyle='#000'; c.lineWidth=2; c.beginPath(); c.moveTo(-6,0); c.lineTo(-8,-6); c.moveTo(6,0); c.lineTo(8,-6); c.stroke(); c.restore(); });
-    if(!lost&&(grace<=0||(t*10|0)%2)){ const x=pl.x,y=pl.y; c.fillStyle='#fff'; c.fillRect(x-9,y-30,18,20); c.fillStyle='#f0c090'; c.beginPath(); c.arc(x,y-38,8,0,7); c.fill(); c.fillStyle=api.cos('Chef').colors[0]; c.fillRect(x-9,y-56,18,12); c.beginPath(); c.arc(x,y-56,10,Math.PI,0); c.fill(); c.fillStyle='#333'; c.fillRect(x-8,y-10,6,10); c.fillRect(x+2,y-10,6,10);
-      if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(x,y-28,32,0,7); c.stroke(); } }
+      else { c.fillStyle=fz?'#bfefff':'#c0402a'; c.shadowColor=e.k==='mega'?'#ff3b3b':'transparent'; c.shadowBlur=e.k==='mega'?16:0; c.beginPath(); c.ellipse(0,-16,16,10,0,0,7); c.fill(); c.shadowBlur=0; }
+      c.fillStyle='#000'; c.fillRect(-6,-22,3,4); c.fillRect(3,-22,3,4); c.strokeStyle='#000'; c.lineWidth=2; c.beginPath(); c.moveTo(-6,0); c.lineTo(-8,-6); c.moveTo(6,0); c.lineTo(8,-6); c.stroke();
+      if(e.k==='mega'){ for(let i=0;i<(e.hp||1);i++){ c.fillStyle='#ff3b3b'; c.fillRect(-12+i*9,-36,7,4); } } c.restore(); });
+    if(!lost&&(grace<=0||(t*10|0)%2)){ const x=pl.x,y=pl.y; c.save(); c.translate(x,y); c.scale(1.3,1.3); c.fillStyle='#fff'; c.fillRect(-9,-30,18,20); c.fillStyle='#f0c090'; c.beginPath(); c.arc(0,-38,8,0,7); c.fill(); c.fillStyle=api.cos('Chef').colors[0]; c.fillRect(-9,-56,18,12); c.beginPath(); c.arc(0,-56,10,Math.PI,0); c.fill();
+      const wk=Math.sin(t*14)*3*(pl.climb?1:0); c.fillStyle='#333'; c.fillRect(-8,-10+wk,6,10); c.fillRect(2,-10-wk,6,10); c.restore();
+      if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(x,y-36,42,0,7); c.stroke(); }
+      // up/down arrows when a ladder can take you that way
+      if(fl!==undefined){ c.fillStyle='rgba(255,224,138,.9)'; c.font='bold 18px sans-serif'; c.textAlign='center'; if(up) c.fillText('▲',up.x,y-82); if(dn) c.fillText('▼',dn.x,y+28); } }
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#140a04'; c.fillRect(0,0,W,H); c.fillStyle='#e8a040'; c.beginPath(); c.arc(300,450+Math.sin(tt*3)*20,70,Math.PI,0); c.fill(); }
+  attract(c,tt){ c.fillStyle='#140a04'; c.fillRect(0,0,W,H); const y=360+Math.sin(tt*3)*20; c.fillStyle='#e8a040'; c.beginPath(); c.arc(640,y,90,Math.PI,0); c.fill(); c.fillStyle='#3bd04a'; c.fillRect(550,y+4,180,12); c.fillStyle='#7a3a1a'; c.fillRect(550,y+18,180,20); c.fillStyle='#d8902a'; c.fillRect(550,y+40,180,16); }
 };
-function goon(i){ const k=['sausage','egg','pickle'][i%3]; return {k,x:i%2?40:560,y:FL[i%2?0:1],dir:i%2?1:-1,stun:1.5,cool:0,climb:0}; }
+function goon(i){ const k=['sausage','egg','pickle'][i%3]; return {k,x:i%2?LADX[0]:LADX[LADX.length-1],y:FL[0],dir:i%2?1:-1,stun:easy()?2.5:1.5,cool:0,climb:0}; }
 function drop(p){ if(p.fall||p.done) return; const fi=FL.indexOf(p.y); p.fall=true; p.vy=0; p.stepped=[0,0,0,0]; api.sfx.bump(); api.event('drop');
   if(fi>=0&&fi<FL.length-1){ p.ty=FL[fi+1]; p.toPlate=false; } else { const pl8=plates[p.col]; p.ty=pl8.y-pl8.stack*16-parts.filter(q=>q.col===p.col&&q.fall&&q.toPlate&&q!==p).length*16; p.toPlate=true; } }
 function die(){ if(lost||done) return; lost=true; api.toast('CAUGHT BY A GOON!'); api.fx.burst(pl.x,pl.y-30,'#fff',30,240,.6,3); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>api.loseLife(),1000); }
@@ -514,7 +592,7 @@ function die(){ if(lost||done) return; lost=true; api.toast('CAUGHT BY A GOON!')
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -601,8 +679,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='🔄 Turn your phone sideways for a bigger screen (switch on auto-rotate)';
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -627,6 +723,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -644,6 +763,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -750,7 +873,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -774,6 +897,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -823,8 +948,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1195,7 +1320,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1369,6 +1494,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1379,10 +1505,24 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  // SHELL-LANDSCAPE-2 (25 Oct): NEVER block the game. Many phones have auto-rotate switched off, so the page never turns
+  // and the old "turn your phone" cover got stuck. Upright now just plays (smaller) with a small hint strip at the top.
+  const want = up && state==='play';
+  if(state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1399,7 +1539,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1435,7 +1575,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1474,6 +1614,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
