@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-HR-1.0 · 2026-10-18">
+<meta name="build" content="BUILD-HR-1.1 · 2026-10-25">
 <title>Hill Rider</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,63 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
+
+/* SHELL-LANDSCAPE-2: upright hint is a small strip, never a blocking cover */
+#app #rotate{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:auto!important;height:auto!important;inset:0 0 auto 0!important;padding:6px 10px!important;background:#000c!important;font:700 12px system-ui,sans-serif!important;color:#ffd23f!important;text-align:center!important;z-index:40!important;pointer-events:none!important;display:block}
+#app #rotate.hidden{display:none!important}
+
+/* SHELL-LANDSCAPE-3 hint strip: always visible upright, tappable */
+#app #rotate{pointer-events:auto!important;font-size:14px!important;padding:8px 10px!important;background:#14061fee!important;border-bottom:2px solid #ffd23f!important}
+#rotate #rotGo{display:block;margin:6px auto 0;font:800 14px system-ui,sans-serif;border:0;border-radius:10px;padding:10px 14px;background:linear-gradient(90deg,#ffd23f,#ff3bd4);color:#14061f}
+
+/* SHELL-LANDSCAPE-3b: 'now turn your phone' tip after the screen is turned */
+#turnTip{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10001;background:#14061fee;border:2px solid #ffd23f;border-radius:18px;padding:16px 22px;color:#fff;font:700 15px system-ui,sans-serif;text-align:center;pointer-events:none;box-shadow:0 0 30px #ffd23f66}
+#turnTip.hidden{display:none}
+#turnTip b{display:block;color:#ffd23f;font-size:18px;margin:6px 0}
+#turnTip span{font-size:13px;opacity:.85}
+#turnTip .tt-ph{font-size:44px;display:inline-block;animation:ttrot 1.2s ease-in-out infinite}
+@keyframes ttrot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 
 </style>
 </head>
 <body>
-<!-- BUILD-HR-1.0 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-HR-1.1 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -431,16 +483,28 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* HILL RIDER — hill-climb driving remix. 100 stages. Gas, brake, balance the jeep over the hills and reach the flag before the fuel runs out. */
+/* HILL RIDER — hill-climb driving remix. 100 stages. Gas, brake, balance the jeep over the hills and reach the flag before the fuel runs out.
+   LANDSCAPE (SHELL-LANDSCAPE-1): 1280x720 canvas, zoomed-out wide view (lots of road ahead). GAS = big action button bottom-right
+   (shell hold-safe) + right half of the screen; BRAKE = pedal bottom-left + left half. RIDE UPGRADES = shop categories
+   (Engine / Tyres / Suspension / Fuel Tank, 5 levels each) bought with in-game gold only, saved by the shell. race:true (MP-1). */
 (function(){
-const W=600,H=900,PX=20,R=22,MB=1.4,MW=0.3,IB=1700,OFF=[[-40,30],[40,30]],SUB=8;
+const W=1280,H=720,PX=20,R=22,MB=1.4,MW=0.3,IB=1700,OFF=[[-40,30],[40,30]],SUB=8;
 const BIOMES=[
   {n:'DESERT',g:1000,sky:['#2a0f3e','#ff7a3d'],far:'#5a2448',mid:'#8a3a3a',gr:['#e0a95a','#7a4420'],edge:'#ffd27a',sun:'#ffd23f'},
   {n:'MOON',g:470,sky:['#02010a','#1a1440'],far:'#26224a',mid:'#3a3660',gr:['#a9a6b8','#3c3a4a'],edge:'#e8e6ff',sun:'#5ab0ff'},
   {n:'SNOW',g:1000,sky:['#06143a','#3a6ab0'],far:'#1c3a6a',mid:'#2a5080',gr:['#f2f8ff','#7aa0c8'],edge:'#bff4ff',sun:'#e8f6ff'},
   {n:'NEON CITY',g:1000,sky:['#0a0220','#40105a'],far:'#1a0a3a',mid:'#2a0f4a',gr:['#1c0e36','#0a0418'],edge:'#3dffd8',sun:'#ff4fd8'}];
-let api,t,B,whl,cam,goal,done,lost,eff,fuel,fdr,cans,coins,cps,cpX,bio,cmp,ramp0,gas,brk,ptrs,boostCd,boostT,cage,air,airRot,flipT,spin,rv,rx,rlead,outT,msg,dust,lastCp,seedS,grow;
+/* ride upgrades: 4 parts x 5 levels (LV1 = stock, free). Gold only — never real money. */
+const UPC=[0,120,300,600,1000];
+const UPG=[['Engine','ENGINE',['#ff5a3d','#ffd23f'],l=>'+'+(l*15)+'% engine power, faster top speed'],
+  ['Tyres','TYRES',['#333','#ffd23f'],l=>'+'+(l*12)+'% grip uphill and stronger brakes'],
+  ['Suspension','SUSPENSION',['#3dffd8','#7d5aff'],l=>'Softer landings, +'+(l*10)+'% air control'],
+  ['Fuel Tank','FUEL TANK',['#ff3b3b','#ff9f1c'],l=>'Fuel lasts '+(l*20)+'% longer']];
+let api,t,B,whl,cam,goal,done,lost,eff,fuel,fdr,cans,coins,cps,cpX,bio,cmp,gas,brk,ptrs={},boostCd,boostT,cage,air,airRot,flipT,rv,rx,rlead,outT,dust,seedS,grow,easy=false,saves=0,raceY=0,raceChk=0;
+let Z=0.7,VW=W/0.7,VH=H/0.7,UP={e:0,t:0,s:0,f:0};
 function rng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let q=Math.imul(s^s>>>15,1|s); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }; }
+function upLv(cat){ try{ const it=api&&api.cos?api.cos(cat):null; return it&&it.lv||0; }catch(e){ return 0; } }
+const SX=x=>(x-cam.x)*Z, SY=y=>(y-cam.y)*Z;
 /* ---------- terrain: smooth sum of sines with a flat start and a level-bounded slope ---------- */
 function mkTerrain(seed,smax,amp,rough,len){ const r=rng(seed), RR=(a,b)=>a+r()*(b-a); cmp=[[RR(90,150)*amp,RR(900,1500)],[RR(30,70)*amp,RR(380,600)],[rough,RR(220,300)],[rough*0.5,RR(150,180)]].map(([A,l])=>({A,k:2*Math.PI/l,p:r()*6.28}));
   const ss=cmp.reduce((s,c)=>s+c.A*c.k,0)*1.4; if(ss>smax) cmp.forEach(c=>c.A*=smax/ss); grow=len; }
@@ -449,33 +513,30 @@ function gs(x){ return (gy(x+1)-gy(x-1))/2; }
 function lw(lx,ly){ const c=Math.cos(B.a),s=Math.sin(B.a); return [B.x+lx*c-ly*s,B.y+lx*s+ly*c]; }
 function setCar(x){ const y=gy(x)-62, a=Math.atan(gs(x)); B={x,y,vx:0,vy:0,a,w:0}; whl=OFF.map(o=>{ const p=lw(o[0],o[1]); return {x:p[0],y:p[1],vx:0,vy:0,c:false,sp:0}; }); air=0; airRot=0; }
 /* ---------- physics step ---------- */
-function phys(dt){ const bi=BIOMES[bio], g=bi.g, nit=eff.nitro>0, E=(nit?1500:950)*(bio===2?0.9:1), vmax=nit?760:500, fu=fuel>0;
+function phys(dt){ const bi=BIOMES[bio], g=bi.g, nit=eff.nitro>0, E=(nit?1500:950)*(bio===2?0.9:1)*(1+0.15*UP.e), vmax=(nit?760:500)+45*UP.e, fu=fuel>0, grip=1+0.12*UP.t;
   const ca=Math.cos(B.a), sa=Math.sin(B.a); let fx=0, fy=MB*g, tq=0, cont=0;
   whl.forEach((w,i)=>{ const o=OFF[i], rx_=o[0]*ca-o[1]*sa, ry_=o[0]*sa+o[1]*ca, P=[B.x+rx_,B.y+ry_], vP=[B.vx-B.w*ry_,B.vy+B.w*rx_];
     const ex=[ca,sa], dn=[-sa,ca], dl=[P[0]-w.x,P[1]-w.y], vr=[vP[0]-w.vx,vP[1]-w.vy];
     let dd=dl[0]*dn[0]+dl[1]*dn[1]; const kv=dd<-14?700:60;
-    const fl=600*(dl[0]*ex[0]+dl[1]*ex[1])+25*(vr[0]*ex[0]+vr[1]*ex[1]), fv=kv*dd+8*(vr[0]*dn[0]+vr[1]*dn[1]);
+    const fl=600*(dl[0]*ex[0]+dl[1]*ex[1])+25*(vr[0]*ex[0]+vr[1]*ex[1]), fv=kv*dd+(8+2.5*UP.s)*(vr[0]*dn[0]+vr[1]*dn[1]);
     const F=[ex[0]*fl+dn[0]*fv, ex[1]*fl+dn[1]*fv];
     let ax=F[0]/MW, ay=F[1]/MW+g;
-    // ground
     const s=gs(w.x), nl=Math.hypot(1,s), n=[s/nl,-1/nl], tg=[1/nl,s/nl];
     if(w.c){ const vt=w.vx*tg[0]+w.vy*tg[1]; let D=0;
-      if(gas&&fu) D=E*Math.max(0,1-vt/vmax); else if(brk&&fu) D=vt>25?-1.7*E:-0.55*E*Math.max(0,1+vt/260); else D=-vt*0.25;
+      if(gas&&fu) D=E*Math.max(0,1-vt/vmax)*(s<0?grip:1); else if(brk&&fu) D=(vt>25?-1.7*E:-0.55*E*Math.max(0,1+vt/260))*grip; else D=-vt*0.25;
       if(boostT>0&&vt<vmax*1.2) D+=300; ax+=D*tg[0]/MW; ay+=D*tg[1]/MW; }
     w.vx+=ax*dt; w.vy+=ay*dt; w.x+=w.vx*dt; w.y+=w.vy*dt;
     const d=(gy(w.x)-w.y)/nl; w.c=false;
-    if(d<R+1){ w.c=true; cont++; if(d<R){ w.x+=n[0]*(R-d); w.y+=n[1]*(R-d); const vn=w.vx*n[0]+w.vy*n[1]; if(vn<0){ w.vx-=1.1*vn*n[0]; w.vy-=1.1*vn*n[1]; } } }
+    if(d<R+1){ w.c=true; cont++; if(d<R){ w.x+=n[0]*(R-d); w.y+=n[1]*(R-d); const vn=w.vx*n[0]+w.vy*n[1]; if(vn<0){ const k=1.1-0.025*UP.s; w.vx-=k*vn*n[0]; w.vy-=k*vn*n[1]; } } }
     w.sp+=(w.vx*tg[0]+w.vy*tg[1])*dt/R;
     fx-=F[0]; fy-=F[1]; tq+=rx_*(-F[1])-ry_*(-F[0]); });
-  // air control (and a little wheelie torque on the ground)
-  const ac=bio===1?4.2:5.2;
+  const ac=(bio===1?4.2:5.2)*(1+0.1*UP.s);
   if(cont===0){ if(gas) tq-=ac*IB; if(brk) tq+=ac*IB; } else if(cont===1){ if(gas&&fu) tq-=0.45*ac*IB; if(brk) tq+=0.45*ac*IB; } else { if(gas&&fu) tq-=0.5*IB; if(brk) tq+=1.6*IB; }
   if(boostT>0&&B.vx*ca+B.vy*sa<vmax*1.2){ fx+=ca*450*MB; fy+=sa*450*MB; }
   B.vx+=fx/MB*dt; B.vy+=fy/MB*dt; B.w+=tq/IB*dt; B.w*=cont?0.995:0.999; B.w=Math.max(-7,Math.min(7,B.w));
   const v=Math.hypot(B.vx,B.vy); if(v>1500){ B.vx*=1500/v; B.vy*=1500/v; }
   B.x+=B.vx*dt; B.y+=B.vy*dt; B.a+=B.w*dt;
-  // chassis bumpers (push out of the ground)
-  for(const p of [[-60,10],[60,10],[-30,-22],[30,-22]]) bump(p[0],p[1],0.2);
+  for(const p of [[-60,10],[60,10],[-30,-22],[30,-22]]) bump(p[0],p[1],0.2+0.04*UP.t);
   return cont; }
 function bump(lx,ly,mu){ const ca=Math.cos(B.a),sa=Math.sin(B.a), rx_=lx*ca-ly*sa, ry_=lx*sa+ly*ca, px=B.x+rx_, py=B.y+ry_, s=gs(px), nl=Math.hypot(1,s), n=[s/nl,-1/nl], d=(gy(px)-py)/nl; if(d>=0) return false;
   const vx=B.vx-B.w*ry_, vy=B.vy+B.w*rx_, vn=vx*n[0]+vy*n[1];
@@ -483,147 +544,169 @@ function bump(lx,ly,mu){ const ca=Math.cos(B.a),sa=Math.sin(B.a), rx_=lx*ca-ly*s
     const tg=[-n[1],n[0]], vt=vx*tg[0]+vy*tg[1], rt=rx_*tg[1]-ry_*tg[0]; let jt=-vt/(1/MB+rt*rt/IB); jt=Math.max(-mu*j,Math.min(mu*j,jt)); B.vx+=jt*tg[0]/MB; B.vy+=jt*tg[1]/MB; B.w+=rt*jt/IB; }
   B.x+=n[0]*(-d); B.y+=n[1]*(-d); return true; }
 function headHit(){ for(const p of [[-6,-46],[-26,-30],[22,-30]]){ const q=lw(p[0],p[1]); if(q[1]>gy(q[0])-2) return true; } return false; }
+const SHOP=[{id:'hr_r',cat:'Jeep',name:'Sunset Jeep',cost:0,colors:['#ff5a3d','#ffd23f'],desc:'Classic red and gold.'},{id:'hr_g',cat:'Jeep',name:'Toxic Jeep',cost:200,colors:['#7dff5a','#3dffd8'],desc:'Glowing lime.'}];
+UPG.forEach(([cat,nm,col,fn],ci)=>UPC.forEach((cost,l)=>SHOP.push({id:'hr_u'+ci+l,cat,lv:l,cost,colors:col,name:(l?nm+' LV'+(l+1):'STOCK '+nm),desc:l?'🔧 RIDE UPGRADE · '+fn(l)+'. You can see it on your jeep!':'Standard part (free).'})));
 const GAME=window.GAME={
   id:'hill-rider',title:'Hill Rider',titleHTML:'HILL<br>RIDER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-HR-1.0 · 2026-10-18',theme:{a:'#ff9f1c',b:'#3dffd8',bg:'#1a0a2a'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🚙',joystick:false,coinPts:40,
+  build:'BUILD-HR-1.1 · 2026-10-25',theme:{a:'#ff9f1c',b:'#3dffd8',bg:'#1a0a2a'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🚙',joystick:false,coinPts:40,
   abilities:[
     {id:'boost',icon:'💥',name:'BOOST',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — a short rocket push forward (works in the air too). Recharges in 3 seconds.'},
+    {id:'gas',icon:'⏩',name:'GAS',cd:0,key:'ArrowRight',keyLabel:'→',desc:'FREE — HOLD to drive. Let go and the jeep rolls to a stop.'},
     {id:'nitro',icon:'🚀',name:'NITRO',cd:15,key:'Digit1',keyLabel:'1',desc:'Monster engine power and top speed for 4 seconds.'},
     {id:'can',icon:'⛽',name:'FUEL CAN',cd:20,key:'Digit2',keyLabel:'2',desc:'Fills your fuel tank right up.'},
     {id:'cage',icon:'🛡️',name:'ROLL CAGE',cd:22,key:'Digit3',keyLabel:'3',desc:'For 10 seconds, one flip onto your head is forgiven — the jeep lands back on its wheels.'}],
-  shop:[{id:'hr_r',cat:'Jeep',name:'Sunset Jeep',cost:0,colors:['#ff5a3d','#ffd23f'],desc:'Classic red and gold.'},{id:'hr_g',cat:'Jeep',name:'Toxic Jeep',cost:200,colors:['#7dff5a','#3dffd8'],desc:'Glowing lime.'}],
-  premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff9f1c,#3dffd8)'}],
+  shop:SHOP,
+  premium:[{name:'Ultimate Pack',price:'$3',desc:'Every jeep colour.',swatch:'linear-gradient(90deg,#ff9f1c,#3dffd8)'}],
   story:`<h3>HILL RIDER</h3><p>Rex has a rusty jeep, a full tank and a map with one hundred flags on it — across deserts, the moon, frozen peaks and a neon city. Keep the wheels down, keep the fuel up, and watch out for The Crusher.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Phone:</b> hold the <b>RIGHT</b> half of the screen = GAS, hold the <b>LEFT</b> half = BRAKE / reverse.</li><li><b>PC:</b> → or D = gas, ← or A = brake. SPACE = BOOST. 1-3 = abilities.</li><li>In the air, GAS tips the jeep back and BRAKE tips it forward — land on your wheels!</li><li>If the driver's head hits the ground you lose a life and restart at the last checkpoint 🚩.</li><li>Grab ⛽ fuel cans — run out of fuel and you lose a life. Collect coins on the way.</li><li>Reach the 🏁 flag to clear the stage. Every 10th stage: race The Crusher monster truck!</li></ul>`,
-  tutorial:[{text:'Hold the RIGHT side (or →) to drive!',ev:'gas'},{text:'Grab the fuel can ⛽',ev:'fuel'},{text:'Reach the flag! LEFT side = brake.',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>. The view is wide so you can see the hills coming.</p><ul><li><b>Right thumb:</b> HOLD <b>⏩ GAS</b> (bottom-right) to drive — or hold anywhere on the right half. 💥 BOOST is next to it.</li><li><b>Left thumb:</b> HOLD the <b>BRAKE</b> pedal (bottom-left) — or anywhere on the left half — to brake / reverse.</li><li><b>PC:</b> → or D = gas, ← or A = brake. SPACE = BOOST. 1-3 = abilities.</li><li>The jeep never drives by itself: let go and it rolls to a stop.</li><li>In the air, GAS tips the jeep back and BRAKE tips it forward — land on your wheels!</li><li>If the driver's head hits the ground you lose a life and restart at the last checkpoint 🚩. (Beginner stages 1-10: the jeep flips back for you.)</li><li>Grab ⛽ fuel cans — run out of fuel and you lose a life. Collect coins on the way.</li><li>Reach the 🏁 flag to clear the stage. Every 10th stage: race The Crusher monster truck!</li></ul><h3>🔧 UPGRADE YOUR RIDE</h3><ul><li>Main menu → <b>🛒 SHOP</b>: <b>ENGINE</b> (power + top speed), <b>TYRES</b> (grip + brakes), <b>SUSPENSION</b> (soft landings + air control), <b>FUEL TANK</b> (fuel lasts longer). 5 levels each.</li><li>Paid with the 🪙 gold you collect while playing — never real money. Each upgrade shows on your jeep.</li></ul>`,
+  tutorial:[{text:'Hold → (or D) to drive!',touch:'HOLD <b>⏩ GAS</b> (bottom-right) to drive!',ev:'gas'},{text:'Grab the fuel can ⛽',ev:'fuel'},{text:'Reach the flag! ← = brake.',touch:'Reach the flag! The BRAKE pedal is bottom-left.',time:5}],
   stageIntro:{1:'REACH THE FLAG'},bossName:'THE CRUSHER!',ending:{"0":["#ROAD TRIP","Every hill conquered."],"1":["#HILL KING","No slope too steep."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='boost') return boostCd>0?{left:boostCd,total:3}:null; if(id==='nitro') return eff.nitro>0?{left:eff.nitro,total:4}:null; if(id==='cage') return cage>0?{left:cage,total:10}:null; return null; },
-  _dbg(){ return {get B(){return B;}, get whl(){return whl;}, get goal(){return goal;}, get done(){return done;}, get lost(){return lost;}, get fuel(){return fuel;}, get rx(){return rx;}, get bio(){return bio;}, get cpX(){return cpX;}, gy, gs}; },
+  _dbg(){ return {get B(){return B;}, get whl(){return whl;}, get goal(){return goal;}, get done(){return done;}, get lost(){return lost;}, get fuel(){return fuel;}, get rx(){return rx;}, get bio(){return bio;}, get cpX(){return cpX;}, get UP(){return UP;}, get Z(){return Z;}, get VW(){return VW;}, get easy(){return easy;}, sig(){ return seedS+':'+goal+':'+Math.round(gy(goal-1000)); }, gy, gs}; },
   init(a){ api=a; },
-  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={nitro:-9}; ptrs={}; boostCd=0; boostT=0; cage=0; flipT=0; dust=[]; outT=0; msg=0;
-    const tut=a.content===0; bio=tut?0:(n-1)%4; seedS=n*7919+a.diff*104729;
-    const m=tut?140:a.boss?Math.round(a.dv([450,650,850],950,1200)):Math.round(a.dv([600,900,1200],1400,1800)); goal=300+m*PX;
-    mkTerrain(seedS,tut?0.35:a.dv([0.6,0.82,1],1.06,1.1),tut?0.5:a.dv([1.1,1.5,1.9],2.1,2.5)*(bio===1?1.25:1),tut?2:a.dv([4,14,22],26,28),goal);
-    fdr=tut?1.5:a.dv([3.5,4.5,5.5],6,7); fuel=100;
-    const gap=tut?1200:Math.min(a.dv([4000,4600,5200],5400,5600),0.6*300*100/fdr); cans=[]; for(let x=tut?1100:gap;x<goal-400;x+=gap) cans.push({x,got:false});
+  startStage(n,a){ api=a; t=0; done=false; lost=false; eff={nitro:-9}; ptrs={}; boostCd=0; boostT=0; cage=0; flipT=0; dust=[]; outT=0; saves=0;
+    UP={e:upLv('Engine'),t:upLv('Tyres'),s:upLv('Suspension'),f:upLv('Fuel Tank')};
+    const tut=a.content===0; bio=tut?0:(n-1)%4; seedS=(Math.random()*1e9)|0;   // Math.random: race = same seed = same hills on both phones
+    easy=!tut&&a.diff===0&&a.level<=10; const ez=easy?0.42+0.05*(a.level-1):1;
+    const m=tut?140:easy?(a.boss?380:240+22*a.level):a.boss?Math.round(a.dv([450,650,850],950,1200)):Math.round(a.dv([600,900,1200],1400,1800)); goal=300+m*PX;
+    mkTerrain(seedS,tut?0.35:a.dv([0.6,0.82,1],1.06,1.1)*ez,tut?0.5:a.dv([1.1,1.5,1.9],2.1,2.5)*(bio===1?1.25:1)*ez,tut?2:easy?2+0.2*a.level:a.dv([4,14,22],26,28),goal);
+    fdr=(tut?1.5:easy?2.2:a.dv([3.5,4.5,5.5],6,7))/(1+0.2*UP.f); fuel=100;
+    const gap=tut?1200:Math.min(a.dv([4000,4600,5200],5400,5600)*(easy?0.8:1),0.6*300*100/fdr); cans=[]; for(let x=tut?1100:gap;x<goal-400;x+=gap) cans.push({x,got:false});
     coins=[]; const r=rng(seedS+5); for(let x=900;x<goal-300;x+=500+r()*500){ const nn=4+(r()*4|0); for(let i=0;i<nn;i++){ const cx=x+i*42; if(!cans.some(c=>Math.abs(c.x-cx)<60)) coins.push({x:cx,got:false}); } }
-    cps=[]; for(let x=4000;x<goal-1500;x+=4000) cps.push({x,hit:false}); cpX=300; lastCp=0;
-    rv=a.boss; rx=150; rlead=-150; setCar(300); cam={x:B.x-200,y:B.y-520};
-    if(rv) setTimeout(()=>{ if(!done) api.toast('BEAT THE CRUSHER TO THE FLAG!'); },1400); else if(!tut) setTimeout(()=>api.toast(BIOMES[bio].n+(bio===1?' — LOW GRAVITY!':'')),1400); },
-  respawn(){ lost=false; flipT=0; setCar(cpX+20); cans.forEach(c=>{ if(c.x>cpX) c.got=false; }); fuel=100; outT=0; boostT=0; if(rv) rx=cpX+rlead; },
+    cps=[]; for(let x=easy?2500:4000;x<goal-1200;x+=easy?2500:4000) cps.push({x,hit:false}); cpX=300;
+    rv=a.boss; rx=150; rlead=-150; setCar(300); Z=0.7; VW=W/Z; VH=H/Z; cam={x:B.x-0.3*VW,y:B.y-0.6*VH};
+    const up=UP.e+UP.t+UP.s+UP.f;
+    if(rv) setTimeout(()=>{ if(!done) api.toast('BEAT THE CRUSHER TO THE FLAG!'); },1400); else if(!tut) setTimeout(()=>api.toast(BIOMES[bio].n+(bio===1?' — LOW GRAVITY!':'')),1400);
+    if(!tut&&!rv&&(n===3||n%7===0)&&up<16) setTimeout(()=>{ if(!done&&!lost) api.toast('🔧 UPGRADE YOUR RIDE: MENU → 🛒 SHOP'); },4200); },
+  respawn(){ lost=false; flipT=0; ptrs={}; setCar(cpX+20); cans.forEach(c=>{ if(c.x>cpX) c.got=false; }); fuel=100; outT=0; boostT=0; if(rv) rx=cpX+rlead; },
   stageBonus(){ return Math.round(fuel*5); },
   useAbility(id){ if(done||lost) return false;
+    if(id==='gas') return false;   // GAS is held (shell holds ArrowRight while the button is down)
     if(id==='boost'){ if(boostCd>0) return false; boostT=0.5; boostCd=3; api.sfx.power(); return true; }
     if(id==='nitro'){ eff.nitro=4; api.sfx.power(); return true; }
-    if(id==='can'){ fuel=100; outT=0; api.sfx.pickup(); api.fx.text(B.x-cam.x,B.y-cam.y-70,'FUEL FULL!','#ffd23f',22); return true; }
+    if(id==='can'){ fuel=100; outT=0; api.sfx.pickup(); api.fx.text(SX(B.x),SY(B.y)-60,'FUEL FULL!','#ffd23f',22); return true; }
     if(id==='cage'){ cage=10; api.sfx.power(); return true; } },
+  // touch: left half = BRAKE, right half = GAS, while the finger stays down (tracked per finger; window up/cancel also clears)
   onPointer(type,x,y,id){ id=id||0; if(type==='down') ptrs[id]=x>W/2?1:-1; else if(type==='up') delete ptrs[id]; else if(type==='move'&&ptrs[id]!==undefined) ptrs[id]=x>W/2?1:-1; },
-  update(dt){ dt=Math.min(dt,1/30); t+=dt; if(eff.nitro>-2) eff.nitro-=dt; boostCd=Math.max(0,boostCd-dt); boostT-=dt; if(cage>0) cage-=dt; 
+  update(dt){ dt=Math.min(dt,1/30); t+=dt; if(eff.nitro>-2) eff.nitro-=dt; boostCd=Math.max(0,boostCd-dt); boostT-=dt; if(cage>0) cage-=dt;
     dust.forEach(p=>{ p.x+=p.vx*dt; p.y+=p.vy*dt; p.l-=dt; }); dust=dust.filter(p=>p.l>0);
     const K=api.input.keys, pv=Object.values(ptrs);
-    gas=!done&&!lost&&(K.ArrowRight||K.KeyD||K.ArrowUp||K.KeyW||pv.includes(1)); brk=!done&&!lost&&!gas&&(K.ArrowLeft||K.KeyA||K.ArrowDown||K.KeyS||pv.includes(-1));
+    gas=!done&&!lost&&!!(K.ArrowRight||K.KeyD||K.ArrowUp||K.KeyW||pv.includes(1)); brk=!done&&!lost&&!gas&&!!(K.ArrowLeft||K.KeyA||K.ArrowDown||K.KeyS||pv.includes(-1));
     if(gas) api.event('gas');
     if(lost){ return; }
     let cont=0; for(let i=0;i<SUB;i++) cont=Math.max(cont,phys(dt/SUB));
-    // flips + air time
-    if(!cont){ air+=dt; airRot+=B.w*dt; } else { if(air>0.15){ const f=Math.floor(Math.abs(airRot)/(Math.PI*1.75)); if(f>0&&!done){ api.addScore(400*f,B.x-cam.x,B.y-cam.y-60); api.fx.text(B.x-cam.x,B.y-cam.y-100,(f>1?f+'× ':'')+(airRot<0?'BACKFLIP!':'FRONTFLIP!'),'#ff9f1c',26); api.sfx.clear(); }
-      else if(air>1.1&&!done){ api.addScore(150,B.x-cam.x,B.y-cam.y-60); api.fx.text(B.x-cam.x,B.y-cam.y-100,'BIG AIR!','#3dffd8',22); }
+    if(!cont){ air+=dt; airRot+=B.w*dt; } else { if(air>0.15){ const f=Math.floor(Math.abs(airRot)/(Math.PI*1.75)); if(f>0&&!done){ api.addScore(400*f,SX(B.x),SY(B.y)-50); api.fx.text(SX(B.x),SY(B.y)-80,(f>1?f+'× ':'')+(airRot<0?'BACKFLIP!':'FRONTFLIP!'),'#ff9f1c',26); api.sfx.clear(); }
+      else if(air>1.1&&!done){ api.addScore(150,SX(B.x),SY(B.y)-50); api.fx.text(SX(B.x),SY(B.y)-80,'BIG AIR!','#3dffd8',22); }
       if(air>0.4){ whl.forEach(w=>dust.push(...[0,1,2,3,4].map(()=>({x:w.x,y:w.y+R,vx:(Math.random()-.5)*160,vy:-Math.random()*90,l:0.5})))); api.sfx.bump(); } } air=0; airRot=0; }
     if(gas&&cont&&fuel>0&&Math.random()<0.5) dust.push({x:whl[0].x-10,y:whl[0].y+R-4,vx:-60-Math.random()*80,vy:-40-Math.random()*60,l:0.45});
-    // fuel
     if(!done) fuel=Math.max(0,fuel-fdr*dt*(gas||brk?1:0.35)*(api.content===0?0.5:1));
     if(fuel<=0&&!done){ outT+=dt; if(outT>3.5||(outT>1&&Math.hypot(B.vx,B.vy)<25)) return die('OUT OF FUEL!'); } else outT=0;
-    // head hit
-    if(!done&&headHit()){ if(cage>0) headSave();
-      else return die('CRASHED!'); }
-    { let da=B.a-Math.atan(gs(B.x)); da=Math.atan2(Math.sin(da),Math.cos(da)); if(Math.abs(da)>1.45&&!done) flipT=Math.max(0,flipT)+dt*2; else flipT=0; if(flipT>1.6){ flipT=0; if(cage>0) headSave(); else return die('CRASHED!'); } }
+    if(!done&&headHit()){ if(cage>0) headSave(true); else if(easy) headSave(false); else return die('CRASHED!'); }
+    { let da=B.a-Math.atan(gs(B.x)); da=Math.atan2(Math.sin(da),Math.cos(da)); if(Math.abs(da)>1.45&&!done) flipT=Math.max(0,flipT)+dt*2; else flipT=0; if(flipT>1.6){ flipT=0; if(cage>0) headSave(true); else if(easy) headSave(false); else return die('CRASHED!'); } }
     if(B.y>gy(B.x)+200||whl.some(w=>w.y>gy(w.x)+60)) return die('CRASHED!');
-    // pickups
     const hit=(x,y,rr)=>Math.hypot(B.x-x,B.y-y)<rr||whl.some(w=>Math.hypot(w.x-x,w.y-y)<rr-8);
-    cans.forEach(c=>{ if(!c.got&&hit(c.x,gy(c.x)-30,58)){ c.got=true; fuel=100; outT=0; api.event('fuel'); api.sfx.pickup(); api.addScore(50,c.x-cam.x,gy(c.x)-cam.y-40,true); api.fx.text(c.x-cam.x,gy(c.x)-cam.y-70,'FUEL!','#ffd23f',22); api.fx.burst(c.x-cam.x,gy(c.x)-cam.y-30,'#ffd23f',16,200,.5,3); } });
-    coins.forEach(c=>{ if(!c.got&&hit(c.x,gy(c.x)-34,46)){ c.got=true; api.addScore(25,c.x-cam.x,gy(c.x)-cam.y-34,true); api.sfx.coin(); api.fx.burst(c.x-cam.x,gy(c.x)-cam.y-34,'#ffe14d',6,120,.3,2); } });
-    cps.forEach((c,i)=>{ if(!c.hit&&B.x>c.x){ c.hit=true; cpX=c.x; rlead=Math.min(0,rx-B.x)-500; api.toast('CHECKPOINT!'); api.sfx.pickup(); api.fx.burst(c.x-cam.x,gy(c.x)-cam.y-110,'#3dffd8',20,220,.6,3); } });
-    // rival
-    if(rv&&!done){ const s=gs(rx); rx+=api.dv([370,345,350],352,370)/(1+Math.max(0,-s))*dt; if(rx>=goal) return die('THE CRUSHER WON!'); }
-    // goal
-    if(!done&&B.x>=goal){ done=true; api.toast(rv?'YOU BEAT THE CRUSHER!':'FLAG REACHED!'); api.sfx.clear(); api.fx.flash('#fff',.3); api.fx.burst(goal-cam.x,gy(goal)-cam.y-120,'#ffd23f',40,320,.9,4); setTimeout(()=>api.stageClear(),1100); }
+    cans.forEach(c=>{ if(!c.got&&hit(c.x,gy(c.x)-30,58)){ c.got=true; fuel=100; outT=0; api.event('fuel'); api.sfx.pickup(); api.addScore(50,SX(c.x),SY(gy(c.x))-30,true); api.fx.text(SX(c.x),SY(gy(c.x))-55,'FUEL!','#ffd23f',22); api.fx.burst(SX(c.x),SY(gy(c.x))-22,'#ffd23f',16,160,.5,3); } });
+    coins.forEach(c=>{ if(!c.got&&hit(c.x,gy(c.x)-34,46)){ c.got=true; api.addScore(25,SX(c.x),SY(gy(c.x)-34),true); api.sfx.coin(); api.fx.burst(SX(c.x),SY(gy(c.x)-34),'#ffe14d',6,100,.3,2); } });
+    cps.forEach(c=>{ if(!c.hit&&B.x>c.x){ c.hit=true; cpX=c.x; rlead=Math.min(0,rx-B.x)-500; api.toast('CHECKPOINT!'); api.sfx.pickup(); api.fx.burst(SX(c.x),SY(gy(c.x)-110),'#3dffd8',20,180,.6,3); } });
+    if(rv&&!done){ const s=gs(rx); rx+=(easy?290:api.dv([370,345,350],352,370))/(1+Math.max(0,-s))*dt; if(rx>=goal) return die('THE CRUSHER WON!'); }
+    if(!done&&B.x>=goal){ done=true; api.toast(rv?'YOU BEAT THE CRUSHER!':'FLAG REACHED!'); api.sfx.clear(); api.fx.flash('#fff',.3); api.fx.burst(SX(goal),SY(gy(goal)-120),'#ffd23f',40,280,.9,4); setTimeout(()=>api.stageClear(),1100); }
     api.counter('🏁 TO GO',Math.max(0,Math.ceil((goal-B.x)/PX))+'m',fuel<20?'low':'');
-    // camera
-    const tx=B.x-200+Math.max(-60,Math.min(140,B.vx*0.15)), ty=B.y-540; cam.x+=(tx-cam.x)*Math.min(1,dt*5); cam.y+=(ty-cam.y)*Math.min(1,dt*3); },
-  render(c){ scene(c,cam.x,cam.y,t);
-    // pickups
-    coins.forEach(k=>{ if(k.got) return; const x=k.x-cam.x, y=gy(k.x)-cam.y-34; if(x<-30||x>W+30) return; const sx=Math.abs(Math.cos(t*4+k.x)); c.fillStyle='#ffd23f'; c.shadowColor='#ffb800'; c.shadowBlur=12; c.beginPath(); c.ellipse(x,y,12*sx+2,12,0,0,7); c.fill(); c.shadowBlur=0; c.fillStyle='#b88a00'; c.beginPath(); c.ellipse(x,y,6*sx+1,6,0,0,7); c.fill(); });
-    cans.forEach(k=>{ if(k.got) return; const x=k.x-cam.x, y=gy(k.x)-cam.y-34+Math.sin(t*3)*4; if(x<-40||x>W+40) return; drawCan(c,x,y); });
+    // camera: wide zoomed-out view, jeep left of centre, zooms out a bit more at speed; looks at the road ahead
+    const zt=0.7-Math.min(0.1,Math.abs(B.vx)/5000); Z+=(zt-Z)*Math.min(1,dt*1.5); VW=W/Z; VH=H/Z;
+    const ahead=gy(B.x+0.45*VW), tx=B.x-0.3*VW+Math.max(-60,Math.min(160,B.vx*0.15));
+    let ty=(0.65*B.y+0.35*(ahead-60))-0.58*VH; ty=Math.max(B.y-0.75*VH,Math.min(B.y-0.3*VH,ty));
+    cam.x+=(tx-cam.x)*Math.min(1,dt*5); cam.y+=(ty-cam.y)*Math.min(1,dt*3); },
+  render(c){ c.save(); c.scale(Z,Z); scene(c,cam.x,cam.y,t);
+    coins.forEach(k=>{ if(k.got) return; const x=k.x-cam.x, y=gy(k.x)-cam.y-34; if(x<-30||x>VW+30) return; const sx=Math.abs(Math.cos(t*4+k.x)); c.fillStyle='#ffd23f'; c.shadowColor='#ffb800'; c.shadowBlur=12; c.beginPath(); c.ellipse(x,y,12*sx+2,12,0,0,7); c.fill(); c.shadowBlur=0; c.fillStyle='#b88a00'; c.beginPath(); c.ellipse(x,y,6*sx+1,6,0,0,7); c.fill(); });
+    cans.forEach(k=>{ if(k.got) return; const x=k.x-cam.x, y=gy(k.x)-cam.y-34+Math.sin(t*3)*4; if(x<-40||x>VW+40) return; drawCan(c,x,y); });
     cps.forEach(k=>drawFlag(c,k.x-cam.x,gy(k.x)-cam.y,k.hit?'#3dffd8':'#ff3b5c',false));
     drawFlag(c,goal-cam.x,gy(goal)-cam.y,'#fff',true);
     if(rv) drawTruck(c,rx-cam.x,gy(rx)-cam.y,Math.atan(gs(rx)));
     dust.forEach(p=>{ c.globalAlpha=Math.max(0,p.l*1.6)*0.6; c.fillStyle=BIOMES[bio].edge; c.beginPath(); c.arc(p.x-cam.x,p.y-cam.y,4+(0.5-p.l)*10,0,7); c.fill(); }); c.globalAlpha=1;
-    if(!lost||(t*8|0)%2) drawJeep(c,B,whl,cam.x,cam.y);
-    // rival marker
-    if(rv){ const d=Math.round((rx-B.x)/PX); const sx=rx-cam.x; if(sx<20||sx>W-20){ txt(c,(d>0?'CRUSHER +':'CRUSHER ')+d+'m '+(d>0?'▶':'◀'),d>0?W-110:110,130,d>0?'#ff3b5c':'#7dff5a',18); } }
+    if(!lost||(t*8|0)%2) drawJeep(c,B,whl,cam.x,cam.y,UP);
+    c.restore();
+    if(rv){ const d=Math.round((rx-B.x)/PX); const sx=SX(rx); if(sx<20||sx>W-20){ txt(c,(d>0?'CRUSHER +':'CRUSHER ')+d+'m '+(d>0?'▶':'◀'),d>0?W-200:260,150,d>0?'#ff3b5c':'#7dff5a',20); } }
     hud(c);
     if(lost){ c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ if(!cmp){ mkTerrain(7,0.6,1,8,20000); } bio=Math.floor(tt/6)%4; const x=600+tt*260, cx=x-200, a=Math.atan(gs(x)); scene(c,cx,gy(x)-560,tt);
-    const ca=Math.cos(a),sa=Math.sin(a), b={x:x,y:gy(x)-52,a}; const ws=OFF.map(o=>{ const wx=x+o[0]*ca; return {x:wx,y:gy(wx)-R,sp:tt*12}; }); drawJeep(c,b,ws,cx,gy(x)-560);
-    txt(c,BIOMES[bio].n,W/2,830,BIOMES[bio].edge,22); }
+  attract(c,tt){ if(!cmp){ mkTerrain(7,0.6,1,8,20000); } Z=0.7; VW=W/Z; VH=H/Z; bio=Math.floor(tt/6)%4; const x=600+tt*260, cx=x-0.3*VW, cy=gy(x)-0.6*VH, a=Math.atan(gs(x));
+    c.save(); c.scale(Z,Z); scene(c,cx,cy,tt);
+    const ca=Math.cos(a), b={x:x,y:gy(x)-52,a}; const ws=OFF.map(o=>{ const wx=x+o[0]*ca; return {x:wx,y:gy(wx)-R,sp:tt*12}; }); drawJeep(c,b,ws,cx,cy,{e:2,t:2,s:2,f:2}); c.restore();
+    txt(c,BIOMES[bio].n,W/2,H-40,BIOMES[bio].edge,24); }
 };
-function headSave(){ cage=0; flipT=0; const a=Math.atan(gs(B.x)); B.a=a; B.w=0; B.vy=-300; B.y=gy(B.x)-80; whl.forEach((w,i)=>{ const p=lw(OFF[i][0],OFF[i][1]); w.x=p[0]; w.y=p[1]; w.vx=B.vx; w.vy=B.vy; }); api.fx.text(B.x-cam.x,B.y-cam.y-80,'ROLL CAGE SAVE!','#7df9ff',22); api.sfx.bump(); api.fx.shake(6); }
-function die(m){ if(lost||done) return; lost=true; api.toast(m); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(B.x-cam.x,B.y-cam.y,'#ff9f1c',30,260,.7,4); setTimeout(()=>api.loseLife(),1000); }
-/* ---------- drawing ---------- */
+function headSave(paid){ if(paid) cage=0; flipT=0; const a=Math.atan(gs(B.x)); B.a=a; B.w=0; B.vy=-300; B.vx*=0.5; B.y=gy(B.x)-80; whl.forEach((w,i)=>{ const p=lw(OFF[i][0],OFF[i][1]); w.x=p[0]; w.y=p[1]; w.vx=B.vx; w.vy=B.vy; }); api.fx.text(SX(B.x),SY(B.y)-70,paid?'ROLL CAGE SAVE!':'FLIPPED BACK!','#7df9ff',22); api.sfx.bump(); api.fx.shake(6); if(!paid&&++saves===1) api.toast('CAREFUL! EASE OFF THE GAS ON BIG HILLS'); }
+function die(m){ if(lost||done) return; lost=true; ptrs={}; api.toast(m); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(SX(B.x),SY(B.y),'#ff9f1c',30,220,.7,4); setTimeout(()=>api.loseLife(),1000); }
+// hold-safety: a finger lifted while the game is paused / off the canvas never leaves GAS or BRAKE stuck
+['pointerup','pointercancel'].forEach(ev=>window.addEventListener(ev,e=>{ delete ptrs[e.pointerId]; }));
+window.addEventListener('blur',()=>{ ptrs={}; });
+/* ---------- drawing (world units; render() scales by Z) ---------- */
 function txt(c,s,x,y,col,sz){ c.font='bold '+sz+'px sans-serif'; c.textAlign='center'; c.fillStyle=col; c.shadowColor=col; c.shadowBlur=10; c.fillText(s,x,y); c.shadowBlur=0; }
-function scene(c,cx,cy,tt){ const b=BIOMES[bio]; const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,b.sky[0]); g.addColorStop(1,b.sky[1]); c.fillStyle=g; c.fillRect(0,0,W,H);
-  for(let i=0;i<50;i++){ c.globalAlpha=(bio===0?0.3:0.7)*(0.5+0.5*Math.sin(tt*2+i)); c.fillStyle='#fff'; c.fillRect(((i*137-cx*0.03)%W+W)%W,(i*71)%420+90,2,2); } c.globalAlpha=1;
-  c.fillStyle=b.sun; c.shadowColor=b.sun; c.shadowBlur=40; c.beginPath(); c.arc(440,250,bio===1?34:56,0,7); c.fill(); c.shadowBlur=0;
-  if(bio===1){ c.fillStyle='#3bff7a'; c.beginPath(); c.arc(428,240,12,0,7); c.arc(452,262,8,0,7); c.fill(); }
-  if(bio===0){ c.fillStyle=b.sky[1]; for(let i=0;i<5;i++) c.fillRect(380,262+i*12,120,4); }
-  // far layer
-  const by=Math.max(380,Math.min(720,560-cy*0.15+400*0.15));
-  c.fillStyle=b.far; c.beginPath(); c.moveTo(0,H); for(let x=0;x<=W;x+=10){ const wx=x+cx*0.15; c.lineTo(x,by-80-Math.abs(Math.sin(wx*0.004))*140-Math.sin(wx*0.011)*30); } c.lineTo(W,H); c.fill();
-  if(bio===3){ for(let i=0;i<14;i++){ const bw=60, bx=((i*97-cx*0.3)%(W+120)+W+120)%(W+120)-60, bh=120+(i*53%7)*30; c.fillStyle='#1a0838'; c.fillRect(bx,by+40-bh,bw-8,bh+400); c.fillStyle=i%2?'#ff4fd8':'#3dffd8'; c.globalAlpha=0.6; for(let wy=by+50-bh;wy<by+30;wy+=18) for(let wx=bx+6;wx<bx+bw-14;wx+=14) if((wx*7+wy*3+i)%5<2) c.fillRect(wx,wy,6,8); c.globalAlpha=1; } }
-  c.fillStyle=b.mid; c.beginPath(); c.moveTo(0,H); for(let x=0;x<=W;x+=10){ const wx=x+cx*0.35; c.lineTo(x,by+40-Math.abs(Math.sin(wx*0.007))*90); } c.lineTo(W,H); c.fill();
-  if(bio===2){ c.fillStyle='#0e2448'; for(let i=0;i<12;i++){ const tx=((i*131-cx*0.35)%(W+80)+W+80)%(W+80)-40, ty=by+40-Math.abs(Math.sin((tx+cx*0.35)*0.007))*90; c.beginPath(); c.moveTo(tx,ty-60); c.lineTo(tx-18,ty+4); c.lineTo(tx+18,ty+4); c.fill(); } }
-  // ground
-  const pts=[]; for(let x=-10;x<=W+10;x+=8) pts.push([x,gy(cx+x)-cy]);
-  const gg=c.createLinearGradient(0,300,0,H); gg.addColorStop(0,b.gr[0]); gg.addColorStop(1,b.gr[1]); c.fillStyle=gg; c.beginPath(); c.moveTo(-10,H+10); pts.forEach(p=>c.lineTo(p[0],p[1])); c.lineTo(W+10,H+10); c.fill();
-  c.strokeStyle=b.edge; c.lineWidth=5; c.shadowColor=b.edge; c.shadowBlur=16; c.beginPath(); pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])); c.stroke(); c.shadowBlur=0;
-  c.fillStyle='rgba(0,0,0,.18)'; for(let x=-((cx|0)%46+46);x<W+46;x+=46){ const wx=cx+x; const y=gy(wx)-cy; c.fillRect(x,y+26+((wx*13)%40),8,5); c.fillRect(x+20,y+70+((wx*7)%50),6,4); } }
-function drawJeep(c,b,ws,cx,cy){ const col=api&&api.cos?api.cos('Jeep').colors:['#ff5a3d','#ffd23f'];
-  // suspension
-  c.strokeStyle='#888'; c.lineWidth=5; ws.forEach((w,i)=>{ const ca=Math.cos(b.a),sa=Math.sin(b.a),o=OFF[i]; c.beginPath(); c.moveTo(b.x+o[0]*ca-(o[1]-22)*sa-cx,b.y+o[0]*sa+(o[1]-22)*ca-cy); c.lineTo(w.x-cx,w.y-cy); c.stroke(); });
+function scene(c,cx,cy,tt){ const b=BIOMES[bio]; const g=c.createLinearGradient(0,0,0,VH); g.addColorStop(0,b.sky[0]); g.addColorStop(1,b.sky[1]); c.fillStyle=g; c.fillRect(0,0,VW,VH);
+  for(let i=0;i<90;i++){ c.globalAlpha=(bio===0?0.3:0.7)*(0.5+0.5*Math.sin(tt*2+i)); c.fillStyle='#fff'; c.fillRect(((i*137-cx*0.03)%VW+VW)%VW,(i*71)%(VH*0.45)+110,3,3); } c.globalAlpha=1;
+  const sx=VW*0.72, sy=VH*0.24; c.fillStyle=b.sun; c.shadowColor=b.sun; c.shadowBlur=50; c.beginPath(); c.arc(sx,sy,bio===1?44:72,0,7); c.fill(); c.shadowBlur=0;
+  if(bio===1){ c.fillStyle='#3bff7a'; c.beginPath(); c.arc(sx-14,sy-12,15,0,7); c.arc(sx+16,sy+14,10,0,7); c.fill(); }
+  if(bio===0){ c.fillStyle=b.sky[1]; for(let i=0;i<5;i++) c.fillRect(sx-80,sy+14+i*14,160,5); }
+  const base=600-0.58*VH, by=Math.max(VH*0.42,Math.min(VH*0.8,VH*0.68-(cy-base)*0.15));
+  c.fillStyle=b.far; c.beginPath(); c.moveTo(0,VH); for(let x=0;x<=VW;x+=12){ const wx=x+cx*0.15; c.lineTo(x,by-80-Math.abs(Math.sin(wx*0.004))*150-Math.sin(wx*0.011)*30); } c.lineTo(VW,VH); c.fill();
+  if(bio===3){ const span=VW+120; for(let i=0;i<24;i++){ const bw=64, bx=((i*97-cx*0.3)%span+span)%span-60, bh=120+(i*53%7)*30; c.fillStyle='#1a0838'; c.fillRect(bx,by+40-bh,bw-8,bh+600); c.fillStyle=i%2?'#ff4fd8':'#3dffd8'; c.globalAlpha=0.6; for(let wy=by+50-bh;wy<by+30;wy+=18) for(let wx=bx+6;wx<bx+bw-14;wx+=14) if((wx*7+wy*3+i)%5<2) c.fillRect(wx,wy,6,8); c.globalAlpha=1; } }
+  c.fillStyle=b.mid; c.beginPath(); c.moveTo(0,VH); for(let x=0;x<=VW;x+=12){ const wx=x+cx*0.35; c.lineTo(x,by+40-Math.abs(Math.sin(wx*0.007))*90); } c.lineTo(VW,VH); c.fill();
+  if(bio===2){ const span=VW+80; c.fillStyle='#0e2448'; for(let i=0;i<20;i++){ const tx=((i*131-cx*0.35)%span+span)%span-40, ty=by+40-Math.abs(Math.sin((tx+cx*0.35)*0.007))*90; c.beginPath(); c.moveTo(tx,ty-60); c.lineTo(tx-18,ty+4); c.lineTo(tx+18,ty+4); c.fill(); } }
+  const pts=[]; for(let x=-10;x<=VW+10;x+=8) pts.push([x,gy(cx+x)-cy]);
+  const gg=c.createLinearGradient(0,VH*0.35,0,VH); gg.addColorStop(0,b.gr[0]); gg.addColorStop(1,b.gr[1]); c.fillStyle=gg; c.beginPath(); c.moveTo(-10,VH+10); pts.forEach(p=>c.lineTo(p[0],p[1])); c.lineTo(VW+10,VH+10); c.fill();
+  c.strokeStyle=b.edge; c.lineWidth=6; c.shadowColor=b.edge; c.shadowBlur=16; c.beginPath(); pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])); c.stroke(); c.shadowBlur=0;
+  c.fillStyle='rgba(0,0,0,.18)'; for(let x=-((cx|0)%46+46);x<VW+46;x+=46){ const wx=cx+x; const y=gy(wx)-cy; c.fillRect(x,y+26+((wx*13)%40),8,5); c.fillRect(x+20,y+70+((wx*7)%50),6,4); } }
+const SUSC=['#888','#ffd23f','#3dffd8','#ff4fd8','#ffffff'], RIMC=['#bbb','#d8d8e8','#3dffd8','#ffd23f','#ff4fd8'];
+function drawJeep(c,b,ws,cx,cy,U){ const col=api&&api.cos?api.cos('Jeep').colors:['#ff5a3d','#ffd23f']; U=U||{e:0,t:0,s:0,f:0};
+  const ca=Math.cos(b.a),sa=Math.sin(b.a);
+  // suspension: plain struts -> glowing coil springs (colour + thickness per level)
+  ws.forEach((w,i)=>{ const o=OFF[i], x0=b.x+o[0]*ca-(o[1]-22)*sa-cx, y0=b.y+o[0]*sa+(o[1]-22)*ca-cy, x1=w.x-cx, y1=w.y-cy;
+    c.strokeStyle=SUSC[U.s]; c.lineWidth=4+U.s; if(U.s){ c.shadowColor=SUSC[U.s]; c.shadowBlur=8; }
+    if(!U.s){ c.beginPath(); c.moveTo(x0,y0); c.lineTo(x1,y1); c.stroke(); }
+    else { const dx=x1-x0, dy=y1-y0, L=Math.hypot(dx,dy)||1, nx=-dy/L, ny=dx/L, k=6+U.s; c.beginPath(); c.moveTo(x0,y0); for(let j=1;j<k;j++){ const f=j/k, s=(j%2?1:-1)*(6+U.s); c.lineTo(x0+dx*f+nx*s,y0+dy*f+ny*s); } c.lineTo(x1,y1); c.stroke(); }
+    c.shadowBlur=0; });
   c.save(); c.translate(b.x-cx,b.y-cy); c.rotate(b.a);
   if(boostT>0||(eff&&eff.nitro>0)){ c.fillStyle='#3dd8ff'; c.shadowColor='#3dd8ff'; c.shadowBlur=20; c.beginPath(); c.moveTo(-60,-2); c.lineTo(-100-Math.random()*40,4); c.lineTo(-60,12); c.fill(); c.fillStyle='#fff'; c.beginPath(); c.moveTo(-60,2); c.lineTo(-80-Math.random()*20,5); c.lineTo(-60,8); c.fill(); c.shadowBlur=0; }
+  // fuel tank: jerry cans strapped on the back, one per level
+  for(let j=0;j<U.f;j++){ const jx=-64-(j>>1)*15, jy=-22-(j&1)*20; c.fillStyle='#ff3b3b'; c.shadowColor='#ff3b3b'; c.shadowBlur=6; c.beginPath(); c.roundRect(jx-7,jy,14,19,3); c.fill(); c.shadowBlur=0; c.fillStyle='#ffd23f'; c.fillRect(jx-3,jy-4,6,4); }
+  // engine: exhaust stacks (one per level) with glowing tips
+  for(let j=0;j<U.e;j++){ const ex=-24+j*9; c.fillStyle='#9a9aa8'; c.fillRect(ex,-40-j*2,5,16+j*2); if(gas){ c.fillStyle=U.e>=3?'#3dd8ff':'#ff9f1c'; c.shadowColor=c.fillStyle; c.shadowBlur=10; c.beginPath(); c.arc(ex+2.5,-44-j*2-Math.random()*4,3+Math.random()*2,0,7); c.fill(); c.shadowBlur=0; } }
   c.fillStyle=col[0]; c.shadowColor=col[0]; c.shadowBlur=14; c.beginPath(); c.moveTo(-62,-4); c.lineTo(-58,18); c.lineTo(60,18); c.lineTo(64,0); c.lineTo(38,-8); c.lineTo(22,-26); c.lineTo(-30,-26); c.lineTo(-34,-6); c.closePath(); c.fill(); c.shadowBlur=0;
+  if(U.e){ c.fillStyle=U.e>=3?'#e8e8f0':'#555'; c.beginPath(); c.roundRect(34,-14-U.e*2,22,8+U.e*2,3); c.fill(); if(U.e>=4){ c.fillStyle='#3dd8ff'; c.fillRect(38,-18-U.e*2,14,4); } }
   c.fillStyle='rgba(120,230,255,.75)'; c.beginPath(); c.moveTo(18,-22); c.lineTo(32,-8); c.lineTo(8,-8); c.lineTo(8,-22); c.fill();
   c.fillStyle=col[1]; c.fillRect(-58,4,116,5); c.fillStyle='#2a1a10'; c.fillRect(-50,-34,6,30);
-  // roll cage bars
   c.strokeStyle=cage>0?'#7df9ff':'#444'; c.lineWidth=cage>0?4:3; if(cage>0){ c.shadowColor='#7df9ff'; c.shadowBlur=14; } c.beginPath(); c.moveTo(-30,-26); c.lineTo(-24,-52); c.lineTo(10,-52); c.lineTo(22,-26); c.stroke(); c.shadowBlur=0;
-  // driver
   c.fillStyle='#ffd0a0'; c.beginPath(); c.arc(-6,-36,10,0,7); c.fill(); c.fillStyle='#ffffff'; c.beginPath(); c.arc(-6,-39,11,Math.PI,0); c.fill(); c.fillStyle='#ff3b5c'; c.fillRect(-17,-41,22,4);
   c.fillStyle='#ffe14d'; c.fillRect(56,-2,8,6); c.restore();
-  ws.forEach(w=>{ const x=w.x-cx, y=w.y-cy; c.fillStyle='#151018'; c.beginPath(); c.arc(x,y,R,0,7); c.fill(); c.strokeStyle='#3a3040'; c.lineWidth=4; c.beginPath(); c.arc(x,y,R-3,0,7); c.stroke();
-    c.fillStyle='#bbb'; c.beginPath(); c.arc(x,y,9,0,7); c.fill(); c.strokeStyle='#666'; c.lineWidth=3; for(let k=0;k<3;k++){ const a=w.sp+k*2.09; c.beginPath(); c.moveTo(x,y); c.lineTo(x+Math.cos(a)*9,y+Math.sin(a)*9); c.stroke(); } }); }
+  // tyres: knobby treads (more per level) + coloured rims
+  ws.forEach(w=>{ const x=w.x-cx, y=w.y-cy; c.fillStyle='#151018'; c.beginPath(); c.arc(x,y,R,0,7); c.fill();
+    if(U.t){ const n=8+U.t*3; c.fillStyle='#2c2430'; for(let k=0;k<n;k++){ const a=w.sp+k*6.283/n; c.save(); c.translate(x+Math.cos(a)*R,y+Math.sin(a)*R); c.rotate(a); c.fillRect(-2,-3-U.t*0.5,4+U.t,6+U.t); c.restore(); } }
+    c.strokeStyle='#3a3040'; c.lineWidth=4; c.beginPath(); c.arc(x,y,R-3,0,7); c.stroke();
+    c.fillStyle=RIMC[U.t]; if(U.t>=2){ c.shadowColor=RIMC[U.t]; c.shadowBlur=8; } c.beginPath(); c.arc(x,y,9+U.t,0,7); c.fill(); c.shadowBlur=0; c.strokeStyle='#666'; c.lineWidth=3; for(let k=0;k<3;k++){ const a=w.sp+k*2.09; c.beginPath(); c.moveTo(x,y); c.lineTo(x+Math.cos(a)*(9+U.t),y+Math.sin(a)*(9+U.t)); c.stroke(); } }); }
 function drawTruck(c,x,y,a){ c.save(); c.translate(x,y); c.rotate(a); c.globalAlpha=0.92; const bob=Math.sin(t*14)*2;
   [-48,48].forEach(o=>{ c.fillStyle='#0d0a10'; c.beginPath(); c.arc(o,-38,38,0,7); c.fill(); c.strokeStyle='#ff3b5c'; c.lineWidth=3; c.beginPath(); c.arc(o,-38,34,0,7); c.stroke(); c.fillStyle='#555'; c.beginPath(); c.arc(o,-38,12,0,7); c.fill(); });
   c.fillStyle='#6a1aff'; c.shadowColor='#b14bff'; c.shadowBlur=18; c.beginPath(); c.moveTo(-80,-70+bob); c.lineTo(84,-70+bob); c.lineTo(80,-104+bob); c.lineTo(30,-108+bob); c.lineTo(16,-140+bob); c.lineTo(-40,-140+bob); c.lineTo(-50,-106+bob); c.lineTo(-82,-104+bob); c.closePath(); c.fill(); c.shadowBlur=0;
   c.fillStyle='rgba(255,80,120,.8)'; c.fillRect(-32,-134+bob,40,22); c.fillStyle='#ffd23f'; c.font='bold 14px sans-serif'; c.textAlign='center'; c.fillText('CRUSHER',0,-80+bob); c.restore(); c.globalAlpha=1; }
 function drawCan(c,x,y){ c.save(); c.translate(x,y); c.fillStyle='#ff3b3b'; c.shadowColor='#ff3b3b'; c.shadowBlur=16; c.beginPath(); c.roundRect(-14,-18,28,36,5); c.fill(); c.shadowBlur=0; c.fillStyle='#ffd23f'; c.fillRect(-8,-24,10,7); c.strokeStyle='#ffd23f'; c.lineWidth=3; c.beginPath(); c.moveTo(-9,-8); c.lineTo(9,8); c.moveTo(9,-8); c.lineTo(-9,8); c.stroke(); c.restore(); }
-function drawFlag(c,x,y,col,big){ if(x<-80||x>W+80) return; const h=big?170:110; c.fillStyle='#ddd'; c.fillRect(x-2,y-h,5,h);
-  if(big){ for(let i=0;i<4;i++) for(let j=0;j<3;j++){ c.fillStyle=(i+j)%2?'#111':'#fff'; c.fillRect(x+3+i*16+Math.sin(t*5+i)*2,y-h+j*14,16,14); } c.shadowColor='#ffd23f'; c.shadowBlur=20; txt(c,'FINISH',x+34,y-h-14,'#ffd23f',20); }
-  else { c.fillStyle=col; c.shadowColor=col; c.shadowBlur=12; c.beginPath(); c.moveTo(x+3,y-h); c.lineTo(x+46+Math.sin(t*6)*3,y-h+14); c.lineTo(x+3,y-h+28); c.fill(); c.shadowBlur=0; } }
-function hud(c){ // fuel gauge + progress (bottom)
-  const y=H-74; c.fillStyle='rgba(0,0,0,.45)'; c.beginPath(); c.roundRect(14,y,250,30,10); c.fill(); c.font='bold 18px sans-serif'; c.textAlign='left'; c.fillStyle='#fff'; c.fillText('⛽',22,y+22);
-  const fc=fuel<20?((t*4|0)%2?'#ff3b5c':'#ff9f1c'):fuel<45?'#ffd23f':'#7dff5a'; c.fillStyle='rgba(255,255,255,.15)'; c.fillRect(52,y+9,200,12); c.fillStyle=fc; c.shadowColor=fc; c.shadowBlur=10; c.fillRect(52,y+9,200*fuel/100,12); c.shadowBlur=0;
-  const p=Math.max(0,Math.min(1,(B.x-300)/(goal-300))); c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(14,H-30,W-28,8); c.fillStyle='#3dffd8'; c.fillRect(14,H-30,(W-28)*p,8);
-  if(rv){ const q=Math.max(0,Math.min(1,(rx-300)/(goal-300))); c.fillStyle='#ff3b5c'; c.beginPath(); c.arc(14+(W-28)*q,H-26,7,0,7); c.fill(); }
-  c.fillStyle='#fff'; c.beginPath(); c.arc(14+(W-28)*p,H-26,6,0,7); c.fill();
-  // pedals
-  const pd=[['BRAKE',brk,96,'#ff3b5c'],['GAS',gas,W-96,'#7dff5a']]; pd.forEach(([s,on,x,col])=>{ c.globalAlpha=on?0.9:0.35; c.fillStyle=on?col:'rgba(255,255,255,.15)'; c.strokeStyle=col; c.lineWidth=3; c.beginPath(); c.roundRect(x-64,H-170,128,70,16); c.fill(); c.stroke(); c.globalAlpha=1; txt(c,s,x,H-126,on?'#111':col,20); }); }
+function drawFlag(c,x,y,col,big){ if(x<-80||x>VW+80) return; const h=big?190:120; c.fillStyle='#ddd'; c.fillRect(x-2,y-h,5,h);
+  if(big){ for(let i=0;i<4;i++) for(let j=0;j<3;j++){ c.fillStyle=(i+j)%2?'#111':'#fff'; c.fillRect(x+3+i*18+Math.sin(t*5+i)*2,y-h+j*16,18,16); } txt(c,'FINISH',x+38,y-h-16,'#ffd23f',26); }
+  else { c.fillStyle=col; c.shadowColor=col; c.shadowBlur=12; c.beginPath(); c.moveTo(x+3,y-h); c.lineTo(x+50+Math.sin(t*6)*3,y-h+16); c.lineTo(x+3,y-h+32); c.fill(); c.shadowBlur=0; } }
+function hud(c){ if(--raceChk<=0){ raceChk=30; const el=document.getElementById('mpBars'); raceY=(el&&el.style.display!=='none'&&el.innerHTML)?62:0; } // race bars sit at the top: move the gauges under them
+  // fuel gauge + progress: top-centre just under the shell strip; BRAKE pedal bottom-left (GAS is the shell button bottom-right)
+  const gx=W/2-170, y=78+raceY; c.fillStyle='rgba(0,0,0,.45)'; c.beginPath(); c.roundRect(gx,y,340,30,10); c.fill(); c.font='bold 18px sans-serif'; c.textAlign='left'; c.fillStyle='#fff'; c.fillText('⛽',gx+8,y+22);
+  const fc=fuel<20?((t*4|0)%2?'#ff3b5c':'#ff9f1c'):fuel<45?'#ffd23f':'#7dff5a'; c.fillStyle='rgba(255,255,255,.15)'; c.fillRect(gx+38,y+9,290,12); c.fillStyle=fc; c.shadowColor=fc; c.shadowBlur=10; c.fillRect(gx+38,y+9,290*fuel/100,12); c.shadowBlur=0;
+  const p=Math.max(0,Math.min(1,(B.x-300)/(goal-300))), px0=W/2-260, pw=520, py=118+raceY; c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(px0,py,pw,8); c.fillStyle='#3dffd8'; c.fillRect(px0,py,pw*p,8);
+  cps.forEach(k=>{ const q=(k.x-300)/(goal-300); c.fillStyle=k.hit?'#3dffd8':'#ff3b5c'; c.fillRect(px0+pw*q-1,py-4,3,16); });
+  if(rv){ const q=Math.max(0,Math.min(1,(rx-300)/(goal-300))); c.fillStyle='#ff3b5c'; c.beginPath(); c.arc(px0+pw*q,py+4,8,0,7); c.fill(); }
+  c.fillStyle='#fff'; c.beginPath(); c.arc(px0+pw*p,py+4,7,0,7); c.fill(); txt(c,'🏁',px0+pw+16,py+10,'#fff',16);
+  // BRAKE pedal (left thumb). Whole left half works too.
+  const bx=150, by=572, on=brk; c.globalAlpha=on?0.95:0.5; c.fillStyle=on?'#ff3b5c':'rgba(255,255,255,.12)'; c.strokeStyle='#ff3b5c'; c.lineWidth=4; c.beginPath(); c.roundRect(bx,by,190,118,22); c.fill(); c.stroke();
+  c.strokeStyle=on?'rgba(0,0,0,.35)':'rgba(255,59,92,.45)'; c.lineWidth=5; for(let i=0;i<4;i++){ c.beginPath(); c.moveTo(bx+30,by+26+i*20); c.lineTo(bx+160,by+26+i*20); c.stroke(); }
+  c.globalAlpha=1; txt(c,'⏪ BRAKE',bx+95,by+68,on?'#111':'#ff8aa0',28); }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -710,8 +793,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<b>🔄 TURN YOUR PHONE SIDEWAYS</b> <button id="rotGo" type="button">TAP HERE TO TURN THE SCREEN</button>'; rt.addEventListener('pointerdown',e=>{ e.stopPropagation(); }); rt.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); landForce(); });
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -736,6 +837,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -753,6 +877,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -859,7 +987,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -883,6 +1011,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -932,8 +1062,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -1304,7 +1434,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -1478,6 +1608,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -1488,10 +1619,32 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  // SHELL-LANDSCAPE-2 (25 Oct): NEVER block the game. Many phones have auto-rotate switched off, so the page never turns
+  // and the old "turn your phone" cover got stuck. Upright now just plays (smaller) with a small hint strip at the top.
+  const want = up && state!=='loading';  // SHELL-LANDSCAPE-3: hint shows on menu AND in play whenever the phone is upright
+  if(state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+/* SHELL-LANDSCAPE-3: force sideways. Phones only allow a screen lock in fullscreen or in the installed app, and only
+   right after a tap — so we ask for fullscreen + landscape on the hint button and on taps while upright. Works even when
+   the phone's auto-rotate is off. iPhones don't allow it: they keep the hint and play upright (smaller). */
+function landForce(){ try{ const d=document.documentElement, fs=document.fullscreenElement||document.webkitFullscreenElement;
+  const go=()=>{ landLock(); landTurnTip(); }; if(!fs && (d.requestFullscreen||d.webkitRequestFullscreen)){ const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'}); if(r&&r.then) r.then(go,go); else go(); } else go(); }catch(e){ landLock(); } }
+if(LAND) window.addEventListener('pointerdown', ()=>{ if(window.innerHeight>window.innerWidth*1.05 && landTouch() && state!=='loading') landForce(); }, true);
+function landTurnTip(){ try{ if(landTurnTip.t && Date.now()-landTurnTip.t<8000) return; landTurnTip.t=Date.now(); let el=document.getElementById('turnTip'); if(!el){ el=document.createElement('div'); el.id='turnTip'; el.innerHTML='<div class="tt-ph">📱</div><b>NOW TURN YOUR PHONE SIDEWAYS</b><span>Hold it with both hands, thumbs on the buttons</span>'; document.body.appendChild(el); }
+  el.classList.remove('hidden'); clearTimeout(landTurnTip.h); landTurnTip.h=setTimeout(()=>el.classList.add('hidden'),3500); }catch(e){} }
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -1508,7 +1661,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -1544,7 +1697,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -1583,6 +1736,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
