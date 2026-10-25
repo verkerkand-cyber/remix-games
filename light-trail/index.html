@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-LT-1.4 · 2026-10-18">
+<meta name="build" content="BUILD-LT-1.5 · 2026-10-26">
 <title>Light Trail</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-LT-1.4 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-LT-1.5 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -490,10 +490,15 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </div>
 <script>
 /* LIGHT TRAIL — light-cycle remix (#54). 100 stages. Trap the rival cycles in your trail — don't hit any wall of light yourself.
-   BUILD-LT-1.2: real online 2-player VERSUS (NET-1) — P1 host (cyan) vs P2 guest (pink), best of 3 rounds. */
+   BUILD-LT-1.2: real online 2-player VERSUS (NET-1) — P1 host (cyan) vs P2 guest (pink), best of 3 rounds.
+   BUILD-LT-1.5: LANDSCAPE 1280x720 (wide arena). Neon-Serpent touch controls: SWIPE any direction, TAP left/right half = turn
+   left/right from your heading; one turn per touch, turns queued (no accidental 180°). Beginner 1-10 much easier:
+   slower bikes, fewer + dumber rivals that don't chase you, longer READY, and the first bumps only STOP you (turn away!). */
 (function(){
-const W=600,H=900,C=10,GW=58,GH=72,OX=10,OY=130;
-let api,t,grid,bikes,me,done,lost,eff,grace,acc,swipe,jumpCD,flash;
+const W=1280,H=720,C=12,GW=84,GH=50,OX=100,OY=96,SW=30;
+let api,t,grid,bikes,me,done,lost,eff,grace,acc,swipe,jumpCD,flash,bumps=0,stuck=null;
+let TS={},TS2={};
+const easyLv=()=>!!api&&api.diff===0&&(api.level||1)<=10&&!api.net;
 // 2-player versus state
 let p2,humans,eff2,jumpCD2,swipe2,rw,rnd,rEnd,rWin,fin,ev,evN,recent,ep,fullN,lastFull,seq,g2,gSeq,gEp,gEv;
 const COLS=['#00e5ff','#ff3b5c','#ffd23f','#3bff7a','#b14bff','#ff9f1c','#ff3bd4'];
@@ -507,8 +512,8 @@ function pushEv(k,x,y,c){ if(!isNet()||!ev) return; ev.push({i:++evN,t,k,x:Math.
 const ghostOn=b=>(b===me&&eff.ghost>0)||(p2&&b===p2&&eff2&&eff2.ghost>0);
 const GAME=window.GAME={
   id:'light-trail',title:'Light Trail',titleHTML:'LIGHT<br>TRAIL',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-LT-1.4 · 2026-10-18',theme:{a:'#00e5ff',b:'#ff3b5c',bg:'#02040c'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🏍️',joystick:false,coinPts:40,
+  build:'BUILD-LT-1.5 · 2026-10-26',theme:{a:'#00e5ff',b:'#ff3b5c',bg:'#02040c'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🏍️',joystick:false,coinPts:40,
   net:{mode:'versus'},
   abilities:[
     {id:'jump',icon:'⤴️',name:'HOP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — hop over 3 squares of light. Needs 3 seconds to recharge.'},
@@ -518,8 +523,8 @@ const GAME=window.GAME={
   shop:[{id:'l_c',cat:'Cycle',name:'Cyan Cycle',cost:0,colors:['#00e5ff'],desc:'Classic.'},{id:'l_w',cat:'Cycle',name:'White Cycle',cost:150,colors:['#ffffff'],desc:'Pure light.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#00e5ff,#ff3b5c)'}],
   story:`<h3>LIGHT TRAIL</h3><p>Inside the grid, every rider leaves a wall of light. Box the rivals in. Last cycle riding wins.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Swipe</b> to turn (arrow keys on PC). Your cycle never stops.</li><li>Every cycle leaves a wall of light behind it. Hitting any wall — or the arena edge — wrecks you.</li><li>Make every rival crash to win the round.</li><li>Tap <b>⤴️ HOP</b> (SPACE) to jump over a wall in an emergency.</li><li><b>Play Together (2P):</b> cyan P1 vs pink P2. Make your friend crash first — best of 3 rounds wins.</li></ul>`,
-  tutorial:[{text:'Swipe to turn. Cut across the rival so it crashes into your light wall!',ev:'wreck'}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Swipe</b> anywhere (up, down, left, right) to point your cycle that way.</li><li>Or <b>tap the LEFT half</b> of the screen = turn left, <b>tap the RIGHT half</b> = turn right (left/right from where your cycle is heading).</li><li>Every swipe or tap turns once — quick double taps both count. You can never turn straight back into your own wall.</li><li>PC: arrow keys or WASD. Your cycle never stops.</li><li>Every cycle leaves a wall of light behind it. Hitting any wall — or the arena edge — wrecks you.</li><li>Make every rival crash to win the round. Beginner: the first few bumps only STOP your cycle — turn away quickly!</li><li>Tap <b>⤴️ HOP</b> (SPACE) to jump over a wall in an emergency.</li><li><b>Play Together (2P):</b> cyan P1 vs pink P2. Make your friend crash first — best of 3 rounds wins.</li></ul>`,
+  tutorial:[{text:'Arrow keys turn. Cut across the rival so it crashes into your light wall!',touch:'<b>Swipe</b> to turn — or <b>tap LEFT/RIGHT half</b> to turn left/right. Make the rival crash into your light wall!',ev:'wreck'}],
   stageIntro:{1:'LAST CYCLE RIDING WINS'},bossName:'THE GRID MASTER!',ending:{"0":["#CHAMP","Grid champion."],"1":["#MASTER","Master of light."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(isNet()&&api.net.role==='guest'){ if(!g2) return null; if(id==='jump') return g2[0]>0?{left:g2[0],total:3}:null; const tot={slow:5,ghost:4}[id]; return tot?{left:Math.max(0,id==='slow'?g2[1]:g2[2]),total:tot}:null; }
     if(id==='jump'&&jumpCD>0) return {left:jumpCD,total:3}; const tot={slow:5,ghost:4}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
@@ -527,13 +532,15 @@ const GAME=window.GAME={
     get net2(){ if(!isNet()) return null; let cells=0; for(let y=0;y<GH;y++) for(let x=0;x<GW;x++) if(grid[y][x]) cells++; return {p1:hb(me),p2:hb(p2),rw,rnd,cells,n:bikes.length}; },
     get grid(){return grid;}, crash(i){ const b=i?p2:me; if(b) wreck(b); }}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1.2; acc=0; jumpCD=0; flash=0; eff={slow:-9,ghost:-9}; grid=[...Array(GH)].map(()=>Array(GW).fill(0));
+  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1.2; TS={}; TS2={}; stuck=null; bumps=0; acc=0; jumpCD=0; flash=0; eff={slow:-9,ghost:-9}; grid=[...Array(GH)].map(()=>Array(GW).fill(0));
     if(a.net){ p2=null; rw=[0,0]; rnd=0; fin=false; ev=[]; evN=0; seq=0; ep=0; lastFull=-9; gSeq=0; gEp=-1; gEv=0; g2=null; swipe=swipe2=null; newRound(); return; }
     p2=null; humans=null;
     me=bike(Math.floor(GW/2),GH-8,[0,-1],api.cos('Cycle').colors[0],false,1); bikes=[me];
-    const n2=a.content===0?1:Math.min(6,Math.round(a.dv([1,2,3],4,6))); const spots=[[GW/2,8,[0,1]],[8,GH/2,[1,0]],[GW-9,GH/2,[-1,0]],[8,8,[1,0]],[GW-9,8,[-1,0]],[8,GH-9,[1,0]]];
+    const ez=easyLv(); if(ez){ grace=2.2; bumps=a.level<=5?3:2; }
+    const n2=a.content===0?1:ez?(a.boss?1:(a.level<=5?1:2)):Math.min(6,Math.round(a.dv([1,2,3],4,6)));
+    const spots=ez?[[10,8,[1,0]],[GW-11,8,[-1,0]]]:[[GW/2,8,[0,1]],[8,GH/2,[1,0]],[GW-9,GH/2,[-1,0]],[8,8,[1,0]],[GW-9,8,[-1,0]],[8,GH-9,[1,0]]];
     for(let k=0;k<n2;k++){ const s=spots[k]; bikes.push(bike(Math.floor(s[0]),Math.floor(s[1]),s[2],COLS[1+k%6],true,k+2)); }
-    if(a.boss){ const s=[GW-9,GH-9,[-1,0]]; const b=bike(s[0],s[1],s[2],'#ffffff',true,9); b.master=true; bikes.push(b); }
+    if(a.boss){ const s=ez?[GW-11,8,[-1,0]]:[GW-9,GH-9,[-1,0]]; const b=bike(s[0],s[1],s[2],'#ffffff',true,9); b.master=true; bikes.push(b); }
     bikes.forEach(b=>grid[b.y][b.x]=b.id); },
   respawn(){ lost=false; grace=1.5; this.startStage(0,api); },
   stageBonus(){ return 300; },
@@ -542,14 +549,19 @@ const GAME=window.GAME={
     if(id==='wipe'){ wipe(); return true; }
     eff[id]={slow:5,ghost:4}[id]; api.sfx.power(); return true; },
   useAbility2(id){ if(!isNet()) return false; return abil(1,id); },
-  onPointer(type,x,y){ if(done||lost) return; swipe=ptr(type,x,y,swipe,me); },
-  onPointer2(type,x,y){ if(!isNet()||!p2) return; swipe2=ptr(type,x,y,swipe2,p2); },
-  update(dt){ t+=dt; if(isNet()){ netUpdate(dt); return; } if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; if(jumpCD>0) jumpCD-=dt; if(flash>0) flash-=dt; if(lost) return;
+  onPointer(type,x,y,id){ if(isNet()){ if(me) ptr(type,x,y,id,me,TS); return; } if(done||lost) return; ptr(type,x,y,id,me,TS); },
+  onPointer2(type,x,y){ if(!isNet()||!p2) return; ptr(type,x,y,0,p2,TS2); },
+  update(dt){ t+=dt; if(isNet()){ netUpdate(dt); return; } if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; if(jumpCD>0) jumpCD-=dt; if(flash>0) flash-=dt; if(stuck>0) stuck-=dt; if(lost) return;
     const K=api.input.keys; keyTurn(K,me); if(K.Space&&!this._s) this.useAbility('jump'); this._s=K.Space;
     if(grace>0) return;
-    acc+=dt*api.dv([16,19,22],24,28);
+    acc+=dt*(easyLv()?8+(api.level-1)*0.4:api.dv([16,19,22],24,28));
     while(acc>=1){ acc-=1; const rivalsMove=eff.slow>0?(Math.floor(t*20)%2===0):true;
-      bikes.forEach(b=>{ if(!b.alive) return; if(b.ai&&!rivalsMove&&!b.master) return; if(b.ai) think(b); step(b); });
+      bikes.forEach(b=>{ if(!b.alive) return; if(b.ai&&!rivalsMove&&!b.master) return; if(b.ai) think(b);
+        if(b===me&&b.jump<=0&&!ghostOn(b)&&blocked(b)){ // Beginner: a bump only stops you (for a moment) — turn away!
+          if(stuck===null&&bumps>0){ bumps--; stuck=1.1; api.toast(bumps?'STOP! TURN AWAY!':'LAST SAVE — TURN!'); api.sfx.hurt&&api.sfx.hurt(); }
+          if(stuck!==null&&stuck>0) return; }
+        else if(b===me) stuck=null;
+        step(b); });
       heads(); }
     const left=bikes.filter(b=>b.ai&&b.alive).length; api.counter('🏍️ RIVALS',left);
     if(!me.alive&&!lost){ lost=true; api.toast('WRECKED!'); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1100); }
@@ -581,19 +593,34 @@ const GAME=window.GAME={
     const colOf={}; bikes.forEach(b=>colOf[b.id]=b.col);
     for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){ const v=grid[y][x]; if(v){ c.fillStyle=colOf[v]||'#888'; c.globalAlpha=0.75; c.fillRect(OX+x*C+1,OY+y*C+1,C-2,C-2); } } c.globalAlpha=1;
     const net=isNet();
-    bikes.forEach(b=>{ if(!b.alive) return; const x=OX+b.x*C+C/2, y=OY+b.y*C+C/2; c.shadowColor=b.col; c.shadowBlur=18; c.fillStyle=b.col; c.save(); c.translate(x,y); c.rotate(Math.atan2(b.d[1],b.d[0])); c.fillRect(-9,-5,18,10); c.fillStyle='#fff'; c.fillRect(4,-3,5,6); c.restore(); c.shadowBlur=0;
+    bikes.forEach(b=>{ if(!b.alive) return; const x=OX+b.x*C+C/2, y=OY+b.y*C+C/2; c.shadowColor=b.col; c.shadowBlur=18; c.fillStyle=b.col; c.save(); c.translate(x,y); c.rotate(Math.atan2(b.d[1],b.d[0])); c.fillRect(-11,-6,22,12); c.fillStyle='#fff'; c.fillRect(5,-4,6,8); c.restore(); c.shadowBlur=0;
+      if(b===me&&stuck>0&&!isNet()){ c.strokeStyle='#ffd23f'; c.lineWidth=3; c.beginPath(); c.arc(x,y,16+6*Math.sin(t*20),0,7); c.stroke(); }
       if(b.gh||ghostOn(b)){ c.strokeStyle='#fff'; c.lineWidth=2; c.beginPath(); c.arc(x,y,14,0,7); c.stroke(); } if(b.master){ c.fillStyle='#fff'; c.font='bold 12px sans-serif'; c.textAlign='center'; c.fillText('MASTER',x,y-14); }
       if(net&&b.h!==undefined){ const nm=((api.net.names||[])[b.h]||('P'+(b.h+1))).slice(0,12); c.font='bold 14px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='#000'; c.strokeText(nm,x,y-16); c.fillStyle=b.col; c.fillText(nm,x,y-16); } });
     if(net) drawRounds(c);
     if(flash>0){ c.fillStyle=`rgba(255,255,255,${flash})`; c.fillRect(0,0,W,H); }
-    if(grace>0&&!lost){ c.fillStyle='#fff'; c.font='bold 48px sans-serif'; c.textAlign='center'; c.fillText('READY',W/2,H/2); if(net){ c.font='bold 26px sans-serif'; c.fillText('ROUND '+rnd,W/2,H/2-56); } }
+    if(grace>0&&!lost){ c.fillStyle='#fff'; c.font='bold 48px sans-serif'; c.textAlign='center'; c.fillText('READY',W/2,H/2); if(net){ c.font='bold 26px sans-serif'; c.fillText('ROUND '+rnd,W/2,H/2-56); }
+      else if(easyLv()){ c.font='bold 22px sans-serif'; c.fillStyle='#9ff'; c.fillText(touchDev()?'SWIPE or TAP LEFT / RIGHT HALF to turn':'ARROW KEYS to turn',W/2,H/2+44); } }
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#02040c'; c.fillRect(0,0,W,H); c.fillStyle='#00e5ff'; c.fillRect(100,450,(tt*200)%400,8); c.fillStyle='#ff3b5c'; c.fillRect(500-(tt*160)%400,520,(tt*160)%400,8); }
+  attract(c,tt){ c.fillStyle='#02040c'; c.fillRect(0,0,W,H); c.fillStyle='#00e5ff'; c.fillRect(200,330,(tt*300)%880,10); c.fillStyle='#ff3b5c'; c.fillRect(1080-(tt*240)%880,400,(tt*240)%880,10); }
 };
-function keyTurn(K,b){ if(K.ArrowLeft||K.KeyA) turn([-1,0],b); if(K.ArrowRight||K.KeyD) turn([1,0],b); if(K.ArrowUp||K.KeyW) turn([0,-1],b); if(K.ArrowDown||K.KeyS) turn([0,1],b); }
-function ptr(type,x,y,sw,b){ if(type==='down') return {x,y}; if(type==='up'&&sw){ const dx=x-sw.x, dy=y-sw.y; if(Math.hypot(dx,dy)>20) turn(Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)],b); else turn(x<W/2?[b.d[1],-b.d[0]]:[-b.d[1],b.d[0]],b); return null; } return sw; }
-function turn(d,b){ b=b||me; if(!b||!b.alive) return; if(d[0]===-b.d[0]&&d[1]===-b.d[1]) return; if(d[0]!==b.d[0]||d[1]!==b.d[1]) b.turned=true; b.d=d; }
-function step(b){ const nx=b.x+b.d[0], ny=b.y+b.d[1];
+// keys: edge-triggered (one press = one turn), turns go into a short queue
+function keyTurn(K,b){ if(!b) return; const n={L:K.ArrowLeft||K.KeyA,R:K.ArrowRight||K.KeyD,U:K.ArrowUp||K.KeyW,D:K.ArrowDown||K.KeyS}, o=b.pk||{};
+  if(n.L&&!o.L) turn([-1,0],b); if(n.R&&!o.R) turn([1,0],b); if(n.U&&!o.U) turn([0,-1],b); if(n.D&&!o.D) turn([0,1],b); b.pk=n; }
+// one touch = at most one turn: a swipe (first 30px decide the direction) OR a tap (left half = turn left, right half = turn right)
+function ptr(type,x,y,id,b,S){ if(!b) return; id=id===undefined?0:id;
+  if(type==='down'){ S[id]={x,y}; return; }
+  const s=S[id]; if(!s) return; const dx=x-s.x, dy=y-s.y, big=Math.max(Math.abs(dx),Math.abs(dy))>=SW;
+  if(type==='move'){ if(!s.done&&big){ turn(Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)],b); s.done=1; } return; }
+  if(type==='up'){ delete S[id]; if(s.done) return; if(big) turn(Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)],b);
+    else { const L=lastD(b); turn(s.x<W/2?[L[1],-L[0]]:[-L[1],L[0]],b); } } }
+function touchDev(){ try{ return !!(api.input.touch||matchMedia('(pointer:coarse)').matches); }catch(e){ return !!api.input.touch; } }
+const lastD=b=>b.q&&b.q.length?b.q[b.q.length-1]:b.d;
+function turn(d,b){ b=b||me; if(!b||!b.alive) return; const L=lastD(b); if((d[0]===-L[0]&&d[1]===-L[1])||(d[0]===L[0]&&d[1]===L[1])) return;
+  if(!b.q) b.q=[]; if(b.q.length>=3) return; b.q.push(d); b.turned=true; }
+function nextD(b){ return b.q&&b.q.length?b.q[0]:b.d; }
+function blocked(b){ const d=nextD(b); return !free(b.x+d[0],b.y+d[1]); }
+function step(b){ if(b.q&&b.q.length) b.d=b.q.shift(); const nx=b.x+b.d[0], ny=b.y+b.d[1];
   if(b.jump>0){ b.jump--; if(nx<0||ny<0||nx>=GW||ny>=GH){ wreck(b); return; } b.x=nx; b.y=ny; if(b.jump===0&&grid[ny][nx]&&grid[ny][nx]!==b.id) wreck(b); else if(!grid[ny][nx]) setCell(nx,ny,b.id); return; }
   if(!free(nx,ny)&&!(ghostOn(b)&&nx>=0&&ny>=0&&nx<GW&&ny<GH)){ wreck(b); return; }
   b.x=nx; b.y=ny; setCell(nx,ny,b.id); }
@@ -625,7 +652,7 @@ function netUpdate(dt){ for(const k in eff){ if(eff[k]>-2) eff[k]-=dt; if(eff2[k
 function endRound(){ if(rEnd>0) return; const a=me.alive, b=p2.alive; rWin=a&&!b?0:(b&&!a?1:-1); if(rWin>=0) rw[rWin]++;
   const nm=(api.net&&api.net.names)||[]; const msg=rWin<0?'DRAW ROUND!':((nm[rWin]||('P'+(rWin+1))).slice(0,8)+' SCORES!');
   api.toast(msg); pushEv('t',0,0,msg); api.fx.shake(8); rEnd=(rWin>=0&&rw[rWin]>=2)?1.5:2.2; }
-function drawRounds(c){ const nm=(api.net&&api.net.names)||[]; const y=104;
+function drawRounds(c){ const nm=(api.net&&api.net.names)||[]; const y=OY-12;
   c.fillStyle='rgba(0,0,0,.55)'; c.fillRect(OX,y-18,GW*C,30);
   c.font='bold 15px sans-serif'; c.textBaseline='middle';
   c.textAlign='left'; c.fillStyle=P1C; c.fillText((nm[0]||'P1').slice(0,10),OX+8,y-3);
@@ -638,9 +665,9 @@ function unrle(s){ let k=0; const N=GW*GH; for(const tok of s.split(',')){ const
 function target(b){ if(!humans) return me; let best=null,bd=1e9; for(const h of humans){ if(!h.alive) continue; const d=Math.abs(h.x-b.x)+Math.abs(h.y-b.y); if(d<bd){ bd=d; best=h; } } return best||me; }
 function think(b){ const opts=[b.d,[b.d[1],-b.d[0]],[-b.d[1],b.d[0]]]; const tg=target(b);
   const space=(x,y,depth)=>{ let cnt=0; const seen=new Set(), q=[[x,y]]; while(q.length&&cnt<depth){ const [cx,cy]=q.pop(); const key=cx+','+cy; if(seen.has(key)||!free(cx,cy)) continue; seen.add(key); cnt++; q.push([cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]); } return cnt; };
-  const smart=b.master?1:api.dv([0.55,0.75,0.9],0.95,1), look=b.master?140:Math.round(api.dv([25,60,110],140,200));
+  const ez=easyLv(); const smart=ez?(b.master?0.8:0.7):b.master?1:api.dv([0.55,0.75,0.9],0.95,1), look=ez?(b.master?30:14):b.master?140:Math.round(api.dv([25,60,110],140,200));
   const scored=opts.map(d=>{ const nx=b.x+d[0], ny=b.y+d[1]; if(!free(nx,ny)) return {d,s:-1}; let s=space(nx,ny,look); // chase: prefer heading toward the target's path
-      s+= (Math.abs(nx-(tg.x+tg.d[0]*6))+Math.abs(ny-(tg.y+tg.d[1]*6))<Math.abs(b.x-(tg.x+tg.d[0]*6))+Math.abs(b.y-(tg.y+tg.d[1]*6)))?look*0.15*smart:0; return {d,s}; });
+      if(!ez) s+= (Math.abs(nx-(tg.x+tg.d[0]*6))+Math.abs(ny-(tg.y+tg.d[1]*6))<Math.abs(b.x-(tg.x+tg.d[0]*6))+Math.abs(b.y-(tg.y+tg.d[1]*6)))?look*0.15*smart:0; return {d,s}; });
   scored.sort((A,B)=>B.s-A.s);
   if(Math.random()<smart||scored[0].s<0) b.d=scored[0].d; else if(Math.random()<0.15){ const ok=scored.filter(o=>o.s>=0); if(ok.length) b.d=ok[Math.floor(Math.random()*ok.length)].d; } }
 function wreck(b){ if(!b.alive) return; b.alive=false; const x=OX+b.x*C, y=OY+b.y*C; api.fx.burst(x,y,b.col,30,260,.6,3);
