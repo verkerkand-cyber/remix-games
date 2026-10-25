@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-JK-2.0 · 2026-10-19">
+<meta name="build" content="BUILD-JK-2.1 · 2026-10-25">
 <title>Jayden Kong</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -368,11 +368,63 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .setr .sl{flex:1}
 .setgrp{gap:5px;padding:8px 10px}
 .mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
+
+/* SHELL-LANDSCAPE-2: upright hint is a small strip, never a blocking cover */
+#app #rotate{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:auto!important;height:auto!important;inset:0 0 auto 0!important;padding:6px 10px!important;background:#000c!important;font:700 12px system-ui,sans-serif!important;color:#ffd23f!important;text-align:center!important;z-index:40!important;pointer-events:none!important;display:block}
+#app #rotate.hidden{display:none!important}
+
+/* SHELL-LANDSCAPE-3 hint strip: always visible upright, tappable */
+#app #rotate{pointer-events:auto!important;font-size:14px!important;padding:8px 10px!important;background:#14061fee!important;border-bottom:2px solid #ffd23f!important}
+#rotate #rotGo{display:block;margin:6px auto 0;font:800 14px system-ui,sans-serif;border:0;border-radius:10px;padding:10px 14px;background:linear-gradient(90deg,#ffd23f,#ff3bd4);color:#14061f}
+
+/* SHELL-LANDSCAPE-3b: 'now turn your phone' tip after the screen is turned */
+#turnTip{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10001;background:#14061fee;border:2px solid #ffd23f;border-radius:18px;padding:16px 22px;color:#fff;font:700 15px system-ui,sans-serif;text-align:center;pointer-events:none;box-shadow:0 0 30px #ffd23f66}
+#turnTip.hidden{display:none}
+#turnTip b{display:block;color:#ffd23f;font-size:18px;margin:6px 0}
+#turnTip span{font-size:13px;opacity:.85}
+#turnTip .tt-ph{font-size:44px;display:inline-block;animation:ttrot 1.2s ease-in-out infinite}
+@keyframes ttrot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 
 </style>
 </head>
 <body>
-<!-- BUILD-JK-2.0 · 2026-10-19 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-JK-2.1 · 2026-10-25 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -441,9 +493,13 @@ const IMG_HEAD='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHAAAABwCAYAAADG4P
 const IMG_FACE='data:image/png;base64,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';
 
 /* ══════════════ constants (original values) ══════════════ */
-const W=448, H=804, GT=8;
+// LANDSCAPE (2.1): the canvas is 1280x720. The tower is simulated in its own world: the ORIGINAL height (804, so the
+// jump / climb / girder spacing feel is exactly the same) and 1.5x the original width (672) — every floor re-flowed wider.
+// It is drawn scaled by SC and centred, so the joystick (bottom-left) and JUMP (bottom-right) corners sit beside the tower.
+const XK=1.5, W=672, H=804, GT=8, CW=1280, CH=720, SC=CH/H, OX=Math.round((CW-W*SC)/2), FX0=-OX/SC, FW=CW/SC;
+const X=v=>Math.round(v*XK);
 const HUD_H=70;                 // original 46 — +24 so the whole tower sits under the arcade's top strip
-const SX1=128, SX2=320;
+const SX1=X(128), SX2=X(320);
 let TILT=12, TOPG=4;            // girder Jayden stands on (floors 21+ can have 5)
 let CENTERS=[], SUMMIT_Y=112;
 function layoutTower(){
@@ -505,7 +561,7 @@ function makeLevel(i,boss){
       chasers: Math.min(4, (i<3?0 : i<8?1 : i<15?2 : 3) + (i>=2?d.chaser:0)),
       wildEvery: (i<4&&d.wild>=0)?0 : Math.max(2,(i<9?5 : i<15?4 : 3)+d.wild),
       chSpd:Math.min(1.34,.62+i*.035),
-      bonus: 5000+Math.round(t*40)*100, bolts:0, rage:false, seed:0 };
+      bonus: 5000+Math.round(t*40)*100, bolts:0, rage:false, seed:0, easy:diffKey==='normal'&&i<=10 };
   }
   // ── floors 21-100: new floors from the same pieces. Each one a bit harder than the one before. ──
   const di=DKEYS.indexOf(diffKey), s=(i-ORIG)/(TOTAL-ORIG), f20=makeLevel(ORIG,false);
@@ -518,6 +574,10 @@ function makeLevel(i,boss){
     chSpd:1.34+s*(di===0?0.22:0.26),
     bonus:9000+(i-ORIG)*50, bolts:boss?(i===TOTAL?4:3):0, rage:!!boss, seed:i*7919+di*104729+101, s };
 }
+// 2.1 BEGINNER floors 1-10: same layouts, gentler barrels/drones (slower, fewer, no blue barrels before floor 7, no drones before 6)
+function easyLevel(c){ if(!c.easy) return c; const i=c.n;
+  c.spd*=0.8; c.rate=Math.round(c.rate*1.4); c.minSpawn=60;
+  c.chasers=i<=5?0:Math.max(0,c.chasers-1); if(i<=6) c.wildEvery=0; c.chSpd*=0.85; return c; }
 function tutLevel(){ const c=makeLevel(1,false); c.spd=0.8; c.rate=240; c.minSpawn=200; c.chasers=0; c.wildEvery=0; c.name="PRACTICE"; return c; }
 
 let GIRDERS=[], LADDERS=[], BOSS={x:0,y:0,roll:1}, PIP={x:0,y:0}, LAY=[];
@@ -528,20 +588,20 @@ function girderBelow(x,y){ let b=null;
 
 // ladder layout for a new floor — same rules as Andrew's 8 layouts, mixing in his own pieces
 function genLadders(c){
-  const R=rng(c.seed), out=[], top=GIRDERS[TOPG], bx=(top.y2>top.y1)?46:402;
+  const R=rng(c.seed), out=[], top=GIRDERS[TOPG], bx=(top.y2>top.y1)?X(46):X(402);
   for(let g=0;g<=TOPG;g++){
-    const summit=g===TOPG, lo=summit?140:56, hi=summit?308:392, prev=g>0?out[g-1]:[];
-    const ok=(x,list)=> x>=lo&&x<=hi && prev.every(p=>Math.abs(p-x)>=72) && list.every(q=>Math.abs(q-x)>=120) && (g!==TOPG-1||Math.abs(x-bx)>=64);
-    let xs=null;
+    const summit=g===TOPG, lo=summit?X(140):X(56), hi=summit?X(308):X(392), prev=g>0?out[g-1]:[];
+    const ok=(x,list)=> x>=lo&&x<=hi && prev.every(p=>Math.abs(p-x)>=X(72)) && list.every(q=>Math.abs(q-x)>=X(120)) && (g!==TOPG-1||Math.abs(x-bx)>=X(64));
+    let xs=null; const sc=v=>Math.round(v*XK);
     if(R()<0.5){                                     // one of the original layout pieces
       const row=LAYOUTS[Math.floor(R()*LAYOUTS.length)][summit?4:Math.floor(R()*4)];
-      if(!(g===TOPG-1&&row.length>1)){ const t=[]; if(row.every(x=>{ const k=ok(x,t); t.push(x); return k; })) xs=row.slice(); }
+      if(!(g===TOPG-1&&row.length>1)){ const t=[]; if(row.map(sc).every(x=>{ const k=ok(x,t); t.push(x); return k; })) xs=row.map(sc); }
     }
     if(!xs){
       const n=(!summit&&g!==TOPG-1&&R()<0.42-0.3*c.s)?2:1; xs=[]; let tries=0;
       while(xs.length<n&&tries<300){ tries++;
         let x=lo+Math.round(R()*(hi-lo)/4)*4;
-        if(prev.length&&R()<0.4+0.5*c.s){ const p=prev[0]; x=p<224? hi-Math.round(R()*22)*4 : lo+Math.round(R()*22)*4; }
+        if(prev.length&&R()<0.4+0.5*c.s){ const p=prev[0]; x=p<W/2? hi-Math.round(R()*33)*4 : lo+Math.round(R()*33)*4; }
         if(ok(x,xs)) xs.push(x); }
       if(!xs.length) for(let x=lo;x<=hi;x+=4) if(ok(x,[])){ xs=[x]; break; }
     }
@@ -551,25 +611,25 @@ function genLadders(c){
 }
 function buildLevel(c){
   TOPG=c.topg; TILT=c.tilt; layoutTower();
-  GIRDERS=[{x1:0,y1:CENTERS[0],x2:448,y2:CENTERS[0]}];
+  GIRDERS=[{x1:0,y1:CENTERS[0],x2:W,y2:CENTERS[0]}];
   for(let i=1;i<=TOPG;i++){
     const t=TILT*c.dir*(i%2?1:-1);
-    const yAt=x=>(CENTERS[i]-t)+(2*t)*x/448;
+    const yAt=x=>(CENTERS[i]-t)+(2*t)*x/W;
     // the DOWNHILL end stops short of the screen, so the drop happens in view
-    const x1=t>0?0:44, x2=t>0?404:448;
+    const x1=t>0?0:X(44), x2=t>0?X(404):W;
     GIRDERS.push({x1,y1:yAt(x1),x2,y2:yAt(x2)});
   }
   GIRDERS.push({x1:SX1,y1:SUMMIT_Y,x2:SX2,y2:SUMMIT_Y});
-  LAY=c.layout||genLadders(c);
+  LAY=c.layout?c.layout.map(r=>r.map(X)):genLadders(c);
   LADDERS=[];
   LAY.forEach((xs,gap)=>xs.forEach(x=>LADDERS.push({
     x,lo:gap,hi:gap+1,yBottom:sy(GIRDERS[gap],x),yTop:sy(GIRDERS[gap+1],x)})));
   const top=GIRDERS[TOPG];
   const roll=top.y2>top.y1?1:-1;           // gears roll downhill from Jayden
-  const bx=roll>0?46:402;
+  const bx=roll>0?X(46):X(402);
   BOSS={x:bx,y:sy(top,bx),roll};
   const tl=LAY[TOPG][0];
-  PIP={x:tl<224?296:152,y:SUMMIT_Y};
+  PIP={x:tl<W/2?X(296):X(152),y:SUMMIT_Y};
 }
 function makeBolts(c){
   const out=[]; if(!c.bolts) return out;
@@ -577,7 +637,7 @@ function makeBolts(c){
   gis.forEach(gi=>{ const g=GIRDERS[gi]; let best=null;
     for(let k=0;k<60;k++){ const x=Math.round(g.x1+40+R()*(g.x2-g.x1-80));
       if(LADDERS.some(L=>(L.lo===gi||L.hi===gi)&&Math.abs(L.x-x)<34)) continue;
-      if(gi===TOPG&&Math.abs(x-BOSS.x)<120) continue;
+      if(gi===TOPG&&Math.abs(x-BOSS.x)<X(120)) continue;
       best=x; break; }
     if(best===null) best=Math.round((g.x1+g.x2)/2);
     out.push({x:best,y:sy(g,best),gi,got:false}); });
@@ -593,12 +653,12 @@ let evq=[], evSeq=0, evSeen=0, snapN=0, snapSeen=0, lastCnt='';
 function net(){ return api&&api.net; }
 function isGuest(){ const n=net(); return !!(n&&n.role==='guest'); }
 function mkPlayer(i){
-  const x0=cfg.dir>0?34:414, x=x0+(i?(cfg.dir>0?30:-30):0);
+  const x0=cfg.dir>0?X(34):X(414), x=x0+(i?(cfg.dir>0?30:-30):0);
   return {i,x,y:CENTERS[0],vx:0,vy:0,state:"ground",face:cfg.dir>0?1:-1,anim:0,ladder:null,gi:0,lock:0,lockL:null,
     jbuf:0,coy:0,safe:0,landT:0,hammerT:0,big:false,shieldT:0,glitchT:0,tornadoT:0,tor:null,IN:{},PREV:{},pulse:0,walked:0};
 }
 function makeChaser(i){
-  const nG=Math.max(3,TOPG-1), gi=1+(i%nG), x=(i%2)?380:60;
+  const nG=Math.max(3,TOPG-1), gi=1+(i%nG), x=(i%2)?X(380):X(60);
   return {x,y:sy(GIRDERS[gi],x),gi,state:"walk",ladder:null,goUp:true,
     spd:cfg.chSpd,dir:1,anim:0,delay:150+i*80};
 }
@@ -703,7 +763,8 @@ function useAb(p,id){
 /* ══════════════ input (original: drag anywhere = stick, tap = jump, 2nd finger = jump now) ══════════════ */
 const DEAD=11, MAXR=52;
 const PTR=[new Map(),new Map()], STICK=[{},{}];
-function cssScale(){ try{ const c=document.getElementById('game'); const r=c.getBoundingClientRect(); if(r.width>10) return r.width/W; }catch(e){} return 0.69; }
+function cssScale(){ try{ const c=document.getElementById('game'); const r=c.getBoundingClientRect(); if(r.width>10) return r.width/CW*SC; }catch(e){} return 0.48; }
+const toT=(x,y)=>[(x-OX)/SC,y/SC];
 function ptrDown(pi,id,x,y){
   const m=PTR[pi]; const p=S&&S.pl[pi];
   const second=m.size>0&&U.mode==='play';
@@ -713,7 +774,7 @@ function ptrDown(pi,id,x,y){
 }
 function ptrMove(pi,id,x,y){
   const m=PTR[pi], p=m.get(id); if(!p) return;
-  const k=pi?0.69:cssScale();
+  const k=pi?0.48:cssScale();
   p.x=x; p.y=y;
   let dx=(p.x-p.sx)*k, dy=(p.y-p.sy)*k; const r=Math.hypot(dx,dy);
   if(r>DEAD) p.moved=true;
@@ -728,7 +789,7 @@ function ptrUp(pi,id,x,y){
 }
 function readStick(pi){
   const st=STICK[pi]; st.L=st.R=st.U=st.D=0; st.on=false;
-  const pl=S&&S.pl[pi], k=pi?0.69:cssScale();
+  const pl=S&&S.pl[pi], k=pi?0.48:cssScale();
   for(const p of PTR[pi].values()){
     if(!p.moved) continue;
     const dx=(p.x-p.sx)*k, dy=(p.y-p.sy)*k, ax=Math.abs(dx), ay=Math.abs(dy);
@@ -742,11 +803,14 @@ function readStick(pi){
     }
     st.ox=p.sx; st.oy=p.sy; st.kx=p.x; st.ky=p.y; st.on=true;
   }
-  if(pi===1&&api&&api.input2){ const d=api.input2.dir(), ax=Math.abs(d.x), ay=Math.abs(d.y);   // guest joystick (2 players)
+  if(api&&(pi===1?api.input2:api.input)){ const d=(pi===1?api.input2:api.input).dir(), ax=Math.abs(d.x), ay=Math.abs(d.y);   // guest joystick (2 players)
     if(onL(pl)){ if(ay>0.15){ if(d.y<0) st.U=1; else st.D=1; } else if(ax>0.24){ if(d.x<0) st.L=1; else st.R=1; } }
     else if(ax>0.24||ay>0.24){ if(ax>=ay){ if(d.x<0) st.L=1; else st.R=1; } else { if(d.y<0) st.U=1; else st.D=1; } } }
   return st;
 }
+function stickSide(x){ try{ const r=document.getElementById('game').getBoundingClientRect(); const cx=r.left+x*r.width/CW;
+  const j=document.getElementById('joyHome'), jr=j&&j.getBoundingClientRect(), sw=!!(jr&&jr.width&&jr.left+jr.width/2>window.innerWidth*0.5);
+  return sw? cx>window.innerWidth*0.5 : cx<window.innerWidth*0.5; }catch(e){ return x<CW/2; } }
 function onL(p){ return !!(p&&p.state==='climb'); }
 function readInputs(){
   if(!S) return;
@@ -771,7 +835,7 @@ function handleTap(x,y,pi){
   if(m==="wheel"){ if(W_.phase==="ready"){ spinWheel(); return; } if(W_.phase==="result"&&W_.roadT>=55){ finishWheel(); } return; }
   if(m==="clown"){ if(U.clownT>60) toCard(); return; }
   if(m==="ending"){ if(U.endT>60) U.endT=Math.max(U.endT,340); return; }
-  if(m==="over"&&pi===0){ const o=OY();
+  if(m==="over"&&pi===0){ const o=0; x=(x-OXo)/OK; y=(y-OY())/OK;
     for(let i=0;i<M.rects.length;i++){ const r=M.rects[i];
       if(x>=r.x&&x<=r.x+r.w&&y>=r.y+o-4&&y<=r.y+r.h+o+4){ M.sel=i; const it=M.items[i]; if(it&&it.act) it.act(); return; } } }
 }
@@ -982,7 +1046,7 @@ function deathDone(){
 }
 function respawnP(p){
   p.shieldT=0; p.hammerT=0; p.big=false; p.glitchT=0; p.tornadoT=0; p.tor=null;
-  const x0=cfg.dir>0?34:414; p.x=x0+(p.i?(cfg.dir>0?30:-30):0); p.y=CENTERS[0]; p.vy=0;
+  const x0=cfg.dir>0?X(34):X(414); p.x=x0+(p.i?(cfg.dir>0?30:-30):0); p.y=CENTERS[0]; p.vy=0;
   p.state="ground"; p.ladder=null; p.gi=0; p.lock=0; p.lockL=null;
   p.jbuf=0; p.coy=0; p.safe=12;
 }
@@ -1247,7 +1311,7 @@ function drawPlayer(p){
 }
 function drawStars(){
   const t=tk();
-  for(let i=0;i<50;i++){ const x=(i*89)%W,y=(i*61)%H, tw=((t/24+i)%7<3.5);
+  for(let i=0;i<120;i++){ const x=FX0+(i*89)%FW,y=(i*61)%H, tw=((t/24+i)%7<3.5);
     ctx.globalAlpha=tw?.5:.2; ctx.fillStyle=i%4?"#8f9bd8":"#ff9ad0";
     ctx.fillRect(x,y,1.5,1.5); }
   ctx.globalAlpha=1;
@@ -1270,7 +1334,7 @@ function drawWorld(){
   if(S.shakeT>0){ const m=S.shakeT/26*6; ctx.translate((Math.random()-.5)*m,(Math.random()-.5)*m); }
   const sky=ctx.createLinearGradient(0,0,0,H);
   sky.addColorStop(0,"#1a1440"); sky.addColorStop(.5,"#120e2e"); sky.addColorStop(1,"#0a0818");
-  ctx.fillStyle=sky; ctx.fillRect(-8,-8,W+16,H+16);
+  ctx.fillStyle=sky; ctx.fillRect(FX0-8,-8,FW+16,H+16);
   drawStars();
   LADDERS.forEach(drawLadder); GIRDERS.forEach(drawGirder);
   S.bolts.forEach(drawBolt);
@@ -1305,13 +1369,14 @@ function drawWorld(){
   }
   ctx.restore();
   if(S.freezeT>0){ ctx.save(); ctx.globalAlpha=Math.min(.28, S.freezeT/300*0.4+0.1);
-    ctx.fillStyle="#8ff4ff"; ctx.fillRect(0,0,W,H); ctx.restore();
+    ctx.fillStyle="#8ff4ff"; ctx.fillRect(FX0,0,FW,H); ctx.restore();
     if((t>>3)%2) txt("❄ FROZEN "+Math.ceil(S.freezeT/60)+"s",W/2,H-40,"#eafcff",16,"center"); }
   drawHUD();
 }
-function panel(a){ ctx.fillStyle="rgba(10,8,22,"+(a||.9)+")"; ctx.fillRect(0,0,W,H); }
-const OY=()=>Math.round((H-512)/2);
-function OVL(fn){ ctx.save(); ctx.translate(0,OY()); fn(); ctx.restore(); }
+function panel(a){ ctx.fillStyle="rgba(10,8,22,"+(a||.9)+")"; ctx.fillRect(FX0,0,FW,H); }
+// landscape: the floor card / continue menu are drawn 1.35x so they stay readable on a sideways phone
+const OK=1.35, OXo=W/2*(1-OK), OY=()=>Math.round((H-512*OK)/2);
+function OVL(fn){ ctx.save(); ctx.translate(OXo,OY()); ctx.scale(OK,OK); fn(); ctx.restore(); }
 function drawMenu(topY){
   M.rects=[]; let y=topY;
   M.items.forEach((it,i)=>{
@@ -1371,7 +1436,7 @@ function drawGamble(){
   const t=tk();
   const g=ctx.createRadialGradient(W/2,H*0.4,20,W/2,H*0.4,H*0.6);
   g.addColorStop(0,"#241a3c"); g.addColorStop(1,"#07050f");
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=g; ctx.fillRect(FX0,0,FW,H);
   drawStars();
   const cx=W/2, cy=Math.round(H*0.40), R=Math.min(158,W*0.36);
   const seg=WHEEL.length, per=(Math.PI*2)/seg;
@@ -1444,7 +1509,7 @@ function drawGamble(){
 }
 function drawClown(){
   const t=U.clownT, cx=W/2, cy=H*0.4;
-  px(0,0,W,H,"#0a0812");
+  px(FX0,0,FW,H,"#0a0812");
   const wob=Math.sin(t/5)*6, sc=1+Math.sin(t/9)*0.05;
   ctx.save(); ctx.translate(cx+wob,cy); ctx.scale(sc,sc);
   ctx.fillStyle="#f2ede1"; ctx.beginPath(); ctx.arc(0,0,80,0,6.284); ctx.fill();
@@ -1465,10 +1530,11 @@ function drawClown(){
 }
 function drawEnding(){
   const t=U.endT;
-  px(0,0,W,H,"#0a0812"); drawStars();
+  px(FX0,0,FW,H,"#0a0812"); drawStars();
   const gy=Math.round(H*.58);
-  ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(448,gy);
-  ctx.lineTo(448,gy+8); ctx.lineTo(0,gy+8); ctx.closePath();
+  ctx.save(); ctx.translate(W/2-224*1.6,gy*(1-1.6)); ctx.scale(1.6,1.6);
+  ctx.beginPath(); ctx.moveTo(-60,gy); ctx.lineTo(508,gy);
+  ctx.lineTo(508,gy+8); ctx.lineTo(-60,gy+8); ctx.closePath();
   ctx.fillStyle="#b3341f"; ctx.fill();
   const fall=Math.max(0,t-40);
   ctx.save();
@@ -1485,6 +1551,7 @@ function drawEnding(){
       px(hx,hy,3,3,"#ff5fa2"); px(hx+4,hy,3,3,"#ff5fa2"); px(hx+1,hy+3,5,3,"#ff5fa2");
     }
   }
+  ctx.restore();
   const last=stageN>=TOTAL;
   if(t>60) txt("PIP IS SAFE!",W/2,HUD_H+80,"#ffc12b",30,"center");
   if(t>140) txt(last?"all 100 floors cleared":"all 20 floors cleared",W/2,HUD_H+110,"#37d6c4",13,"center");
@@ -1517,7 +1584,7 @@ function drawMiniGuy(x,y,face,t,climbing){
   px(x-4,y-19,8,6,"#f2ede1"); px(x-3,y-17,6,2,"#1b2438");
   px(x+(face>0?1:-2),y-17,2,2,"#37d6c4"); px(x-5,y-20,10,2,"#ffc12b");
 }
-function drawTutorRow(y,h,tag,label,demo){
+function drawTutorRow(y,h,tag,label,demo){ const W=448;
   const bx=18, bw=W-36;
   ctx.fillStyle="rgba(24,18,44,.65)"; roundRect(bx,y,bw,h,10); ctx.fill();
   px(bx,y,3,h,"#ffc12b");
@@ -1566,7 +1633,7 @@ const BLURB={quake:"Instant — the screen shakes & every barrel explodes.",hamm
   tornado:"Whirls you up 2 floors, then drops you safely.",glitch:"6 sec — phase through everything, totally unharmed.",
   freeze:"6 sec — barrels & enemies freeze; walk right through.",shield:"6 sec — a bubble; barrels roll right through you."};
 const ABC={quake:"#ff7a3c",hammer:"#8ff4e8",tornado:"#a9d8ff",glitch:"#c05cff",freeze:"#7fe6ff",shield:"#ffd76b"};
-function drawHowPanel(page,t,ch){
+function drawHowPanel(page,t,ch){ const W=448;
   px(0,0,W,ch,"#0a0812");
   const cx=W/2;
   if(page===0){
@@ -1630,7 +1697,7 @@ function howLoop(){
   cs.forEach(c=>{ if(!c.offsetParent) return; const old=ctx; ctx=c.getContext('2d'); try{ drawHowPanel(+c.dataset.p,howT,c.height); }catch(e){} ctx=old; });
 }
 /* intro art (original title screen) behind the arcade menu */
-function drawIntroArt(t){
+function drawIntroArt(t){ const W=CW, H=CH;
   const cx=W/2;
   const bg=ctx.createLinearGradient(0,0,0,H);
   bg.addColorStop(0,"#2a1a4a"); bg.addColorStop(0.5,"#140f2a"); bg.addColorStop(1,"#07050f");
@@ -1668,10 +1735,10 @@ const R1=v=>Math.round(v*10)/10;
 const howCanvas='<canvas class="jkhow" data-p="0" width="448" height="520" style="width:100%;max-width:448px;display:block;margin:8px auto;border-radius:12px"></canvas><canvas class="jkhow" data-p="1" width="448" height="470" style="width:100%;max-width:448px;display:block;margin:8px auto;border-radius:12px"></canvas>';
 const GAME=window.GAME={
   id:'jayden-kong', title:'Jayden Kong', titleHTML:'JAYDEN<br>KONG', tagline:'100 FLOORS · BEGINNER · HARD · EXPERT',
-  build:'BUILD-JK-2.0 · 2026-10-19', theme:{a:'#ffc12b',b:'#37d6c4',bg:'#0a0818'},
-  w:W, h:H, stages:TOTAL, lives:3, livesIcon:'💗', coinPts:250,
-  // single player: the original drag-anywhere stick. Play together: the arcade joystick (its direction reaches the host reliably)
-  get joystick(){ return !!(api&&api.net); },
+  build:'BUILD-JK-2.1 · 2026-10-25', theme:{a:'#ffc12b',b:'#37d6c4',bg:'#0a0818'},
+  landscape:true, w:CW, h:CH, stages:TOTAL, lives:3, livesIcon:'💗', coinPts:250,
+  // landscape: the arcade joystick bottom-left (left thumb) + JUMP bottom-right; a drag on the right half / a mouse still steers like the original
+  joystick:true,
   net:{mode:'coop'},
   abilities:[
     {id:'jump',icon:'⤴️',name:'JUMP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — jump. Or just tap the game (a 2nd finger jumps while you move).'},
@@ -1685,8 +1752,8 @@ const GAME=window.GAME={
         {id:'s_gd',cat:'Suit',name:'Gold Suit',cost:300,colors:['#ffe27a','#e0a020'],desc:'Shiny climber.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Every suit in the shop.',swatch:'linear-gradient(90deg,#ffc12b,#37d6c4)'}],
   story:`<h3>JAYDEN KONG</h3><p>Jayden has grabbed little Pip and climbed to the top of the tower. He is up there throwing glowing barrels down the girders, and his purple drones hunt anyone who tries to climb.</p><p>Climb, dodge and rescue Pip! Clear the first 20 floors and Jayden tumbles... but he gets back up, grabs Pip again and climbs an even taller tower: 80 more floors, with a boss floor every 10 where you must pull his bolts to open Pip's cage.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Move:</b> drag a finger left / right anywhere on the game (arrows / A D on PC).</li><li><b>Climb:</b> drag up / down on a ladder (↑ ↓ / W S).</li><li><b>Jump:</b> tap the game, tap ⤴️, or tap with a 2nd finger while moving (SPACE / Z / Enter).</li><li><b>Goal:</b> reach Pip at the top of each floor.</li><li><b>Barrels:</b> hop one = 100 pts. <b>Blue barrels</b> are faster and never take ladders. <b>Purple drones</b> hunt you and climb ladders.</li><li><b>BONUS</b> drains as you climb — it's banked when you rescue Pip.</li><li><b>Free life</b> every 25,000 points (max 9).</li><li><b>Prize wheel</b> after each floor: CLIMB, LEAP (start higher), gold, 1-UP, JACKPOT, ×2 score… or JAYDEN steals your bonus!</li><li><b>Boss floors</b> (every 10 from floor 30): pull all the golden bolts to open Pip's cage.</li><li><b>Floors 1–20:</b> out of lives? CONTINUE with 3 lives and keep your score.</li><li><b>Play together:</b> two climbers (P1 cyan, P2 pink), shared lives. Either one reaching Pip clears the floor. Drag the joystick to move and climb; jump with ⤴️, a 2nd finger or SPACE.</li><li><b>PC:</b> abilities on keys 1–6, P = pause, B = shop.</li></ul>`+howCanvas,
-  tutorial:[{text:'PRACTICE: drag left / right (← →) to walk to the ladder.',ev:'move'},{text:'Drag UP (↑) at a ladder to climb it.',ev:'climb'},{text:'Tap (SPACE) to hop barrels. Reach Pip at the top!',time:6}],
+  howto:`<h3>HOW TO PLAY</h3><p><b>📱 Hold your phone sideways.</b></p><ul><li><b>Move:</b> left thumb on the joystick (bottom-left) — left / right to walk (arrows / A D on PC).</li><li><b>Climb:</b> joystick up / down at a ladder (↑ ↓ / W S).</li><li><b>Jump:</b> right thumb on ⤴️ JUMP (bottom-right), or tap the right side of the game (SPACE / Z / Enter).</li><li><b>Goal:</b> reach Pip at the top of each floor.</li><li><b>Barrels:</b> hop one = 100 pts. <b>Blue barrels</b> are faster and never take ladders. <b>Purple drones</b> hunt you and climb ladders.</li><li><b>BONUS</b> drains as you climb — it's banked when you rescue Pip.</li><li><b>Free life</b> every 25,000 points (max 9).</li><li><b>Prize wheel</b> after each floor: CLIMB, LEAP (start higher), gold, 1-UP, JACKPOT, ×2 score… or JAYDEN steals your bonus!</li><li><b>Boss floors</b> (every 10 from floor 30): pull all the golden bolts to open Pip's cage.</li><li><b>Floors 1–20:</b> out of lives? CONTINUE with 3 lives and keep your score.</li><li><b>Play together:</b> two climbers (P1 cyan, P2 pink), shared lives. Either one reaching Pip clears the floor. Joystick to move and climb; jump with ⤴️ or SPACE.</li><li><b>PC:</b> abilities on keys 1–6, P = pause, B = shop.</li></ul>`+howCanvas,
+  tutorial:[{text:'PRACTICE: walk to the ladder with ← →.',touch:'PRACTICE (phone sideways): left thumb on the joystick — walk to the ladder.',ev:'move'},{text:'Press UP (↑) at a ladder to climb it.',touch:'Push the joystick UP at a ladder to climb it.',ev:'climb'},{text:'SPACE jumps barrels. Reach Pip at the top!',touch:'Right thumb: ⤴️ JUMP over barrels. Reach Pip at the top!',time:6}],
   stageIntro:{1:'CLIMB TO PIP!',5:'FLOOR 5 · BOILER ROOM',10:'FLOOR 10 · GEARWORKS',15:'FLOOR 15 · SCRAP HEAP',20:"LAST ORIGINAL FLOOR — SAVE PIP!",21:'THE ENDLESS TOWER — 80 MORE FLOORS',100:'THE LAST ROOST — SAVE PIP FOR GOOD!'},
   bossName:"JAYDEN'S RAGE — PULL THE BOLTS!",
   ending:{"0":["#PIP IS SAFE","All 100 floors climbed.","Jayden tumbled off the last roost and Pip is free.","The tower lights go out one by one... for now."],
@@ -1709,7 +1776,7 @@ const GAME=window.GAME={
     try{ const st=document.createElement('style'); st.textContent='#abilities .ab .nm{font-size:8px!important;letter-spacing:0!important}'; document.head.appendChild(st); }catch(e){} },
   startStage(n,a){ api=a; loadImages(); stageN=n; tut=(n===0||a.tutorial);
     diffKey=tut?'normal':(DKEYS[a.diff]||'normal');
-    cfg=tut?tutLevel():makeLevel(n,a.boss&&n>ORIG);
+    cfg=tut?tutLevel():easyLevel(makeLevel(n,a.boss&&n>ORIG));
     acc=0; scoreMul=1; leap=false; lastCnt=''; evq=[]; evSeen=0; snapSeen=0; PTR[0].clear(); PTR[1].clear();
     loadFloor();
     nextExtra=(a.extra&&a.extra.nx)||(Math.floor(a.score/EXTRA_EVERY)+1)*EXTRA_EVERY;
@@ -1724,9 +1791,11 @@ const GAME=window.GAME={
   stageBonus(){ return 0; },                    // the floor BONUS is banked the moment you reach Pip (original)
   useAbility(id){ return useAb(S&&S.pl[0],id); },
   useAbility2(id){ return useAb(S&&S.pl[1],id); },
-  onPointer(type,x,y,id){ if(!S||isGuest()) return; id=id===undefined?1:id;
+  onPointer(type,x,y,id,pt){ if(!S||isGuest()) return; id=id===undefined?1:id;
+    if(pt==='touch'&&type==='down'&&U.mode==='play'&&stickSide(x)) return;      // the shell's joystick has this thumb
+    [x,y]=toT(x,y);
     if(type==='down') ptrDown(0,id,x,y); else if(type==='move') ptrMove(0,id,x,y); else ptrUp(0,id,x,y); },
-  onPointer2(type,x,y){ if(!S) return; const id=type==='down'&&PTR[1].size>0?'b':'a';
+  onPointer2(type,x,y){ if(!S) return; [x,y]=toT(x,y); const id=type==='down'&&PTR[1].size>0?'b':'a';
     if(type==='down') ptrDown(1,id,x,y); else if(type==='move') ptrMove(1,'a',x,y); else { if(PTR[1].has('b')) ptrUp(1,'b',x,y); else ptrUp(1,'a',x,y); } },
   update(dt){ if(!S) return; acc+=dt*60; let n=0; while(acc>=0.999&&n<4){ acc-=1; n++; step(); } if(acc>3) acc=0; },
   // ===== NET-1 co-op: host -> guest snapshot =====
@@ -1759,7 +1828,11 @@ const GAME=window.GAME={
     S.pl.forEach(p=>{ if(p.tx!==undefined){ p.x+=(p.tx-p.x)*k; p.y+=(p.ty-p.y)*k; } });
     S.gears.forEach(g=>{ g.spin=(g.spin||0)+g.dir*.15*dt*60; });
     if(msgT>0) msgT-=dt*60; },
-  render(c){ ctx=c; if(!S){ c.fillStyle='#0a0818'; c.fillRect(0,0,W,H); return; }
+  render(c){ ctx=c; c.fillStyle='#0a0818'; c.fillRect(0,0,CW,CH); if(!S) return;
+    c.save(); c.translate(OX,0); c.scale(SC,SC); try{ drawFrame(); } finally { c.restore(); } },
+  attract(c,t){ ctx=c; drawIntroArt(t*60); }
+};
+function drawFrame(){
     const m=U.mode;
     if(m==='wheel') drawGamble();
     else if(m==='clown') drawClown();
@@ -1767,15 +1840,14 @@ const GAME=window.GAME={
     else if(m==='card'){ drawWorld(); panel(.82); OVL(drawCard); }
     else if(m==='over'){ drawWorld(); panel(.88); OVL(drawGameOver); }
     else drawWorld();
-    if(m==='play') drawStick(); },
-  attract(c,t){ ctx=c; drawIntroArt(t*60); }
-};
+    if(m==='play') drawStick();
+}
 function me(){ if(!S) return null; return (isGuest()&&S.pl[1])||S.pl[0]; }
 })();
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -1862,8 +1934,26 @@ function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY
 let LAY = loadLayout();
 let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
 try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<b>🔄 TURN YOUR PHONE SIDEWAYS</b> <button id="rotGo" type="button">TAP HERE TO TURN THE SCREEN</button>'; rt.addEventListener('pointerdown',e=>{ e.stopPropagation(); }); rt.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); landForce(); });
+  app.appendChild(rt);
+}
 // pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
 function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
   const nA=ACT.length, sab=SAB;
   // action bar: n big round buttons side by side
   let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
@@ -1888,6 +1978,29 @@ function geo(W,H,L){
   col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
   return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
 }
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
 let GEO=null;
 function applyLayout(W,H){
   const g=GEO=geo(W,H,LAY);
@@ -1905,6 +2018,10 @@ function applyLayout(W,H){
   let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
   tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
   tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
 }
 function resize(){
   const W = window.innerWidth, H = window.innerHeight;
@@ -2011,7 +2128,7 @@ function onDown(e){
   if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
   if(e.pointerType !== 'mouse') Input.touch = true;
   const g = toGame(e.clientX, e.clientY);
-  if(G.joystick && e.pointerType!=='mouse' && !joy.active){
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
     joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
     joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
   }
@@ -2035,6 +2152,8 @@ function onUp(e){
   if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
   G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
 }
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
 window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
 window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
 window.addEventListener('contextmenu', e=>e.preventDefault());
@@ -2084,8 +2203,8 @@ const API = {
     run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
     if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
   },
-  stageClear(){ if(state!=='play') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
-  gameOver(){ if(state==='play') setTimeout(gameOver, 600); },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
   event(name){ tutEvent(name); },
   toast(t){ toast(t); },
   cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
@@ -2456,7 +2575,7 @@ function beginStage(){
   const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
   if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
 }
-function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); }
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
 function pauseGame(){
   if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
   modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
@@ -2630,6 +2749,7 @@ function showChoice(title, opts, cb){
 let last = performance.now(), menuT = 0;
 function frame(now){
   let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
   ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
   if(state==='play'){
     run.time += dt;
@@ -2640,10 +2760,33 @@ function frame(now){
   if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
   if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
   fxRender(ctx);
-  if(state==='play'||state==='paused'||state==='modal') coinRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
   ctx.restore();
   requestAnimationFrame(frame);
 }
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  // SHELL-LANDSCAPE-2 (25 Oct): NEVER block the game. Many phones have auto-rotate switched off, so the page never turns
+  // and the old "turn your phone" cover got stuck. Upright now just plays (smaller) with a small hint strip at the top.
+  const want = up && state!=='loading';  // SHELL-LANDSCAPE-3: hint shows on menu AND in play whenever the phone is upright
+  if(state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+/* SHELL-LANDSCAPE-3: force sideways. Phones only allow a screen lock in fullscreen or in the installed app, and only
+   right after a tap — so we ask for fullscreen + landscape on the hint button and on taps while upright. Works even when
+   the phone's auto-rotate is off. iPhones don't allow it: they keep the hint and play upright (smaller). */
+function landForce(){ try{ const d=document.documentElement, fs=document.fullscreenElement||document.webkitFullscreenElement;
+  const go=()=>{ landLock(); landTurnTip(); }; if(!fs && (d.requestFullscreen||d.webkitRequestFullscreen)){ const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'}); if(r&&r.then) r.then(go,go); else go(); } else go(); }catch(e){ landLock(); } }
+// pointerdown does NOT count as a user tap for touch screens (fullscreen would be refused) -> use click / touchend (SHELL-LANDSCAPE-4)
+if(LAND){ const lf=()=>{ if(window.innerHeight>window.innerWidth*1.05 && landTouch()) landForce(); }; window.addEventListener('click', lf, true); window.addEventListener('touchend', lf, true); }
+function landTurnTip(){ try{ if(landTurnTip.t && Date.now()-landTurnTip.t<8000) return; landTurnTip.t=Date.now(); let el=document.getElementById('turnTip'); if(!el){ el=document.createElement('div'); el.id='turnTip'; el.innerHTML='<div class="tt-ph">📱</div><b>NOW TURN YOUR PHONE SIDEWAYS</b><span>Hold it with both hands, thumbs on the buttons</span>'; document.body.appendChild(el); }
+  el.classList.remove('hidden'); clearTimeout(landTurnTip.h); landTurnTip.h=setTimeout(()=>el.classList.add('hidden'),3500); }catch(e){} }
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
 function defaultAttract(c, t){
   c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
   c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
@@ -2660,7 +2803,7 @@ function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; s
 window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
 document.title = G.title;
 $('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
-$('#mTitle').innerHTML = G.titleHTML || G.title;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
 $('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
 $('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
 if(G.init) G.init(API);
@@ -2696,7 +2839,7 @@ function settingsModal(back){
     <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
       <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
       ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
-      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.</p>':''}</div>
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
     <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
     <p class="setnote">Used in every Remix Arcade game.</p>
     <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
@@ -2735,6 +2878,7 @@ function drawPreview(c){
   let y=C.y+C.cp; x.fillStyle=G.theme.b;
   for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
   x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
   const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
 }
 /* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
