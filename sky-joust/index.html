@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SJ-1.2 · 2026-10-19">
+<meta name="build" content="BUILD-SJ-1.3 · 2026-10-26">
 <title>Sky Joust</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SJ-1.2 · 2026-10-19 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SJ-1.3 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -490,12 +490,17 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </div>
 <script>
 /* SKY JOUST — Joust remix (#36). Flap your ostrich, land on riders from above.
-   1.2: real online 2-player CO-OP (NET-1). Host runs the game for both riders; guest draws snapshots. */
+   1.2: real online 2-player CO-OP (NET-1). Host runs the game for both riders; guest draws snapshots.
+   1.3: LANDSCAPE (SHELL-LANDSCAPE-1). Big 🪽 FLAP button (hold = keep flapping) + ⚡ DASH, joystick steers.
+        Goal made obvious: "HIT ENEMIES FROM ABOVE" banner + arrow, ▼/▲ markers on every rider (Beginner 1-10).
+        Beginner 1-10 much easier; an idle rider never wins a clash and the nearest rider hunts an idle player. */
 (function(){
-const W=600,H=900,LAVA=840,G=900;
-const PLAT=[[0,330,150],[450,330,150],[200,470,200],[40,620,170],[390,620,170],[120,780,360]];
+const W=1280,H=720,LAVA=665,G=900,TOP=92,HR=42,BS=1.3;
+// platforms [x,y,width]; the last one is the home ledge (kept clear of the joystick / button corners)
+const PLAT=[[70,235,230],[980,235,230],[470,335,340],[150,455,250],[880,455,250],[350,590,580]];
+const easy=()=>api.diff===0&&api.level<=10;   // Beginner 1-10 (+ tutorial): gentle
 const KINDS=['bounder','hunter','ptero'], TAGC=['#00e5ff','#ff3bd4'];
-let api,t,pl,pls,ens,eggs,done,lost,eff;
+let api,t,pl,pls,ens,eggs,done,lost,eff,kills=0;
 let nid=0,evq=[],evSeq=0,evSeen=0,snapN=0,snapSeen=0,lastCnt=null,cnt=0;
 function net(){ return api&&api.net; }
 function isHost(){ const n=net(); return !!(n&&n.role==='host'); }
@@ -504,69 +509,85 @@ function me(){ return (isGuest()&&pls&&pls[1])||pl; }
 function ev(k,...a){ if(!isHost()) return; evq.push([++evSeq,t,k,...a]); if(evq.length>30) evq.shift(); }
 function T(msg){ api.toast(msg); ev('toast',msg); }
 function nm(i){ const n=net(); return String((n&&n.names[i])||('P'+(i+1))).slice(0,12); }
-function rider(x,y,k){ return {id:++nid,x,y,vx:0,vy:0,k,flapT:Math.random(),tx:Math.random()*W,ty:200+Math.random()*400,face:1,spawn:1}; }
-function startX(i){ return net()?(i?360:240):300; }
-function mkPl(i){ return {i,x:startX(i),y:780,vx:0,vy:0,face:i?-1:1,grace:2,dead:false,respT:0,u:false,bt:0,eff:{lance:-9,shield:-9}}; }
+function rider(x,y,k){ return {id:++nid,x,y,vx:0,vy:0,k,flapT:Math.random(),tx:Math.random()*W,ty:200+Math.random()*300,face:1,spawn:1,rt:0}; }
+function startX(i){ return net()?(i?740:540):640; }
+function mkPl(i){ return {i,x:startX(i),y:590,vx:0,vy:0,face:i?-1:1,grace:2,dead:false,respT:0,u:false,bt:0,fc:0,idle:0,dash:0,dashCd:0,eff:{lance:-9,shield:-9}}; }
 // nearest living rider (single player: always the rider)
 function near(o){ if(!pls||pls.length<2) return pl; let best=null,bd=1e9; for(const p of pls){ if(p.dead) continue; const d=Math.hypot(p.x-o.x,p.y-o.y); if(d<bd){ bd=d; best=p; } } return best||pl; }
-function phys(o,dt){ o.vy+=G*dt; o.vy=Math.min(o.vy,600); o.x+=o.vx*dt; o.y+=o.vy*dt; if(o.x<-20) o.x+=W+40; if(o.x>W+20) o.x-=W+40; if(o.y<20){ o.y=20; o.vy=Math.max(0,o.vy); }
+function phys(o,dt){ o.vy+=G*dt; o.vy=Math.min(o.vy,600); o.x+=o.vx*dt; o.y+=o.vy*dt; if(o.x<-20) o.x+=W+40; if(o.x>W+20) o.x-=W+40; if(o.y<TOP){ o.y=TOP; o.vy=Math.max(0,o.vy); }
   o.ground=false; for(const [px,py,pw] of PLAT){ if(o.vy>=0&&o.x>px-6&&o.x<px+pw+6&&o.y>=py-2&&o.y-o.vy*dt<=py+2){ o.y=py; o.vy=0; o.ground=true; o.vx*=Math.pow(0.05,dt); } } }
-function flap(o,dir,pow){ o.vy=Math.min(o.vy,0)-(pow||330); if(o.vy<-420) o.vy=-420; if(dir) { o.vx+=dir*70; o.face=dir; } }
+function flap(o,dir,pow){ o.vy=Math.min(o.vy,0)-(pow||340); if(o.vy<-430) o.vy=-430; if(dir) { o.vx+=dir*70; o.face=dir; } }
 const GAME=window.GAME={
   id:'sky-joust',title:'Sky Joust',titleHTML:'SKY<br>JOUST',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-SJ-1.2 · 2026-10-19',theme:{a:'#ffd23f',b:'#ff3b5c',bg:'#120614'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🐦',joystick:false,coinPts:40,
+  build:'BUILD-SJ-1.3 · 2026-10-26',theme:{a:'#ffd23f',b:'#ff3b5c',bg:'#120614'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🐦',joystick:true,coinPts:40,
   net:{mode:'coop'},
   abilities:[
-    {id:'flap',icon:'🪽',name:'FLAP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — flap your wings. Or just tap the screen: left half flaps left, right half flaps right.'},
+    {id:'flap',icon:'🪽',name:'FLAP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — tap to flap your wings and fly UP. Hold it to keep flapping. Steer with the stick (PC: ← →).'},
+    {id:'dash',icon:'⚡',name:'DASH',cd:0,key:'KeyX',keyLabel:'X',desc:'FREE — charge forward with your lance. A dashing rider also wins a LEVEL clash. Recharges in 1.2 seconds.'},
     {id:'lance',icon:'⚔️',name:'MEGA LANCE',cd:18,key:'Digit1',keyLabel:'1',desc:'Win every clash for 8 seconds.'},
     {id:'freeze',icon:'❄️',name:'FREEZE',cd:20,key:'Digit2',keyLabel:'2',desc:'Riders freeze in mid-air for 4 seconds. Bump them to knock them off.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit3',keyLabel:'3',desc:'6 seconds of safety (not from lava).'}],
   shop:[{id:'b_o',cat:'Bird',name:'Ostrich',cost:0,colors:['#ffd23f'],desc:'Classic.'},{id:'b_f',cat:'Bird',name:'Flamingo',cost:150,colors:['#ff7ab8'],desc:'Pink.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#ff3b5c)'}],
   story:`<h3>SKY JOUST</h3><p>Over the lava pits, rival riders on vultures want your sky. Out-fly them, strike from above, and grab the eggs before they hatch.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap</b> the left half of the screen to flap left, right half to flap right. PC: ← → to steer, SPACE to flap.</li><li>Crash into a rider — whoever is HIGHER wins.</li><li>Beaten riders drop eggs. Grab them before they hatch!</li><li>Don't fall in the lava.</li><li><b>Play together:</b> two riders share lives and score. Enemies chase whoever is closer. A rider who is knocked off is back in 2 seconds — but the team loses a life. Bumping your partner is harmless.</li></ul>`,
-  tutorial:[{text:'Tap to flap. Get ABOVE the rider and crash down on him!',ev:'win'},{text:'Grab the egg before it hatches!',ev:'egg'},{text:'Beat every rider!',time:5}],
-  stageIntro:{1:'STRIKE FROM ABOVE'},bossName:'THE PTERO!',ending:{"0":["#CHAMP","Champion of the sky."],"1":["#KNIGHT","Lava-proof knight."],"2":["#LEGEND","Impossible. You did it."]},
-  abTime(id){ const tot={lance:8,freeze:4,shield:6}[id]; if(!tot||!eff) return null; const p=me(); const v=id==='freeze'?eff.freeze:(p?p.eff[id]:0); return {left:Math.max(0,v),total:tot}; },
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><p><b>GOAL: knock every enemy rider off — hit them from ABOVE!</b></p><ul><li><b>Right thumb:</b> tap the big <b>🪽 FLAP</b> button to fly up (hold it to keep flapping). <b>⚡ DASH</b> charges forward with your lance. PC: SPACE = flap, X = dash.</li><li><b>Left thumb:</b> the stick steers left / right (pushing it up also flaps). PC: ← → or A / D.</li><li>Crash into a rider — whoever is HIGHER wins. A green <b>▼</b> over a rider means you're higher: drop on him! A red <b>▲</b> means he's higher: flap up first.</li><li>A dashing rider wins a level clash too.</li><li>Beaten riders drop eggs. Grab them before they hatch!</li><li>Don't fall in the lava.</li><li><b>Play together:</b> two riders share lives and score. Enemies chase whoever is closer. A rider who is knocked off is back in 2 seconds — but the team loses a life. Bumping your partner is harmless.</li></ul>`,
+  tutorial:[{text:'Press <b>SPACE</b> to flap and fly UP.',touch:'Tap the big <b>🪽 FLAP</b> button (right thumb) to fly UP.',ev:'flap'},
+    {text:'<b>← →</b> steer left and right.',touch:'<b>Left thumb:</b> push the stick left / right to steer.',ev:'steer'},
+    {text:'Get ABOVE the red rider, then drop down onto him! (Green ▼ = you are higher)',ev:'win'},
+    {text:'Grab the egg before it hatches!',ev:'egg'},
+    {text:'Press <b>X</b> to DASH — a dashing lance wins a level clash.',touch:'Tap <b>⚡ DASH</b> to charge with your lance — it wins a level clash.',ev:'dash'},
+    {text:'Knock off every rider from ABOVE to clear the stage!',time:4}],
+  stageIntro:{1:'HIT ENEMIES FROM ABOVE!'},bossName:'THE PTERO!',ending:{"0":["#CHAMP","Champion of the sky."],"1":["#KNIGHT","Lava-proof knight."],"2":["#LEGEND","Impossible. You did it."]},
+  abTime(id){ if(id==='dash'){ const p=me(); return p?{left:Math.max(0,p.dashCd),total:1.2}:null; } const tot={lance:8,freeze:4,shield:6}[id]; if(!tot||!eff) return null; const p=me(); const v=id==='freeze'?eff.freeze:(p?p.eff[id]:0); return {left:Math.max(0,v),total:tot}; },
   _dbg(){ return {get pl(){return pl;}, get pls(){return pls;}, get ens(){return ens;}, get eggs(){return eggs;}, get lost(){return lost;}, get done(){return done;},
     get net2(){ return {role:net()&&net().role, p:(pls||[]).map(p=>[Math.round(p.x),Math.round(p.y),p.dead?1:0]), ens:(ens||[]).length, eggs:(eggs||[]).length, done, lives:api.lives}; }}; },
   init(a){api=a;},
   startStage(n,a){ api=a; t=0; done=false; lost=false; nid=0; evq=[]; lastCnt=null; eff={freeze:-9}; eggs=[]; ens=[];
     const N2=!!net(), m=N2?1.3:1;
-    const N=a.content===0?1:Math.round(a.dv([3,5,7],9,14)*m); for(let i=0;i<N;i++){ const p=PLAT[i%5]; ens.push(rider(p[0]+p[2]/2,p[1]-60,i%3===2&&a.level>=2?'hunter':'bounder')); }
-    if(a.boss) ens.push(Object.assign(rider(300,120,'ptero'),{hp:Math.round(a.dv([3,4,5],6,9)*m)}));
+    const EZ=a.diff===0&&a.level<=10, L=a.level;
+    const N=a.content===0?1:Math.round((EZ?(a.boss?2:L<=3?2:L<=7?3:4):a.dv([3,5,7],9,14))*m);
+    const ORD=(EZ||a.content===0)?[4,3,2,1,0]:[0,1,2,3,4]; kills=0;   // Beginner: riders start on the LOW ledges
+    for(let i=0;i<N;i++){ const p=PLAT[ORD[i%5]]; ens.push(rider(p[0]+p[2]/2,p[1],i%3===2&&L>=(EZ?5:2)?'hunter':'bounder')); }
+    if(a.boss) ens.push(Object.assign(rider(640,150,'ptero'),{hp:Math.round((EZ?3:a.dv([3,4,5],6,9))*m)}));
     pl=mkPl(0); pls=[pl]; if(N2) pls.push(mkPl(1)); },
   respawn(){ if(net()) return; // co-op: the knocked-off rider comes back on its own timer; the level stays as it is
     lost=false; pl=mkPl(0); pls=[pl]; },
   netRevive(){ if(!pls) return; pls.forEach(p=>{ if(p.dead) respawnP(p); p.grace=Math.max(p.grace,3); }); },
   useAbility(id){ return useAb(pl,id); },
   useAbility2(id){ if(!pls||!pls[1]) return false; return useAb(pls[1],id); },
-  onPointer(type,x){ if(type==='down') tapFlap(pl,x); },
-  onPointer2(type,x){ if(type==='down'&&pls&&pls[1]) tapFlap(pls[1],x); },
+  // phones: the stick steers (left thumb), FLAP / DASH buttons (right thumb); a tap on the right half of the play area also flaps.
+  // A mouse click flaps toward the side you clicked.
+  onPointer(type,x,y,id,pt){ if(type!=='down') return; if(pt==='touch'||pt==='pen'){ if(x>W/2) tapFlap(pl,0); return; } tapFlap(pl,x<W/2?-1:1); },
+  onPointer2(type,x){ if(type==='down'&&pls&&pls[1]) tapFlap(pls[1],0); },
   update(dt){ t+=dt; if(done) return; if(eff.freeze>-2) eff.freeze-=dt;
-    pls.forEach(p=>{ for(const k in p.eff) if(p.eff[k]>-2) p.eff[k]-=dt; p.grace-=dt; p.bt-=dt; });
-    rideP(pl,api.input.keys,dt); if(pls[1]) rideP(pls[1],api.input2.keys,dt);
+    pls.forEach(p=>{ for(const k in p.eff) if(p.eff[k]>-2) p.eff[k]-=dt; p.grace-=dt; p.bt-=dt; p.fc-=dt; p.dash-=dt; p.dashCd-=dt; p.idle+=dt; });
+    rideP(pl,api.input,dt); if(pls[1]) rideP(pls[1],api.input2,dt);
     // two riders bumping each other: harmless bounce
-    if(pls[1]){ const a=pls[0],b=pls[1]; if(!a.dead&&!b.dead&&Math.abs(a.x-b.x)<34&&Math.abs(a.y-b.y)<34){ const s=Math.sign(a.x-b.x)||1; a.vx=s*220; b.vx=-s*220; if(a.y<b.y-8) a.vy=Math.min(a.vy,-160); else if(b.y<a.y-8) b.vy=Math.min(b.vy,-160);
+    if(pls[1]){ const a=pls[0],b=pls[1]; if(!a.dead&&!b.dead&&Math.abs(a.x-b.x)<HR&&Math.abs(a.y-b.y)<HR){ const s=Math.sign(a.x-b.x)||1; a.vx=s*220; b.vx=-s*220; if(a.y<b.y-8) a.vy=Math.min(a.vy,-160); else if(b.y<a.y-8) b.vy=Math.min(b.vy,-160);
       if(a.bt<=0){ a.bt=0.4; api.sfx.bump(); ev('sfx','bump'); } } }
-    const sp=api.dv([140,190,240],270,400), fl=api.dv([0.5,0.38,0.3],0.25,0.16);
+    const EZ=easy(), sp=api.dv([140,190,240],270,400)*(EZ?0.72:1)*(api.content===0?0.6:1), fl=api.dv([0.5,0.38,0.3],0.25,0.16)*(EZ?1.25:1);
+    const lowY=EZ?260:150;   // Beginner riders cruise lower, so it's easy to get above them
+    // an idle player gets hunted: the nearest rider comes for him (no hands = no win)
+    const idleP=pls.find(p=>!p.dead&&p.idle>3); let hunter=null; if(idleP){ let bd=1e9; ens.forEach(e=>{ if(e.spawn>0||e.k==='ptero') return; const d=Math.hypot(e.x-idleP.x,e.y-idleP.y); if(d<bd){ bd=d; hunter=e; } }); }
     ens.forEach(e=>{ if(e.spawn>0){ e.spawn-=dt; return; } if(eff.freeze>0){ e.vy=0; return; }
-      e.flapT-=dt; if(Math.random()<dt*0.5||Math.hypot(e.x-e.tx,e.y-e.ty)<40){ e.tx=Math.random()*W; e.ty=120+Math.random()*560; }
-      if(e.k==='hunter'||e.k==='ptero'){ const tg=near(e); e.tx=tg.x; e.ty=tg.y-(e.k==='ptero'?0:40); }
+      e.flapT-=dt; e.rt-=dt; if(Math.random()<dt*0.5||Math.hypot(e.x-e.tx,e.y-e.ty)<40){ e.tx=Math.random()*W; e.ty=lowY+Math.random()*(LAVA-110-lowY); }
+      if(e===hunter){ e.tx=idleP.x; e.ty=idleP.y-30; }
+      else if(e.k==='ptero'||(e.k==='hunter'&&(!EZ||e.rt<=0))){ const tg=near(e); e.tx=tg.x; e.ty=tg.y-(e.k==='ptero'?0:40); if(EZ&&e.k==='hunter'&&e.rt<=0&&Math.random()<dt*0.6) e.rt=2.5; }
       const want=Math.sign(e.tx-e.x); e.vx+=(want*sp-e.vx)*dt*2; e.face=Math.sign(e.vx)||1;
-      if(e.flapT<=0&&(e.y>e.ty||e.y>LAVA-120)){ flap(e,0,e.k==='ptero'?260:300); e.flapT=fl; }
-      if(e.k==='ptero'){ e.vy=Math.max(-250,Math.min(250,(e.ty-e.y)*2)); e.x+=e.vx*dt; e.y+=e.vy*dt; if(e.x<-20)e.x+=W+40; if(e.x>W+20)e.x-=W+40; } else phys(e,dt);
+      if(e.flapT<=0&&(e.y>e.ty||e.y>LAVA-110)){ flap(e,0,e.k==='ptero'?260:300); e.flapT=fl; }
+      if(e.k==='ptero'){ e.vy=Math.max(-250,Math.min(250,(e.ty-e.y)*2)); e.x+=e.vx*dt; e.y=Math.max(TOP+20,e.y+e.vy*dt); if(e.x<-20)e.x+=W+40; if(e.x>W+20)e.x-=W+40; } else phys(e,dt);
       if(e.y>LAVA){ e.y=LAVA-60; e.vy=-400; } });
-    if(!lost) for(const p of pls){ if(p.dead) continue; ens.forEach(e=>{ if(e.dead||e.spawn>0||p.dead) return; if(Math.abs(e.x-p.x)<34&&Math.abs(e.y-p.y)<34){
-        const frozen=eff.freeze>-1; const win= p.eff.lance>0 || p.y<e.y-8 || (frozen&&p.y<=e.y+8);
-        if(win){ e.hp=(e.hp||1)-1; p.vy=-260; if(e.hp<=0){ e.dead=true; api.addScore(e.k==='ptero'?1000:250*(1+api.dk*.5),e.x,e.y); api.fx.burst(e.x,e.y,'#ff3b5c',20,260,.5,3); api.sfx.boom(); api.event('win'); ev('kill',Math.round(e.x),Math.round(e.y)); if(e.k!=='ptero') eggs.push({id:++nid,x:e.x,y:e.y,vy:0,vx:e.vx*.5,t:0}); } }
-        else if(frozen||e.y<p.y-8){ if(!frozen&&p.grace<=0) hit(p,false); else { p.vx=-Math.sign(e.x-p.x)*200; } }
+    if(!lost) for(const p of pls){ if(p.dead) continue; ens.forEach(e=>{ if(e.dead||e.spawn>0||p.dead) return; if(Math.abs(e.x-p.x)<HR&&Math.abs(e.y-p.y)<HR){
+        const frozen=eff.freeze>-1, awake=p.idle<2;   // a rider nobody is steering never wins a clash
+        const win= awake && (p.eff.lance>0 || p.y<e.y-8 || (frozen&&p.y<=e.y+8) || (p.dash>0&&p.y<=e.y+14));
+        if(win){ e.hp=(e.hp||1)-1; p.vy=-260; if(e.hp<=0){ e.dead=true; kills++; api.addScore(e.k==='ptero'?1000:250*(1+api.dk*.5),e.x,e.y); api.fx.burst(e.x,e.y,'#ff3b5c',20,260,.5,3); api.sfx.boom(); api.event('win'); ev('kill',Math.round(e.x),Math.round(e.y)); if(e.k!=='ptero') eggs.push({id:++nid,x:e.x,y:e.y,vy:0,vx:e.vx*.5,t:0}); } }
+        else if(frozen||e.y<p.y-8||!awake){ if(!frozen&&p.grace<=0&&api.content!==0) hit(p,false); else { p.vx=-Math.sign(e.x-p.x)*200; if(api.content===0&&p.bt<=0){ p.bt=1.5; T('HE IS HIGHER — FLAP UP FIRST!'); } } }
         else { const s=Math.sign(p.x-e.x)||1; p.vx=s*260; e.vx=-s*260; api.sfx.bump(); ev('sfx','bump'); } } }); }
     ens=ens.filter(e=>!e.dead);
-    const hatch=api.dv([8,6,4.5],3.5,2);
+    const hatch=hatchT();
     eggs.forEach(g=>{ g.t+=dt; phys(g,dt); g.vx*=Math.pow(0.3,dt); if(g.y>LAVA) g.gone=true;
-      if(!lost) for(const p of pls){ if(!g.gone&&!p.dead&&Math.abs(g.x-p.x)<30&&Math.abs(g.y-p.y)<34){ g.gone=true; api.addScore(500,g.x,g.y); api.sfx.pickup(); api.event('egg'); ev('egg',Math.round(g.x),Math.round(g.y)); } }
+      if(!lost) for(const p of pls){ if(!g.gone&&!p.dead&&Math.abs(g.x-p.x)<38&&Math.abs(g.y-p.y)<44){ g.gone=true; api.addScore(500,g.x,g.y); api.sfx.pickup(); api.event('egg'); ev('egg',Math.round(g.x),Math.round(g.y)); } }
       if(g.t>hatch&&!g.gone){ g.gone=true; ens.push(Object.assign(rider(g.x,g.y-10,'hunter'),{spawn:0.6})); T('HATCHED!'); } });
     eggs=eggs.filter(g=>!g.gone);
     cnt=ens.length+eggs.length; api.counter('⚔️ RIDERS',cnt);
@@ -576,12 +597,12 @@ const GAME=window.GAME={
     ens.forEach(o=>e.push(o.id,R(o.x),R(o.y),o.face<0?0:1,KINDS.indexOf(o.k),o.spawn>0?1:0));
     eggs.forEach(o=>g.push(o.id,R(o.x),R(o.y),R(o.t*10)));
     return {n:++snapN,
-      p:pls.map(p=>[R(p.x),R(p.y),p.face<0?0:1,p.dead?Math.max(1,R(p.respT*10)):0,Math.max(0,R(p.grace*10)),Math.max(0,R(p.eff.lance*10)),Math.max(0,R(p.eff.shield*10))]),
+      p:pls.map(p=>[R(p.x),R(p.y),p.face<0?0:1,p.dead?Math.max(1,R(p.respT*10)):0,Math.max(0,R(p.grace*10)),Math.max(0,R(p.eff.lance*10)),Math.max(0,R(p.eff.shield*10)),p.dash>0?1:0]),
       f:Math.max(-20,R(eff.freeze*10)),e,g,d:done?1:0,L:cnt,
       v:evq.filter(x=>t-x[1]<1.2).slice(-20).map(x=>[x[0],...x.slice(2)])}; },
   netApply(s){ if(!s||!s.p||!pls) return; if(s.n&&s.n<=snapSeen) return; snapSeen=s.n||snapSeen;
     s.p.forEach((a,i)=>{ let p=pls[i]; if(!p) p=pls[i]=mkPl(i); const wasDead=p.dead;
-      setT(p,a[0],a[1]); p.face=a[2]?1:-1; p.dead=a[3]>0; p.respT=a[3]/10; p.grace=a[4]/10; p.eff.lance=a[5]/10; p.eff.shield=a[6]/10;
+      setT(p,a[0],a[1]); p.face=a[2]?1:-1; p.dead=a[3]>0; p.respT=a[3]/10; p.grace=a[4]/10; p.eff.lance=a[5]/10; p.eff.shield=a[6]/10; p.dash=a[7]?0.2:0;
       if(wasDead&&!p.dead){ p.x=p.tx; p.y=p.ty; } });
     pl=pls[0]; eff.freeze=s.f/10;
     const em={}; ens.forEach(o=>em[o.id]=o); const ne=[];
@@ -593,36 +614,43 @@ const GAME=window.GAME={
     if(s.L!==lastCnt){ lastCnt=s.L; api.counter('⚔️ RIDERS',s.L); }
     (s.v||[]).forEach(a=>{ if(a[0]>evSeen){ evSeen=a[0]; try{ netFx(a); }catch(e){} } }); },
   netTick(dt){ if(!pls) return; t+=dt; const k=1-Math.exp(-dt*16);
-    const L=o=>{ if(o&&o.tx!==undefined){ if(Math.abs(o.tx-o.x)>W/2){ o.x=o.tx; } o.x+=(o.tx-o.x)*k; o.y+=(o.ty-o.y)*k; } };
+    const L=o=>{ if(o&&o.tx!==undefined){ if(Math.abs(o.tx-o.x)>W/2){ o.x=o.tx; o.y=o.ty; } o.x+=(o.tx-o.x)*k; o.y+=(o.ty-o.y)*k; } };
     pls.forEach(p=>{ L(p); p.grace-=dt; for(const q in p.eff) p.eff[q]-=dt; if(p.dead) p.respT-=dt; });
     if(eff) eff.freeze-=dt; ens.forEach(L); eggs.forEach(o=>{ L(o); o.t+=dt; }); },
   render(c){ const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#120614'); g.addColorStop(.7,'#3a0a1a'); g.addColorStop(1,'#ff4a00'); c.fillStyle=g; c.fillRect(0,0,W,H);
-    for(let i=0;i<40;i++){ c.fillStyle='rgba(255,200,150,.3)'; c.fillRect((i*157)%W,(i*83)%600,2,2); }
+    for(let i=0;i<70;i++){ c.fillStyle='rgba(255,200,150,.3)'; c.fillRect((i*157)%W,(i*83)%520,2,2); }
     c.fillStyle='#ff5a00'; c.shadowColor='#ff5a00'; c.shadowBlur=30; c.beginPath(); c.moveTo(0,H); for(let x=0;x<=W;x+=20) c.lineTo(x,LAVA+10+Math.sin(x*0.05+t*3)*8); c.lineTo(W,H); c.fill(); c.shadowBlur=0;
     for(const [px,py,pw] of PLAT){ c.fillStyle='#4a3a5a'; c.fillRect(px,py,pw,14); c.fillStyle='#8a6aaa'; c.fillRect(px,py,pw,4); c.fillStyle='#2a1a3a'; c.beginPath(); c.moveTo(px+10,py+14); c.lineTo(px+pw/2,py+50); c.lineTo(px+pw-10,py+14); c.fill(); }
-    eggs.forEach(e=>{ c.fillStyle=e.t>hatchWarn()?((t*8|0)%2?'#fff':'#ffd23f'):'#f4f0e0'; c.beginPath(); c.ellipse(e.x,e.y-10,9,12,0,0,7); c.fill(); });
-    ens.forEach(e=>{ if(e.spawn>0&&(t*12|0)%2) return; birdDraw(c,e.x,e.y,e.face,e.k==='ptero'?'#7df9ff':e.k==='hunter'?'#9a9aa8':'#ff3b5c',e.k==='ptero'?'#ff3b5c':'#333',e.k==='ptero'); if(eff.freeze>0){ c.strokeStyle='#7df9ff'; c.lineWidth=2; c.strokeRect(e.x-24,e.y-50,48,52); } });
+    eggs.forEach(e=>{ c.fillStyle=e.t>hatchWarn()?((t*8|0)%2?'#fff':'#ffd23f'):'#f4f0e0'; c.beginPath(); c.ellipse(e.x,e.y-13,12,16,0,0,7); c.fill(); });
+    ens.forEach(e=>{ if(e.spawn>0&&(t*12|0)%2) return; birdDraw(c,e.x,e.y,e.face,e.k==='ptero'?'#7df9ff':e.k==='hunter'?'#9a9aa8':'#ff3b5c',e.k==='ptero'?'#ff3b5c':'#333',e.k==='ptero'); if(eff.freeze>0){ c.strokeStyle='#7df9ff'; c.lineWidth=2; c.strokeRect(e.x-32,e.y-66,64,68); } });
+    guide(c);
     const N=net();
     pls.forEach(p=>{
-      if(p.dead){ if(N){ c.globalAlpha=0.55+0.3*Math.sin(t*8); c.fillStyle=TAGC[p.i]; c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillText('↻ '+nm(p.i).toUpperCase()+' '+Math.max(0,p.respT).toFixed(1),startX(p.i),740); c.globalAlpha=1; } return; }
+      if(p.dead){ if(N){ c.globalAlpha=0.55+0.3*Math.sin(t*8); c.fillStyle=TAGC[p.i]; c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillText('↻ '+nm(p.i).toUpperCase()+' '+Math.max(0,p.respT).toFixed(1),startX(p.i),560); c.globalAlpha=1; } return; }
       if(lost) return;
-      if(p.grace<=0||(t*10|0)%2){ birdDraw(c,p.x,p.y,p.face,N?(p.i?'#ff7ab8':'#ffd23f'):api.cos('Bird').colors[0],N?TAGC[p.i]:'#00e5ff',false); if(p.eff.shield>0||p.eff.lance>0){ c.strokeStyle=p.eff.lance>0?'#ffd23f':'#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(p.x,p.y-22,32,0,7); c.stroke(); } }
-      if(N){ const s=nm(p.i); c.font='bold 16px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.75)'; const lx=Math.max(50,Math.min(W-50,p.x)), o=pls[1-p.i], ly=Math.max(104,p.y-62-(p.i&&o&&!o.dead&&Math.abs(o.x-p.x)<90&&Math.abs(o.y-p.y)<40?18:0)); c.strokeText(s,lx,ly);
+      if(p.grace<=0||(t*10|0)%2){ birdDraw(c,p.x,p.y,p.face,N?(p.i?'#ff7ab8':'#ffd23f'):api.cos('Bird').colors[0],N?TAGC[p.i]:'#00e5ff',false); if(p.eff.shield>0||p.eff.lance>0){ c.strokeStyle=p.eff.lance>0?'#ffd23f':'#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(p.x,p.y-29,42,0,7); c.stroke(); }
+        if(p.dash>0){ c.strokeStyle='rgba(255,210,63,.7)'; c.lineWidth=4; for(let k=1;k<4;k++){ c.beginPath(); c.moveTo(p.x-p.face*(20+k*16),p.y-30-k*6); c.lineTo(p.x-p.face*(44+k*16),p.y-30-k*6); c.stroke(); } } }
+      if(N){ const s=nm(p.i); c.font='bold 16px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.75)'; const lx=Math.max(50,Math.min(W-50,p.x)), o=pls[1-p.i], ly=Math.max(108,p.y-80-(p.i&&o&&!o.dead&&Math.abs(o.x-p.x)<90&&Math.abs(o.y-p.y)<40?18:0)); c.strokeText(s,lx,ly);
         c.fillStyle=TAGC[p.i]; c.shadowColor=TAGC[p.i]; c.shadowBlur=8; c.fillText(s,lx,ly); c.shadowBlur=0; } });
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#120614'; c.fillRect(0,0,W,H); birdDraw(c,300+Math.sin(tt)*150,450+Math.sin(tt*3)*30,1,'#ffd23f','#00e5ff',false); }
+  attract(c,tt){ c.fillStyle='#120614'; c.fillRect(0,0,W,H); t=tt; birdDraw(c,640+Math.sin(tt)*300,380+Math.sin(tt*3)*30,Math.cos(tt)>0?1:-1,'#ffd23f','#00e5ff',false); }
 };
 function setT(o,x,y){ if(o.tx===undefined||Math.hypot(x-o.x,y-o.y)>160){ o.x=x; o.y=y; } o.tx=x; o.ty=y; }
-function tapFlap(p,x){ if(done||lost||!p||p.dead) return; const d=x<W/2?-1:1; flap(p,d); api.sfx.blip(); if(p.i) ev('sfx','blip'); }
+function tapFlap(p,d){ if(done||lost||!p||p.dead) return; doFlap(p,d); }
+function doFlap(p,d){ flap(p,d); p.fc=0.3; p.idle=0; api.sfx.blip(); if(p.i) ev('sfx','blip'); api.event('flap'); }
+function doDash(p){ if(p.dashCd>0) return false; const d=p.face||1; p.vx=d*620; p.vy=Math.min(p.vy,-60); p.dash=0.4; p.dashCd=1.2; p.idle=0; api.sfx.power(); ev('sfx','power'); api.event('dash'); api.fx.burst(p.x-d*20,p.y-24,'#ffd23f',10,160,.3,3); return true; }
 // steer + flap + physics for one rider. Nobody flaps unless that player taps / presses.
-function rideP(p,K,dt){
+function rideP(p,I,dt){
   if(p.dead){ p.respT-=dt; if(p.respT<=0) respawnP(p); return; }
   if(lost) return;
-  const d=(K.ArrowRight||K.KeyD?1:0)-(K.ArrowLeft||K.KeyA?1:0); if(d){ p.vx+=d*500*dt; p.face=d; }
-  if((K.ArrowUp||K.KeyW)&&!p.u){ flap(p,0); api.sfx.blip(); if(p.i) ev('sfx','blip'); } p.u=!!(K.ArrowUp||K.KeyW);
-  p.vx=Math.max(-300,Math.min(300,p.vx*Math.pow(0.6,dt))); if(Math.abs(p.vx)>10) p.face=Math.sign(p.vx); phys(p,dt); if(p.y>LAVA) hit(p,true); }
+  const K=I.keys, D=I.dir(), d=Math.abs(D.x)>0.2?D.x:0; if(d){ p.vx+=d*620*dt; p.face=Math.sign(d); p.idle=0; api.event('steer'); }
+  const up=!!(K.ArrowUp||K.KeyW||D.y<-0.6); if(up&&!p.u) doFlap(p,0); p.u=up;
+  if(K.Space&&p.fc<=0) doFlap(p,0);            // hold FLAP = keep flapping (only while you hold it)
+  const mx=p.dash>0?620:320; p.vx=Math.max(-mx,Math.min(mx,p.vx*Math.pow(p.dash>0?0.9:0.6,dt))); if(Math.abs(p.vx)>10) p.face=Math.sign(p.vx); phys(p,dt);
+  if(p.y>LAVA-4){ if(easy()||api.content===0){ p.y=LAVA-6; p.vy=-560; if(p.bt<=0){ p.bt=1.5; T('HOT! KEEP FLAPPING!'); api.sfx.hurt(); } } else hit(p,true); } }
 function useAb(p,id){ if(done||lost||!p||p.dead) return false;
-  if(id==='flap'){ flap(p,0); api.sfx.blip(); if(p.i) ev('sfx','blip'); return true; }
+  if(id==='flap'){ doFlap(p,0); return true; }
+  if(id==='dash') return doDash(p);
   const v={lance:8,freeze:4,shield:6}[id]; if(v===undefined) return false;
   if(id==='freeze') eff.freeze=v; else p.eff[id]=v; api.sfx.power(); ev('sfx','power'); return true; }
 function respawnP(p){ const n=mkPl(p.i); Object.assign(p,{x:n.x,y:n.y,vx:0,vy:0,dead:false,respT:0,grace:2}); ev('resp',Math.round(p.x),Math.round(p.y),p.i); }
@@ -639,8 +667,28 @@ function netFx(a){ const k=a[1], F=api.fx, S=api.sfx;
   else if(k==='hurt'){ S.hurt(); F.shake(8); F.burst(a[2],a[3]-20,TAGC[a[4]],30,260,.6,3); }
   else if(k==='clear'){ S.clear(); F.flash('#fff',.3); }
   else if(k==='resp'){ F.burst(a[2],a[3]-20,TAGC[a[4]],16,180,.4,3); } }
-function hatchWarn(){ return api.dv([8,6,4.5],3.5,2)-2; }
-function birdDraw(c,x,y,f,body,knight,ptero){ const wing=Math.sin(t*18)*12;
+// GOAL GUIDE (Beginner 1-10 + tutorial): every rider gets a green ▼ (you're higher — drop on him) or a red ▲ (he's higher — flap up).
+// Stage 1 / tutorial: big "HIT ENEMIES FROM ABOVE" banner + a bouncing arrow over the nearest rider.
+function guide(c){ if(!api||lost||done) return; const tut=api.content===0, show=tut||easy(); if(!show) return;
+  const p=me(); if(!p||p.dead) return; let tg=null,bd=1e9;
+  c.textAlign='center';
+  ens.forEach(e=>{ if(e.spawn>0) return; const d=Math.hypot(e.x-p.x,e.y-p.y); if(d<bd){ bd=d; tg=e; }
+    const hi=p.y<e.y-8, y=e.y-80*BS+28; c.font='bold 26px sans-serif'; c.lineWidth=5; c.strokeStyle='rgba(0,0,0,.7)';
+    c.fillStyle=hi?'#3dff7a':'#ff4a5c'; c.strokeText(hi?'▼':'▲',e.x,y); c.fillText(hi?'▼':'▲',e.x,y); });
+  if(tut||api.level!==1||kills>0) { if(tut&&tg) arrow(c,tg); return; }
+  const a=Math.min(1,0.55+0.45*Math.abs(Math.sin(t*3)));
+  c.globalAlpha=a; c.font='900 40px sans-serif'; c.lineWidth=7; c.strokeStyle='rgba(0,0,0,.8)'; c.fillStyle='#ffd23f';
+  c.strokeText('HIT ENEMIES FROM ABOVE!',W/2,140); c.fillText('HIT ENEMIES FROM ABOVE!',W/2,140);
+  c.font='bold 22px sans-serif'; c.lineWidth=5; c.fillStyle='#fff'; const sub='🪽 FLAP to fly higher than him — then drop down onto him';
+  c.strokeText(sub,W/2,174); c.fillText(sub,W/2,174); c.globalAlpha=1;
+  if(tg) arrow(c,tg); }
+function arrow(c,tg){ c.textAlign='center'; { const bob=Math.sin(t*6)*10, x=tg.x, y=tg.y-130+bob; c.fillStyle='#ffd23f'; c.strokeStyle='#000'; c.lineWidth=4;
+    c.beginPath(); c.moveTo(x-12,y-44); c.lineTo(x+12,y-44); c.lineTo(x+12,y-10); c.lineTo(x+26,y-10); c.lineTo(x,y+18); c.lineTo(x-26,y-10); c.lineTo(x-12,y-10); c.closePath(); c.stroke(); c.fill();
+    c.font='bold 18px sans-serif'; c.lineWidth=4; c.strokeText('HIT HERE',x,y-52); c.fillText('HIT HERE',x,y-52); } }
+function hatchT(){ return api.dv([8,6,4.5],3.5,2)*(easy()?1.5:1); }
+function hatchWarn(){ return hatchT()-2; }
+function birdDraw(c,X,Y,f,body,knight,ptero){ c.save(); c.translate(X,Y); c.scale(BS,BS); birdDraw0(c,0,0,f,body,knight,ptero); c.restore(); }
+function birdDraw0(c,x,y,f,body,knight,ptero){ const wing=Math.sin(t*18)*12;
   c.fillStyle=body; c.beginPath(); c.ellipse(x,y-18,18,11,0,0,7); c.fill();
   c.beginPath(); c.moveTo(x-6*f,y-22); c.lineTo(x-24*f,y-30-wing); c.lineTo(x+4*f,y-16); c.fill();
   c.beginPath(); c.moveTo(x+12*f,y-24); c.lineTo(x+18*f,y-38); c.lineTo(x+24*f,y-36); c.lineTo(x+16*f,y-22); c.fill(); c.fillStyle='#ff9f1c'; c.fillRect(x+(f>0?22:-30),y-38,8,3);
