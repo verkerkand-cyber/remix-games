@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CC-1.12 · 2026-10-19">
+<meta name="build" content="BUILD-CC-1.13 · 2026-10-26">
 <title>Chomp Circuit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-CC-1.12 · 2026-10-19 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-CC-1.13 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -490,19 +490,23 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </div>
 <script>
 /* CHOMP CIRCUIT — maze chase remix (#1)
-   1.12: real online 2-player CO-OP (NET-1). Host runs the maze for both chompers; guest draws snapshots. */
+   1.12: real online 2-player CO-OP (NET-1). Host runs the maze for both chompers; guest draws snapshots.
+   1.13: LANDSCAPE 1280x720 — wide 39x21 maze, bottom corners cut away for the joystick; Beginner much gentler. */
 (function(){
-const TS=28, C=19, R=21, OY=48;
+const W=1280, H=720, TS=30, C=39, R=21, OX=95, OY=74, MID=19;
+const PX=x=>OX+x*TS+TS/2, PY=y=>OY+y*TS+TS/2;
+const NOTCH=(x,y)=>y>=14&&(x<=6||x>=C-7);   // bottom corners = no maze (joystick / buttons live there)
 function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 const DIRS={U:{x:0,y:-1},D:{x:0,y:1},L:{x:-1,y:0},R:{x:1,y:0}};
 const DL=[DIRS.U,DIRS.L,DIRS.D,DIRS.R];
-const SPAWN={x:9,y:9}, START={x:9,y:15};
+const SPAWN={x:MID,y:9}, START={x:MID,y:15}, ORBS=[[1,1],[C-2,1],[7,R-2],[C-8,R-2]];
+const easy=()=>api.diff===0&&api.level<=10;
 const GTYPES={
   chaser:{name:'Blaze',col:'#ff3355'}, ambush:{name:'Vex',col:'#ff66d9'}, wander:{name:'Drift',col:'#ffaa22'},
   phaser:{name:'Blink',col:'#a066ff'}, slimer:{name:'Goop',col:'#44ff66'}, boss:{name:'OVERLORD',col:'#ff2200'}
 };
 
-let map, dots, dotCount, walls, player, pls, ghosts, slime, t, frightT, freezeT, eatChain, readyT, clearT, api, stageN, dotsEaten, scatterT, starts;
+let dfr=1, spare=0, map, dots, dotCount, walls, player, pls, ghosts, slime, t, frightT, freezeT, eatChain, readyT, clearT, api, stageN, dotsEaten, scatterT, starts;
 // ---- NET-1 co-op helpers ----
 const TAGC=['#00e5ff','#ff3bd4'], PCOL=[['#00e5ff','#c8faff'],['#ff3bd4','#ffc0f0']];
 const GT=['chaser','ambush','wander','phaser','slimer','boss'], GS=['spawn','normal','fright','dead'];
@@ -528,27 +532,32 @@ function genMaze(seed){
   const vis={}; const stack=[[1,1]]; m[1][1]=0; vis['1,1']=1;
   while(stack.length){
     const [x,y]=stack[stack.length-1];
-    const nb=[[2,0],[-2,0],[0,2],[0,-2]].map(([dx,dy])=>[x+dx,y+dy,dx,dy]).filter(([nx,ny])=>nx>=1&&nx<=9&&ny>=1&&ny<=R-2&&!vis[nx+','+ny]);
+    const nb=[[2,0],[-2,0],[0,2],[0,-2]].map(([dx,dy])=>[x+dx,y+dy,dx,dy]).filter(([nx,ny])=>nx>=1&&nx<=MID&&ny>=1&&ny<=R-2&&!NOTCH(nx,ny)&&!vis[nx+','+ny]);
     if(!nb.length){ stack.pop(); continue; }
     const [nx,ny,dx,dy]=nb[Math.floor(r()*nb.length)];
     m[y+dy/2][x+dx/2]=0; m[ny][nx]=0; vis[nx+','+ny]=1; stack.push([nx,ny]);
   }
   const open=(x,y)=>{ m[y][x]=0; m[y][C-1-x]=0; };
-  for(let y=0;y<R;y++) for(let x=0;x<=9;x++) m[y][C-1-x]=m[y][x];
+  for(let y=0;y<R;y++) for(let x=0;x<=MID;x++) m[y][C-1-x]=m[y][x];
   // braid dead ends
-  for(let y=1;y<R-1;y+=2) for(let x=1;x<=9;x+=2){
+  for(let y=1;y<R-1;y+=2) for(let x=1;x<=MID;x+=2){ if(NOTCH(x,y)) continue;
     const n=DL.filter(d=>m[y+d.y][x+d.x]===0).length;
-    if(n<=1){ const opts=DL.filter(d=>m[y+d.y][x+d.x]===1 && x+d.x*2>=1 && x+d.x*2<=C-2 && y+d.y*2>=1 && y+d.y*2<=R-2);
+    if(n<=1){ const opts=DL.filter(d=>m[y+d.y][x+d.x]===1 && x+d.x*2>=1 && x+d.x*2<=C-2 && y+d.y*2>=1 && y+d.y*2<=R-2 && !NOTCH(x+d.x*2,y+d.y*2));
       if(opts.length){ const d=opts[Math.floor(r()*opts.length)]; open(x+d.x,y+d.y); } }
   }
   // extra loops
-  for(let y=1;y<R-1;y++) for(let x=1;x<=9;x++){
-    if(m[y][x]===1 && ((x%2===0)!==(y%2===0)) && r()<0.14){
+  for(let y=1;y<R-1;y++) for(let x=1;x<=MID;x++){
+    if(m[y][x]===1 && !NOTCH(x,y) && ((x%2===0)!==(y%2===0)) && r()<0.17){
       if(x%2===0 && m[y][x-1]===0 && m[y][x+1]===0) open(x,y);
       if(y%2===0 && m[y-1][x]===0 && m[y+1][x]===0) open(x,y);
     }
   }
   m[SPAWN.y][SPAWN.x-1]=0; m[SPAWN.y][SPAWN.x+1]=0;
+  // ghosts leave the portal sideways, never straight down onto the start tile (kept only if the maze stays connected)
+  m[SPAWN.y+1][MID]=1; let n=0, f=0; const sn={}, q=[[MID,SPAWN.y]]; sn[MID+','+SPAWN.y]=1;
+  for(const row of m) for(const v of row) if(!v) n++;
+  while(q.length){ const [x,y]=q.pop(); f++; for(const d of DL){ const nx=x+d.x, ny=y+d.y; if(m[ny]&&m[ny][nx]===0&&!sn[nx+','+ny]){ sn[nx+','+ny]=1; q.push([nx,ny]); } } }
+  if(f<n) m[SPAWN.y+1][MID]=0;
   return m;
 }
 const pass=(x,y)=>x>=0&&y>=0&&x<C&&y<R&&map[y][x]===0;
@@ -556,7 +565,7 @@ const pass=(x,y)=>x>=0&&y>=0&&x<C&&y<R&&map[y][x]===0;
 function buildWalls(){
   const th=api.cos('Maze'), col=th.colors[0], col2=th.colors[1]||col;
   walls=document.createElement('canvas'); walls.width=C*TS; walls.height=R*TS; const c=walls.getContext('2d');
-  for(let y=0;y<R;y++) for(let x=0;x<C;x++) if(map[y][x]===1){ c.fillStyle='rgba(255,255,255,0.03)'; c.fillRect(x*TS,y*TS,TS,TS); }
+  for(let y=0;y<R;y++) for(let x=0;x<C;x++) if(map[y][x]===1&&!NOTCH(x,y)){ c.fillStyle='rgba(255,255,255,0.03)'; c.fillRect(x*TS,y*TS,TS,TS); }
   c.lineCap='round'; c.lineWidth=3;
   for(let pass2=0;pass2<2;pass2++){
     c.shadowBlur=pass2?0:14; c.shadowColor=col; c.strokeStyle=pass2?'#ffffff':col; c.lineWidth=pass2?1:3.5; c.globalAlpha=pass2?0.35:1;
@@ -576,21 +585,22 @@ function buildWalls(){
 
 function makeGhost(type, delay){ return {type, x:SPAWN.x, y:SPAWN.y, cx:SPAWN.x, cy:SPAWN.y, dx:0, dy:0, st:'spawn', timer:delay, fr:0, ab:3+Math.random()*4, big:type==='boss'}; }
 function ghostSpeed(g){
-  const base=api.dv([5.4,6.3,7.0],7.25,10.5) + (stageN===0? -1.2 : stageN===3? 0.25 : 0);
+  let base=api.dv([5.4,6.3,7.0],7.25,10.5) + (stageN===0? -1.2 : stageN===3? 0.25 : 0);
+  if(api.diff===0) base*=Math.min(1,0.62+api.level*0.0076);   // Beginner: much slower chasers, catching up by stage ~50
   if(g.st==='fright') return base*0.55;
   return base*(g.type==='boss'?1.06:1)*(g.type==='wander'?0.93:1);
 }
 function resetPositions(){
-  const keepMag=player? player.magT||0 : 0;
-  pls=starts.map((s,i)=>mkP(i,s)); player=pls[0]; if(!net()) player.magT=keepMag;
-  ghosts.forEach((g,i)=>{ Object.assign(g, makeGhost(g.type, 0.6+i*1.4)); });
+  const keepMag=player? player.magT||0 : 0, again=!!player;
+  pls=starts.map((s,i)=>mkP(i,s)); player=pls[0]; if(easy()) pls.forEach(p=>p.grace=2); if(!net()) player.magT=keepMag;
+  ghosts.forEach((g,i)=>{ Object.assign(g, makeGhost(g.type, (again?1.5:0.6)+i*1.4)); });
   readyT=1.6; frightT=0; freezeT=0;
 }
 
 const GAME = window.GAME = {
   id:'chomp-circuit', title:'Chomp Circuit', titleHTML:'CHOMP<br>CIRCUIT', tagline:'Neon maze chase · Remix of a classic',
-  build:'BUILD-CC-1.12 · 2026-10-19', theme:{a:'#ffe14a', b:'#20e3ff', bg:'#05040f'},
-  w:C*TS, h:R*TS+OY+8, stages:100, lives:3, livesIcon:'●', joystick:true,
+  build:'BUILD-CC-1.13 · 2026-10-26', theme:{a:'#ffe14a', b:'#20e3ff', bg:'#05040f'},
+  landscape:true, w:W, h:H, stages:100, lives:3, livesIcon:'●', joystick:true,
   net:{mode:'coop'},
   abilities:[
     {id:'dash', icon:'⚡', name:'DASH', cd:5, key:'Digit1', keyLabel:'1', desc:'Speed burst to escape or chase.'},
@@ -616,11 +626,11 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ffe14a,#20e3ff,#ff4fd8)'}
   ],
   story:`<h3>THE CIRCUIT</h3><p>Deep inside an old arcade machine, the power grid is failing. Energy has leaked out into the maze as glowing dots — and the <b>Glitch Ghosts</b> are feeding on it.</p><p>You are <b>CHOMP</b>, the last repair unit. Your job: eat every energy dot, restore the circuit, and survive.</p><h3>THE GLITCH GHOSTS</h3><ul><li><b style="color:#ff3355">Blaze</b> — hunts you directly.</li><li><b style="color:#ff66d9">Vex</b> — cuts you off, aiming where you're going.</li><li><b style="color:#ffaa22">Drift</b> — wanders, then panics and chases.</li><li><b style="color:#a066ff">Blink</b> — teleports close to you.</li><li><b style="color:#44ff66">Goop</b> — leaves sticky slime that slows you down.</li><li><b style="color:#ff2200">OVERLORD</b> — the boss of the circuit. Big, fast, and angry.</li></ul><p>The maze rewires itself every stage. Nothing stays the same for long.</p>`,
-  howto:`<h3>GOAL</h3><p>Eat every glowing dot in the maze to clear the stage. Avoid the ghosts!</p><h3>CONTROLS</h3><ul><li><b>PC:</b> <span class="key">←↑↓→</span> or <span class="key">WASD</span> to move</li><li><b>Phone:</b> put your thumb anywhere and drag in a direction</li><li>Pause: <span class="key">P</span> / <span class="key">Esc</span></li></ul><h3>POWER ORBS</h3><p>The big pulsing orbs in the corners turn ghosts blue. Eat blue ghosts for 200 → 400 → 800 → 1600 points!</p><h3>ABILITIES</h3><ul><li>⚡ <b>DASH</b> <span class="key">1</span> — speed burst</li><li>❄️ <b>FREEZE</b> <span class="key">2</span> — freezes all ghosts for 3 seconds (frozen ghosts can't hurt you)</li><li>🧲 <b>MAGNET</b> <span class="key">3</span> — pulls in nearby dots for 4 seconds</li></ul><h3>PLAY TOGETHER</h3><p>Two chompers in the same maze (P1 cyan, P2 pink). Dots eaten by either player count. If one of you gets caught the team loses a life and that chomper comes back after 2 seconds.</p><h3>DIFFICULTY</h3><p>Easy: slow ghosts, long power time. Hard: faster. Expert: ghosts almost as fast as you, short power time.</p>`,
+  howto:`<h3>GOAL</h3><p>Eat every glowing dot in the maze to clear the stage. Avoid the ghosts!</p><h3>CONTROLS</h3><ul><li><b>Phone:</b> hold your phone <b>sideways</b>. <b>Left thumb</b> = joystick (touch the left half of the screen and drag). Abilities ⚡ ❄️ 🧲 = the buttons on the left edge (⚙️ SETTINGS can move them to the right for your right thumb).</li><li><b>PC:</b> <span class="key">←↑↓→</span> or <span class="key">WASD</span> to move, <span class="key">1</span> <span class="key">2</span> <span class="key">3</span> abilities</li><li>Chomp keeps rolling down a corridor until a wall — steer early and the turn is taken at the next gap.</li><li>Pause: <span class="key">P</span> / <span class="key">Esc</span></li></ul><h3>POWER ORBS</h3><p>The big pulsing orbs in the corners turn ghosts blue. Eat blue ghosts for 200 → 400 → 800 → 1600 points!</p><h3>ABILITIES</h3><ul><li>⚡ <b>DASH</b> <span class="key">1</span> — speed burst</li><li>❄️ <b>FREEZE</b> <span class="key">2</span> — freezes all ghosts for 3 seconds (frozen ghosts can't hurt you)</li><li>🧲 <b>MAGNET</b> <span class="key">3</span> — pulls in nearby dots for 4 seconds</li></ul><h3>PLAY TOGETHER</h3><p>Two chompers in the same maze (P1 cyan, P2 pink). Dots eaten by either player count. If one of you gets caught the team loses a life and that chomper comes back after 2 seconds.</p><h3>DIFFICULTY</h3><p>Beginner: very slow ghosts, 3 at most, long power time, extra power orbs. Hard: faster. Expert: ghosts almost as fast as you, short power time.</p>`,
   tutorial:[
-    {text:'Move with the <b>arrow keys</b> or <b>WASD</b>.', touch:'Put your thumb <b>anywhere</b> on the screen and <b>drag</b> to move.', ev:'move'},
+    {text:'Move with the <b>arrow keys</b> or <b>WASD</b>.', touch:'Hold your phone <b>sideways</b>. Put your <b>left thumb</b> on the left half and <b>drag</b> to steer.', ev:'move'},
     {text:'Eat the glowing dots — eat <b>10 dots</b>.', ev:'dot10'},
-    {text:'Press <b>⚡ DASH</b> (key <b>1</b> or the top-left button) for a speed burst.', touch:'Tap <b>⚡ DASH</b> on the left for a speed burst.', ev:'ab_dash'},
+    {text:'Press <b>⚡ DASH</b> (key <b>1</b> or the left-edge button) for a speed burst.', touch:'Tap <b>⚡ DASH</b> on the left for a speed burst.', ev:'ab_dash'},
     {text:'See that ghost? Grab a big <b>POWER ORB</b> in a corner — then eat the blue ghost!', ev:'eatghost'},
     {text:'Try <b>❄️ FREEZE</b> (key 2). Frozen ghosts can\'t hurt you.', touch:'Tap <b>❄️ FREEZE</b>. Frozen ghosts can\'t hurt you.', ev:'ab_freeze'},
     {text:'Last one: <b>🧲 MAGNET</b> (key 3) sucks in dots near you.', touch:'Last one: tap <b>🧲 MAGNET</b> to suck in nearby dots.', ev:'ab_magnet'},
@@ -636,12 +646,16 @@ const GAME = window.GAME = {
     map=genMaze(n===0? 7771 : 1234 + n*977 + a.diff*13);   // every stage gets its own maze
     starts=startTiles();
     dots=Array.from({length:R},()=>Array(C).fill(0)); dotCount=0;
+    const lv=a.level; dfr=(a.diff===0&&n>0)? (lv<=10?0.45:Math.min(1,0.45+(lv-10)*0.0275)) : 1;
     for(let y=0;y<R;y++) for(let x=0;x<C;x++) if(map[y][x]===0){
       if(Math.abs(x-SPAWN.x)+Math.abs(y-SPAWN.y)<=1 || (x===START.x&&y===START.y) || starts.some(s=>s.x===x&&s.y===y)) continue;
       dots[y][x]=1; dotCount++;
     }
-    [[1,1],[C-2,1],[1,R-2],[C-2,R-2]].forEach(([x,y])=>{ if(map[y][x]===0){ if(!dots[y][x]) dotCount++; dots[y][x]=2; } });
+    ORBS.concat(api.diff===0? [[MID,1],[MID,R-2]] : []).forEach(([x,y])=>{ if(map[y][x]===0){ if(!dots[y][x]) dotCount++; dots[y][x]=2; } });
+    spare=dfr<1? Math.floor(dotCount*(1-dfr)) : 0;   // Beginner 1-30: only part of the dots must be eaten
     const types = stageN===0? ['wander'] : stageN===1? (a.level<3? ['chaser','wander'] : ['chaser','ambush','wander']) : stageN===2? (a.level>=140? ['chaser','chaser','ambush','phaser','slimer','ambush'] : a.level>=60? ['chaser','ambush','phaser','slimer','wander'] : ['chaser','ambush','phaser','wander']) : ['boss','ambush','phaser','slimer','chaser'];
+    if(easy()) types.splice(stageN===3?3:stageN===2?3:2);   // Beginner 1-10: at most 3 ghosts
+    if(api.diff===1 && stageN>1) types.push('chaser');   // the maze is twice as wide -> one more hunter on Hard
     if(net() && stageN>0) types.push('chaser');   // 2 chompers -> one extra ghost
     ghosts=types.map(tp=>makeGhost(tp,0));
     buildWalls(); resetPositions(); if(n===0) readyT=0.5;
@@ -656,7 +670,7 @@ const GAME = window.GAME = {
     if(clearT>0){ clearT-=dt; if(clearT<=0) api.stageClear(); return; }
     if(readyT>0){ readyT-=dt; return; }
     const N=net();
-    if(!N && player.dead>0){ player.dead-=dt; if(player.dead<=0) api.loseLife(); return; }
+    if(!N && player.dead>0){ player.dead-=dt; if(player.dead<=0){ api.loseLife(); if(api.lives<=0) player.dead=99; } return; }   // out of lives: stay down, game over is coming
     frightT=Math.max(0,frightT-dt); freezeT=Math.max(0,freezeT-dt);
     for(const p of pls){ p.dashT=Math.max(0,p.dashT-dt); p.magT=Math.max(0,p.magT-dt); p.grace=Math.max(0,p.grace-dt); }
     scatterT+=dt;
@@ -675,13 +689,14 @@ const GAME = window.GAME = {
         if(g.st!=='normal' && g.st!=='fright') continue;
         const d=Math.hypot(g.x-p.x, g.y-p.y);
         if(d < (g.big?0.85:0.62)){
-          if(g.st==='fright'){ eatChain++; const pts=200*Math.pow(2,Math.min(eatChain-1,3))*(g.big?3:1); api.addScore(pts, g.x*TS+TS/2, g.y*TS+OY); api.addCoins(1);
-            g.st='dead'; g.timer=3; api.sfx.power(); api.fx.burst(g.x*TS+TS/2,g.y*TS+TS/2+OY,GTYPES[g.type].col,30,260,.7,4); api.fx.shake(5); api.event('eatghost'); ev('eg',Math.round(g.x*TS+TS/2),Math.round(g.y*TS+TS/2+OY),GT.indexOf(g.type)); }
+          if(g.st==='fright'){ eatChain++; const pts=200*Math.pow(2,Math.min(eatChain-1,3))*(g.big?3:1); api.addScore(pts, PX(g.x), PY(g.y)); api.addCoins(1);
+            g.st='dead'; g.timer=3; api.sfx.power(); api.fx.burst(PX(g.x),PY(g.y),GTYPES[g.type].col,30,260,.7,4); api.fx.shake(5); api.event('eatghost'); ev('eg',Math.round(PX(g.x)),Math.round(PY(g.y)),GT.indexOf(g.type)); }
           else if(freezeT<=0 && !(p.grace>0)){ if(!N){ die(p); return; } if(api.lives>0){ die(p); break; } }
         }
       }
     }
-    if(dotCount<=0 && stageN>0){ clearT=1.2; api.sfx.clear(); api.fx.flash('#fff',.4); ev('clr'); }
+    if(spare) api.counter('DOTS LEFT',Math.max(0,dotCount-spare));
+    if(dotCount<=spare && stageN>0){ clearT=1.2; api.sfx.clear(); api.fx.flash('#fff',.4); ev('clr'); }
     if(dotCount<=0 && stageN===0){ api.stageClear(); }
   },
   // ===== NET-1 co-op: host -> guest snapshot (positions in 1/100 tile) =====
@@ -711,6 +726,7 @@ const GAME = window.GAME = {
     if(s.D){ let n=0; for(let y=0;y<R;y++) for(let x=0;x<C;x++){ const v=+s.D[y*C+x]||0; if(dots[y][x]&&!v) ate++; dots[y][x]=v; if(v) n++; } dotCount=n; }
     (s.e||[]).forEach(k=>{ const y=Math.floor(k/C), x=k%C; if(dots[y]&&dots[y][x]){ dots[y][x]=0; dotCount--; ate++; } });
     if(ate&&t-blipT>0.07){ blipT=t; api.sfx.blip(); }
+    if(spare) api.counter('DOTS LEFT',Math.max(0,dotCount-spare));
     const me=pls[1]; if(me){ api.setActive(0,me.dashT>0); api.setActive(1,freezeT>0); api.setActive(2,me.magT>0); }
     (s.v||[]).forEach(a=>{ if(a[0]>evSeen){ evSeen=a[0]; try{ netFx(a); }catch(e){} } }); },
   netTick(dt){ if(!pls) return; t+=dt; const k=1-Math.exp(-dt*18);
@@ -719,7 +735,7 @@ const GAME = window.GAME = {
     ghosts.forEach(L); frightT=Math.max(0,frightT-dt); freezeT=Math.max(0,freezeT-dt); readyT=Math.max(0,readyT-dt); },
   render(c){
     c.fillStyle=GAME.theme.bg; c.fillRect(0,0,GAME.w,GAME.h);
-    c.save(); c.translate(0,OY);
+    c.save(); c.translate(OX,OY);
     c.drawImage(walls,0,0);
     // portal
     const px=SPAWN.x*TS+TS/2, py=SPAWN.y*TS+TS/2;
@@ -739,14 +755,14 @@ const GAME = window.GAME = {
     const N=net();
     for(const p of pls){
       if(N && p.dead>0){ c.save(); c.globalAlpha=0.55+0.3*Math.sin(t*8); c.fillStyle=TAGC[p.i]; c.font='bold 15px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('↻ '+Math.max(0,p.dead).toFixed(1),p.sx*TS+TS/2,p.sy*TS+TS/2); c.restore(); continue; }
-      if(!(N && p.grace>0 && Math.sin(t*30)>0.3)) drawPlayer(c,p);
+      if(!(p.grace>0 && Math.sin(t*30)>0.3)) drawPlayer(c,p);
       if(p.magT>0 && p.dead<=0){ c.strokeStyle=N?TAGC[p.i]:'#ffe14a'; c.globalAlpha=.25+.15*Math.sin(t*10); c.beginPath(); c.arc(p.x*TS+TS/2,p.y*TS+TS/2,TS*3.2,0,Math.PI*2); c.stroke(); c.globalAlpha=1; }
       if(N && p.dead<=0){ const o=pls[1-p.i], close=p.i===1&&o&&o.dead<=0&&Math.abs(o.x-p.x)<3.2&&Math.abs(o.y-p.y)<1.2;   // P2 tag goes below when the chompers are side by side
         const nm=pname(p.i), nx=p.x*TS+TS/2, ny=p.y*TS+TS/2+(close? TS*1.05 : -TS*0.72); c.save(); c.font='bold 14px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.8)'; c.strokeText(nm,nx,ny);
         c.fillStyle=TAGC[p.i]; c.shadowColor=TAGC[p.i]; c.shadowBlur=8; c.fillText(nm,nx,ny); c.restore(); }
     }
     c.restore();
-    if(readyT>0){ c.save(); c.textAlign='center'; c.font='900 30px Orbitron, sans-serif'; c.fillStyle='#ffe14a'; c.shadowColor='#ffe14a'; c.shadowBlur=16; c.fillText('READY!', GAME.w/2, OY+START.y*TS-TS*1.6); c.restore(); }
+    if(readyT>0){ c.save(); c.textAlign='center'; c.font='900 30px Orbitron, sans-serif'; c.fillStyle='#ffe14a'; c.shadowColor='#ffe14a'; c.shadowBlur=16; c.fillText('READY!', PX(START.x), OY+START.y*TS-TS*1.6); c.restore(); }
     if(freezeT>0){ c.fillStyle='rgba(180,240,255,0.06)'; c.fillRect(0,0,GAME.w,GAME.h); }
   }
 };
@@ -768,22 +784,22 @@ function netFx(a){ const k=a[1], F=api.fx, S=api.sfx;
   else if(k==='pw'){ S.power(); F.flash('#20e3ff',.25); F.burst(a[2],a[3],'#fff',24,220,.6,3); }
   else if(k==='eg'){ S.power(); F.burst(a[2],a[3],(GTYPES[GT[a[4]]]||GTYPES.chaser).col,30,260,.7,4); F.shake(5); }
   else if(k==='hurt'){ S.hurt(); F.shake(10); F.flash('#f24',.3); F.burst(a[2],a[3],PCOL[a[4]][0],40,300,.9,4); }
-  else if(k==='resp'){ const p=pls&&pls[a[2]]; if(p) F.burst(p.sx*TS+TS/2,p.sy*TS+TS/2+OY,PCOL[a[2]][0],16,180,.4,3); }
+  else if(k==='resp'){ const p=pls&&pls[a[2]]; if(p) F.burst(PX(p.sx),PY(p.sy),PCOL[a[2]][0],16,180,.4,3); }
   else if(k==='fz'){ S.power(); F.flash('#bff6ff',.3); }
   else if(k==='tp'){ S.small(); F.burst(a[2],a[3],'#a066ff',20,200,.5,3); F.burst(a[4],a[5],'#a066ff',20,200,.5,3); }
   else if(k==='clr'){ S.clear(); F.flash('#fff',.4); } }
 function eatAt(x,y,magnet){
   const d=dots[y]&&dots[y][x]; if(!d) return;
   dots[y][x]=0; dotCount--; dotsEaten++; if(isHost()) eatLog.push([t,y*C+x]);
-  if(d===1){ api.addScore(10, x*TS+TS/2, y*TS+TS/2+OY, true); if(!magnet) api.sfx.blip(); if(dotsEaten>=10) api.event('dot10'); }
-  else { api.addScore(50, x*TS+TS/2, y*TS+TS/2+OY, true); frightT=api.dv([8,6,4],2.5,0.8)*(stageN===3?0.8:1); eatChain=0; api.sfx.power(); api.fx.flash('#20e3ff',.25);
-    api.fx.burst(x*TS+TS/2,y*TS+TS/2+OY,'#fff',24,220,.6,3); ev('pw',x*TS+TS/2,y*TS+TS/2+OY);
+  if(d===1){ api.addScore(10, PX(x), PY(y), true); if(!magnet) api.sfx.blip(); if(dotsEaten>=10) api.event('dot10'); }
+  else { api.addScore(50, PX(x), PY(y), true); frightT=api.dv([8,6,4],2.5,0.8)*(stageN===3?0.8:1)+(api.diff===0? Math.max(0,5-api.level*0.1) : 0); eatChain=0; api.sfx.power(); api.fx.flash('#20e3ff',.25);
+    api.fx.burst(PX(x),PY(y),'#fff',24,220,.6,3); ev('pw',PX(x),PY(y));
     ghosts.forEach(g=>{ if(g.st==='normal'){ g.st='fright'; g.dx=-g.dx; g.dy=-g.dy; if(g.dx||g.dy){ g.cx+=-g.dx; g.cy+=-g.dy; } } }); api.event('power'); }
 }
 function die(p){
-  if(!net()){ player.dead=1.2; api.sfx.hurt(); api.fx.burst(player.x*TS+TS/2,player.y*TS+TS/2+OY,api.cos('Hero').colors[0],40,300,.9,4); api.fx.shake(10); return; }
+  if(!net()){ player.dead=1.2; api.sfx.hurt(); api.fx.burst(PX(player.x),PY(player.y),api.cos('Hero').colors[0],40,300,.9,4); api.fx.shake(10); return; }
   // co-op: one shared life lost, this chomper comes back after 2 s; the other chomper and the maze carry on
-  p.dead=2; p.dashT=0; p.magT=0; p.want=null; const bx=Math.round(p.x*TS+TS/2), by=Math.round(p.y*TS+TS/2+OY);
+  p.dead=2; p.dashT=0; p.magT=0; p.want=null; const bx=Math.round(PX(p.x)), by=Math.round(PY(p.y));
   api.fx.burst(bx,by,PCOL[p.i][0],40,300,.9,4); ev('hurt',bx,by,p.i);
   api.loseLife(); if(api.lives>0) T('OUCH! '+pname(p.i).toUpperCase());
 }
@@ -799,20 +815,20 @@ function movePlayer(p, w, dt){
   if(p.want && p.want.x===-p.dx && p.want.y===-p.dy && (p.dx||p.dy)){
     p.cx+=p.dx; p.cy+=p.dy; p.dx=-p.dx; p.dy=-p.dy;
   }
-  let spd=7.4*(p.dashT>0?1.75:1);
+  let spd=7.4*(p.dashT>0?1.75:1)*(api.diff===0?1.1:1);
   if(slime.some(s=>s.x===Math.round(p.x)&&s.y===Math.round(p.y))) spd*=0.55;
   step(p, spd*dt, e=>{
     if(e.want && pass(e.cx+e.want.x, e.cy+e.want.y)){ e.dx=e.want.x; e.dy=e.want.y; }
     else if(!pass(e.cx+e.dx, e.cy+e.dy)){ e.dx=0; e.dy=0; }
   }, e=>eatAt(e.cx,e.cy));
   if(p.dx||p.dy){ p.face={x:p.dx,y:p.dy}; p.mouth+=dt*14; if(p.i===0) api.event('move'); }
-  if(p.dashT>0){ const tc=(net()&&p.i===1)? PCOL[1] : api.cos('Trail').colors; api.fx.spark(p.x*TS+TS/2, p.y*TS+TS/2+OY, (Math.random()-.5)*40,(Math.random()-.5)*40, tc[Math.floor(Math.random()*tc.length)], .45, 4); }
+  if(p.dashT>0){ const tc=(net()&&p.i===1)? PCOL[1] : api.cos('Trail').colors; api.fx.spark(PX(p.x), PY(p.y), (Math.random()-.5)*40,(Math.random()-.5)*40, tc[Math.floor(Math.random()*tc.length)], .45, 4); }
   if(p.magT>0){ const px=Math.round(p.x), py=Math.round(p.y);
-    for(let y=py-3;y<=py+3;y++) for(let x=px-3;x<=px+3;x++) if(y>=0&&x>=0&&y<R&&x<C&&dots[y][x]===1 && Math.random()<dt*6) { eatAt(x,y,true); api.fx.spark(x*TS+TS/2,y*TS+TS/2+OY,(px-x)*60,(py-y)*60,'#ffe14a',.3,3); } }
+    for(let y=py-3;y<=py+3;y++) for(let x=px-3;x<=px+3;x++) if(y>=0&&x>=0&&y<R&&x<C&&dots[y][x]===1 && Math.random()<dt*6) { eatAt(x,y,true); api.fx.spark(PX(x),PY(y),(px-x)*60,(py-y)*60,'#ffe14a',.3,3); } }
 }
 function ghostTarget(g){
   const tp=nearP(g), p={x:Math.round(tp.x),y:Math.round(tp.y)};
-  const corners=[[1,1],[C-2,1],[1,R-2],[C-2,R-2]];
+  const corners=ORBS;
   const scatter = api.dk<2 && (scatterT%26)<5;
   const ci={chaser:1,ambush:0,wander:2,phaser:3,slimer:2,boss:1}[g.type];
   if(scatter && g.type!=='boss') return {x:corners[ci][0],y:corners[ci][1]};
@@ -822,14 +838,14 @@ function ghostTarget(g){
   return p;
 }
 function updGhost(g, dt){
-  if(g.st==='spawn'){ g.timer-=dt; if(g.timer<=0){ g.st=frightT>0?'fright':'normal'; api.fx.burst(SPAWN.x*TS+TS/2,SPAWN.y*TS+TS/2+OY,GTYPES[g.type].col,14,160,.5,3); } return; }
+  if(g.st==='spawn'){ g.timer-=dt; if(g.timer<=0){ g.st=frightT>0?'fright':'normal'; api.fx.burst(PX(SPAWN.x),PY(SPAWN.y),GTYPES[g.type].col,14,160,.5,3); } return; }
   if(g.st==='dead'){ g.timer-=dt; if(g.timer<=0){ Object.assign(g, makeGhost(g.type,0.8)); } return; }
   if(g.st==='fright' && frightT<=0) g.st='normal';
   if(freezeT>0) return;
   // specials
   if(g.st==='normal' && g.type==='phaser'){ g.ab-=dt; if(g.ab<=0){ g.ab=6+Math.random()*3;
     const tp=nearP(g); const cands=[]; for(let y=1;y<R-1;y++) for(let x=1;x<C-1;x++){ if(map[y][x]===0){ const d=Math.abs(x-tp.x)+Math.abs(y-tp.y); if(d>=5&&d<=8) cands.push([x,y]); } }
-    if(cands.length){ const [x,y]=cands[Math.floor(Math.random()*cands.length)]; api.fx.burst(g.x*TS+TS/2,g.y*TS+TS/2+OY,'#a066ff',20,200,.5,3); ev('tp',Math.round(g.x*TS+TS/2),Math.round(g.y*TS+TS/2+OY),x*TS+TS/2,y*TS+TS/2+OY); g.x=g.cx=x; g.y=g.cy=y; g.dx=g.dy=0; api.fx.burst(x*TS+TS/2,y*TS+TS/2+OY,'#a066ff',20,200,.5,3); api.sfx.small(); } } }
+    if(cands.length){ const [x,y]=cands[Math.floor(Math.random()*cands.length)]; api.fx.burst(PX(g.x),PY(g.y),'#a066ff',20,200,.5,3); ev('tp',Math.round(PX(g.x)),Math.round(PY(g.y)),PX(x),PY(y)); g.x=g.cx=x; g.y=g.cy=y; g.dx=g.dy=0; api.fx.burst(PX(x),PY(y),'#a066ff',20,200,.5,3); api.sfx.small(); } } }
   if(g.type==='slimer' && g.st==='normal'){ g.ab-=dt; if(g.ab<=0){ g.ab=1.1; const sx=g.cx, sy=g.cy; if(!slime.some(s=>s.x===sx&&s.y===sy)) slime.push({x:sx,y:sy,life:7}); } }
   step(g, ghostSpeed(g)*dt, e=>{
     const opts=DL.filter(d=>pass(e.cx+d.x,e.cy+d.y) && !(d.x===-e.dx && d.y===-e.dy && (e.dx||e.dy)));
