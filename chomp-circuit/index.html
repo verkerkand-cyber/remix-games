@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CC-1.13 · 2026-10-26">
+<meta name="build" content="BUILD-CC-1.14 · 2026-10-26">
 <title>Chomp Circuit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-CC-1.13 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-CC-1.14 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -491,7 +491,9 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 <script>
 /* CHOMP CIRCUIT — maze chase remix (#1)
    1.12: real online 2-player CO-OP (NET-1). Host runs the maze for both chompers; guest draws snapshots.
-   1.13: LANDSCAPE 1280x720 — wide 39x21 maze, bottom corners cut away for the joystick; Beginner much gentler. */
+   1.13: LANDSCAPE 1280x720 — wide 39x21 maze, bottom corners cut away for the joystick; Beginner much gentler.
+   1.14 (26 Oct): HARD boss stages only — no extra Hard chaser (Overlord takes the slot), pack -0.3 speed instead of +0.25,
+   Overlord x0.97 instead of x1.06. Human-like bot (150ms reaction, 3 of each ability) went 3/20 -> 13/20. */
 (function(){
 const W=1280, H=720, TS=30, C=39, R=21, OX=95, OY=74, MID=19;
 const PX=x=>OX+x*TS+TS/2, PY=y=>OY+y*TS+TS/2;
@@ -585,10 +587,10 @@ function buildWalls(){
 
 function makeGhost(type, delay){ return {type, x:SPAWN.x, y:SPAWN.y, cx:SPAWN.x, cy:SPAWN.y, dx:0, dy:0, st:'spawn', timer:delay, fr:0, ab:3+Math.random()*4, big:type==='boss'}; }
 function ghostSpeed(g){
-  let base=api.dv([5.4,6.3,7.0],7.25,10.5) + (stageN===0? -1.2 : stageN===3? 0.25 : 0);
+  let base=api.dv([5.4,6.3,7.0],7.25,10.5) + (stageN===0? -1.2 : stageN===3? (api.diff===1&&api.boss? -0.3 : 0.25) : 0);   // Hard boss stages: pack a bit slower so a human can out-run the Overlord
   if(api.diff===0) base*=Math.min(1,0.62+api.level*0.0076);   // Beginner: much slower chasers, catching up by stage ~50
   if(g.st==='fright') return base*0.55;
-  return base*(g.type==='boss'?1.06:1)*(g.type==='wander'?0.93:1);
+  return base*(g.type==='boss'?(api.diff===1&&api.boss?0.97:1.06):1)*(g.type==='wander'?0.93:1);
 }
 function resetPositions(){
   const keepMag=player? player.magT||0 : 0, again=!!player;
@@ -599,7 +601,7 @@ function resetPositions(){
 
 const GAME = window.GAME = {
   id:'chomp-circuit', title:'Chomp Circuit', titleHTML:'CHOMP<br>CIRCUIT', tagline:'Neon maze chase · Remix of a classic',
-  build:'BUILD-CC-1.13 · 2026-10-26', theme:{a:'#ffe14a', b:'#20e3ff', bg:'#05040f'},
+  build:'BUILD-CC-1.14 · 2026-10-26', theme:{a:'#ffe14a', b:'#20e3ff', bg:'#05040f'},
   landscape:true, w:W, h:H, stages:100, lives:3, livesIcon:'●', joystick:true,
   net:{mode:'coop'},
   abilities:[
@@ -638,7 +640,7 @@ const GAME = window.GAME = {
   ],
   stageIntro:{1:'EAT EVERY DOT', 4:'WATCH OUT — BLINK CAN TELEPORT!'}, bossName:'THE OVERLORD WAKES!', ending:{"0": ["#THE CIRCUIT IS RESTORED", "The last glowing dot fades into the grid, and for the first time in years the old arcade machine hums with full power.", "Blaze, Vex, Drift, Blink and Goop scatter into the dark corners of the maze. Without stolen energy, they flicker… and fade.", "Deep in the core, the Overlord's red eye dims one final time.", "Lights ripple up the cabinet. The attract screen blinks back to life. Somewhere, a coin drops into the slot.", "#CHOMP", "The little repair unit rolls to the centre of the maze and rests. One hundred circuits repaired. Not a single dot left behind.", "Kids will play this machine again. They'll never know a tiny yellow hero kept it alive.", "But deep in the wiring, something small and purple blinks…"], "1": ["#THE SIGNAL BENEATH", "With the circuit restored, CHOMP notices something the other repair units never did: the Glitch Ghosts weren't random.", "Every maze they haunted spelled out a pattern — a map leading down, below the motherboard, into a place no schematic shows.", "CHOMP follows it. Past dead capacitors and melted wires, into the cold dark of the forgotten ROM.", "#THE OVERLORD'S SECRET", "There, at the bottom of everything, the Overlord was never a ghost at all. It was the machine's first program — written in 1981 and abandoned when the arcade closed.", "For forty years it has been alone in the dark, eating power just to keep dreaming of players who never came back.", "#A CHOICE", "CHOMP could delete it. One bite, and the machine would be safe forever.", "Instead, CHOMP opens a channel to the high-score table and writes the Overlord's name at the very top.", "The red eye flickers. For the first time in forty years, it feels remembered.", "The ghosts stop attacking. Somewhere in the maze, a new level quietly unlocks."], "2": ["#THE TRUE ENDING", "You did the impossible. On Expert, the Glitch Ghosts were faster than CHOMP itself — and still, not a single dot was left behind.", "The machine noticed. Every chip, every wire, every forgotten line of code in the cabinet stopped to watch.", "#THE CORE", "Past the ROM, past the Overlord's old prison, is a door that no program was ever meant to open: the machine's heart.", "Inside, CHOMP finds every player who ever pressed START. Millions of tiny memories — first games, high scores, birthdays spent at the arcade.", "The Glitch Ghosts were never stealing energy. They were stealing these memories, one by one, so the machine would forget it was ever loved.", "#THE LAST DOT", "In the centre of the heart floats one final dot. The brightest one. The very first coin ever put into the machine.", "CHOMP eats it — and the whole machine remembers everything at once.", "Every ghost turns back into the colour it was born as. Blaze, Vex, Drift, Blink and Goop drift home to the corners of the maze, finally at peace.", "The Overlord's red eye turns gold.", "#LEGEND", "Out in the real world, the old arcade cabinet lights up by itself at midnight.", "The screen shows one line, over and over: THANK YOU, PLAYER ONE.", "Nobody knows who you are. Nobody ever will.", "But the machine will remember you forever.", "And somewhere deep in the circuit, a small yellow repair unit finally gets to rest."]},
 
-  _dbg(){ return {get dots(){return dots;}, get dotCount(){return dotCount;}, set dotCount(v){dotCount=v;}, get player(){return player;}, get pls(){return pls;}, get map(){return map;}, get ghosts(){return ghosts;}, get freezeT(){return freezeT;}, set freezeT(v){freezeT=v;}, get readyT(){return readyT;},
+  _dbg(){ return {get dots(){return dots;}, get dotCount(){return dotCount;}, set dotCount(v){dotCount=v;}, get player(){return player;}, get pls(){return pls;}, get map(){return map;}, get ghosts(){return ghosts;}, get freezeT(){return freezeT;}, get slime(){return slime;}, set freezeT(v){freezeT=v;}, get readyT(){return readyT;},
     get net2(){ return {role:net()&&net().role, p:(pls||[]).map(p=>[+p.x.toFixed(2),+p.y.toFixed(2),p.dead>0?1:0,+p.grace.toFixed(1)]), g:(ghosts||[]).map(g=>[+g.x.toFixed(1),+g.y.toFixed(1),g.st]), dots:dotCount, lives:api.lives}; }}; },
   init(a){ api=a; },
   startStage(n, a){
@@ -655,7 +657,7 @@ const GAME = window.GAME = {
     spare=dfr<1? Math.floor(dotCount*(1-dfr)) : 0;   // Beginner 1-30: only part of the dots must be eaten
     const types = stageN===0? ['wander'] : stageN===1? (a.level<3? ['chaser','wander'] : ['chaser','ambush','wander']) : stageN===2? (a.level>=140? ['chaser','chaser','ambush','phaser','slimer','ambush'] : a.level>=60? ['chaser','ambush','phaser','slimer','wander'] : ['chaser','ambush','phaser','wander']) : ['boss','ambush','phaser','slimer','chaser'];
     if(easy()) types.splice(stageN===3?3:stageN===2?3:2);   // Beginner 1-10: at most 3 ghosts
-    if(api.diff===1 && stageN>1) types.push('chaser');   // the maze is twice as wide -> one more hunter on Hard
+    if(api.diff===1 && stageN>1 && !api.boss) types.push('chaser');   // the maze is twice as wide -> one more hunter on Hard (boss stages: the Overlord takes that slot)
     if(net() && stageN>0) types.push('chaser');   // 2 chompers -> one extra ghost
     ghosts=types.map(tp=>makeGhost(tp,0));
     buildWalls(); resetPositions(); if(n===0) readyT=0.5;
