@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-PC-1.11 · 2026-10-17">
+<meta name="build" content="BUILD-PC-1.12 · 2026-10-26">
 <title>Prism Cut</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-PC-1.11 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-PC-1.12 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,22 +489,31 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* PRISM CUT — territory-capture remix (#19) */
+/* PRISM CUT — territory-capture remix (#19)
+   1.12 (26 Oct): LANDSCAPE 1280x720. Wide board 196x102 cells (x96-1272, y74-686) with two pre-blocked corners
+   (bottom-left = joystick zone, bottom-right = action button zone) so nothing you play on sits under a control.
+   Main action ✂️ CUT (Space, hold): you only leave the edge into the dark while holding CUT — no accidental cuts.
+   RACE: stage layout + art + Qix wander come from a seeded RNG (seed from Math.random, which the shell seeds in a race,
+   mixed with the stage number) so both racers get the same board. Beginner 1-10: low goal %, slow Qix, max 1 spark.
+   Idle = no win: no claim for a while -> an extra spark joins the edges. */
 (function(){
-const N=120, CS=5, OY=64, BW=N*CS;
-let api, stageN, t, g, pl, trail, qixes, sparks, art, reveal, edgeC, pct, target, claimedN, freezeT, speedT, shieldT, done, acc, stalled;
-const idx=(x,y)=>y*N+x;
-const inb=(x,y)=>x>=0&&y>=0&&x<N&&y<N;
+const W=1280, H=720, BX=96, BY=74, CS=6, NX=196, NY=102, BW=NX*CS, BH=NY*CS, LX=29, LY=75, RX=148;
+let api, stageN, t, g, pl, trail, qixes, sparks, art, reveal, edgeC, pct, target, claimed0, free0, freezeT, speedT, shieldT, done, acc, stalled, rng, seed, idleT, extraN, hintT;
+const idx=(x,y)=>y*NX+x;
+const inb=(x,y)=>x>=0&&y>=0&&x<NX&&y<NY;
+const PX=x=>BX+x*CS+CS/2, PY=y=>BY+y*CS+CS/2;
+function mkRng(s){ let a=s>>>0; return ()=>{ a=a+0x6D2B79F5|0; let q=Math.imul(a^a>>>15,1|a); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }; }
 function isEdge(x,y){ if(!inb(x,y) || g[idx(x,y)]!==1) return false; for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ const nx=x+dx, ny=y+dy; if(inb(nx,ny) && g[idx(nx,ny)]===0) return true; } return false; }
 
 const GAME = window.GAME = {
   id:'prism-cut', title:'Prism Cut', titleHTML:'PRISM<br>CUT', tagline:'Slice the dark · Reveal the art',
-  build:'BUILD-PC-1.11 · 2026-10-17', theme:{a:'#ff3dd6', b:'#3dffd8', bg:'#04030c'},
-  w:BW, h:BW+OY+8, stages:100, lives:3, livesIcon:'◆', joystick:true,
+  build:'BUILD-PC-1.12 · 2026-10-26', theme:{a:'#ff3dd6', b:'#3dffd8', bg:'#04030c'},
+  landscape:true, race:true, w:W, h:H, stages:100, lives:3, livesIcon:'◆', joystick:true, coinPts:120,
   abilities:[
     {id:'speed', icon:'⚡', name:'TURBO', cd:10, key:'Digit1', keyLabel:'1', desc:'Move almost twice as fast for 3 seconds.'},
     {id:'freeze', icon:'❄️', name:'FREEZE', cd:18, key:'Digit2', keyLabel:'2', desc:'Freeze the Qix and sparks for 3 seconds.'},
-    {id:'shield', icon:'🛡️', name:'SHIELD', cd:24, key:'Digit3', keyLabel:'3', desc:'Immune to hits for 3 seconds.'}
+    {id:'shield', icon:'🛡️', name:'SHIELD', cd:24, key:'Digit3', keyLabel:'3', desc:'Immune to hits for 3 seconds.'},
+    {id:'cut', icon:'✂️', name:'CUT', cd:0, key:'Space', keyLabel:'SPACE', desc:'Hold it and steer into the dark to cut a line.'}
   ],
   shop:[
     {id:'c_diamond', cat:'Cutter', name:'Diamond', cost:0, colors:['#ffffff','#3dffd8'], desc:'Classic cutter.'},
@@ -523,128 +532,145 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ff3dd6,#3dffd8,#a066ff)'}
   ],
   story:`<h3>THE DARK CANVAS</h3><p>The legendary <b>Prism Gallery</b> held the most beautiful light-paintings in the universe, until a living shadow called <b>the Qix</b> swallowed them all in darkness.</p><p>You are the <b>Cutter</b>, a shard of pure light. Slice the darkness into pieces. Every piece you claim brings part of the artwork back.</p><h3>DANGERS</h3><ul><li><b>The Qix</b> — a writhing rainbow of energy. If it touches your cut line while you're drawing, you lose a life.</li><li><b>Sparks</b> — glowing fireballs that patrol the borders, always in the same direction.</li></ul><p>Claim enough of the canvas and the painting comes back to life.</p>`,
-  howto:`<h3>GOAL</h3><p>Claim enough of the board to reach the <b>target %</b> shown at the top. Claimed areas reveal a hidden artwork.</p><h3>HOW TO CUT</h3><ul><li>You move along the <b>glowing edges</b> safely.</li><li>Move <b>into the dark area</b> to start cutting a line.</li><li>Get back to any edge and the area you closed off is <b>claimed</b>. The side with the Qix in it stays dark.</li><li>If the Qix touches your line while you're cutting, you lose a life.</li><li>You can't cross your own line.</li></ul><h3>SPARKS</h3><ul><li>Sparks are the <b>glowing fireballs</b> on the edges. Touch one and you lose a life.</li><li>Each spark always travels <b>the same way round</b> — the <b>white arrow</b> in front shows where it's heading. They never turn back.</li><li>Watch the arrow, then cut into the dark to get out of the way.</li></ul><h3>CONTROLS</h3><ul><li><b>PC:</b> <span class="key">←↑↓→</span> / <span class="key">WASD</span></li><li><b>Phone:</b> drag your thumb anywhere</li></ul><h3>ABILITIES</h3><ul><li>⚡ <b>TURBO</b> <span class="key">1</span> — move almost twice as fast for 3s</li><li>❄️ <b>FREEZE</b> <span class="key">2</span> — freeze the Qix and sparks for 3s</li><li>🛡️ <b>SHIELD</b> <span class="key">3</span> — immune to hits for 3s</li></ul><p>Tip: big cuts score more. Every % past the target gives bonus points!</p>`,
+  howto:`<h3>HOLD YOUR PHONE SIDEWAYS</h3><p>The whole canvas fits across the wide screen.</p><h3>GOAL</h3><p>Claim enough of the board to reach the <b>goal %</b> (bar at the bottom, and <b>% LEFT</b> at the top). Claimed areas reveal a hidden artwork.</p><h3>HOW TO CUT</h3><ul><li>You slide along the <b>glowing edges</b> safely.</li><li><b>Hold ✂️ CUT</b> and steer <b>into the dark</b> to start a line. Without CUT you just stay on the edge, so you never cut by accident.</li><li>Once cutting, keep steering (CUT can be let go). Get back to any edge and the closed-off area is <b>claimed</b>. The side with the Qix stays dark.</li><li>If the Qix touches your line while you're cutting, you lose a life. You can't cross your own line.</li></ul><h3>SPARKS</h3><ul><li>Sparks are the <b>glowing fireballs</b> on the edges. Touch one and you lose a life.</li><li>Each spark always travels <b>the same way round</b> — the <b>white arrow</b> shows where it's heading.</li><li>Wait around too long without claiming and another spark joins in.</li></ul><h3>CONTROLS</h3><ul><li><b>Phone — left thumb:</b> put it down anywhere on the left half and drag to steer.</li><li><b>Phone — right thumb:</b> hold the big <b>✂️ CUT</b> button.</li><li><b>PC:</b> <span class="key">←↑↓→</span> / <span class="key">WASD</span> steer, hold <span class="key">SPACE</span> to cut.</li></ul><h3>ABILITIES</h3><ul><li>⚡ <b>TURBO</b> <span class="key">1</span> — move almost twice as fast for 3s</li><li>❄️ <b>FREEZE</b> <span class="key">2</span> — freeze the Qix and sparks for 3s</li><li>🛡️ <b>SHIELD</b> <span class="key">3</span> — immune to hits for 3s</li></ul><p>Race mode: both players get the same board — first to reach the goal wins. Tip: big cuts score more, and every % past the goal is bonus points!</p>`,
   tutorial:[
-    {text:'Move along the glowing <b>edge</b> with the arrow keys / WASD.', touch:'<b>Drag</b> your thumb to move along the glowing <b>edge</b>.', ev:'move'},
-    {text:'Now move <b>into the dark area</b> to start cutting a line.', ev:'drawstart'},
+    {text:'Hold your phone sideways. Move along the glowing <b>edge</b> with the arrow keys / WASD.', touch:'<b>Left thumb:</b> drag on the left half of the screen to move along the glowing <b>edge</b>.', ev:'move'},
+    {text:'Now <b>hold SPACE</b> (✂️ CUT) and steer <b>into the dark</b> to start a line.', touch:'<b>Right thumb:</b> hold <b>✂️ CUT</b> and steer <b>into the dark</b> to start a line.', ev:'drawstart'},
     {text:'Bring your line back to <b>any edge</b> to claim that area!', ev:'claim'},
-    {text:'Watch out for the Qix: it cuts you if it touches your line. Press <b>❄️ FREEZE</b> (key 2).', touch:'Watch out for the Qix: it cuts you if it touches your line. Tap <b>❄️ FREEZE</b>.', ev:'ab_freeze'},
+    {text:'The Qix cuts you if it touches your line. Press <b>❄️ FREEZE</b> (key 2).', touch:'The Qix cuts you if it touches your line. Tap <b>❄️ FREEZE</b>.', ev:'ab_freeze'},
     {text:'Press <b>⚡ TURBO</b> (key 1) to cut faster.', touch:'Tap <b>⚡ TURBO</b> to cut faster.', ev:'ab_speed'},
     {text:'And <b>🛡️ SHIELD</b> (key 3) protects you for 3 seconds.', touch:'And <b>🛡️ SHIELD</b> protects you for 3 seconds.', ev:'ab_shield'},
     {text:'Perfect! Later, <b>sparks</b> patrol the edges. The white arrow shows which way they go. Let\'s go…', time:6}
   ],
   stageIntro:{1:'REVEAL THE ART', 4:'SPARKS ON THE EDGES!'}, bossName:'TWO QIX. GOOD LUCK.', ending:{"0": ["#THE GALLERY SHINES", "The final shard of darkness shatters, and light pours back into the Prism Gallery.", "One hundred paintings hang restored — sunsets, jungles and galaxies, glowing brighter than ever.", "The Qix gives one last writhing flicker of rainbow… then melts into the art it tried to swallow.", "#THE CUTTER", "Visitors return and walk the halls in wonder. None of them notice the tiny shard of light resting above the door.", "You cut through the dark one line at a time, and gave the universe its colour back.", "The gallery doors open wide. The art is safe. For now."], "1": ["#THE ARTIST", "Among the restored paintings, one canvas stays blank. No matter how many times you cut, nothing appears.", "When you touch it, a voice speaks from the frame. It is the Artist who painted the whole gallery, trapped inside the last canvas by the Qix.", "The Qix was never a monster. It was every colour the Artist was afraid to use, bottled up until it turned into darkness.", "#THE LAST CUT", "You slice the blank canvas open, and the Artist steps out — old, tired, and smiling.", "Together you paint the Qix into a painting of its own: a wild, beautiful storm of rainbow light.", "It stops fighting. It finally belongs somewhere.", "#THE NEW WING", "The Artist opens a new wing of the Prism Gallery, full of colours nobody has ever seen.", "Above the entrance, carved in glass, is a shard of light shaped exactly like you."], "2": ["#THE TRUE ENDING", "On Expert, the darkness moved faster than light itself. Three Qix. Sparks everywhere. Barely a gap to breathe.", "You cut through all of it, a hundred times, and never let the art die.", "#BEYOND THE GALLERY", "With the final canvas restored, the walls of the Prism Gallery begin to fade — and you see the truth.", "The gallery was never a building. It was the inside of a star, and every painting was a memory of a world the star once warmed.", "The Qix wasn't darkness. It was the star slowly dying, forgetting its own light.", "#THE LIGHT RETURNS", "Every piece you cut, every percent you claimed, was the star remembering.", "Now it remembers everything.", "The star flares back to life, so bright that it can be seen from a thousand galaxies away.", "#THE CUTTER", "You were never just a shard of light. You were the star's last spark of hope, fighting its way back to the surface.", "Now you are home.", "#LEGEND", "Somewhere, on a planet warmed by a star that almost died, a child looks up at the night sky.", "One star is brighter than all the others, and it seems to be smiling.", "She has no idea why she feels like painting."]},
 
-  _dbg(){ return {get pl(){return pl;}, get pct(){return pct;}, get qixes(){return qixes;}, get g(){return g;}, get sparks(){return sparks;}, capture}; },
+  _dbg(){ return {get pl(){return pl;}, get pct(){return pct;}, get target(){return target;}, get qixes(){return qixes;}, get g(){return g;}, get sparks(){return sparks;}, get seed(){return seed;}, get done(){return done;}, isEdge, NX, NY, capture}; },
   init(a){ api=a; },
   startStage(n,a){
-    api=a; stageN=a.content; t=0; done=false; freezeT=speedT=shieldT=0; acc=0; stalled=0;
-    g=new Uint8Array(N*N); for(let i=0;i<N;i++){ g[idx(i,0)]=1; g[idx(i,N-1)]=1; g[idx(0,i)]=1; g[idx(N-1,i)]=1; }
-    pl={x:Math.floor(N/2), y:N-1, drawing:false, sx:0, sy:0, dead:0, inv:1, last:null};
+    api=a; stageN=a.content; t=0; done=false; freezeT=speedT=shieldT=0; acc=0; stalled=0; idleT=0; extraN=0; hintT=0;
+    seed=((Math.random()*1e9)|0)^Math.imul(a.stage||1,0x9E3779B1); rng=mkRng(seed);   // race: shell seeds Math.random -> same board
+    const easy=a.diff===0 && a.level<=10;
+    g=new Uint8Array(NX*NY);
+    for(let i=0;i<NX;i++){ g[idx(i,0)]=1; g[idx(i,NY-1)]=1; } for(let i=0;i<NY;i++){ g[idx(0,i)]=1; g[idx(NX-1,i)]=1; }
+    // blocked corners (under the joystick / action button): 3 = wall, ringed by a playable edge
+    for(let y=LY;y<NY;y++) for(let x=0;x<NX;x++){ if(x<LX&&y>LY || x>RX&&y>LY) g[idx(x,y)]=3; else if((x<=LX&&(x===LX||y===LY)) || (x>=RX&&(x===RX||y===LY))) g[idx(x,y)]=1; }
+    claimed0=0; free0=0; for(let i=0;i<NX*NY;i++){ if(g[i]===1) claimed0++; else if(g[i]===0) free0++; }
+    pl={x:Math.floor(NX/2), y:NY-1, drawing:false, sx:0, sy:0, dead:0, inv:1};
     trail=[];
-    const qs=a.dv([22,28,34],46,95)+(stageN===3?6:stageN===2?3:0);
+    const slow=n===0?0.6:easy?(a.boss?0.5:0.6):1;
+    const qs=(a.dv([110,140,170],230,475)+(stageN===3?30:stageN===2?15:0))*slow/CS;
     const nq = stageN===3?2:(a.level>=140?2:1) + (a.level>=170?1:0); qixes=[];
-    for(let i=0;i<nq;i++){ const ang=Math.random()*Math.PI*2; qixes.push({x:40+i*40,y:40+i*20,vx:Math.cos(ang)*qs*(stageN===0?0.6:1),vy:Math.sin(ang)*qs*(stageN===0?0.6:1),a:0,av:2,len:10,hist:[],hue:i*160}); }
-    const ns = (stageN===0?0 : stageN===1?(a.level>=12?1:0) : stageN===2?2 : 3) + (a.level>=140?Math.min(2,Math.floor((a.level-125)/15)):0);
-    // Sparks start on the top edge. Each has a fixed direction round the board:
-    // hand +1 = clockwise, -1 = anti-clockwise. They never reverse.
-    const starts=[[0,0,1,0,1],[N-1,0,-1,0,-1],[Math.floor(N/2),0,1,0,1],[0,N-1,1,0,-1],[N-1,N-1,-1,0,1]];
-    sparks=[]; for(let i=0;i<ns;i++){ const s=starts[i%5]; sparks.push({x:s[0], y:s[1], dx:s[2], dy:s[3], hand:s[4], acc:0, hist:[]}); }
-    target=Math.round(a.dv([65,70,75],80,92)); if(n===0) target=100;
-    makeArt(n===0?0:((n-1)%3)+1); rebuild();   // the 3 artworks rotate, each with random details
+    for(let i=0;i<nq;i++){ const ang=rng()*Math.PI*2; qixes.push({x:NX*(nq>1?0.3+i*0.4/(nq-1):0.5),y:NY*0.4,vx:Math.cos(ang)*qs,vy:Math.sin(ang)*qs,a:0,av:2,len:8,hist:[],hue:i*160}); }
+    let ns = (stageN===0?0 : stageN===1?(a.level>=12?1:0) : stageN===2?2 : 3) + (a.level>=140?Math.min(2,Math.floor((a.level-125)/15)):0);
+    if(easy) ns=Math.min(ns,1);
+    sparks=[]; for(let i=0;i<ns;i++) addSpark(i);
+    target = a.diff===0 && a.level<=20 ? Math.round(50+(a.level-1)*0.8) : Math.round(a.dv([65,70,75],80,92));
+    if(n===0) target=100;
+    makeArt(n===0?0:((n-1)%3)+1); rebuild();   // the 3 artworks rotate, each with seeded details
   },
   stageBonus(){ return Math.max(0,Math.floor(pct)-target)*500; },
   respawn(){ pl.inv=2; },
   useAbility(id){
+    if(id==='cut') return true;
     if(pl.dead>0) return false;
     if(id==='speed'){ speedT=3; api.sfx.power(); return true; }
     if(id==='freeze'){ freezeT=3; api.sfx.power(); api.fx.flash('#bff6ff',.25); return true; }
     if(id==='shield'){ shieldT=3; api.sfx.power(); return true; }
   },
   update(dt){
-    t+=dt; freezeT=Math.max(0,freezeT-dt); speedT=Math.max(0,speedT-dt); shieldT=Math.max(0,shieldT-dt);
-    api.setActive(0,speedT>0); api.setActive(1,freezeT>0); api.setActive(2,shieldT>0);
+    t+=dt; freezeT=Math.max(0,freezeT-dt); speedT=Math.max(0,speedT-dt); shieldT=Math.max(0,shieldT-dt); hintT=Math.max(0,hintT-dt);
+    api.setActive(0,speedT>0); api.setActive(1,freezeT>0); api.setActive(2,shieldT>0); api.setActive(3,pl.drawing);
+    if(stageN>0) api.counter('% LEFT', Math.max(0,Math.ceil(target-pct)), target-pct<8?'low':'');
+    if(t%0.5<dt) placeBars();
+    if(done) return;   // stage won: nothing can hurt you while the art celebrates
     if(pl.dead>0){ pl.dead-=dt; if(pl.dead<=0){ pl.dead=0; api.loseLife(); } return; }
     pl.inv=Math.max(0,pl.inv-dt);
-    // player movement
+    // no hands = no win: dawdling without claiming brings another spark onto the edges
+    if(stageN>0 && !done){ idleT+=dt; if(idleT>api.dv([30,22,15],12,6) && extraN<3){ idleT=0; extraN++; addSpark(sparks.length); api.toast('⚠ A NEW SPARK!'); } }
+    // player movement: only while steering
     const w=api.input.dir4();
-    const spd=(pl.drawing?34:44)*(speedT>0?1.8:1);
+    const spd=(pl.drawing?36:48)*(speedT>0?1.8:1);
     if(w){ acc+=spd*dt; stalled=0; } else { acc=0; if(pl.drawing) stalled+=dt; }
     while(acc>=1){ acc-=1; if(!tryMove(w)) { acc=0; break; } }
-    // qix
     const fz=freezeT>0;
     for(const q of qixes){
       if(!fz){
-        const ang=Math.atan2(q.vy,q.vx)+(Math.random()-0.5)*2.2*dt, sp=Math.hypot(q.vx,q.vy); q.vx=Math.cos(ang)*sp; q.vy=Math.sin(ang)*sp;
+        const ang=Math.atan2(q.vy,q.vx)+(rng()-0.5)*2.2*dt, sp=Math.hypot(q.vx,q.vy); q.vx=Math.cos(ang)*sp; q.vy=Math.sin(ang)*sp;
         let nx=q.x+q.vx*dt, ny=q.y+q.vy*dt;
         if(!free(nx,q.y)){ q.vx=-q.vx; nx=q.x; } if(!free(q.x,ny)){ q.vy=-q.vy; ny=q.y; }
         if(free(nx,ny)){ q.x=nx; q.y=ny; } else { q.vx=-q.vx; q.vy=-q.vy; }
-        q.a+=q.av*dt; if(Math.random()<dt) q.av=(Math.random()-.5)*6; q.len=8+Math.sin(t*1.7+q.hue)*4+(stageN===3?2:0);
+        q.a+=q.av*dt; if(rng()<dt) q.av=(rng()-.5)*6; q.len=7+Math.sin(t*1.7+q.hue)*3+(stageN===3?2:0);
         q.hue+=dt*120;
       }
       q.hist.unshift({x:q.x,y:q.y,a:q.a,len:q.len,h:q.hue}); if(q.hist.length>10) q.hist.pop();
-      // collision with trail / player
       if(pl.drawing && !fz){
         const cx=Math.cos(q.a)*q.len, cy=Math.sin(q.a)*q.len;
         for(let s=-1;s<=1;s+=0.1){ const x=Math.round(q.x+cx*s), y=Math.round(q.y+cy*s); if(inb(x,y) && g[idx(x,y)]===2){ hit(); break; } }
         if(Math.hypot(q.x-pl.x,q.y-pl.y)<q.len*0.5+2) hit();
       }
     }
-    // sparks
+    const ssp=api.dv([90,120,150],190,400)/CS*(api.diff===0&&api.level<=10?0.7:1);
     for(const s of sparks){
-      if(!fz){ s.acc+=api.dv([18,24,30],38,80)*dt; while(s.acc>=1){ s.acc-=1; moveSpark(s); } }
-      if(Math.hypot(s.x-pl.x,s.y-pl.y)<3.5) hit();
+      if(!fz){ s.acc+=ssp*dt; while(s.acc>=1){ s.acc-=1; moveSpark(s); } }
+      if(Math.hypot(s.x-pl.x,s.y-pl.y)<3) hit();
     }
-    // fuse: stopping too long while cutting on Hard/Expert
     if(pl.drawing && stalled>(api.dk<0.5?99:api.dv([4,2.5,1.5],1.2,0.35)) && stageN>0){ api.toast('DON\'T STOP!'); hit(); }
-    if(!done && stageN>0 && pct>=target){ done=true; api.sfx.clear(); api.fx.flash('#fff',.5); for(let i=0;i<6;i++) api.fx.burst(Math.random()*BW,OY+Math.random()*BW,'#ffd23f',20,260,1,3); setTimeout(()=>api.stageClear(),1200); }
+    if(!done && stageN>0 && pct>=target){ done=true; api.sfx.clear(); api.fx.flash('#fff',.5); for(let i=0;i<6;i++) api.fx.burst(BX+Math.random()*BW,BY+Math.random()*BH,'#ffd23f',20,260,1,3); setTimeout(()=>api.stageClear(),1200); }
   },
   render(c){
-    c.fillStyle=GAME.theme.bg; c.fillRect(0,0,GAME.w,GAME.h);
-    // header bar
-    const bw=BW-160, bx=80, by=38;
-    c.fillStyle='rgba(255,255,255,0.08)'; c.fillRect(bx,by,bw,12);
-    const gr=c.createLinearGradient(bx,0,bx+bw,0); gr.addColorStop(0,GAME.theme.a); gr.addColorStop(1,GAME.theme.b); c.fillStyle=gr; c.fillRect(bx,by,bw*Math.min(1,pct/100),12);
-    if(stageN>0){ c.fillStyle='#fff'; c.fillRect(bx+bw*target/100-1,by-4,2,20); }
-    c.font='bold 12px Orbitron, sans-serif'; c.fillStyle='#fff'; c.textAlign='left'; c.fillText(Math.floor(pct)+'%',bx+bw+8,by+11); c.textAlign='right'; c.fillText(stageN>0?'GOAL '+target+'%':'PRACTICE',bx-8,by+11);
-    c.save(); c.translate(0,OY);
-    // unclaimed background
-    c.fillStyle='#0a0818'; c.fillRect(0,0,BW,BW);
-    c.strokeStyle='rgba(255,255,255,0.035)'; c.lineWidth=1; for(let i=0;i<=BW;i+=30){ c.beginPath(); c.moveTo(i,0); c.lineTo(i,BW); c.moveTo(0,i); c.lineTo(BW,i); c.stroke(); }
+    c.fillStyle=GAME.theme.bg; c.fillRect(0,0,W,H);
+    c.save(); c.translate(BX,BY);
+    c.fillStyle='#0a0818'; c.fillRect(0,0,BW,BH);
+    c.strokeStyle='rgba(255,255,255,0.035)'; c.lineWidth=1; c.beginPath(); for(let i=0;i<=BW;i+=36){ c.moveTo(i,0); c.lineTo(i,BH); } for(let i=0;i<=BH;i+=36){ c.moveTo(0,i); c.lineTo(BW,i); } c.stroke();
+    // blocked corners: control zones, plain dark panels
+    c.fillStyle=GAME.theme.bg; c.fillRect(0,(LY+1)*CS,LX*CS,BH); c.fillRect((RX+1)*CS,(LY+1)*CS,BW,BH);
     c.drawImage(reveal,0,0);
     c.drawImage(edgeC,0,0);
-    // trail
     const tc=api.cos('Trail').colors;
     c.save(); c.shadowColor=tc[0]; c.shadowBlur=12; c.fillStyle=tc[0]; for(const p of trail) c.fillRect(p.x*CS-1,p.y*CS-1,CS+2,CS+2); c.fillStyle=tc[1]; for(const p of trail) c.fillRect(p.x*CS+1,p.y*CS+1,CS-2,CS-2); c.restore();
-    // qix
     c.save(); c.globalCompositeOperation='lighter'; c.lineCap='round';
     for(const q of qixes){ q.hist.forEach((h,i)=>{ const cx=Math.cos(h.a)*h.len*CS, cy=Math.sin(h.a)*h.len*CS; c.strokeStyle=freezeT>0?'rgba(190,240,255,'+(1-i/10)+')':'hsla('+((h.h+i*18)%360)+',100%,60%,'+(1-i/10)+')'; c.lineWidth=i===0?4:2;
       c.beginPath(); c.moveTo(h.x*CS+CS/2-cx,h.y*CS+CS/2-cy); c.lineTo(h.x*CS+CS/2+cx,h.y*CS+CS/2+cy); c.stroke(); }); }
     c.restore();
-    // sparks: big glowing fireball + fading tail behind + white arrow in front showing direction
-    for(const s of sparks) drawSpark(c,s);
-    // player
-    if(pl.dead<=0 && !(pl.inv>0 && Math.floor(t*12)%2)){
-      const pc=api.cos('Cutter').colors, x=pl.x*CS+CS/2, y=pl.y*CS+CS/2, r=9+(speedT>0?2:0);
-      c.save(); c.translate(x,y); c.rotate(t*2); c.shadowColor=pc[1]; c.shadowBlur=18; c.fillStyle=pc[0]; c.strokeStyle=pc[1]; c.lineWidth=2;
-      c.beginPath(); c.moveTo(0,-r); c.lineTo(r,0); c.lineTo(0,r); c.lineTo(-r,0); c.closePath(); c.fill(); c.stroke(); c.restore();
-      if(shieldT>0){ c.strokeStyle='#3dffd8'; c.globalAlpha=.6+.3*Math.sin(t*14); c.lineWidth=2.5; c.beginPath(); c.arc(x,y,17,0,Math.PI*2); c.stroke(); c.globalAlpha=1; }
-    }
     c.restore();
-    if(freezeT>0){ c.fillStyle='rgba(180,240,255,0.05)'; c.fillRect(0,0,GAME.w,GAME.h); }
+    for(const s of sparks) drawSpark(c,s);
+    if(pl.dead<=0 && !(pl.inv>0 && Math.floor(t*12)%2)){
+      const pc=api.cos('Cutter').colors, x=PX(pl.x), y=PY(pl.y), r=10+(speedT>0?2:0), ready=!pl.drawing && api.input.keys.Space;
+      c.save(); c.translate(x,y); c.rotate(t*(ready?6:2)); c.shadowColor=pc[1]; c.shadowBlur=ready?28:18; c.fillStyle=pc[0]; c.strokeStyle=pc[1]; c.lineWidth=2;
+      c.beginPath(); c.moveTo(0,-r); c.lineTo(r,0); c.lineTo(0,r); c.lineTo(-r,0); c.closePath(); c.fill(); c.stroke(); c.restore();
+      if(ready){ c.strokeStyle=api.cos('Trail').colors[0]; c.lineWidth=2; c.setLineDash([4,4]); c.beginPath(); c.arc(x,y,16,0,Math.PI*2); c.stroke(); c.setLineDash([]); }
+      if(shieldT>0){ c.strokeStyle='#3dffd8'; c.globalAlpha=.6+.3*Math.sin(t*14); c.lineWidth=2.5; c.beginPath(); c.arc(x,y,19,0,Math.PI*2); c.stroke(); c.globalAlpha=1; }
+    }
+    // progress bar: bottom middle, between the two control corners
+    const bx=300, bw=660, by=697;
+    c.fillStyle='rgba(255,255,255,0.08)'; c.fillRect(bx,by,bw,12);
+    const gr=c.createLinearGradient(bx,0,bx+bw,0); gr.addColorStop(0,GAME.theme.a); gr.addColorStop(1,GAME.theme.b); c.fillStyle=gr; c.fillRect(bx,by,bw*Math.min(1,pct/100),12);
+    if(stageN>0){ c.fillStyle='#fff'; c.fillRect(bx+bw*target/100-1,by-4,2,20); }
+    c.font='bold 13px Orbitron, sans-serif'; c.fillStyle='#fff'; c.textAlign='left'; c.fillText(Math.floor(pct)+'%',bx+bw+8,by+11); c.textAlign='right'; c.fillText(stageN>0?'GOAL '+target+'%':'PRACTICE',bx-8,by+11);
+    if(freezeT>0){ c.fillStyle='rgba(180,240,255,0.05)'; c.fillRect(0,0,W,H); }
   }
 };
 
+// race bars (#mpBars): tuck them into the bottom-right control corner, left of the CUT button, off the board
+function placeBars(){ try{ const el=document.getElementById('mpBars'); if(!el||el.style.display==='none'||!el.innerHTML) return; const cv=document.getElementById('game')||document.querySelector('canvas'); if(!cv) return;
+  const b=cv.getBoundingClientRect(), k=b.width/W, S=(p,v)=>el.style.setProperty(p,v,'important');
+  S('left',(b.left+(BX+(RX+4)*CS)*k)+'px'); S('top',(b.top+(BY+(LY+5)*CS)*k)+'px'); S('bottom','auto'); S('transform','scale(.8)'); S('transform-origin','top left'); S('flex-direction','column'); }catch(e){} }
+
+function addSpark(i){
+  // fixed direction round the board: hand +1 = clockwise, -1 = anti-clockwise. They never reverse.
+  const starts=[[0,0,1,0,1],[NX-1,0,-1,0,-1],[NX>>1,0,1,0,1],[0,40,0,-1,1],[NX-1,40,0,-1,-1],[NX>>2,0,-1,0,-1]];
+  const st=starts[i%starts.length]; let s={x:st[0], y:st[1], dx:st[2], dy:st[3], hand:st[4], acc:0, hist:[]};
+  if(!isEdge(s.x,s.y)){ const e=nearestEdge(s.x,s.y); if(e){ s.x=e[0]; s.y=e[1]; } }
+  fixHeading(s); sparks.push(s);
+}
 const SPARK_R=14;
 function drawSpark(c,s){
   const fz=freezeT>0, col=fz?'#bff6ff':'#ffe14a', rim=fz?'#6ab8d8':'#ff7b1c';
-  const x=s.x*CS+CS/2, y=s.y*CS+CS/2;
-  // tail (where it has been)
+  const x=PX(s.x), y=PY(s.y);
   c.save(); c.globalCompositeOperation='lighter';
   const n=s.hist.length;
-  s.hist.forEach((h,i)=>{ const k=1-(i+1)/(n+1); c.globalAlpha=0.55*k; c.fillStyle=rim; c.beginPath(); c.arc(h.x*CS+CS/2,h.y*CS+CS/2,3+SPARK_R*0.7*k,0,Math.PI*2); c.fill(); });
+  s.hist.forEach((h,i)=>{ const k=1-(i+1)/(n+1); c.globalAlpha=0.55*k; c.fillStyle=rim; c.beginPath(); c.arc(PX(h.x),PY(h.y),3+SPARK_R*0.7*k,0,Math.PI*2); c.fill(); });
   c.restore();
-  // ball
   c.save(); c.translate(x,y);
   c.shadowColor=col; c.shadowBlur=24;
   const gr=c.createRadialGradient(-4,-4,1,0,0,SPARK_R); gr.addColorStop(0,'#ffffff'); gr.addColorStop(0.45,col); gr.addColorStop(1,rim);
@@ -652,7 +678,6 @@ function drawSpark(c,s){
   c.rotate(t*8); c.strokeStyle=col; c.lineWidth=2.5; c.lineCap='round';
   for(let k=0;k<6;k++){ const a=k*Math.PI/3; c.beginPath(); c.moveTo(Math.cos(a)*(SPARK_R+1),Math.sin(a)*(SPARK_R+1)); c.lineTo(Math.cos(a)*(SPARK_R+6),Math.sin(a)*(SPARK_R+6)); c.stroke(); }
   c.restore();
-  // direction arrow (where it's going next)
   c.save(); c.translate(x,y); c.rotate(Math.atan2(s.dy,s.dx));
   const bob=Math.sin(t*10)*2;
   c.shadowColor=col; c.shadowBlur=12; c.fillStyle='#ffffff'; c.strokeStyle='#000'; c.lineWidth=1.5;
@@ -660,14 +685,16 @@ function drawSpark(c,s){
   c.restore();
 }
 
-function free(x,y){ const cx=Math.round(x), cy=Math.round(y); return inb(cx,cy) && g[idx(cx,cy)]===0 && cx>0 && cy>0 && cx<N-1 && cy<N-1; }
+function free(x,y){ const cx=Math.round(x), cy=Math.round(y); return inb(cx,cy) && g[idx(cx,cy)]===0; }
 const DV={U:[0,-1],D:[0,1],L:[-1,0],R:[1,0]};
 function tryMove(w){
   if(!w) return false; const [dx,dy]=DV[w], nx=pl.x+dx, ny=pl.y+dy;
   if(!inb(nx,ny)) return false; const v=g[idx(nx,ny)];
   if(!pl.drawing){
     if(v===1 && isEdge(nx,ny)){ pl.x=nx; pl.y=ny; api.event('move'); return true; }
-    if(v===0){ pl.drawing=true; pl.sx=pl.x; pl.sy=pl.y; g[idx(nx,ny)]=2; trail.push({x:nx,y:ny}); pl.x=nx; pl.y=ny; api.event('drawstart'); api.sfx.blip(); return true; }
+    if(v===0){
+      if(!api.input.keys.Space){ if(hintT<=0){ hintT=4; api.toast('HOLD ✂️ CUT TO CUT INTO THE DARK'); } return false; }
+      pl.drawing=true; pl.sx=pl.x; pl.sy=pl.y; g[idx(nx,ny)]=2; trail.push({x:nx,y:ny}); pl.x=nx; pl.y=ny; api.event('drawstart'); api.sfx.blip(); return true; }
     return false;
   }
   if(v===0){ g[idx(nx,ny)]=2; trail.push({x:nx,y:ny}); pl.x=nx; pl.y=ny; if(trail.length%6===0) api.sfx.blip(); return true; }
@@ -676,26 +703,22 @@ function tryMove(w){
 }
 function capture(){
   for(const p of trail) g[idx(p.x,p.y)]=1;
-  const seen=new Uint8Array(N*N); const st=[];
+  const seen=new Uint8Array(NX*NY); const st=[];
   for(const q of qixes){ const qx=Math.round(q.x), qy=Math.round(q.y); if(inb(qx,qy) && g[idx(qx,qy)]===0){ st.push(idx(qx,qy)); seen[idx(qx,qy)]=1; } }
-  while(st.length){ const i=st.pop(), x=i%N, y=(i/N)|0; const nb=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]]; for(const [nx,ny] of nb){ if(!inb(nx,ny)) continue; const j=idx(nx,ny); if(!seen[j] && g[j]===0){ seen[j]=1; st.push(j); } } }
-  let added=trail.length; for(let i=0;i<N*N;i++) if(g[i]===0 && !seen[i]){ g[i]=1; added++; }
-  const cx=pl.x*CS, cy=pl.y*CS+OY;
+  while(st.length){ const i=st.pop(), x=i%NX, y=(i/NX)|0; const nb=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]]; for(const [nx,ny] of nb){ if(!inb(nx,ny)) continue; const j=idx(nx,ny); if(!seen[j] && g[j]===0){ seen[j]=1; st.push(j); } } }
+  let added=trail.length; for(let i=0;i<NX*NY;i++) if(g[i]===0 && !seen[i]){ g[i]=1; added++; }
+  const cx=PX(pl.x), cy=PY(pl.y);
   const pts=Math.round(added*(stageN===0?0.5:1)*(1+Math.min(1,api.dk*0.25)));
-  api.addScore(pts, cx, cy-10); trail=[]; pl.drawing=false; stalled=0;
-  if(added>1400){ api.toast('HUGE CUT!'); api.addCoins(3); api.fx.shake(8); } else if(added>600){ api.fx.text(cx,cy-30,'BIG CUT!','#ffd23f',18); api.addCoins(1); }
+  api.addScore(pts, cx, cy-10); trail=[]; pl.drawing=false; stalled=0; idleT=0;
+  if(added>1750){ api.toast('HUGE CUT!'); api.addCoins(3); api.fx.shake(8); } else if(added>750){ api.fx.text(cx,cy-30,'BIG CUT!','#ffd23f',18); api.addCoins(1); }
   api.sfx.clear(); api.fx.burst(cx,cy,api.cos('Trail').colors[0],30,260,.7,3); api.event('claim');
-  // sparks now inside the claimed area hop to the nearest edge — they KEEP their direction
   for(const s of sparks) if(!isEdge(s.x,s.y)){ const e=nearestEdge(s.x,s.y); if(e){ s.x=e[0]; s.y=e[1]; s.hist=[]; } }
   rebuild();
   for(const s of sparks) fixHeading(s);
 }
-function nearestEdge(x,y){ let best=null,bd=1e9; for(let yy=0;yy<N;yy+=1) for(let xx=0;xx<N;xx+=1){ if(isEdge(xx,yy)){ const d=Math.abs(xx-x)+Math.abs(yy-y); if(d<bd && Math.abs(xx-pl.x)+Math.abs(yy-pl.y)>12){ bd=d; best=[xx,yy]; } } } return best; }
-// turn a heading 90°: hand +1 = right turn (clockwise), -1 = left turn
+function nearestEdge(x,y){ let best=null,bd=1e9; for(let yy=0;yy<NY;yy++) for(let xx=0;xx<NX;xx++){ if(isEdge(xx,yy)){ const d=Math.abs(xx-x)+Math.abs(yy-y); if(d<bd && Math.abs(xx-pl.x)+Math.abs(yy-pl.y)>12){ bd=d; best=[xx,yy]; } } } return best; }
 function turn(dx,dy,h){ return h>0? [-dy,dx] : [dy,-dx]; }
-// Sparks follow the edge with a fixed rule so they are predictable:
-// 1) keep going straight, 2) else turn their own way (clockwise sparks turn right,
-// anti-clockwise turn left), 3) else the other way, 4) only at a dead end, turn back.
+// sparks: 1) straight, 2) turn their own way, 3) the other way, 4) only at a dead end, turn back
 function nextHeading(s){
   const tries=[[s.dx,s.dy], turn(s.dx,s.dy,s.hand), turn(s.dx,s.dy,-s.hand), [-s.dx,-s.dy]];
   for(const [dx,dy] of tries) if(isEdge(s.x+dx,s.y+dy)) return [dx,dy];
@@ -709,46 +732,50 @@ function moveSpark(s){
   s.dx=h[0]; s.dy=h[1];
   s.hist.unshift({x:s.x,y:s.y}); if(s.hist.length>6) s.hist.pop();
   s.x+=s.dx; s.y+=s.dy;
-  fixHeading(s); // so the arrow already points where it will go next (e.g. round a corner)
+  fixHeading(s);
 }
 function hit(){
   if(pl.inv>0 || shieldT>0 || pl.dead>0) return;
-  api.sfx.hurt(); api.fx.burst(pl.x*CS,pl.y*CS+OY,'#fff',40,300,.9,3); api.fx.shake(10);
-  for(const p of trail){ g[idx(p.x,p.y)]=0; api.fx.spark(p.x*CS,p.y*CS+OY,(Math.random()-.5)*60,(Math.random()-.5)*60,api.cos('Trail').colors[0],.5,2); }
+  api.sfx.hurt(); api.fx.burst(PX(pl.x),PY(pl.y),'#fff',40,300,.9,3); api.fx.shake(10);
+  for(const p of trail){ g[idx(p.x,p.y)]=0; api.fx.spark(PX(p.x),PY(p.y),(Math.random()-.5)*60,(Math.random()-.5)*60,api.cos('Trail').colors[0],.5,2); }
   trail=[]; if(pl.drawing){ pl.x=pl.sx; pl.y=pl.sy; } pl.drawing=false; stalled=0;
-  // push nearby sparks to the far side of the board (they keep their direction)
-  for(const s of sparks) if(Math.abs(s.x-pl.x)+Math.abs(s.y-pl.y)<30){ const e=nearestEdge(N-1-pl.x, N-1-pl.y); if(e){ s.x=e[0]; s.y=e[1]; s.hist=[]; fixHeading(s); } }
+  for(const s of sparks) if(Math.abs(s.x-pl.x)+Math.abs(s.y-pl.y)<36){ const e=nearestEdge(NX-1-pl.x, Math.max(0,NY-1-pl.y-30)); if(e){ s.x=e[0]; s.y=e[1]; s.hist=[]; fixHeading(s); } }
   pl.dead=0.9;
 }
 function rebuild(){
-  claimedN=0; for(let i=0;i<N*N;i++) if(g[i]===1) claimedN++;
-  const border=4*N-4; pct=(claimedN-border)/(N*N-border)*100; if(pct<0) pct=0;
-  const m=document.createElement('canvas'); m.width=N; m.height=N; const mc=m.getContext('2d'); const id=mc.createImageData(N,N);
-  const e=document.createElement('canvas'); e.width=N; e.height=N; const ec=e.getContext('2d'); const ed=ec.createImageData(N,N);
+  let c1=0; for(let i=0;i<NX*NY;i++) if(g[i]===1) c1++;
+  pct=Math.max(0,(c1-claimed0)/free0*100);
+  const m=document.createElement('canvas'); m.width=NX; m.height=NY; const mc=m.getContext('2d'); const id=mc.createImageData(NX,NY);
+  const e=document.createElement('canvas'); e.width=NX; e.height=NY; const ec=e.getContext('2d'); const ed=ec.createImageData(NX,NY);
   const ecol=hex(api.cos('Edge').colors[0]);
-  for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const i=idx(x,y); if(g[i]===1){ id.data[i*4+3]=255; if(isEdge(x,y)){ ed.data[i*4]=ecol[0]; ed.data[i*4+1]=ecol[1]; ed.data[i*4+2]=ecol[2]; ed.data[i*4+3]=255; } } }
+  for(let y=0;y<NY;y++) for(let x=0;x<NX;x++){ const i=idx(x,y); if(g[i]===1){ id.data[i*4+3]=255; if(isEdge(x,y)){ ed.data[i*4]=ecol[0]; ed.data[i*4+1]=ecol[1]; ed.data[i*4+2]=ecol[2]; ed.data[i*4+3]=255; } } }
   mc.putImageData(id,0,0); ec.putImageData(ed,0,0);
-  const rc=reveal.getContext('2d'); rc.clearRect(0,0,BW,BW); rc.globalCompositeOperation='source-over'; rc.drawImage(art,0,0); rc.globalCompositeOperation='destination-in'; rc.imageSmoothingEnabled=false; rc.drawImage(m,0,0,BW,BW); rc.globalCompositeOperation='source-over';
-  const xc=edgeC.getContext('2d'); xc.clearRect(0,0,BW,BW); xc.imageSmoothingEnabled=false; xc.shadowColor=api.cos('Edge').colors[0]; xc.shadowBlur=8; xc.drawImage(e,0,0,BW,BW);
+  const rc=reveal.getContext('2d'); rc.clearRect(0,0,BW,BH); rc.globalCompositeOperation='source-over'; rc.drawImage(art,0,0); rc.globalCompositeOperation='destination-in'; rc.imageSmoothingEnabled=false; rc.drawImage(m,0,0,BW,BH); rc.globalCompositeOperation='source-over';
+  const xc=edgeC.getContext('2d'); xc.clearRect(0,0,BW,BH); xc.imageSmoothingEnabled=false; xc.shadowColor=api.cos('Edge').colors[0]; xc.shadowBlur=8; xc.drawImage(e,0,0,BW,BH);
 }
 function hex(h){ return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]; }
+function cv(){ const k=document.createElement('canvas'); k.width=BW; k.height=BH; return k; }
 function makeArt(n){
-  art=document.createElement('canvas'); art.width=art.height=BW; reveal=document.createElement('canvas'); reveal.width=reveal.height=BW; edgeC=document.createElement('canvas'); edgeC.width=edgeC.height=BW;
-  const c=art.getContext('2d');
-  if(n===1||n===0){ // synthwave sunset
-    const g1=c.createLinearGradient(0,0,0,BW); g1.addColorStop(0,'#1a0540'); g1.addColorStop(0.55,'#ff3d9a'); g1.addColorStop(0.62,'#ffb03d'); g1.addColorStop(1,'#12002a'); c.fillStyle=g1; c.fillRect(0,0,BW,BW);
-    c.fillStyle='#ffd23f'; c.beginPath(); c.arc(BW/2,BW*0.5,150,Math.PI,0); c.fill(); c.fillStyle='#1a0540'; for(let i=0;i<7;i++) c.fillRect(BW/2-160,BW*0.5-20-i*18,320,4+i*0.6);
-    c.fillStyle='#1a0033'; c.fillRect(0,BW*0.5,BW,BW*0.5); c.strokeStyle='#ff3dd6'; c.lineWidth=2; for(let i=0;i<14;i++){ const y=BW*0.5+Math.pow(i/14,2)*BW*0.5; c.beginPath(); c.moveTo(0,y); c.lineTo(BW,y); c.stroke(); }
-    for(let i=-10;i<=10;i++){ c.beginPath(); c.moveTo(BW/2+i*14,BW*0.5); c.lineTo(BW/2+i*110,BW); c.stroke(); }
-    c.fillStyle='#0d0022'; c.beginPath(); c.moveTo(0,BW*0.5); c.lineTo(90,BW*0.36); c.lineTo(170,BW*0.44); c.lineTo(230,BW*0.5); c.fill(); c.beginPath(); c.moveTo(BW,BW*0.5); c.lineTo(BW-120,BW*0.33); c.lineTo(BW-220,BW*0.5); c.fill();
-  } else if(n===2){ // neon jungle / tropical
-    const g1=c.createRadialGradient(BW/2,BW/2,20,BW/2,BW/2,BW*0.7); g1.addColorStop(0,'#3dffd8'); g1.addColorStop(0.5,'#0a6a7a'); g1.addColorStop(1,'#041a2a'); c.fillStyle=g1; c.fillRect(0,0,BW,BW);
-    for(let i=0;i<40;i++){ const x=Math.random()*BW, y=Math.random()*BW, r=40+Math.random()*90, a=Math.random()*6.28; c.save(); c.translate(x,y); c.rotate(a); c.fillStyle=`hsla(${120+Math.random()*80},90%,${35+Math.random()*25}%,0.8)`; c.beginPath(); c.ellipse(0,0,r,r*0.3,0,0,Math.PI*2); c.fill(); c.strokeStyle='rgba(0,0,0,0.3)'; c.beginPath(); c.moveTo(-r,0); c.lineTo(r,0); c.stroke(); c.restore(); }
-    for(let i=0;i<14;i++){ c.fillStyle=`hsl(${300+Math.random()*60},100%,65%)`; const x=Math.random()*BW, y=Math.random()*BW; for(let k=0;k<5;k++){ c.beginPath(); c.ellipse(x+Math.cos(k*1.26)*12,y+Math.sin(k*1.26)*12,10,6,k*1.26,0,Math.PI*2); c.fill(); } c.fillStyle='#ffd23f'; c.beginPath(); c.arc(x,y,6,0,Math.PI*2); c.fill(); }
-  } else { // galaxy
-    c.fillStyle='#05020f'; c.fillRect(0,0,BW,BW);
-    for(let i=0;i<5000;i++){ const arm=i%3, r=Math.pow(Math.random(),0.6)*BW*0.48, a=r*0.018+arm*2.09+(Math.random()-.5)*0.6; const x=BW/2+Math.cos(a)*r, y=BW/2+Math.sin(a)*r*0.8; c.fillStyle=`hsla(${260-r*0.3+Math.random()*40},100%,${60+Math.random()*30}%,${0.4+Math.random()*0.6})`; c.fillRect(x,y,1.5+Math.random()*1.5,1.5+Math.random()*1.5); }
-    const g1=c.createRadialGradient(BW/2,BW/2,0,BW/2,BW/2,90); g1.addColorStop(0,'rgba(255,240,200,1)'); g1.addColorStop(1,'rgba(255,61,214,0)'); c.fillStyle=g1; c.fillRect(0,0,BW,BW);
+  art=cv(); reveal=cv(); edgeC=cv();
+  const c=art.getContext('2d'), R=rng, HZ=BH*0.52;
+  if(n===1||n===0){ // synthwave sunset, wide
+    const g1=c.createLinearGradient(0,0,0,BH); g1.addColorStop(0,'#1a0540'); g1.addColorStop(0.5,'#ff3d9a'); g1.addColorStop(0.58,'#ffb03d'); g1.addColorStop(1,'#12002a'); c.fillStyle=g1; c.fillRect(0,0,BW,BH);
+    for(let i=0;i<60;i++){ c.fillStyle='rgba(255,255,255,'+(0.3+R()*0.6)+')'; c.fillRect(R()*BW,R()*HZ*0.6,2,2); }
+    const sx=BW*(0.35+R()*0.3);
+    c.fillStyle='#ffd23f'; c.beginPath(); c.arc(sx,HZ,150,Math.PI,0); c.fill(); c.fillStyle='#1a0540'; for(let i=0;i<7;i++) c.fillRect(sx-160,HZ-20-i*18,320,4+i*0.6);
+    c.fillStyle='#0d0022'; let x=0; c.beginPath(); c.moveTo(0,HZ); while(x<BW){ x+=60+R()*120; c.lineTo(x,HZ-30-R()*120); x+=60+R()*80; c.lineTo(x,HZ-R()*20); } c.lineTo(BW,HZ); c.fill();
+    c.fillStyle='#1a0033'; c.fillRect(0,HZ,BW,BH-HZ); c.strokeStyle='#ff3dd6'; c.lineWidth=2; for(let i=0;i<12;i++){ const y=HZ+Math.pow(i/12,2)*(BH-HZ); c.beginPath(); c.moveTo(0,y); c.lineTo(BW,y); c.stroke(); }
+    for(let i=-16;i<=16;i++){ c.beginPath(); c.moveTo(sx+i*16,HZ); c.lineTo(sx+i*120,BH); c.stroke(); }
+  } else if(n===2){ // neon jungle
+    const g1=c.createRadialGradient(BW/2,BH/2,20,BW/2,BH/2,BW*0.6); g1.addColorStop(0,'#3dffd8'); g1.addColorStop(0.5,'#0a6a7a'); g1.addColorStop(1,'#041a2a'); c.fillStyle=g1; c.fillRect(0,0,BW,BH);
+    for(let i=0;i<70;i++){ const x=R()*BW, y=R()*BH, r=40+R()*90, a=R()*6.28; c.save(); c.translate(x,y); c.rotate(a); c.fillStyle=`hsla(${120+R()*80},90%,${35+R()*25}%,0.8)`; c.beginPath(); c.ellipse(0,0,r,r*0.3,0,0,Math.PI*2); c.fill(); c.strokeStyle='rgba(0,0,0,0.3)'; c.beginPath(); c.moveTo(-r,0); c.lineTo(r,0); c.stroke(); c.restore(); }
+    for(let i=0;i<24;i++){ c.fillStyle=`hsl(${300+R()*60},100%,65%)`; const x=R()*BW, y=R()*BH; for(let k=0;k<5;k++){ c.beginPath(); c.ellipse(x+Math.cos(k*1.26)*12,y+Math.sin(k*1.26)*12,10,6,k*1.26,0,Math.PI*2); c.fill(); } c.fillStyle='#ffd23f'; c.beginPath(); c.arc(x,y,6,0,Math.PI*2); c.fill(); }
+  } else { // galaxy, stretched wide
+    c.fillStyle='#05020f'; c.fillRect(0,0,BW,BH);
+    for(let i=0;i<400;i++){ c.fillStyle='rgba(255,255,255,'+R()*0.7+')'; c.fillRect(R()*BW,R()*BH,1.5,1.5); }
+    const tw=R()*6.28;
+    for(let i=0;i<7000;i++){ const arm=i%3, r=Math.pow(R(),0.6)*BW*0.45, a=r*0.012+arm*2.09+tw+(R()-.5)*0.6; const x=BW/2+Math.cos(a)*r, y=BH/2+Math.sin(a)*r*0.48; c.fillStyle=`hsla(${260-r*0.25+R()*40},100%,${60+R()*30}%,${0.4+R()*0.6})`; c.fillRect(x,y,1.5+R()*1.5,1.5+R()*1.5); }
+    const g1=c.createRadialGradient(BW/2,BH/2,0,BW/2,BH/2,100); g1.addColorStop(0,'rgba(255,240,200,1)'); g1.addColorStop(1,'rgba(255,61,214,0)'); c.fillStyle=g1; c.fillRect(0,0,BW,BH);
   }
 }
 })();
