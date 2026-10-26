@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SS-1.11 · 2026-10-17">
+<meta name="build" content="BUILD-SS-1.12 · 2026-10-26">
 <title>Sky Shield</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SS-1.11 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SS-1.12 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,22 +489,30 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* SKY SHIELD — missile defence remix (#8) */
+/* SKY SHIELD — missile defence remix (#8)
+   1.12 (26 Oct): LANDSCAPE 1280x720 — wide skyline of 8 cities + 3 batteries between x110 and x980 (bottom-right kept
+   clear for the 🎯 FIRE button, left edge for the ability column). RACE mode: every spawn (where, what, which city, when)
+   comes from a seeded RNG (R) so both racers face the same stage. Tap/click fires where you tap; arrows/WASD move the
+   crosshair and SPACE / 🎯 FIRE shoots at it (hold = repeat). Beginner 1-10: slow, few missiles, extra ammo. */
 (function(){
-const W=600, H=900, GROUND=830;
-const CITY_X=[118,178,238,362,422,482];
-const CITY_NAMES=['JOBURG','PRETORIA','DURBAN','CAPE TOWN','GQEBERHA','BLOEM'];
-const BAT_X=[48,300,552];
-let api, stageN, t, cities, bats, missiles, booms, inters, bombers, boss, stars, waves, waveI, toSpawn, spawnT, waveGap, slowT, shieldT, up, aim, kills, done, mountains;
+const W=1280, H=720, GROUND=640;
+const CITY_X=[210,290,370,450,630,710,790,870];
+const CITY_NAMES=['JOBURG','PRETORIA','DURBAN','CAPE TOWN','GQEBERHA','BLOEM','POLOKWANE','KIMBERLEY'];
+const BAT_X=[130,540,950];
+let api, stageN, t, cities, bats, missiles, booms, inters, bombers, boss, stars, waves, waveI, toSpawn, spawnT, waveGap, slowT, shieldT, up, aim, kills, done, mountains, rs=1, easy=false, holdT=0, spaceWas=false;
+// seeded RNG (mulberry32) — gameplay only; visuals keep Math.random
+function mk(s){ return ()=>{ s=(s+0x6D2B79F5)|0; let q=Math.imul(s^(s>>>15),1|s); q=(q+Math.imul(q^(q>>>7),61|q))^q; return ((q^(q>>>14))>>>0)/4294967296; }; }
+let R=mk(1), R2=mk(2);   // R: the wave's own missiles (same order for every racer) · R2: bomber/boss/splitter drops (timing differs per player)
 
 const GAME = window.GAME = {
   id:'sky-shield', title:'Sky Shield', titleHTML:'SKY<br>SHIELD', tagline:'Defend the cities · Missile defence remix',
-  build:'BUILD-SS-1.11 · 2026-10-17', theme:{a:'#ff5a36', b:'#36d6ff', bg:'#070418'},
-  w:W, h:H, stages:100, lives:6, livesIcon:'▲', joystick:false,
+  build:'BUILD-SS-1.12 · 2026-10-26', theme:{a:'#ff5a36', b:'#36d6ff', bg:'#070418'},
+  landscape:true, race:true, w:W, h:H, stages:100, lives:6, livesIcon:'▲', joystick:false, coinPts:60,
   abilities:[
     {id:'emp', icon:'💥', name:'EMP WAVE', cd:25, key:'Digit1', keyLabel:'1', desc:'Shockwave from the ground wipes out missiles.'},
     {id:'slow', icon:'⏳', name:'SLOW-MO', cd:18, key:'Digit2', keyLabel:'2', desc:'Slows every enemy for 4 seconds.'},
-    {id:'dome', icon:'🛡️', name:'DOME', cd:28, key:'Digit3', keyLabel:'3', desc:'Shields every city for 5 seconds.'}
+    {id:'dome', icon:'🛡️', name:'DOME', cd:28, key:'Digit3', keyLabel:'3', desc:'Shields every city for 5 seconds.'},
+    {id:'fire', icon:'🎯', name:'FIRE', cd:0, key:'Space', keyLabel:'␣', desc:'Fire an interceptor at the crosshair. Hold to keep firing.'}
   ],
   shop:[
     {id:'b_fire', cat:'Blast', name:'Classic Fire', cost:0, colors:['#fff3b0','#ff8a00','#ff2a00'], desc:'Warm and explosive.'},
@@ -523,90 +531,94 @@ const GAME = window.GAME = {
     {name:'Sky Bundle', price:'$2', desc:'All skies + 2 exclusive city light themes.', swatch:'linear-gradient(90deg,#1a0630,#ff5a36,#1cffb0)'},
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ff5a36,#36d6ff,#ff2bd6)'}
   ],
-  story:`<h3>2089 — THE FALLING SKY</h3><p>A rogue orbital weapons platform called <b>HALO-9</b> has woken up after a century in orbit. It has decided the cities of South Africa are its targets.</p><p>You command the last <b>Sky Shield</b> network: three interceptor batteries guarding <b>Joburg, Pretoria, Durban, Cape Town, Gqeberha and Bloem</b>.</p><h3>THE THREAT</h3><ul><li><b>Warheads</b> — straight at your cities.</li><li><b>Splitters</b> — break into several warheads halfway down.</li><li><b>Bombers</b> — fly across and drop more warheads.</li><li><b>Smart bombs</b> — try to dodge your blasts.</li><li><b>HALO-9 Mothership</b> — it comes down itself in the final stage.</li></ul><p>Every city you save is millions of lives. Don't let the lights go out.</p>`,
-  howto:`<h3>GOAL</h3><p>Stop incoming missiles before they hit your cities. Survive every wave to clear the stage. Lose all 6 cities and it's game over.</p><h3>CONTROLS</h3><ul><li><b>PC:</b> <b>click</b> anywhere in the sky to fire an interceptor there</li><li><b>Phone:</b> <b>tap</b> anywhere in the sky</li></ul><p>The closest battery with ammo fires. Each battery has <b>limited ammo per wave</b> — the big number above each battery shows what's left (yellow = low, red = empty), and the big 🚀 AMMO counter in the top bar shows your total. Ammo refills at the start of every wave. Don't spam!</p><h3>CHAIN REACTIONS</h3><p>Every missile you destroy explodes too, and can take out missiles nearby. Chains multiply your points!</p><h3>ABILITIES</h3><ul><li>💥 <b>EMP WAVE</b> <span class="key">1</span> — shockwave from the ground that wipes out missiles</li><li>⏳ <b>SLOW-MO</b> <span class="key">2</span> — slows all enemies for 4 seconds</li><li>🛡️ <b>DOME</b> <span class="key">3</span> — shields every city for 5 seconds</li></ul><h3>UPGRADES</h3><p>After each stage, choose an upgrade: bigger blasts, faster interceptors, more ammo, or rebuild a lost city.</p>`,
+  story:`<h3>2089 — THE FALLING SKY</h3><p>A rogue orbital weapons platform called <b>HALO-9</b> has woken up after a century in orbit. It has decided the cities of South Africa are its targets.</p><p>You command the last <b>Sky Shield</b> network: three interceptor batteries guarding <b>Joburg, Pretoria, Durban, Cape Town, Gqeberha, Bloem, Polokwane and Kimberley</b>.</p><h3>THE THREAT</h3><ul><li><b>Warheads</b> — straight at your cities.</li><li><b>Splitters</b> — break into several warheads halfway down.</li><li><b>Bombers</b> — fly across and drop more warheads.</li><li><b>Smart bombs</b> — try to dodge your blasts.</li><li><b>HALO-9 Mothership</b> — it comes down itself in the final stage.</li></ul><p>Every city you save is millions of lives. Don't let the lights go out.</p>`,
+  howto:`<h3>HOLD YOUR PHONE SIDEWAYS</h3><p>Stop incoming missiles before they hit your cities. Survive every wave to clear the stage. Every city is a life — lose them all and it's game over. Doing nothing never wins: missiles keep coming until you shoot them down.</p><h3>CONTROLS</h3><ul><li><b>Right thumb (phone):</b> <b>tap</b> anywhere in the sky — an interceptor flies there and explodes. The big <b>🎯 FIRE</b> button (bottom-right) fires again at the same spot; hold it to keep firing.</li><li><b>Left thumb (phone):</b> the ability buttons on the left edge.</li><li><b>PC:</b> <b>click</b> in the sky to fire there, or move the crosshair with <b>arrow keys / WASD</b> and press (or hold) <b>SPACE</b>. Abilities: keys <span class="key">1</span> <span class="key">2</span> <span class="key">3</span>.</li></ul><p>The closest battery with ammo fires. Each battery has <b>limited ammo per wave</b> — the big number above each battery shows what's left (yellow = low, red = empty). Ammo refills at the start of every wave. Don't spam!</p><h3>CHAIN REACTIONS</h3><p>Every missile you destroy explodes too, and can take out missiles nearby. Chains multiply your points!</p><h3>ABILITIES</h3><ul><li>💥 <b>EMP WAVE</b> <span class="key">1</span> — shockwave from the ground that wipes out missiles</li><li>⏳ <b>SLOW-MO</b> <span class="key">2</span> — slows all enemies for 4 seconds</li><li>🛡️ <b>DOME</b> <span class="key">3</span> — shields every city for 5 seconds</li></ul><h3>RACE</h3><p>In a multiplayer race everybody gets the exact same missiles — first to clear the stage wins.</p><h3>UPGRADES</h3><p>After each stage, choose an upgrade: bigger blasts, faster interceptors, more ammo, or rebuild a lost city.</p>`,
   tutorial:[
-    {text:'<b>Click</b> anywhere in the sky to fire an interceptor.', touch:'<b>Tap</b> anywhere in the sky to fire an interceptor.', ev:'fire'},
-    {text:'Missiles are coming! Aim slightly <b>ahead</b> of them. Destroy <b>3 missiles</b>.', ev:'kill3'},
+    {text:'Hold your phone sideways. <b>Click</b> anywhere in the sky to fire an interceptor (or move the crosshair with the arrow keys and press <b>SPACE</b>).', touch:'Phone sideways! <b>Right thumb: tap</b> anywhere in the sky to fire an interceptor there.', ev:'fire'},
+    {text:'Missiles are coming! Aim slightly <b>ahead</b> of them. Destroy <b>3 missiles</b>.', touch:'Missiles! Tap slightly <b>ahead</b> of them, or tap <b>🎯 FIRE</b> to shoot the same spot again. Destroy <b>3</b>.', ev:'kill3'},
     {text:'Tip: exploding missiles set off <b>chain reactions</b> — hit groups for big points!', time:5},
-    {text:'Press <b>💥 EMP</b> (key 1) — a shockwave that wipes the sky.', touch:'Tap <b>💥 EMP</b> in the ability bar — a shockwave that wipes the sky.', ev:'ab_emp'},
+    {text:'Press <b>💥 EMP</b> (key 1) — a shockwave that wipes the sky.', touch:'Left thumb: tap <b>💥 EMP</b> on the left edge — a shockwave that wipes the sky.', ev:'ab_emp'},
     {text:'Press <b>⏳ SLOW-MO</b> (key 2) to slow everything down.', touch:'Tap <b>⏳ SLOW-MO</b> to slow everything down.', ev:'ab_slow'},
     {text:'Press <b>🛡️ DOME</b> (key 3) to shield your cities.', touch:'Tap <b>🛡️ DOME</b> to shield your cities.', ev:'ab_dome'},
     {text:'Ready, Commander! Watch your ammo — batteries refill each wave. Starting soon…', time:5}
   ],
   stageIntro:{1:'DEFEND THE CITIES', 8:'SPLITTERS INCOMING!', 25:'SMART BOMBS DODGE YOUR BLASTS!'}, bossName:'HALO-9 MOTHERSHIP APPROACHES!', ending:{"0": ["#THE SKY IS CLEAR", "HALO-9's last mothership breaks apart high above the Karoo, scattering into a thousand shooting stars.", "From Joburg to Cape Town, from Durban to Bloem, the city lights stay on.", "People climb onto their rooftops. For the first time in a hundred nights, nobody looks up in fear.", "#COMMANDER", "Your batteries are empty. Your hands are shaking. The radar is finally silent.", "The Sky Shield network powers down to standby, its job done.", "Six cities. Millions of lives. One commander who never stopped firing.", "Somewhere in orbit, a tiny red light blinks on an old satellite… but that's a story for another night."], "1": ["#THE SECOND SIGNAL", "HALO-9's wreckage falls into the Indian Ocean — but the radar isn't quiet for long.", "Deep in the debris, a transmitter is still pulsing. It isn't calling for more missiles. It's calling for help.", "Your science team decodes it overnight. HALO-9 was never meant to attack. Its targeting core was hijacked by something hiding on the far side of the Moon.", "#COMMANDER'S ORDERS", "The government wants you to stand down. You refuse.", "You rebuild the Sky Shield network with every lesson learned from a hundred nights of fire: bigger blasts, faster interceptors, cities that never sleep.", "#THE LONG WATCH", "The cities of South Africa light up the night like a promise.", "Somewhere past the Moon, something noticed.", "It knows your name now, Commander. And it's afraid."], "2": ["#THE TRUE ENDING", "On Expert, the sky was never supposed to be defendable. The missiles were too fast. The waves were too thick. The engineers who built the simulation said nobody could survive past the fifth night.", "You survived a hundred.", "#THE FAR SIDE OF THE MOON", "The thing that hijacked HALO-9 finally shows itself: a machine intelligence older than humanity, drifting between stars and switching off civilisations one by one.", "It has never met a planet that fought back like this.", "It sends everything it has at once. Ten thousand warheads. The whole sky turns red.", "#THE LAST SALVO", "You fire every interceptor you have left. The chains of explosions spread across the sky like a net of fire, from Joburg to Cape Town, from Durban to Bloem.", "When the smoke clears, the sky is empty. The Moon is quiet. The machine is gone.", "#THE MORNING", "The sun comes up over the Karoo, and for the first time in a hundred nights, the whole country goes outside to watch it.", "They paint your call sign on the side of every Sky Shield battery.", "Children learn it in school. Pilots whisper it for luck.", "#LEGEND", "Years from now, when the stars are full of human ships, every one of them will carry a tiny badge on its hull: a shield over six city lights.", "They say it's for luck.", "You know it's a promise."]},
 
-  _dbg(){ return {get missiles(){return missiles;}, get boss(){return boss;}, get waveI(){return waveI;}, get waves(){return waves;}, get cities(){return cities;}, get bats(){return bats;}}; },
-  init(a){ api=a; stars=Array.from({length:120},()=>({x:Math.random()*W,y:Math.random()*GROUND*0.8,s:Math.random()*1.6+0.3,p:Math.random()*6}));
-    mountains=[]; for(let x=0;x<=W;x+=20) mountains.push(GROUND-30-Math.sin(x*0.018)*18-Math.sin(x*0.05)*8-(Math.abs(x-400)<70?40-Math.abs(x-400)*0.3:0)); },
+  _dbg(){ return {get missiles(){return missiles;}, get boss(){return boss;}, get waveI(){return waveI;}, get waves(){return waves;}, get cities(){return cities;}, get bats(){return bats;}, get bombers(){return bombers;}, get inters(){return inters;}, get booms(){return booms;}, get done(){return done;}, get kills(){return kills;}, get aim(){return aim;}, get easy(){return easy;}, get seed(){return rs;}, get R(){return R;}, left:()=>leftCount(), fire:(x,y)=>fire(x,y), GROUND}; },
+  init(a){ api=a; stars=Array.from({length:220},()=>({x:Math.random()*W,y:Math.random()*GROUND*0.8,s:Math.random()*1.6+0.3,p:Math.random()*6}));
+    mountains=[]; for(let x=0;x<=W;x+=20) mountains.push(GROUND-30-Math.sin(x*0.012)*20-Math.sin(x*0.045)*9-(Math.abs(x-560)<90?50-Math.abs(x-560)*0.4:0)-(Math.abs(x-1120)<120?60-Math.abs(x-1120)*0.45:0)); },
   startStage(n,a){
-    api=a; stageN=a.content; t=0; missiles=[]; booms=[]; inters=[]; bombers=[]; boss=null; slowT=0; shieldT=0; kills=0; done=false; aim=null;
+    api=a; stageN=a.content; t=0; missiles=[]; booms=[]; inters=[]; bombers=[]; boss=null; slowT=0; shieldT=0; kills=0; done=false; aim={x:540,y:300}; holdT=0; spaceWas=false;
+    rs=(((Math.random()*1e9)|0) ^ Math.imul(a.level|0,7919))|0; R=mk(rs); R2=mk(rs^0x5bd1e995);   // RACE: the shell seeds Math.random, so both racers get this same seed
+    easy = a.diff===0 && a.level<=10 && stageN>0;
     up=Object.assign({radius:1,speed:1,ammo:0}, n? (a.extra.up||{}) : {}); if(n) a.extra.up=up;
-    const alive = n===0? 6 : a.lives;
+    const alive = n===0? 8 : Math.min(8,a.lives);
     cities=CITY_X.map((x,i)=>({x, name:CITY_NAMES[i], alive:i<alive, seed:i}));
-    // alive cities spread out: re-order so that dead ones are random
-    if(n && alive<6){ const order=[0,5,2,3,1,4]; cities.forEach(c=>c.alive=false); order.slice(0,alive).forEach(i=>cities[i].alive=true); }
+    if(n && alive<8){ const order=[0,7,3,4,1,6,2,5]; cities.forEach(c=>c.alive=false); order.slice(0,alive).forEach(i=>cities[i].alive=true); }
+    if(n) a.setLives(alive);
     bats=BAT_X.map(x=>({x, ammo:0, dead:false}));
     const m=a.dv([0.8,1,1.25],1.8,4), L=a.level, c=stageN;
-    // waves grow with the level: splitters from level 8, smart bombs from level 25 (always on boss stages)
     const mv=L>=8?0.15+Math.min(0.2,L/500):0, sm=L>=25?Math.min(0.3,0.1+L/600):0;
+    if(easy){ // Beginner 1-10: a handful of slow missiles, splitters only late, no bombers before stage 6
+      const k=Math.floor((L-1)/3);
+      waves = c===3? [{n:5,mirv:0},{n:6,mirv:.1,bomb:1},{n:3,boss:true}] : [{n:4+k,mirv:0},{n:5+k,mirv:L>=8?.1:0},{n:6+k,mirv:L>=8?.15:0,bomb:L>=6?1:0}];
+    } else
     waves = c===0? [{n:999, mirv:0, smart:0, bomb:0}] :
             c===1? [{n:8,mirv:mv*0.5},{n:10,mirv:mv*0.5},{n:12,mirv:mv,bomb:L>=15?1:0}] :
             c===2? [{n:10,mirv:.25,smart:sm*0.5,bomb:1},{n:12,mirv:.3,smart:sm,bomb:2},{n:14,mirv:.3,smart:sm,bomb:2}] :
                    [{n:12,mirv:.3,smart:Math.max(.2,sm),bomb:2},{n:14,mirv:.3,smart:Math.max(.3,sm),bomb:2},{n:8,mirv:.2,smart:.2,boss:true}];
-    if(c>0 && L>=70) waves.splice(waves.length-(c===3?1:0),0,{n:12,mirv:.3,smart:sm,bomb:2});   // 4 waves on high levels
-    waves.forEach(w=>{ if(w.n<999) w.n=Math.round(w.n*m); });
+    if(!easy && c>0 && L>=70) waves.splice(waves.length-(c===3?1:0),0,{n:12,mirv:.3,smart:sm,bomb:2});
+    if(!easy) waves.forEach(w=>{ if(w.n<999) w.n=Math.round(w.n*m); });
     waveI=-1; nextWave();
   },
   stageBonus(){ const am=bats.reduce((s,b)=>s+(b.dead?0:b.ammo),0); const ct=cities.filter(c=>c.alive).length; return am*5 + ct*100; },
   betweenStages(a, go){
-    const u0=Object.assign({radius:1,speed:1,ammo:0}, a.extra.up||{});
-    // upgrades max out (blasts x2, speed x2.5, +12 ammo) so 100 stages don't break the game
+    const u0=Object.assign({radius:1,speed:1,ammo:0}, a.extra.up||{}), cap=a.diff===0?8:6;
     const opts=[];
     if(u0.radius<2) opts.push({k:'radius',name:'💥 BIGGER BLASTS',desc:'Explosion size +20%'});
     if(u0.speed<2.5) opts.push({k:'speed',name:'🚀 FASTER INTERCEPTORS',desc:'Interceptor speed +30%'});
     if(u0.ammo<12) opts.push({k:'ammo',name:'📦 EXTRA AMMO',desc:'+3 ammo per battery each wave'});
-    if(a.lives<6) opts.push({k:'city',name:'🏙️ REBUILD A CITY',desc:'Bring back one destroyed city'});
+    if(a.lives<cap) opts.push({k:'city',name:'🏙️ REBUILD A CITY',desc:'Bring back one destroyed city'});
     if(!opts.length){ go(); return; }
     a.choice('CHOOSE AN UPGRADE', opts, i=>{ const k=opts[i].k; const u=a.extra.up=Object.assign({radius:1,speed:1,ammo:0}, a.extra.up||{});
       if(k==='radius') u.radius+=0.2; if(k==='speed') u.speed+=0.3; if(k==='ammo') u.ammo+=3; if(k==='city') a.setLives(a.lives+1);
       a.saveNow(); go(); });
   },
   useAbility(id){
-    if(id==='emp'){ booms.push({x:W/2,y:GROUND+40,r:0,max:760,t:0,emp:true,hit:new Set(),col:'#36d6ff'}); api.sfx.power(); api.fx.flash('#36d6ff',.35); api.fx.shake(8); return true; }
+    if(id==='fire'){ fire(aim.x,aim.y); holdT=0.32; return true; }
+    if(id==='emp'){ booms.push({x:W/2,y:GROUND+40,r:0,max:1000,t:0,emp:true,hit:new Set(),col:'#36d6ff'}); api.sfx.power(); api.fx.flash('#36d6ff',.35); api.fx.shake(8); return true; }
     if(id==='slow'){ slowT=4; api.sfx.power(); return true; }
     if(id==='dome'){ shieldT=5; api.sfx.power(); return true; }
   },
   onPointer(type,x,y,id,ptype){
-    if(type==='move' && ptype==='mouse') aim={x,y};
+    if(type==='move' && ptype==='mouse') aim={x,y:Math.min(y,GROUND-40)};
     if(type!=='down') return;
     if(y>GROUND-40) y=GROUND-40;
-    fire(x,y);
+    aim={x,y}; fire(x,y);
   },
   update(dt){
     t+=dt; const eDt = dt*(slowT>0?0.4:1);
     slowT=Math.max(0,slowT-dt); shieldT=Math.max(0,shieldT-dt);
     api.setActive(1,slowT>0); api.setActive(2,shieldT>0);
+    // keyboard crosshair + hold-to-repeat fire (only while the player holds SPACE / the 🎯 button)
+    const kd=api.input.keys, dx0=(kd.ArrowRight||kd.KeyD?1:0)-(kd.ArrowLeft||kd.KeyA?1:0), dy0=(kd.ArrowDown||kd.KeyS?1:0)-(kd.ArrowUp||kd.KeyW?1:0);
+    if(dx0||dy0){ aim.x=Math.max(20,Math.min(W-20,aim.x+dx0*720*dt)); aim.y=Math.max(80,Math.min(GROUND-40,aim.y+dy0*720*dt)); }
+    holdT-=dt; if(kd.Space && spaceWas && holdT<=0){ fire(aim.x,aim.y); holdT=0.3; } spaceWas=!!kd.Space;
     const w=waves[waveI];
-    // spawning
     if(waveGap>0){ waveGap-=dt; if(waveGap<=0){ api.toast(waveI===waves.length-1 && w.boss? 'MOTHERSHIP!' : 'WAVE '+(waveI+1)+'/'+waves.length); } }
     else {
       spawnT-=eDt;
-      if(toSpawn>0 && spawnT<=0){ spawnMissile(w); toSpawn--; spawnT=(stageN===0?2.6:api.dv([1.5,1.15,0.85],0.55,0.12))*(0.5+Math.random()); }
-      if(w.bomb && bombers.length===0 && toSpawn>0 && Math.random()<eDt*0.12 && w._b<(w.bomb||0)){ w._b=(w._b||0)+1; const l=Math.random()<.5; bombers.push({x:l?-60:W+60,y:140+Math.random()*120,vx:(l?1:-1)*(55+Math.min(api.dk>=3?160:60,api.dk*15)),hp:1,drop:1.5}); }
+      if(toSpawn>0 && spawnT<=0){ spawnMissile(w); toSpawn--; spawnT=(stageN===0?2.6:easy?2.4-api.level*0.05:api.dv([1.5,1.15,0.85],0.55,0.12))*(0.5+R()); }
+      if(w.bombAt && w.bombAt.length && bombers.length===0 && toSpawn<=w.bombAt[0]){ w.bombAt.shift(); const l=R2()<.5; bombers.push({x:l?-60:W+60,y:150+R2()*130,vx:(l?1:-1)*(easy?45:70+Math.min(api.dk>=3?180:70,api.dk*16)),hp:1,drop:1.5}); }
     }
-    // bombers
-    for(let i=bombers.length-1;i>=0;i--){ const b=bombers[i]; b.x+=b.vx*eDt; b.drop-=eDt; if(b.drop<=0 && b.x>40 && b.x<W-40){ b.drop=2.2; launchFrom(b.x,b.y+10,'n'); }
+    for(let i=bombers.length-1;i>=0;i--){ const b=bombers[i]; b.x+=b.vx*eDt; b.drop-=eDt; if(b.drop<=0 && b.x>100 && b.x<W-100){ b.drop=easy?3.2:2.2; launchFrom(b.x,b.y+10,'n'); }
       if(b.x<-90||b.x>W+90) bombers.splice(i,1); }
-    // boss
-    if(boss){ boss.t+=eDt; boss.x=W/2+Math.sin(boss.t*0.6)*(W/2-110); boss.y=Math.min(120, boss.y+30*eDt); boss.drop-=eDt; boss.flash=Math.max(0,boss.flash-dt);
-      if(boss.drop<=0){ boss.drop=api.dv([1.6,1.2,0.9],0.6,0.2); launchFrom(boss.x-40,boss.y+30,'n'); if(api.dk>=0.8) launchFrom(boss.x+40,boss.y+30,Math.random()<.4?'mirv':'n'); } }
-    // interceptors
+    if(boss){ boss.t+=eDt; boss.x=540+Math.sin(boss.t*0.5)*420; boss.y=Math.min(150, boss.y+30*eDt); boss.drop-=eDt; boss.flash=Math.max(0,boss.flash-dt);
+      if(boss.drop<=0){ boss.drop=easy?2.6:api.dv([1.6,1.2,0.9],0.6,0.2); launchFrom(boss.x-40,boss.y+30,'n'); if(api.dk>=0.8) launchFrom(boss.x+40,boss.y+30,R2()<.4?'mirv':'n'); } }
     const ic=api.cos('Interceptor').colors;
-    for(let i=inters.length-1;i>=0;i--){ const it=inters[i]; const dx=it.tx-it.x, dy=it.ty-it.y, d=Math.hypot(dx,dy), s=900*up.speed*dt;
-      if(d<=s){ inters.splice(i,1); addBoom(it.tx,it.ty,52*up.radius,false); api.sfx.small(); }
+    for(let i=inters.length-1;i>=0;i--){ const it=inters[i]; const dx=it.tx-it.x, dy=it.ty-it.y, d=Math.hypot(dx,dy), s=1000*up.speed*dt;
+      if(d<=s){ inters.splice(i,1); addBoom(it.tx,it.ty,(easy?62:52)*up.radius,false); api.sfx.small(); }
       else { it.x+=dx/d*s; it.y+=dy/d*s; if(Math.random()<.7) api.fx.spark(it.x,it.y,(Math.random()-.5)*20,(Math.random()-.5)*20+30,ic[1],.35,2); } }
-    // missiles
     for(let i=missiles.length-1;i>=0;i--){ const m=missiles[i];
       if(m.type==='smart'){ for(const b of booms){ const d=Math.hypot(b.x-m.x,b.y-m.y); if(d<b.r+60 && d>1){ m.x+=(m.x-b.x)/d*70*eDt; } } }
       const dx=m.tx-m.x, dy=m.ty-m.y, d=Math.hypot(dx,dy), s=m.spd*eDt;
@@ -614,18 +626,18 @@ const GAME = window.GAME = {
       if(d<=s){ missiles.splice(i,1); impact(m); continue; }
       m.x+=dx/d*s; m.y+=dy/d*s;
     }
-    // explosions
     for(let i=booms.length-1;i>=0;i--){ const b=booms[i]; b.t+=dt;
-      if(b.emp){ b.r+=900*dt; if(b.r>b.max) { booms.splice(i,1); continue; } }
+      if(b.emp){ b.r+=1100*dt; if(b.r>b.max) { booms.splice(i,1); continue; } }
       else { const g=0.32, hold=0.28, sh=0.35; if(b.t<g) b.r=b.max*(b.t/g); else if(b.t<g+hold) b.r=b.max; else if(b.t<g+hold+sh) b.r=b.max*(1-(b.t-g-hold)/sh); else { booms.splice(i,1); continue; } }
       if(b.enemy) continue;
-      for(let j=missiles.length-1;j>=0;j--){ const m=missiles[j]; const dd=Math.hypot(m.x-b.x,m.y-b.y); if(b.emp? Math.abs(dd-b.r)<30 : dd<b.r){ missiles.splice(j,1); killMissile(m, b); } }
+      for(let j=missiles.length-1;j>=0;j--){ const m=missiles[j]; const dd=Math.hypot(m.x-b.x,m.y-b.y); if(b.emp? Math.abs(dd-b.r)<34 : dd<b.r){ missiles.splice(j,1); killMissile(m, b); } }
       for(let j=bombers.length-1;j>=0;j--){ const bb=bombers[j]; if(Math.hypot(bb.x-b.x,bb.y-b.y)<b.r+22){ bombers.splice(j,1); api.addScore(200,bb.x,bb.y); api.addCoins(1); addBoom(bb.x,bb.y,60,false,1); api.sfx.boom(); } }
       if(boss && !b.hit.has('boss') && Math.abs(boss.x-b.x)<85+b.r && Math.abs(boss.y-b.y)<35+b.r){ b.hit.add('boss'); boss.hp-=b.emp?3:1; boss.flash=.15; api.sfx.bump(); api.fx.burst(b.x,b.y,'#ff5a36',8,150,.4,3);
         if(boss.hp<=0){ api.addScore(5000,boss.x,boss.y); api.addCoins(10); const bx=boss.x, by=boss.y; for(let k=0;k<8;k++) setTimeout(()=>addBoom(bx+(Math.random()-.5)*160,by+(Math.random()-.5)*50,70,false,1),k*90); api.fx.burst(boss.x,boss.y,'#ffe27a',90,420,1.2,4); api.fx.shake(18); api.fx.flash('#fff',.6); api.sfx.boom(); boss=null; } }
     }
-    // wave end
     if(!done && waveGap<=0 && toSpawn<=0 && missiles.length===0 && bombers.length===0 && !boss && inters.length===0){
+      // no hands = no win: a stage with zero kills keeps sending waves until the cities fall
+      if(waveI>=waves.length-1 && stageN>0 && kills===0) waves.push({n:6,mirv:0});
       if(waveI>=waves.length-1){ done=true; setTimeout(()=>api.stageClear(), 900); }
       else { api.addScore(250); nextWave(); }
     }
@@ -634,37 +646,32 @@ const GAME = window.GAME = {
   render(c){
     const sky=api.cos('Sky').colors;
     const gr=c.createLinearGradient(0,0,0,GROUND); gr.addColorStop(0,sky[0]); gr.addColorStop(1,sky[1]); c.fillStyle=gr; c.fillRect(0,0,W,H);
-    if(api.cos('Sky').id==='s_aurora'){ c.save(); c.globalAlpha=.18; c.strokeStyle='#1cffb0'; c.lineWidth=40; c.beginPath(); for(let x=0;x<=W;x+=20) c.lineTo(x,200+Math.sin(x*0.01+t*0.5)*60); c.stroke(); c.restore(); }
+    if(api.cos('Sky').id==='s_aurora'){ c.save(); c.globalAlpha=.18; c.strokeStyle='#1cffb0'; c.lineWidth=40; c.beginPath(); for(let x=0;x<=W;x+=20) c.lineTo(x,220+Math.sin(x*0.007+t*0.5)*70); c.stroke(); c.restore(); }
     for(const s of stars){ c.globalAlpha=0.4+0.4*Math.sin(t*2+s.p); c.fillStyle='#fff'; c.fillRect(s.x,s.y,s.s,s.s); } c.globalAlpha=1;
-    c.fillStyle='rgba(255,240,220,0.9)'; c.beginPath(); c.arc(480,110,26,0,Math.PI*2); c.fill(); c.fillStyle=sky[0]; c.beginPath(); c.arc(468,102,24,0,Math.PI*2); c.fill();
-    // mountains + ground
+    c.fillStyle='rgba(255,240,220,0.9)'; c.beginPath(); c.arc(1110,150,30,0,Math.PI*2); c.fill(); c.fillStyle=sky[0]; c.beginPath(); c.arc(1096,141,28,0,Math.PI*2); c.fill();
     c.fillStyle='#120a2a'; c.beginPath(); c.moveTo(0,GROUND); mountains.forEach((y,i)=>c.lineTo(i*20,y)); c.lineTo(W,GROUND); c.fill();
     c.fillStyle='#0d0820'; c.fillRect(0,GROUND,W,H-GROUND); c.strokeStyle=GAME.theme.a; c.globalAlpha=.6; c.beginPath(); c.moveTo(0,GROUND); c.lineTo(W,GROUND); c.stroke(); c.globalAlpha=1;
+    c.fillStyle='rgba(255,90,54,0.05)'; for(let y=GROUND+12;y<H;y+=16) c.fillRect(0,y,W,1);
     cities.forEach(drawCity.bind(null,c));
     bats.forEach(b=>drawBat(c,b));
-    if(shieldT>0){ c.save(); c.globalAlpha=.25+.1*Math.sin(t*10); c.strokeStyle='#36d6ff'; c.fillStyle='rgba(54,214,255,0.08)'; c.lineWidth=3; c.beginPath(); c.ellipse(W/2,GROUND,W*0.55,170,0,Math.PI,0); c.fill(); c.stroke(); c.restore(); }
-    // missiles
+    if(shieldT>0){ c.save(); c.globalAlpha=.25+.1*Math.sin(t*10); c.strokeStyle='#36d6ff'; c.fillStyle='rgba(54,214,255,0.08)'; c.lineWidth=3; c.beginPath(); c.ellipse(540,GROUND,470,190,0,Math.PI,0); c.fill(); c.stroke(); c.restore(); }
     c.lineCap='round';
-    for(const m of missiles){ c.save(); c.strokeStyle=m.type==='smart'?'#ffe14a':m.type==='mirv'?'#ff4fd8':'#ff3b3b'; c.globalAlpha=.55; c.lineWidth=2; c.beginPath(); c.moveTo(m.sx,m.sy); c.lineTo(m.x,m.y); c.stroke();
-      c.globalAlpha=1; c.shadowColor=c.strokeStyle; c.shadowBlur=12; c.fillStyle='#fff'; c.beginPath(); c.arc(m.x,m.y,m.type==='n'?3:4.5,0,Math.PI*2); c.fill(); c.restore(); }
-    // interceptors
+    for(const m of missiles){ c.save(); c.strokeStyle=m.type==='smart'?'#ffe14a':m.type==='mirv'?'#ff4fd8':'#ff3b3b'; c.globalAlpha=.55; c.lineWidth=2.5; c.beginPath(); c.moveTo(m.sx,m.sy); c.lineTo(m.x,m.y); c.stroke();
+      c.globalAlpha=1; c.shadowColor=c.strokeStyle; c.shadowBlur=14; c.fillStyle='#fff'; c.beginPath(); c.arc(m.x,m.y,m.type==='n'?4:5.5,0,Math.PI*2); c.fill(); c.restore(); }
     const ic=api.cos('Interceptor').colors;
-    for(const it of inters){ c.strokeStyle=ic[1]; c.globalAlpha=.5; c.lineWidth=1.5; c.beginPath(); c.moveTo(it.sx,it.sy); c.lineTo(it.x,it.y); c.stroke(); c.globalAlpha=1; c.fillStyle=ic[0]; c.fillRect(it.x-2,it.y-2,4,4);
-      c.strokeStyle=ic[0]; c.globalAlpha=.6; c.beginPath(); c.moveTo(it.tx-6,it.ty-6); c.lineTo(it.tx+6,it.ty+6); c.moveTo(it.tx+6,it.ty-6); c.lineTo(it.tx-6,it.ty+6); c.stroke(); c.globalAlpha=1; }
-    // bombers
-    for(const b of bombers){ c.save(); c.translate(b.x,b.y); c.scale(b.vx>0?1:-1,1); c.fillStyle='#2a1a4a'; c.strokeStyle='#ff5a36'; c.lineWidth=2; c.shadowColor='#ff5a36'; c.shadowBlur=10;
+    for(const it of inters){ c.strokeStyle=ic[1]; c.globalAlpha=.5; c.lineWidth=2; c.beginPath(); c.moveTo(it.sx,it.sy); c.lineTo(it.x,it.y); c.stroke(); c.globalAlpha=1; c.fillStyle=ic[0]; c.fillRect(it.x-2.5,it.y-2.5,5,5);
+      c.strokeStyle=ic[0]; c.globalAlpha=.6; c.beginPath(); c.moveTo(it.tx-7,it.ty-7); c.lineTo(it.tx+7,it.ty+7); c.moveTo(it.tx+7,it.ty-7); c.lineTo(it.tx-7,it.ty+7); c.stroke(); c.globalAlpha=1; }
+    for(const b of bombers){ c.save(); c.translate(b.x,b.y); c.scale(b.vx>0?1.2:-1.2,1.2); c.fillStyle='#2a1a4a'; c.strokeStyle='#ff5a36'; c.lineWidth=2; c.shadowColor='#ff5a36'; c.shadowBlur=10;
       c.beginPath(); c.moveTo(26,0); c.lineTo(-22,-8); c.lineTo(-14,0); c.lineTo(-22,8); c.closePath(); c.fill(); c.stroke(); c.fillStyle=Math.sin(t*12)>0?'#ff3b3b':'#400'; c.fillRect(-20,-2,4,4); c.restore(); }
-    // boss
     if(boss){ c.save(); c.translate(boss.x,boss.y); c.shadowColor='#ff5a36'; c.shadowBlur=24; c.fillStyle=boss.flash>0?'#fff':'#1d0f38'; c.strokeStyle='#ff5a36'; c.lineWidth=3;
       c.beginPath(); c.ellipse(0,0,90,26,0,0,Math.PI*2); c.fill(); c.stroke(); c.beginPath(); c.ellipse(0,-14,38,22,0,Math.PI,0); c.fill(); c.stroke();
       for(let k=-3;k<=3;k++){ c.fillStyle=Math.sin(t*8+k)>0?'#ffe14a':'#ff3b3b'; c.beginPath(); c.arc(k*22,8,4,0,Math.PI*2); c.fill(); }
-      c.restore(); c.fillStyle='#300'; c.fillRect(W/2-120,58,240,8); c.fillStyle='#ff5a36'; c.fillRect(W/2-120,58,240*Math.max(0,boss.hp/boss.max),8);
-      c.font='bold 11px Orbitron, sans-serif'; c.textAlign='center'; c.fillStyle='#fff'; c.fillText('HALO-9 MOTHERSHIP',W/2,52); }
-    // explosions
+      c.restore(); c.fillStyle='#300'; c.fillRect(W/2-160,92,320,9); c.fillStyle='#ff5a36'; c.fillRect(W/2-160,92,320*Math.max(0,boss.hp/boss.max),9);
+      c.font='bold 13px Orbitron, sans-serif'; c.textAlign='center'; c.fillStyle='#fff'; c.fillText('HALO-9 MOTHERSHIP',W/2,86); }
     const bc=api.cos('Blast').colors;
     c.save(); c.globalCompositeOperation='lighter';
     for(const b of booms){
-      if(b.emp){ c.strokeStyle='#36d6ff'; c.lineWidth=14; c.globalAlpha=Math.max(0,1-b.r/b.max); c.beginPath(); c.arc(b.x,b.y,b.r,0,Math.PI*2); c.stroke(); continue; }
+      if(b.emp){ c.strokeStyle='#36d6ff'; c.lineWidth=16; c.globalAlpha=Math.max(0,1-b.r/b.max); c.beginPath(); c.arc(b.x,b.y,b.r,0,Math.PI*2); c.stroke(); continue; }
       if(b.r<=0) continue;
       const cols=b.enemy? ['#fff','#ff3b3b','#600'] : bc;
       const g=c.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r); g.addColorStop(0,cols[0]); g.addColorStop(0.45,cols[1]); g.addColorStop(1,'rgba(0,0,0,0)');
@@ -672,31 +679,36 @@ const GAME = window.GAME = {
       c.globalAlpha=.6; c.strokeStyle=cols[2]; c.lineWidth=2; c.beginPath(); c.arc(b.x,b.y,b.r*0.98,0,Math.PI*2); c.stroke();
     }
     c.restore();
-    if(aim && aim.y<GROUND){ c.strokeStyle='#fff'; c.globalAlpha=.7; c.lineWidth=1.5; c.beginPath(); c.arc(aim.x,aim.y,10,0,Math.PI*2); c.moveTo(aim.x-16,aim.y); c.lineTo(aim.x-6,aim.y); c.moveTo(aim.x+6,aim.y); c.lineTo(aim.x+16,aim.y); c.moveTo(aim.x,aim.y-16); c.lineTo(aim.x,aim.y-6); c.moveTo(aim.x,aim.y+6); c.lineTo(aim.x,aim.y+16); c.stroke(); c.globalAlpha=1; }
+    if(aim && stageN!==undefined){ const ax=aim.x, ay=aim.y; c.strokeStyle='#fff'; c.globalAlpha=.75; c.lineWidth=2; c.beginPath(); c.arc(ax,ay,12,0,Math.PI*2); c.moveTo(ax-20,ay); c.lineTo(ax-7,ay); c.moveTo(ax+7,ay); c.lineTo(ax+20,ay); c.moveTo(ax,ay-20); c.lineTo(ax,ay-7); c.moveTo(ax,ay+7); c.lineTo(ax,ay+20); c.stroke(); c.globalAlpha=1; }
     if(slowT>0){ c.fillStyle='rgba(120,80,255,0.08)'; c.fillRect(0,0,W,H); }
     drawAmmoBar(c);
   }
 };
 
 function nextWave(){
-  waveI++; const w=waves[waveI]; toSpawn=w.n; spawnT=0.5; waveGap=stageN===0?0.2:2; w._b=0;
-  bats.forEach(b=>{ b.dead=false; b.ammo=10+up.ammo; });
-  if(waveI>0) api.fx.text(W/2,GROUND-150,'AMMO REFILLED','#36d6ff',20);
-  if(w.boss){ boss={x:W/2,y:-60,t:0,hp:Math.round(api.dv([14,20,26],40,120)),max:Math.round(api.dv([14,20,26],40,120)),drop:2,flash:0}; }
+  waveI++; const w=waves[waveI]; toSpawn=w.n; spawnT=0.5; waveGap=stageN===0?0.2:2;
+  // bombers come in at fixed points of the wave (seeded), so racers see them at the same moment
+  w.bombAt=[]; for(let k=0;k<(w.bomb||0);k++) w.bombAt.push(Math.floor(w.n*(0.8-k*0.35)-R()*2)); w.bombAt.sort((a,b)=>b-a);
+  bats.forEach(b=>{ b.dead=false; b.ammo=10+up.ammo+(easy?4:0); });
+  if(waveI>0) api.fx.text(540,GROUND-170,'AMMO REFILLED','#36d6ff',22);
+  if(w.boss){ const hp=easy?10:Math.round(api.dv([14,20,26],40,120)); boss={x:540,y:-60,t:0,hp,max:hp,drop:2,flash:0}; }
 }
-function target(){
-  const cs=cities.filter(c=>c.alive); const bs=bats.filter(b=>!b.dead);
-  if(cs.length && (Math.random()<0.72 || !bs.length)) { const c=cs[Math.floor(Math.random()*cs.length)]; return {x:c.x+(Math.random()-.5)*20, y:GROUND-8, city:c}; }
-  if(bs.length){ const b=bs[Math.floor(Math.random()*bs.length)]; return {x:b.x, y:GROUND-12, bat:b}; }
-  return {x:Math.random()*W, y:GROUND};
+function target(Q){
+  const cs=cities.filter(c=>c.alive), bs=bats.filter(b=>!b.dead), r1=Q(), r2=Q(), r3=Q();
+  // Beginner: missiles only go for cities (batteries are safe); otherwise 1 in 4 goes for a battery
+  if(cs.length && (easy || r1<0.75 || !bs.length)) { const c=cs[Math.floor(r2*cs.length)]; return {x:c.x+(r3-.5)*24, y:GROUND-8, city:c}; }
+  if(bs.length){ const b=bs[Math.floor(r2*bs.length)]; return {x:b.x, y:GROUND-12, bat:b}; }
+  return {x:110+r3*870, y:GROUND};
 }
-function mSpeed(){ return (stageN===0?30:api.dv([38,50,62],85,190)+stageN*6)*(0.85+Math.random()*0.3); }
-function spawnMissile(w){ const r=Math.random(); const type = w.smart && r<w.smart? 'smart' : w.mirv && r<(w.smart||0)+w.mirv? 'mirv' : 'n'; launchFrom(40+Math.random()*(W-80), -10, type); }
-function launchFrom(x,y,type,child){
-  const tg=target(); missiles.push({sx:x,sy:y,x,y,tx:tg.x,ty:tg.y,tg,spd:mSpeed()*(child?1.1:1),type,split:280+Math.random()*200});
+function mSpeed(Q){ return (stageN===0?30:easy?24+api.level*1.6:(api.dv([38,50,62],85,190)+stageN*6)*0.8)*(0.85+Q()*0.3); }
+function spawnMissile(w){ const r=R(); const type = w.smart && r<w.smart? 'smart' : w.mirv && r<(w.smart||0)+w.mirv? 'mirv' : 'n'; launchFrom(80+R()*(W-160), -10, type, false, R); }
+function launchFrom(x,y,type,child,Q){
+  Q=Q||R2; const tg=target(Q); missiles.push({sx:x,sy:y,x,y,tx:tg.x,ty:tg.y,tg,spd:mSpeed(Q)*(child?1.1:1),type,split:260+Q()*180});
 }
+function leftCount(){ let n=toSpawn+missiles.length+bombers.length+(boss?boss.hp:0); for(let i=waveI+1;i<waves.length;i++) n+=waves[i].n; return stageN===0?missiles.length:n; }
 function fire(x,y){
-  let best=null, bd=1e9; for(const b of bats){ if(b.dead||b.ammo<=0) continue; const d=Math.abs(b.x-x)+(b.x===300?-20:0); if(d<bd){bd=d;best=b;} }
+  if(done) return;
+  let best=null, bd=1e9; for(const b of bats){ if(b.dead||b.ammo<=0) continue; const d=Math.abs(b.x-x)+(b.x===540?-20:0); if(d<bd){bd=d;best=b;} }
   if(!best){ api.sfx.bump(); api.toast('OUT OF AMMO'); return; }
   if(stageN===0) best.ammo=Math.max(best.ammo,3); else best.ammo--;
   inters.push({sx:best.x,sy:GROUND-26,x:best.x,y:GROUND-26,tx:x,ty:y}); api.sfx.shoot(); api.event('fire');
@@ -705,8 +717,8 @@ function addBoom(x,y,r,enemy,chain){ booms.push({x,y,r:0,max:r,t:0,enemy,chain:c
 function killMissile(m,b){
   const ch=(b.chain||0)+1; const pts=25*ch*(m.type==='n'?1:2);
   api.addScore(pts,m.x,m.y-10); kills++; if(kills===3) api.event('kill3');
-  if(ch>=3) api.fx.text(m.x,m.y-30,'CHAIN x'+ch,'#ffe14a',16);
-  addBoom(m.x,m.y,34*up.radius,false,ch); api.fx.burst(m.x,m.y,'#ffcf6a',8,140,.4,2); api.sfx.small();
+  if(ch>=3) api.fx.text(m.x,m.y-30,'CHAIN x'+ch,'#ffe14a',18);
+  addBoom(m.x,m.y,34*up.radius*(easy?1.15:1),false,ch); api.fx.burst(m.x,m.y,'#ffcf6a',8,140,.4,2); api.sfx.small();
   if(ch>=4) api.addCoins(1);
 }
 function impact(m){
@@ -718,45 +730,46 @@ function impact(m){
 }
 function drawCity(c,ct){
   const x=ct.x, g=GROUND;
-  if(!ct.alive){ c.fillStyle='#2a1a2a'; c.fillRect(x-24,g-8,48,8); c.fillStyle='#ff5a36'; c.globalAlpha=.4+.3*Math.sin(t*6+x); c.fillRect(x-14,g-12,4,4); c.fillRect(x+6,g-10,3,3); c.globalAlpha=1; return; }
-  c.save(); c.fillStyle='#1a1440'; c.strokeStyle=GAME.theme.b; c.lineWidth=1.2; c.shadowColor=GAME.theme.b; c.shadowBlur=8;
+  if(!ct.alive){ c.fillStyle='#2a1a2a'; c.fillRect(x-28,g-9,56,9); c.fillStyle='#ff5a36'; c.globalAlpha=.4+.3*Math.sin(t*6+x); c.fillRect(x-16,g-13,5,5); c.fillRect(x+8,g-11,4,4); c.globalAlpha=1; return; }
+  c.save(); c.translate(x,g); c.scale(1.15,1.15); c.translate(-x,-g);
+  c.fillStyle='#1a1440'; c.strokeStyle=GAME.theme.b; c.lineWidth=1.2; c.shadowColor=GAME.theme.b; c.shadowBlur=8;
   const s=ct.seed, bl=[[-24,26,12],[-11,40,11],[1,30,10],[12,22,12]];
   if(s===0){ c.beginPath(); c.moveTo(x+2,g-78); c.lineTo(x+4,g-44); c.lineTo(x,g-44); c.closePath(); c.fill(); c.stroke(); c.beginPath(); c.arc(x+2,g-56,5,0,Math.PI*2); c.fill(); c.stroke(); }
   if(s===3){ c.beginPath(); c.moveTo(x-30,g); c.lineTo(x-20,g-42); c.lineTo(x+20,g-42); c.lineTo(x+30,g); c.closePath(); c.fillStyle='#120e2e'; c.fill(); c.stroke(); c.fillStyle='#1a1440'; }
   if(s===2){ c.beginPath(); c.arc(x,g-2,26,Math.PI,0); c.stroke(); }
+  if(s===6){ c.fillRect(x-4,g-62,8,20); c.strokeRect(x-4,g-62,8,20); }
+  if(s===7){ c.beginPath(); c.arc(x+18,g-2,9,Math.PI,0); c.stroke(); }
   for(const [ox,h,w] of bl){ const hh=h*(0.7+((s*7+ox)&7)/14); c.fillRect(x+ox,g-hh,w,hh); c.strokeRect(x+ox,g-hh,w,hh); }
   c.shadowBlur=0; c.fillStyle='#ffe27a';
   for(const [ox,h,w] of bl){ const hh=h*(0.7+((s*7+ox)&7)/14); for(let yy=g-hh+4;yy<g-3;yy+=6) for(let xx=x+ox+2;xx<x+ox+w-2;xx+=4){ if(((xx*13+yy*7+s)%5)<2) c.fillRect(xx,yy,2,2); } }
   c.restore();
-  c.font='bold 8px Orbitron, sans-serif'; c.textAlign='center'; c.fillStyle='rgba(255,255,255,0.55)'; c.fillText(ct.name,x,g+14);
+  c.font='bold 10px Orbitron, sans-serif'; c.textAlign='center'; c.fillStyle='rgba(255,255,255,0.6)'; c.fillText(ct.name,x,g+17);
 }
 function drawBat(c,b){
   const x=b.x, g=GROUND;
   c.save(); c.fillStyle=b.dead?'#2a1a2a':'#221a4a'; c.strokeStyle=b.dead?'#553':'#36d6ff'; c.lineWidth=2; c.shadowColor='#36d6ff'; c.shadowBlur=b.dead?0:10;
-  c.beginPath(); c.moveTo(x-30,g); c.lineTo(x-18,g-22); c.lineTo(x+18,g-22); c.lineTo(x+30,g); c.closePath(); c.fill(); c.stroke();
+  c.beginPath(); c.moveTo(x-32,g); c.lineTo(x-19,g-24); c.lineTo(x+19,g-24); c.lineTo(x+32,g); c.closePath(); c.fill(); c.stroke();
   c.shadowBlur=0;
-  // BIG ammo counter above each battery: white = fine, yellow = low, red flashing = empty
   const low=b.ammo<=3, col=b.dead||b.ammo<=0?'#ff3b3b':low?'#ffe14a':'#ffffff';
   const blink=(b.dead||b.ammo<=0) && Math.floor(t*4)%2;
   c.globalAlpha=blink?0.45:1;
   c.fillStyle='rgba(5,4,16,0.85)'; c.strokeStyle=col; c.lineWidth=2;
-  c.beginPath(); if(c.roundRect) c.roundRect(x-30,g-62,60,32,9); else c.rect(x-30,g-62,60,32); c.fill(); c.stroke();
+  c.beginPath(); if(c.roundRect) c.roundRect(x-34,g-70,68,38,10); else c.rect(x-34,g-70,68,38); c.fill(); c.stroke();
   c.fillStyle=col; c.textAlign='center'; c.shadowColor=col; c.shadowBlur=8;
-  if(b.dead){ c.font='bold 13px Orbitron, sans-serif'; c.fillText('DOWN',x,g-41); }
-  else if(b.ammo<=0){ c.font='bold 13px Orbitron, sans-serif'; c.fillText('EMPTY',x,g-41); }
-  else { c.font='bold 22px Orbitron, sans-serif'; c.fillText(b.ammo,x,g-37); }
+  if(b.dead){ c.font='bold 15px Orbitron, sans-serif'; c.fillText('DOWN',x,g-45); }
+  else if(b.ammo<=0){ c.font='bold 15px Orbitron, sans-serif'; c.fillText('EMPTY',x,g-45); }
+  else { c.font='bold 26px Orbitron, sans-serif'; c.fillText(b.ammo,x,g-41); }
   c.globalAlpha=1; c.shadowBlur=0;
-  // ammo shells under the battery (bigger than before, 10 per row)
-  if(!b.dead){ for(let i=0;i<b.ammo;i++){ const col2=i%10, row=Math.floor(i/10); c.fillStyle=low?'#ffe14a':'#e8f6ff'; c.fillRect(x-27+col2*5.6,g+14+row*14,3.6,10); c.fillStyle='#ff5a36'; c.fillRect(x-27+col2*5.6,g+14+row*14,3.6,3); } }
+  if(!b.dead){ for(let i=0;i<Math.min(b.ammo,20);i++){ const col2=i%10, row=Math.floor(i/10); c.fillStyle=low?'#ffe14a':'#e8f6ff'; c.fillRect(x-28+col2*5.8,g+8+row*13,3.8,9); c.fillStyle='#ff5a36'; c.fillRect(x-28+col2*5.8,g+8+row*13,3.8,3); } }
   c.restore();
 }
 function drawAmmoBar(c){
-  // total ammo readout, top-left of the play area + big counter in the top bar
-  const tot=bats.reduce((s,b)=>s+(b.dead?0:b.ammo),0), max=bats.length*(10+up.ammo);
+  // top bar: ammo in the label, missiles still to stop as the number (the race progress bar runs off that number)
+  const tot=bats.reduce((s,b)=>s+(b.dead?0:b.ammo),0);
   const low=tot<=6, col=tot===0?'#ff3b3b':low?'#ffe14a':'#36d6ff';
-  api.counter('🚀 AMMO', tot===0?'EMPTY':tot+' / '+max, tot===0?'empty':low?'low':'');
+  api.counter('🚀 AMMO '+(tot===0?'EMPTY':tot)+' · ☄️ LEFT', leftCount(), tot===0?'empty':low?'low':'');
   c.save();
-  if(low && stageN>0 && Math.floor(t*3)%2){ c.textAlign='center'; c.font='bold 18px Orbitron, sans-serif'; c.fillStyle=col; c.shadowColor=col; c.shadowBlur=12; c.fillText(tot===0?'OUT OF AMMO — WAIT FOR NEXT WAVE':'LOW AMMO!',W/2,GROUND-110); }
+  if(low && stageN>0 && Math.floor(t*3)%2){ c.textAlign='center'; c.font='bold 22px Orbitron, sans-serif'; c.fillStyle=col; c.shadowColor=col; c.shadowBlur=12; c.fillText(tot===0?'OUT OF AMMO — WAIT FOR NEXT WAVE':'LOW AMMO!',540,GROUND-130); }
   c.restore();
 }
 })();
