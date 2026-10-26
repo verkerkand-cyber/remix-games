@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-ST-1.6 · 2026-10-17">
+<meta name="build" content="BUILD-ST-1.7 · 2026-10-26">
 <title>Snack Stack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-ST-1.6 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-ST-1.7 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,17 +489,20 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* SNACK STACK — South African snack tile-match remix (#21) */
+/* SNACK STACK — South African snack tile-match remix (#21). LANDSCAPE (SHELL-LANDSCAPE-1) + RACE.
+   1280x720 world: board centre-left (x 110..830), tray under the board, goals panel on the right (x 860..1266, y<505)
+   above the action button. Keeps clear of the HUD strip (y<70), ability column (x<90) and the action button (bottom-right).
+   Boards come from a seed built from the stage number + difficulty, so in a RACE both phones get the identical tower. */
 (function(){
-const W=600, H=900;
-const TW=84, TH=98;                       // tile size (v1.1: bigger)
-const TS=0.8;                             // tray tiles scale
-const TRAY_Y=18, TRAY_H=92, SLOTS=7;      // the tray at the top
-const BY=150;                             // board top
+const W=1280, H=720;
+const TW=76, TH=88;                       // tile size
+const TRAY_X=110, TRAY_W=720, TRAY_Y=600, TRAY_H=112;   // the tray under the board
+const RX0=860, RX1=1266;                  // right goals panel
+let BY=118, SLOTS=7, TS=0.95;             // board top / tray size (Beginner gets 8 slots)
 const SNACKS=['BUNNY CHOW','KOEKSISTER','BILTONG','BOEREWORS','VETKOEK','MELKTERT','RUSK','SAMOOSA','MEALIE','SOSATIE','NAARTJIE','ROOIBOS','LAMB CHOP','MALVA','DROËWORS','CHAKALAKA'];
-let api, stageN, t, tiles, tray, flying, clearing, hist, timeLeft, timeMax, done, hintT, hintIds, seed, lost, shakeT, lastTap, icons={};
+let raceOn=false, cur=-1, kbd=false, api, stageN, t, tiles, tray, flying, clearing, hist, timeLeft, timeMax, done, hintT, hintIds, seed, lost, shakeT, lastTap, icons={};
 
-const GXW=12;                             // board width in half-tiles (7 tiles across)
+const GXW=16;                             // board width in half-tiles (9 tiles across)
 function rng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let x=Math.imul(s^s>>>15,1|s); x=x+Math.imul(x^x>>>7,61|x)^x; return ((x^x>>>14)>>>0)/4294967296; }; }
 
 /* ---------- snack art (drawn in code, cached per tile skin) ---------- */
@@ -580,8 +583,8 @@ function tileIcon(k, skin){
   const g=c.createLinearGradient(0,0,0,TH); g.addColorStop(0,col[0]); g.addColorStop(1,col[1]); c.fillStyle=g; rr(c,2,1,TW-4,TH-8,11); c.fill();
   const gl=c.createLinearGradient(0,1,0,TH*0.5); gl.addColorStop(0,'rgba(255,255,255,0.85)'); gl.addColorStop(1,'rgba(255,255,255,0)'); c.fillStyle=gl; rr(c,5,4,TW-10,TH*0.42,9); c.fill();
   c.strokeStyle=col[2]||'#b68a55'; c.lineWidth=2.5; rr(c,2.5,1.5,TW-5,TH-9,11); c.stroke();
-  c.save(); c.translate(TW/2,TH/2-9); c.filter='saturate(1.35) brightness(1.08)'; drawSnack(c,k,1.25); c.restore();
-  c.fillStyle='rgba(40,20,5,0.9)'; c.font='bold 10px Arial, sans-serif'; c.textAlign='center'; c.fillText(SNACKS[k],TW/2,TH-14);
+  c.save(); c.translate(TW/2,TH/2-8); c.filter='saturate(1.35) brightness(1.08)'; drawSnack(c,k,1.12); c.restore();
+  c.fillStyle='rgba(40,20,5,0.9)'; c.font='bold 9.5px Arial, sans-serif'; c.textAlign='center'; c.fillText(SNACKS[k],TW/2,TH-13,TW-8);
   icons[key]=cv; return cv;
 }
 function rr(c,x,y,w,h,r){ c.beginPath(); if(c.roundRect) c.roundRect(x,y,w,h,r); else c.rect(x,y,w,h); }
@@ -589,15 +592,18 @@ function rr(c,x,y,w,h,r){ c.beginPath(); if(c.roundRect) c.roundRect(x,y,w,h,r);
 /* ---------- stage generation (always solvable) ---------- */
 function makeStage(n,a){
   const R=rng(seed=(n===0?4242:n*7919+a.diff*131+17));
-  const L=a.level, boss=a.boss;
-  let target = n===0? 12 : Math.min(150, Math.round(24 + L*0.9 + (boss?18:0)));
+  const L=a.level, boss=a.boss, beg=a.diff===0;
+  // Beginner: smaller towers, only 3-4 snack types early, 8 tray slots, gentle ramp (Hard/Expert as before)
+  let target = n===0? 12 : beg&&L<=10? Math.round(18+L*0.7) : Math.min(150, Math.round(24 + L*0.9 + (boss?18:0)));
   target -= target%3;
-  const types = n===0? 4 : Math.min(16, 5 + Math.floor(L/12) + (boss?1:0));
-  const layers = n===0? 2 : Math.min(6, 2 + Math.floor(L/25) + (boss?1:0));
-  // candidate positions per layer on a half-tile grid (gx 0..12, gy 0..16), mirrored left/right
-  const GX=GXW, GY=16, cells=[];
+  const types = n===0? 3 : beg? (L<=3?3 : L<=10?4 : Math.min(16, 5+Math.floor((L-10)/14)+(boss?1:0))) : Math.min(16, 5 + Math.floor(L/12) + (boss?1:0));
+  const layers = n===0? 2 : beg&&L<=10? 2 : Math.min(6, 2 + Math.floor(L/25) + (boss?1:0));
+  SLOTS = beg? 8 : 7; TS=Math.min(0.95,(TRAY_W/SLOTS-10)/TW);
+  // candidate positions per layer on a half-tile grid (gx 0..16, gy 0..10), mirrored left/right.
+  // Tutorial: only the lower rows, so the help box at the top never hides a snack.
+  const GX=GXW, GY=12, cells=[], gy0=n===0?4:0;
   for(let l=0;l<layers;l++){ const off=l%2;
-    for(let gy=off; gy<=GY-2; gy+=2) for(let gx=off; gx<=GX/2; gx+=2) cells.push({gx,gy,l}); }
+    for(let gy=gy0+off; gy<=GY-2; gy+=2) for(let gx=off; gx<=GX/2; gx+=2) cells.push({gx,gy,l}); }
   const has=new Set(); const key=(gx,gy,l)=>gx+','+gy+','+l;
   const add=(gx,gy,l)=>{ has.add(key(gx,gy,l)); if(gx!==GX-gx) has.add(key(GX-gx,gy,l)); };
   const supported=(gx,gy,l)=>{ if(l===0) return true; for(const [dx,dy] of [[-1,-1],[1,-1],[-1,1],[1,1],[0,0]]) if(has.has(key(gx+dx,gy+dy,l-1))) return true; return false; };
@@ -616,29 +622,31 @@ function makeStage(n,a){
   // assign snack types by simulating a random clear order: every 3 tiles removed in a row share a type
   const order=[]; const alive=new Set(tiles.map(t=>t.id));
   while(alive.size){ const free=[...alive].filter(id=>isFreeAmong(tiles[id],alive)); const pick=free[Math.floor(R()*free.length)]; order.push(pick); alive.delete(pick); }
-  for(let i=0;i<order.length;i+=3){ const k=Math.floor(R()*types); for(let j=0;j<3;j++) tiles[order[i+j]].k=k; }
+  for(let i=0;i<order.length;i+=3){ const k=n===0? (i/3)%types : Math.floor(R()*types); for(let j=0;j<3;j++) tiles[order[i+j]].k=k; }
   // specials
-  const iceP = n===0?0 : L>=15? Math.min(0.35, 0.08+(L-15)/250) : 0;
-  const hidP = n===0?0 : L>=30? Math.min(0.55, (L-20)/180) + (boss?0.1:0) : 0;
+  const iceP = n===0?0 : L>=(beg?20:15)? Math.min(0.35, 0.08+(L-15)/250) : 0;
+  const hidP = n===0?0 : L>=(beg?40:30)? Math.min(0.55, (L-20)/180) + (boss?0.1:0) : 0;
   tiles.forEach(tl=>{ if(R()<iceP) tl.ice=1; if(R()<hidP) tl.hidden=true; });
   // timer: none on early Beginner stages; tight on Hard; brutal on Expert
   const secsPerTile = a.dv([7,3.4,2.4], 1.8, 0.6);
   // v1.2: HARD gets 30 extra seconds on every timed stage (Andrew, 2 Oct)
-  timeMax = (n===0 || L<20)? 0 : Math.round(tiles.length*secsPerTile + 8) + (a.diff===1? 30 : 0);
+  // v1.7: Beginner stages 1-19 now have a very generous clock too (an idle player must never be safe forever)
+  timeMax = n===0? 0 : Math.round(tiles.length*(beg&&L<20? 10 : secsPerTile) + 8) + (a.diff===1? 30 : 0);
   timeLeft = timeMax;
   return {types, layers};
 }
 function overlaps(a,b){ return Math.abs(a.gx-b.gx)<2 && Math.abs(a.gy-b.gy)<2; }
 function isFreeAmong(tl, aliveSet){ for(const id of aliveSet){ const o=tiles[id]; if(o.l>tl.l && overlaps(o,tl)) return false; } return true; }
 function isFree(tl){ for(const o of tiles){ if(!o.gone && o.l>tl.l && overlaps(o,tl)) return false; } return true; }
-function tilePos(tl){ const bw=(GXW+2)*TW/2; const bx=(W-bw)/2+6; return {x:bx+tl.gx*TW/2 - tl.l*3, y:BY+tl.gy*TH/2*0.86 - tl.l*6}; }
-function slotPos(i){ const sw=(W-40)/SLOTS; return {x:20+i*sw+(sw-TW*TS)/2, y:TRAY_Y+8}; }
+function tilePos(tl){ const bw=(GXW+2)*TW/2; const bx=TRAY_X+(TRAY_W-bw)/2+6; return {x:bx+tl.gx*TW/2 - tl.l*3, y:BY+tl.gy*TH/2*0.86 - tl.l*6}; }
+function slotPos(i){ const sw=(TRAY_W-16)/SLOTS; return {x:TRAY_X+8+i*sw+(sw-TW*TS)/2, y:TRAY_Y+(TRAY_H-TH*TS)/2}; }
 
 const GAME = window.GAME = {
   id:'snack-stack', title:'Snack Stack', titleHTML:'SNACK<br>STACK', tagline:'Match 3 · Mzansi snack attack',
-  build:'BUILD-ST-1.6 · 2026-10-17', theme:{a:'#ffb000', b:'#1fc36b', bg:'#0b1a12'},
-  w:W, h:H, stages:100, lives:3, livesIcon:'♥', joystick:false, coinPts:60,
+  build:'BUILD-ST-1.7 · 2026-10-26', theme:{a:'#ffb000', b:'#1fc36b', bg:'#0b1a12'},
+  landscape:true, race:true, w:W, h:H, stages:100, lives:3, livesIcon:'♥', joystick:false, coinPts:60,
   abilities:[
+    {id:'pick', icon:'👆', name:'PICK', cd:0, key:'Space', keyLabel:'SPC', desc:'FREE — puts the snack under the yellow cursor into the tray (move the cursor with the arrow keys / WASD). On a phone just tap a snack.'},
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows the best snack to tap next.'},
     {id:'undo', icon:'↩️', name:'UNDO', cd:12, key:'Digit2', keyLabel:'2', desc:'Puts your last snack back on the board.'},
     {id:'shuffle', icon:'🔀', name:'SHUFFLE', cd:22, key:'Digit3', keyLabel:'3', desc:'Mixes up all the snacks left on the board.'},
@@ -659,10 +667,10 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ffb000,#1fc36b)'}
   ],
   story:`<h3>GOGO'S SNACK FESTIVAL</h3><p>Every year Gogo Thandi runs the biggest snack festival in Mzansi from her little spaza shop. This year a wild wind blew through the market and stacked every snack into a giant wobbly tower!</p><p>You're Gogo's helper. Sort the snacks back onto the counter tray in sets of three before the festival opens.</p><h3>THE SNACKS</h3><p>Bunny chow, koeksisters, biltong, boerewors rolls, vetkoek, melktert, rusks, samoosas, mealies, sosaties, naartjies, rooibos, lamb chops, malva pudding, droëwors and chakalaka.</p><p>Watch out for <b>frozen snacks</b> 🧊 fresh from the freezer, and <b>covered snacks</b> hiding under their wrappers.</p>`,
-  howto:`<h3>GOAL</h3><p>Clear every snack from the board.</p><h3>HOW TO PLAY</h3><ul><li>Tap a snack that isn't covered. It jumps to the <b>tray</b> at the top.</li><li>Get <b>3 of the same</b> in the tray and they clear.</li><li>The tray holds <b>7</b>. If it fills up, you lose a life.</li><li>Dark snacks are covered — clear what's on top first.</li><li>🧊 <b>Frozen snacks</b> need one tap to crack the ice first.</li><li>❓ <b>Wrapped snacks</b> only show what they are when nothing is on top of them.</li><li>On harder stages there's a <b>timer</b> — clear the board before it runs out.</li></ul><h3>ABILITIES</h3><ul><li>💡 <b>HINT</b> <span class="key">1</span> — shows the best snack to tap</li><li>↩️ <b>UNDO</b> <span class="key">2</span> — puts the last snack back</li><li>🔀 <b>SHUFFLE</b> <span class="key">3</span> — mixes up the board</li><li>🧲 <b>MAGNET</b> <span class="key">4</span> — finishes a set of 3 for you</li></ul>`,
+  howto:`<h3>GOAL</h3><p>Clear every snack from the board before the clock runs out.</p><p>📱 <b>Hold your phone sideways.</b></p><h3>CONTROLS</h3><ul><li><b>Phone:</b> tap a bright snack with either thumb. Ability buttons are on the <b>left</b>, 👆 PICK is bottom-<b>right</b>.</li><li><b>PC:</b> click a snack — or move the yellow cursor with <span class="key">←↑↓→</span> / <span class="key">WASD</span> and press <span class="key">SPACE</span>.</li></ul><h3>HOW TO PLAY</h3><ul><li>A snack you pick jumps to the <b>tray</b> under the board.</li><li>Get <b>3 of the same</b> in the tray and they clear. Snacks that would finish a set <b>glow green</b>.</li><li>The tray holds <b>7</b> (<b>8</b> on Beginner). If it fills up, you lose a life.</li><li>The <b>goals panel</b> on the right shows what's left and the clock.</li><li>Dark snacks are covered — clear what's on top first.</li><li>🧊 <b>Frozen snacks</b> need one tap to crack the ice first.</li><li>❓ <b>Wrapped snacks</b> only show what they are when nothing is on top of them.</li><li>On harder stages there's a <b>timer</b> — clear the board before it runs out.</li></ul><h3>ABILITIES</h3><ul><li>💡 <b>HINT</b> <span class="key">1</span> — shows the best snack to tap</li><li>↩️ <b>UNDO</b> <span class="key">2</span> — puts the last snack back</li><li>🔀 <b>SHUFFLE</b> <span class="key">3</span> — mixes up the board</li><li>🧲 <b>MAGNET</b> <span class="key">4</span> — finishes a set of 3 for you</li></ul>`,
   tutorial:[
-    {text:'Tap a bright snack (one that isn\'t covered). It goes into the tray at the top.', ev:'tap'},
-    {text:'Collect <b>3 of the same snack</b> in the tray to clear them!', ev:'triple'},
+    {text:'Click a bright snack (one that isn\'t covered) — or use the arrow keys and SPACE. It drops into the tray below.', touch:'📱 Hold your phone sideways. <b>Tap</b> a bright snack (one that isn\'t covered). It drops into the tray below.', ev:'tap'},
+    {text:'Collect <b>3 of the same snack</b> in the tray to clear them! Green glow = that snack finishes a set.', ev:'triple'},
     {text:'Stuck? Tap <b>💡 HINT</b> (key 1) to see the best move.', ev:'ab_hint'},
     {text:'Made a mistake? <b>↩️ UNDO</b> (key 2) puts the last snack back.', ev:'ab_undo'},
     {text:'<b>🧲 MAGNET</b> (key 4) finishes a set of 3 for you — try it!', ev:'ab_magnet'},
@@ -672,51 +680,56 @@ const GAME = window.GAME = {
   bossName:'MEGA SNACK TOWER!',
   ending:{"0":["#THE FESTIVAL OPENS","The last three koeksisters click into place, and the counter is spotless.","Gogo Thandi flings open the spaza shop doors. The queue stretches all the way down the street.","Bunny chows fly out the window. Biltong disappears by the handful. Somebody's uncle starts a braai on the pavement.","#GOGO'S HELPER","Gogo pinches your cheek and hands you the first vetkoek of the day, still warm.","\"Same time next year?\" she laughs.","You already know the answer."],"1":["#THE SECRET RECIPE","With the festival running smoothly, Gogo pulls you into the back room.","Behind the sacks of mielie meal is an old tin box. Inside is her mother's handwritten recipe book — the secret behind the most famous koeksisters in Mzansi.","But three pages are missing. Someone took them during the great snack storm.","#THE TRAIL OF CRUMBS","You follow the crumbs: past the taxi rank, through the market, all the way to a flashy new snack chain that opened across the road.","Their \"secret\" koeksisters taste exactly like Gogo's.","#HOME TIME","You march in with a tray of the real thing. The whole queue follows you. One bite, and everybody knows which ones are the original.","The missing pages come home that night, and Gogo frames them above the counter.","\"Recipes are meant to be shared,\" she says, \"but with the family's name on them.\""],"2":["#THE TRUE ENDING","Nobody clears the Mega Snack Tower on Expert. The clock is too fast. The stacks are too deep. The wrapped snacks never show their faces.","You cleared a hundred of them.","#THE GOLDEN SPOON","Word travels fast in Mzansi. By morning, the whole township knows that Gogo's helper is the fastest snack-sorter the country has ever seen.","A black car pulls up outside the spaza shop. Out steps the judge of the National Food Festival, holding a golden spoon.","\"We've heard about you,\" she says. \"We need someone to run the biggest kitchen in Africa for one day.\"","#THE BIG DAY","Ten thousand guests. Two hundred cooks. Every snack from every corner of the country, stacked to the ceiling.","You sort it all. Not one dish is late. Not one bunny chow is cold.","#THE FEAST","When the sun goes down, the whole stadium sings. Gogo sits in the front row in her Sunday best, crying happy tears into her rooibos.","The judge hands you the golden spoon.","#LEGEND","Back home, a new sign hangs above the spaza shop, painted in gold:","GOGO THANDI & GRANDCHILD — SNACK LEGENDS.","And every year since, the first koeksister of the festival is saved for you."]},
 
-  _dbg(){ return {get tiles(){return tiles;}, get tray(){return tray;}, get timeLeft(){return timeLeft;}}; },
+  _dbg(){ return {get tiles(){return tiles;}, get tray(){return tray;}, get timeLeft(){return timeLeft;}, get timeMax(){return timeMax;}, get slots(){return SLOTS;}, get cur(){return cur;}, get done(){return done;}, isFree, tilePos, TW, TH}; },
   init(a){ api=a; },
   startStage(n,a){
-    api=a; stageN=a.content; t=0; tray=[]; flying=[]; clearing=[]; hist=[]; done=false; hintT=0; hintIds=[]; lost=false; shakeT=0; lastTap=null;
+    api=a; stageN=a.content; t=0; tray=[]; flying=[]; clearing=[]; hist=[]; done=false; hintT=0; hintIds=[]; lost=false; shakeT=0; lastTap=null; cur=-1;
     this._n=n; makeStage(n,a);
   },
   respawn(){ const a=api; this.startStage(this._n, a); api.toast('TRY AGAIN!'); },
   stageBonus(){ return Math.round(timeLeft*20); },
   useAbility(id){
     if(done||lost) return false;
+    if(id==='pick'){ const tl=tiles[cur]; if(!kbd||!tl||tl.gone||!isFree(tl)){ kbd=true; moveCur(0,0); return cur>=0; } tapTile(tl); return true; }
     if(id==='hint'){ const ids=findHint(); if(!ids.length) return false; hintIds=ids; hintT=3.5; api.sfx.pickup(); return true; }
-    if(id==='undo'){ const h=hist[hist.length-1]; if(!h) return false; const ti=tray.findIndex(x=>x.id===h); if(ti<0){ hist.pop(); return false; } hist.pop(); tray.splice(ti,1); tiles[h].gone=false; tiles[h].fx=1; api.sfx.bump(); return true; }
+    if(id==='undo'){ const h=hist[hist.length-1]; if(h===undefined) return false; const ti=tray.findIndex(x=>x.id===h); if(ti<0){ hist.pop(); return false; } hist.pop(); tray.splice(ti,1); tiles[h].gone=false; tiles[h].fx=1; api.sfx.bump(); return true; }
     if(id==='shuffle'){ const left=tiles.filter(x=>!x.gone); if(left.length<3) return false; const ks=left.map(x=>x.k); for(let i=ks.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [ks[i],ks[j]]=[ks[j],ks[i]]; } left.forEach((x,i)=>{ x.k=ks[i]; x.fx=1; }); api.sfx.power(); api.fx.flash('#ffffff',.2); return true; }
     if(id==='magnet'){ return magnet(); }
+  },
+  onKey(code,down){
+    if(!down||done||lost) return; const d={ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0],ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1]}[code];
+    if(!d) return; const tl=tiles[cur]; if(!kbd||!tl||tl.gone||!isFree(tl)){ kbd=true; moveCur(0,0); } else moveCur(d[0],d[1]);
   },
   onPointer(type,x,y){
     if(type!=='down' || done || lost) return;
     // top-most tile under the pointer
     let hit=null; for(const tl of tiles){ if(tl.gone) continue; const p=tilePos(tl); if(x>=p.x && x<=p.x+TW && y>=p.y && y<=p.y+TH-6){ if(!hit || tl.l>hit.l || (tl.l===hit.l && tl.gy>hit.gy)) hit=tl; } }
-    if(!hit) return;
-    if(!isFree(hit)){ api.sfx.bump(); hit.fx=0.6; shakeT=0.15; return; }
-    if(hit.ice>0){ hit.ice=0; hit.fx=1; api.sfx.small(); const p=tilePos(hit); api.fx.burst(p.x+TW/2,p.y+TH/2,'#bff6ff',16,160,.4,3); return; }
-    pickTile(hit);
+    if(hit) tapTile(hit);
   },
   update(dt){
     t+=dt; if(hintT>0) hintT-=dt; if(shakeT>0) shakeT-=dt;
     tiles.forEach(x=>{ if(x.fx>0) x.fx=Math.max(0,x.fx-dt*3); });
     for(let i=flying.length-1;i>=0;i--){ const f=flying[i]; f.t+=dt*4.2; if(f.t>=1){ flying.splice(i,1); } }
     for(let i=clearing.length-1;i>=0;i--){ const c=clearing[i]; c.t+=dt*2.6; if(c.t>=1) clearing.splice(i,1); }
+    if(kbd && cur>=0){ const tl=tiles[cur]; if(!tl||tl.gone||!isFree(tl)) moveCur(0,0); }
     if(timeMax>0 && !done && !lost && stageN>0){ timeLeft=Math.max(0,timeLeft-dt);
       const lv=timeLeft<10?'empty':timeLeft<25?'low':''; api.counter('⏱ TIME', fmt(timeLeft), lv);
       if(timeLeft<=0){ lose('TIME UP!'); } }
     else if(stageN>0 && !done) api.counter('🍽 LEFT', tiles.filter(x=>!x.gone).length+'', '');
-    if(!done && !lost && tiles.every(x=>x.gone) && tray.length===0 && !flying.length){ done=true; api.sfx.clear(); api.fx.flash('#fff',.4); for(let i=0;i<5;i++) api.fx.burst(Math.random()*W,300+Math.random()*400,'#ffb000',24,280,1,3); setTimeout(()=>api.stageClear(),900); }
+    if(!done && !lost && tiles.every(x=>x.gone) && tray.length===0 && !flying.length){ done=true; api.sfx.clear(); api.fx.flash('#fff',.4); for(let i=0;i<5;i++) api.fx.burst(160+Math.random()*620,160+Math.random()*380,'#ffb000',24,280,1,3); setTimeout(()=>api.stageClear(),900); }
+    else if(!done && !lost && tiles.every(x=>x.gone) && !flying.length && !hasTriple()) lose('NO MATCH LEFT!');
+    if((t*4|0)!==(((t-dt)*4)|0)) placeBars();
   },
   render(c){
     const tb=api.cos('Table').colors, skin=api.cos('Tiles');
-    const g=c.createRadialGradient(W/2,H*0.55,60,W/2,H*0.55,H*0.8); g.addColorStop(0,tb[1]); g.addColorStop(1,tb[0]); c.fillStyle=g; c.fillRect(0,0,W,H);
+    const g=c.createRadialGradient(470,H*0.5,60,470,H*0.5,W*0.7); g.addColorStop(0,tb[1]); g.addColorStop(1,tb[0]); c.fillStyle=g; c.fillRect(0,0,W,H);
     // subtle shweshwe-style pattern
-    c.save(); c.globalAlpha=0.07; c.strokeStyle='#fff'; for(let y=150;y<H;y+=36) for(let x=(y/36%2)*18;x<W;x+=36){ c.beginPath(); c.arc(x,y,5,0,Math.PI*2); c.stroke(); } c.restore();
-    // tray
-    c.fillStyle='rgba(70,35,10,0.85)'; rr(c,10,TRAY_Y,W-20,TRAY_H,18); c.fill(); c.strokeStyle='#ffb000'; c.lineWidth=3; c.stroke();
-    for(let i=0;i<SLOTS;i++){ const p=slotPos(i); c.fillStyle= i>=SLOTS-2 && tray.length>=5 ? 'rgba(255,60,60,0.25)' : 'rgba(0,0,0,0.3)'; rr(c,p.x,p.y,TW*TS,TH*TS,10); c.fill(); }
-    // timer bar
-    if(timeMax>0){ const f=timeLeft/timeMax; c.fillStyle='rgba(255,255,255,0.1)'; c.fillRect(20,TRAY_Y+TRAY_H+10,W-40,8); c.fillStyle=f<0.2?'#ff3b3b':f<0.4?'#ffe14a':'#1fc36b'; c.fillRect(20,TRAY_Y+TRAY_H+10,(W-40)*f,8); }
+    c.save(); c.globalAlpha=0.07; c.strokeStyle='#fff'; for(let y=90;y<H;y+=36) for(let x=(y/36%2)*18;x<W;x+=36){ c.beginPath(); c.arc(x,y,5,0,Math.PI*2); c.stroke(); } c.restore();
+    // what's about to clear: snacks with 2 in the tray (a 3rd finishes the set) / 3 in the tray (popping now)
+    const cnt={}; tray.forEach(x=>cnt[x.k]=(cnt[x.k]||0)+1); const pulse=0.55+0.45*Math.sin(t*9);
+    // tray (under the board)
+    c.fillStyle='rgba(70,35,10,0.88)'; rr(c,TRAY_X,TRAY_Y,TRAY_W,TRAY_H,18); c.fill(); c.strokeStyle='#ffb000'; c.lineWidth=3; c.stroke();
+    for(let i=0;i<SLOTS;i++){ const p=slotPos(i); c.fillStyle= i>=SLOTS-2 && tray.length>=SLOTS-2 ? 'rgba(255,60,60,0.3)' : 'rgba(0,0,0,0.3)'; rr(c,p.x,p.y,TW*TS,TH*TS,10); c.fill(); }
     // board tiles (bottom layer first, then by row)
     const order=tiles.filter(x=>!x.gone).sort((p,q)=>p.l-q.l || p.gy-q.gy || p.gx-q.gx);
     for(const tl of order){ const p=tilePos(tl), free=isFree(tl);
@@ -727,13 +740,17 @@ const GAME = window.GAME = {
       else { c.drawImage(tileIcon(tl.k,skin),0,0,TW,TH); }
       if(tl.ice>0){ c.fillStyle='rgba(180,235,255,0.55)'; rr(c,2,1,TW-4,TH-8,11); c.fill(); c.strokeStyle='#e8fbff'; c.lineWidth=2; c.beginPath(); c.moveTo(10,12); c.lineTo(24,30); c.lineTo(18,44); c.moveTo(48,10); c.lineTo(40,34); c.stroke(); c.font='16px sans-serif'; c.fillText('🧊',TW-18,18); }
       if(!free){ c.fillStyle='rgba(0,0,0,0.34)'; rr(c,2,1,TW-4,TH-8,11); c.fill(); }
+      else if(api.diff<2 && cnt[tl.k]===2 && !tl.ice){ c.strokeStyle='#4dff9a'; c.lineWidth=4; c.globalAlpha=pulse; rr(c,0,-1,TW,TH-4,12); c.stroke(); c.globalAlpha=1; }
       if(hintT>0 && hintIds.includes(tl.id)){ c.strokeStyle='#fff45a'; c.lineWidth=4; c.globalAlpha=0.6+0.4*Math.sin(t*10); rr(c,0,-1,TW,TH-4,12); c.stroke(); c.globalAlpha=1; }
+      if(kbd && tl.id===cur){ c.strokeStyle='#ffe14a'; c.lineWidth=5; c.setLineDash([10,6]); c.lineDashOffset=-t*30; rr(c,-3,-4,TW+6,TH+2,14); c.stroke(); c.setLineDash([]); }
       c.restore(); }
-    // tray contents
+    // tray contents (pairs glow green, sets of 3 flash gold just before they clear)
     tray.forEach((it,i)=>{ const p=slotPos(i); const f=flying.find(f=>f.id===it.id);
       let x=p.x, y=p.y; if(f){ const e=1-Math.pow(1-Math.min(1,f.t),3); x=f.sx+(p.x-f.sx)*e; y=f.sy+(p.y-f.sy)*e - Math.sin(e*Math.PI)*60; }
-      c.drawImage(tileIcon(it.k,skin),x,y,TW*TS,TH*TS); });
+      c.drawImage(tileIcon(it.k,skin),x,y,TW*TS,TH*TS);
+      const n=cnt[it.k]; if(n>=2 && !f){ c.save(); c.strokeStyle=n>=3?'#fff4a0':'#4dff9a'; c.lineWidth=n>=3?6:3; c.globalAlpha=n>=3?1:pulse; if(n>=3){ c.shadowColor='#ffb000'; c.shadowBlur=18; } rr(c,x-2,y-2,TW*TS+4,TH*TS-2,11); c.stroke(); c.restore(); } });
     clearing.forEach(cl=>{ const s=1+cl.t*0.6; c.save(); c.globalAlpha=1-cl.t; c.translate(cl.x+TW*TS/2,cl.y+TH*TS/2); c.scale(s,s); c.drawImage(tileIcon(cl.k,skin),-TW*TS/2,-TH*TS/2,TW*TS,TH*TS); c.restore(); });
+    panel(c,skin,cnt);
     if(lost){ c.fillStyle='rgba(0,0,0,0.5)'; c.fillRect(0,0,W,H); }
   },
   attract(c,tt){
@@ -742,6 +759,46 @@ const GAME = window.GAME = {
   }
 };
 function fmt(s){ s=Math.ceil(s); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+/* tap / SPACE on one tile: covered -> bump, frozen -> crack the ice, else into the tray */
+function tapTile(hit){
+  if(!isFree(hit)){ api.sfx.bump(); hit.fx=0.6; shakeT=0.15; return; }
+  if(hit.ice>0){ hit.ice=0; hit.fx=1; api.sfx.small(); const p=tilePos(hit); api.fx.burst(p.x+TW/2,p.y+TH/2,'#bff6ff',16,160,.4,3); return; }
+  pickTile(hit);
+}
+/* keyboard cursor: jumps between snacks you can pick (never moves by itself — only on a key press) */
+let curP={x:470,y:350};
+function ctr(tl){ const p=tilePos(tl); return {x:p.x+TW/2,y:p.y+TH/2}; }
+function moveCur(dx,dy){ const fl=tiles.filter(x=>!x.gone&&isFree(x)); if(!fl.length){ cur=-1; return; }
+  let best=null,bs=1e9;
+  for(const tl of fl){ if(tl.id===cur&&(dx||dy)) continue; const q=ctr(tl), vx=q.x-curP.x, vy=q.y-curP.y; let sc;
+    if(!dx&&!dy) sc=Math.hypot(vx,vy); else { const al=vx*dx+vy*dy, pe=Math.abs(vx*dy-vy*dx); if(al<8) continue; sc=al+pe*2.2; }
+    if(sc<bs){ bs=sc; best=tl; } }
+  if(best){ cur=best.id; curP=ctr(best); } else if(!tiles[cur]||tiles[cur].gone||!isFree(tiles[cur])) moveCur(0,0); }
+/* right-hand goals panel: snacks left, clock, tray room, and which snacks are still on the board */
+function bar(c,x,y,w,h,f,col){ c.fillStyle='rgba(255,255,255,0.12)'; rr(c,x,y,w,h,h/2); c.fill(); if(f>0){ c.fillStyle=col; rr(c,x,y,Math.max(h,w*Math.min(1,f)),h,h/2); c.fill(); } }
+function panel(c,skin,cnt){
+  const x0=RX0, w=RX1-RX0, bot=raceOn?392:505, y0=api.tutorial?236:80;
+  c.fillStyle='rgba(25,12,4,0.78)'; rr(c,x0,y0,w,bot-y0,18); c.fill(); c.strokeStyle='#ffb000'; c.lineWidth=2; c.stroke();
+  const left=tiles.filter(x=>!x.gone).length, tot=tiles.length||1;
+  c.textAlign='left'; c.fillStyle='#ffb000'; c.font='bold 26px Orbitron, Arial, sans-serif'; c.fillText(api.tutorial?'TUTORIAL':api.boss?'MEGA TOWER!':'GOALS',x0+18,y0+36);
+  c.fillStyle='#fff'; c.font='bold 23px Arial, sans-serif'; c.fillText('🍽 Snacks left: '+left+' / '+tiles.length,x0+18,y0+70);
+  bar(c,x0+18,y0+80,w-36,13,1-left/tot,'#1fc36b');
+  let y=y0+124;
+  if(timeMax>0){ const f=timeLeft/timeMax; c.fillStyle=f<0.2?'#ff6b6b':'#fff'; c.fillText('⏱ Time: '+fmt(timeLeft),x0+18,y); bar(c,x0+18,y+10,w-36,13,f,f<0.2?'#ff3b3b':f<0.4?'#ffe14a':'#1fc36b'); y+=50; }
+  const full=tray.length>=SLOTS-2; c.fillStyle=full?'#ff6b6b':'#fff'; c.fillText('🧺 Tray: '+tray.length+' / '+SLOTS+(full?' CAREFUL!':''),x0+18,y); y+=32;
+  const ks={}; let hid=0; tiles.forEach(tl=>{ if(tl.gone) return; if(tl.hidden&&!isFree(tl)) hid++; else ks[tl.k]=(ks[tl.k]||0)+1; });
+  c.fillStyle='#ffd27a'; c.font='bold 17px Arial, sans-serif'; c.fillText('ON THE BOARD'+(api.diff<2?' · green = makes a set':''),x0+18,y); y+=10;
+  const list=Object.keys(ks).map(Number); if(hid) list.push(-1);
+  const cols=6, cw=(w-28)/cols, iw=50, ih=58; let i=0;
+  for(const k of list){ const r=(i/cols)|0, cx=x0+14+(i%cols)*cw+(cw-iw)/2, cy=y+r*(ih+8); if(cy+ih>bot-6) break; i++;
+    if(k<0){ c.fillStyle='#7a4a22'; rr(c,cx,cy,iw,ih-4,8); c.fill(); c.fillStyle='#ffe0a0'; c.font='bold 22px Arial'; c.textAlign='center'; c.fillText('?',cx+iw/2,cy+30); }
+    else { c.drawImage(tileIcon(k,skin),cx,cy,iw,ih); if(api.diff<2&&cnt[k]===2){ c.strokeStyle='#4dff9a'; c.lineWidth=3; rr(c,cx-1,cy-1,iw+2,ih-2,8); c.stroke(); } }
+    const n=k<0?hid:ks[k]; c.fillStyle='#000'; c.beginPath(); c.arc(cx+iw-3,cy+ih-8,13,0,Math.PI*2); c.fill(); c.fillStyle='#fff'; c.font='bold 16px Arial'; c.textAlign='center'; c.fillText(n,cx+iw-3,cy+ih-2.5); c.textAlign='left'; }
+}
+/* RACE: park the shell's progress bars in the free slot under the goals panel (never over the board) */
+function placeBars(){ const el=document.getElementById('mpBars'), on=!!(el&&el.style.display!=='none'&&el.innerHTML); raceOn=on; if(!on) return;
+  const cv=document.getElementById('game'); if(!cv) return; const b=cv.getBoundingClientRect(), k=b.width/W; const S=(p,v)=>el.style.setProperty(p,v,'important');
+  S('left',(b.left+(RX0+10)*k)+'px'); S('top',(b.top+404*k)+'px'); S('bottom','auto'); S('transform','none'); S('flex-direction','column'); S('max-width',((RX1-RX0-20)*k)+'px'); }
 function pickTile(tl, silent){
   const p=tilePos(tl); tl.gone=true; hist.push(tl.id);
   // insert next to the same snack in the tray
@@ -753,9 +810,9 @@ function pickTile(tl, silent){
   // check triples
   const same=tray.filter(x=>x.k===tl.k);
   if(same.length>=3){
-    setTimeout(()=>{ if(lost) return; const rm=tray.filter(x=>x.k===tl.k).slice(0,3); rm.forEach(r=>{ const i=tray.indexOf(r); const sp=slotPos(i); clearing.push({k:r.k,x:sp.x,y:sp.y,t:0}); });
+    setTimeout(()=>{ if(lost) return; const rm=tray.filter(x=>x.k===tl.k).slice(0,3); if(rm.length<3) return;  /* v1.7 fix: a fast 4th tap used to clear a lone snack */ rm.forEach(r=>{ const i=tray.indexOf(r); const sp=slotPos(i); clearing.push({k:r.k,x:sp.x,y:sp.y,t:0}); });
       tray=tray.filter(x=>!rm.includes(x)); hist=hist.filter(h=>!rm.some(r=>r.id===h));
-      const sp=slotPos(Math.max(0,idx-1)); api.addScore(30*(1+api.dk*0.5), sp.x+TW/2, sp.y+TH); api.sfx.pickup(); api.fx.burst(sp.x+TW/2,sp.y+TH/2,'#ffb000',20,220,.6,3); api.event('triple'); }, 240);
+      const sp=slotPos(Math.max(0,idx-1)); api.addScore(30*(1+api.dk*0.5), sp.x+TW/2, sp.y-10); api.sfx.pickup(); api.fx.burst(sp.x+TW/2,sp.y+TH/2,'#ffb000',20,220,.6,3); api.event('triple'); }, 240);
   } else if(tray.length>=SLOTS && !silent){ setTimeout(()=>{ if(tray.length>=SLOTS && !done && !hasTriple()) lose('TRAY FULL!'); }, 300); }
 }
 function hasTriple(){ const c={}; for(const x of tray){ c[x.k]=(c[x.k]||0)+1; if(c[x.k]>=3) return true; } return false; }
