@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-TR-1.4 · 2026-10-17">
+<meta name="build" content="BUILD-TR-1.5 · 2026-10-26">
 <title>Taxi Rank Jam</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-TR-1.4 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-TR-1.5 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,11 +489,15 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* TAXI RANK JAM — parking-jam puzzle remix (#25): get every minibus taxi out of the rank */
+/* TAXI RANK JAM — parking-jam puzzle remix (#25): get every minibus taxi out of the rank.
+   LANDSCAPE (SHELL-LANDSCAPE-1): 1280x720. Rank (grid) centred, passenger queue on the left (x140-320), info panel on the right
+   (x990-1260, y<500). Keep-clear: HUD y<80, ability column x<130, action button x>980&&y>520.
+   RACE: every stage is built from its own seeded generator (stage number + difficulty), built BACKWARDS so it is always solvable —
+   both racers get the identical rank. Progress = taxis left (numeric api.counter). */
 (function(){
-const W=600, H=900, TOPY=150;
+const W=1280, H=720, PX=990, PW=270;
 const STRIPES=['#ffcc00','#e8383d','#1e9bd7','#2fb45a','#ff7a1a','#8e44ad','#00b3a4','#ff4fa3'];
-let api, t, N, CS, OX, OY, taxis, cones, moves, moveLimit, timeLeft, timeMax, done, lost, hist, hintT, hintId, anims, craneArmed, stageN, extra;
+let api, t, N, CS, OX, OY, taxis, cones, moves, moveLimit, timeLeft, timeMax, done, lost, hist, hintT, hintId, anims, craneArmed, stageN, cur, ptop=96, raceOn=false, barT=0, easyB=false, freeSet=new Set(), people=[];
 
 function rng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let x=Math.imul(s^s>>>15,1|s); x=x+Math.imul(x^x>>>7,61|x)^x; return ((x^x>>>14)>>>0)/4294967296; }; }
 function cells(tx){ const out=[]; for(let i=0;i<tx.len;i++) out.push(tx.h? [tx.x+i,tx.y] : [tx.x,tx.y+i]); return out; }
@@ -503,46 +507,57 @@ function path(tx){ const out=[]; if(tx.h){ if(tx.f>0) for(let x=tx.x+tx.len;x<N;
 function occ(list){ const m=new Map(); list.forEach(tx=>{ if(!tx.gone) cells(tx).forEach(([x,y])=>m.set(x+','+y,tx)); }); cones.forEach(([x,y])=>m.set(x+','+y,'cone')); return m; }
 function blocker(tx){ const m=occ(taxis); for(const [x,y] of path(tx)){ const o=m.get(x+','+y); if(o && o!==tx) return {o,x,y}; } return null; }
 
-/* ---------- stage builder: built backwards, so every stage is always solvable ---------- */
+/* ---------- stage builder: built backwards, so every stage is always solvable. Seeded by stage + difficulty only (race-safe) ---------- */
 function makeStage(n,a){
-  const R=rng(n===0?31:n*6151+a.diff*977+11), L=a.level, boss=a.boss;
-  N = n===0? 5 : Math.min(9, Math.round(a.dv([5.5,7,8],9,9)) + (boss?1:0));
-  CS = Math.min(84, Math.floor(560/N)); OX=(W-N*CS)/2; OY=TOPY+Math.max(0,(640-N*CS)/2);
-  const fill = n===0? 0.45 : Math.min(0.9, a.dv([0.55,0.72,0.82],0.86,0.92));
+  const R=rng(n===0?31:n*6151+a.diff*977+11), L=a.level, boss=a.boss, beg=a.diff===0;
+  easyB = n===0 || (beg && n<=10);
+  if(n===0) N=5;
+  else if(beg) N=(n<=3?4: n<=10?5: n<=30?6: n<=60?7:8) + (boss&&n>10?1:0);
+  else N=Math.min(9, Math.round(a.dv([5.5,7,8],9,9)) + (boss?1:0));
+  const tut=!!a.tutorial, top=tut?268:100, bot=tut?690:690, SZ=Math.min(bot-top-80+40, 560);
+  CS=Math.min(110, Math.floor(SZ/N)); OX=Math.round(640-N*CS/2); OY=Math.round((top+bot)/2-N*CS/2);
+  const fill = n===0? 0.45 : easyB? (n<=3?0.5:0.55) : beg? Math.min(0.85,0.6+n*0.003) : Math.min(0.9, a.dv([0.55,0.72,0.82],0.86,0.92));
+  const p3 = easyB? 0.1 : a.dv([0.2,0.35,0.45],0.5,0.6), pBlk = n===0? 0.3 : easyB? 0.4 : a.dv([0.5,0.75,0.9],0.95,0.99);
   cones=[];
   if(n>0 && L>=30){ const nc=Math.min(6, Math.floor((L-20)/30)+(boss?1:0)); for(let i=0;i<nc;i++) cones.push([1+Math.floor(R()*(N-2)),1+Math.floor(R()*(N-2))]); }
   taxis=[]; let guard=0;
-  const coneSet=new Set(cones.map(c=>c[0]+','+c[1]));
   while(guard++<3000){
     const used=taxis.reduce((s,tx)=>s+tx.len,0)+cones.length; if(used>=N*N*fill) break;
-    const h=R()<0.5, len=R()<(n===0?0.1:a.dv([0.2,0.35,0.45],0.5,0.6))?3:2, f=R()<0.5?1:-1;
+    const h=R()<0.5, len=(N>4 && R()<p3)?3:2, f=R()<0.5?1:-1;
     const x=Math.floor(R()*(h?N-len+1:N)), y=Math.floor(R()*(h?N:N-len+1));
     const tx={x,y,h,len,f};
     const m=occ(taxis); if(cells(tx).some(([cx,cy])=>m.has(cx+','+cy))) continue;
     // placed later = drives out EARLIER, so its exit path must be clear of every taxi placed so far (and cones)
     if(path(tx).some(([cx,cy])=>m.has(cx+','+cy))) continue;
-    // prefer spots that block taxis already placed (makes a real jam); on easy stages accept more freely
+    // prefer spots that block taxis already placed (makes a real jam); easy stages accept more freely
     const blocks=taxis.filter(o=>path(o).some(([px,py])=>cells(tx).some(([cx,cy])=>cx===px&&cy===py))).length;
-    if(blocks===0 && R()<(n===0?0.3:a.dv([0.5,0.75,0.9],0.95,0.99))) continue;
+    if(blocks===0 && R()<pBlk) continue;
     taxis.push(tx);
   }
   taxis.forEach((tx,i)=>{ tx.id=i; tx.col=STRIPES[Math.floor(R()*STRIPES.length)]; tx.gone=false; tx.bump=0; });
   const need=taxis.length;
-  moveLimit = (n===0 || L<25)? 0 : need + Math.max(0, Math.round(a.dv([8,4,2],1,0))) + (boss?2:0);
-  timeMax = (n===0 || L<15)? 0 : Math.round(need*a.dv([6,3.2,2],1.6,0.35) + 6); timeLeft=timeMax;
+  if(beg) moveLimit = (n===0 || n<=30)? 0 : need+8+(boss?2:0);
+  else moveLimit = (n===0 || L<25)? 0 : need + Math.max(0, Math.round(a.dv([8,4,2],1,0))) + (boss?2:0);
+  // every real stage has a clock (an idle player must never clear a stage). Beginner: very generous.
+  if(n===0) timeMax=0;
+  else if(beg) timeMax = easyB? need*12+45 : Math.round(need*Math.max(4.5, 9-n*0.05)+20);
+  else timeMax = Math.round(need*a.dv([6,3.2,2],1.6,0.35) + 6);
+  timeLeft=timeMax;
+  people=[]; for(let i=0;i<14;i++) people.push({c:STRIPES[Math.floor(R()*8)], s:R()<0.5, ph:R()*6});
 }
 function left(){ return taxis.filter(tx=>!tx.gone).length; }
 function freeTaxi(){ return taxis.find(tx=>!tx.gone && !blocker(tx)); }
+function taxiAt(gx,gy){ return taxis.find(q=>!q.gone && cells(q).some(([cx,cy])=>cx===gx&&cy===gy)); }
 
 const GAME = window.GAME = {
   id:'taxi-rank-jam', title:'Taxi Rank Jam', titleHTML:'TAXI RANK<br>JAM', tagline:'Clear the rank · Beat the rush',
-  build:'BUILD-TR-1.4 · 2026-10-17', theme:{a:'#ffcc00', b:'#1e9bd7', bg:'#1b1d24'},
-  w:W, h:H, stages:100, lives:3, livesIcon:'🚐', joystick:false, coinPts:40,
+  build:'BUILD-TR-1.5 · 2026-10-26', theme:{a:'#ffcc00', b:'#1e9bd7', bg:'#1b1d24'},
+  landscape:true, race:true, w:W, h:H, stages:100, lives:3, livesIcon:'🚐', joystick:false, coinPts:40,
   abilities:[
+    {id:'go', icon:'🚦', name:'GO', cd:0, key:'Space', keyLabel:'SPC', desc:'FREE — drives the taxi in the yellow box (PC: pick it with the ARROW keys). On a phone you can also just tap a taxi.'},
     {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a taxi that can drive out right now.'},
     {id:'undo', icon:'↩️', name:'UNDO', cd:10, key:'Digit2', keyLabel:'2', desc:'Brings back the last taxi and gives back the move.'},
-    {id:'crane', icon:'🏗️', name:'CRANE', cd:20, key:'Digit3', keyLabel:'3', desc:'Your next tap lifts ANY taxi straight out.'},
-    {id:'time', icon:'⏱️', name:'+TIME', cd:20, key:'Digit4', keyLabel:'4', desc:'+15 seconds and +3 moves.'}
+    {id:'crane', icon:'🏗️', name:'CRANE', cd:20, key:'Digit3', keyLabel:'3', desc:'Your next tap lifts ANY taxi straight out.'}
   ],
   shop:[
     {id:'k_white', cat:'Taxis', name:'Classic White', cost:0, colors:['#f4f4f0','#c9c9c2'], desc:'The classic white minibus.'},
@@ -558,72 +573,116 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ffcc00,#1e9bd7)'}
   ],
   story:`<h3>THE BIG JAM</h3><p>It's Friday afternoon at the busiest taxi rank in Mzansi, and every minibus has parked in everybody's way. Passengers are waiting. Hooters are hooting.</p><p>You're the new rank marshal. Get every taxi out of the rank — in the right order — before the rush turns into chaos.</p>`,
-  howto:`<h3>GOAL</h3><p>Get every taxi out of the rank.</p><h3>HOW TO PLAY</h3><ul><li>Each taxi only drives <b>forwards</b> — the way its arrow points.</li><li>Tap a taxi. If its road is clear, it drives out.</li><li>If something is in the way it <b>bumps</b> and comes back — that wastes a move.</li><li>🚧 <b>Cones</b> never move.</li><li>Harder stages have a <b>move limit</b> and a <b>timer</b>. Run out and you lose a life.</li></ul><h3>ABILITIES</h3><ul><li>💡 <b>HINT</b> <span class="key">1</span> — shows a taxi that can go</li><li>↩️ <b>UNDO</b> <span class="key">2</span> — brings the last taxi back</li><li>🏗️ <b>CRANE</b> <span class="key">3</span> — next tap lifts any taxi out</li><li>⏱️ <b>+TIME</b> <span class="key">4</span> — +15 seconds, +3 moves</li></ul>`,
+  howto:`<h3>GOAL</h3><p>Get every taxi out of the rank before the clock runs out.</p><h3>CONTROLS</h3><ul><li>📱 Hold your phone <b>sideways</b>.</li><li><b>Phone:</b> tap a taxi with either thumb — if its road is clear it drives out. Abilities sit on the left edge, the 🚦 GO button bottom-right.</li><li><b>PC:</b> ARROW keys move the yellow box, SPACE drives that taxi (or just click a taxi). 1 / 2 / 3 = abilities.</li></ul><h3>RULES</h3><ul><li>Each taxi only drives <b>forwards</b> — the way its arrow points.</li><li>If something is in the way it <b>bumps</b> and comes back — that wastes a move.</li><li>🚧 <b>Cones</b> never move.</li><li>Every stage has a <b>clock</b>; later stages also have a <b>move limit</b>. Run out and you lose a life.</li><li><b>👥 RACE A FRIEND:</b> you both get the exact same rank — first to clear it wins.</li></ul><h3>ABILITIES</h3><ul><li>💡 <b>HINT</b> <span class="key">1</span> — shows a taxi that can go</li><li>↩️ <b>UNDO</b> <span class="key">2</span> — brings the last taxi back</li><li>🏗️ <b>CRANE</b> <span class="key">3</span> — next tap lifts any taxi out</li></ul>`,
   tutorial:[
-    {text:'Taxis only drive <b>forwards</b> (follow the arrow). Tap a taxi with a clear road.', ev:'exit'},
+    {text:'Hold your phone sideways. Taxis only drive <b>forwards</b> (follow the arrow). Tap a taxi with a clear road. PC: arrows + SPACE.', touch:'Hold your phone sideways. Taxis only drive <b>forwards</b> (follow the arrow). <b>Tap</b> a taxi with a clear road.', ev:'exit'},
     {text:'Blocked taxis <b>bump</b> and waste a move. Look before you tap! Now get another one out.', ev:'exit'},
-    {text:'Stuck? Tap <b>💡 HINT</b> (key 1).', ev:'ab_hint'},
+    {text:'Stuck? Tap <b>💡 HINT</b> on the left (key 1).', ev:'ab_hint'},
     {text:'Clear the whole rank to finish the stage!', time:6}
   ],
   stageIntro:{1:'CLEAR THE RANK', 15:'BEAT THE CLOCK!', 25:'MOVES ARE LIMITED!', 30:'WATCH OUT FOR CONES 🚧'},
   bossName:'FRIDAY RUSH HOUR!',
   ending:{"0":["#HOME TIME","The last taxi pulls out of the rank with a happy double-hoot.","Passengers wave from every window. Somebody's gogo blows you a kiss.","The rank is empty. For the first time all day, you can hear the birds.","#THE MARSHAL","The rank manager hands you a bright orange bib with MARSHAL printed on the back.","Tomorrow, you're in charge.","You'll need a lot more coffee."],"1":["#THE MYSTERY JAM","After a hundred jams, you start to notice a pattern. The worst ones always start at the same corner.","Someone is parking taxis badly on purpose.","#THE CULPRIT","You stake out the rank at dawn and catch him: the owner of the tyre shop across the road.","Every jam meant more hooting, more bumping and more flat tyres. More business.","#JUSTICE","The drivers don't call the police. They do something worse.","Every single taxi in the city starts buying its tyres from the shop next door instead.","The rank has never flowed so smoothly.","And your name is painted on the wall of the marshal's hut, in gold."],"2":["#IMPOSSIBLE","Expert was never meant to be finished.","Hundreds of taxis, barely any moves, and a clock so fast most people never read the rank before it ran out.","You did it a hundred times.","#THE GRAND RANK","Word spreads. Drivers from every province come to see the marshal who never makes a wrong call.","Then the President's convoy gets stuck in the biggest jam the country has ever seen: every road into the city, locked solid.","#THE LAST JAM","They fly you in by helicopter.","You look at the jam for exactly four seconds. Then you point.","That one. Then that one. Then that one.","#FREE","Forty minutes later, every road in the city is moving.","The taxi associations agree, for the first time in history, on something: you.","Every minibus in the country now has a little sticker on its back window.","It's your face, giving a thumbs up."]},
-  _dbg(){ return {get taxis(){return taxis;}, get N(){return N;}, tap:(id)=>tapTaxi(taxis[id]), free:()=>freeTaxi(), get moves(){return moves;}, get moveLimit(){return moveLimit;}, get timeLeft(){return timeLeft;}, get lost(){return lost;}}; },
+  _dbg(){ return {get taxis(){return taxis;}, get N(){return N;}, get CS(){return CS;}, get OX(){return OX;}, get OY(){return OY;}, get cur(){return cur;}, tap:(id)=>tapTaxi(taxis[id]), free:()=>freeTaxi(), get moves(){return moves;}, get moveLimit(){return moveLimit;}, get timeLeft(){return timeLeft;}, get timeMax(){return timeMax;}, get lost(){return lost;}, get done(){return done;}, left}; },
   init(a){ api=a; },
   startStage(n,a){
-    api=a; this._n=n; stageN=a.content; t=0; moves=0; done=false; lost=false; hist=[]; hintT=0; hintId=-1; anims=[]; craneArmed=false; extra=0;
-    makeStage(n,a);
+    api=a; this._n=n; stageN=a.content; t=0; moves=0; done=false; lost=false; hist=[]; hintT=0; hintId=-1; anims=[]; craneArmed=false;
+    ptop=a.tutorial?240:96;
+    makeStage(n,a); cur={x:Math.floor(N/2), y:Math.floor(N/2), on:false}; barT=0;
   },
   respawn(){ this.startStage(this._n, api); },
   stageBonus(){ return Math.round(timeLeft*12) + (moveLimit? Math.max(0,moveLimit-moves)*50 : 0); },
   useAbility(id){
     if(done||lost) return false;
+    if(id==='go'){
+      if(!cur.on){ cur.on=true; const f=taxiAt(cur.x,cur.y); if(!f) api.toast('ARROWS MOVE THE BOX · SPACE = GO'); else tapTaxi(f); return true; }
+      const tx=taxiAt(cur.x,cur.y); if(!tx){ api.toast('NO TAXI IN THE BOX — MOVE IT ONTO ONE'); api.sfx.bump(); return true; }
+      tapTaxi(tx); return true; }
     if(id==='hint'){ const tx=freeTaxi(); if(!tx){ api.toast('NO FREE TAXI — TRY UNDO OR CRANE'); return false; } hintId=tx.id; hintT=3; api.sfx.pickup(); return true; }
     if(id==='undo'){ const h=hist.pop(); if(!h) return false; const tx=taxis[h.id]; tx.gone=false; moves=h.moves; api.sfx.bump(); return true; }
     if(id==='crane'){ if(craneArmed) return false; craneArmed=true; api.toast('TAP ANY TAXI TO LIFT IT'); api.sfx.power(); return true; }
-    if(id==='time'){ if(timeMax) { timeLeft+=15; timeMax=Math.max(timeMax,timeLeft); } if(moveLimit) moveLimit+=3; if(!timeMax && !moveLimit) return false; api.sfx.power(); return true; }
+    return false;
+  },
+  onKey(code,down){
+    if(!down||done||lost||!cur) return; const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1],KeyA:[-1,0],KeyD:[1,0],KeyW:[0,-1],KeyS:[0,1]}[code]; if(!d) return;
+    if(!cur.on){ cur.on=true; return; }
+    cur.x=Math.max(0,Math.min(N-1,cur.x+d[0])); cur.y=Math.max(0,Math.min(N-1,cur.y+d[1]));
   },
   onPointer(type,x,y){
     if(type!=='down' || done || lost) return;
     const gx=Math.floor((x-OX)/CS), gy=Math.floor((y-OY)/CS); if(gx<0||gy<0||gx>=N||gy>=N) return;
-    const tx=taxis.find(q=>!q.gone && cells(q).some(([cx,cy])=>cx===gx&&cy===gy)); if(!tx) return;
+    cur.x=gx; cur.y=gy;
+    const tx=taxiAt(gx,gy); if(!tx) return;
     tapTaxi(tx);
   },
   update(dt){
-    t+=dt; if(hintT>0) hintT-=dt;
+    t+=dt; if(hintT>0) hintT-=dt; if(!taxis) return;
     anims.forEach(a=>a.t+=dt); anims=anims.filter(a=>a.t<a.dur);
     taxis.forEach(tx=>{ if(tx.bump>0) tx.bump=Math.max(0,tx.bump-dt*3); });
+    if((barT-=dt)<=0){ barT=0.5; placeBars(); freeSet=new Set(easyB? taxis.filter(q=>!q.gone&&!blocker(q)).map(q=>q.id) : []); }
     if(stageN>0 && !done && !lost){
       if(timeMax>0){ timeLeft=Math.max(0,timeLeft-dt); if(timeLeft<=0) lose('RUSH HOUR — TIME UP!'); }
-      const lbl = moveLimit? '🚐 MOVES' : timeMax? '⏱ TIME' : '🚐 LEFT';
-      const val = moveLimit? (moveLimit-moves)+' left' : timeMax? Math.ceil(timeLeft)+'s' : left()+'';
-      api.counter(lbl, val, moveLimit? (moveLimit-moves<=2?'empty':moveLimit-moves<=5?'low':'') : timeMax? (timeLeft<8?'empty':timeLeft<20?'low':'') : '');
+      api.counter('🚐 LEFT', left(), timeMax&&timeLeft<8?'empty': moveLimit&&moveLimit-moves<=2?'low':'');
     }
   },
   render(c){
     const rk=api.cos('Rank').colors, sk=api.cos('Taxis').colors;
     c.fillStyle=rk[1]; c.fillRect(0,0,W,H);
+    // pavement texture
+    c.fillStyle='rgba(255,255,255,0.025)'; for(let i=0;i<40;i++){ c.fillRect((i*197)%W,(i*131)%H,60,4); }
     // road around the rank
     c.fillStyle='#3a3d45'; c.fillRect(OX-40,OY-40,N*CS+80,N*CS+80);
     c.strokeStyle='rgba(255,255,255,0.35)'; c.lineWidth=3; c.setLineDash([18,14]); c.strokeRect(OX-20,OY-20,N*CS+40,N*CS+40); c.setLineDash([]);
     c.fillStyle=rk[0]; c.fillRect(OX,OY,N*CS,N*CS);
     c.strokeStyle='rgba(255,255,255,0.12)'; c.lineWidth=2; for(let i=1;i<N;i++){ c.beginPath(); c.moveTo(OX+i*CS,OY); c.lineTo(OX+i*CS,OY+N*CS); c.stroke(); c.beginPath(); c.moveTo(OX,OY+i*CS); c.lineTo(OX+N*CS,OY+i*CS); c.stroke(); }
     cones.forEach(([x,y])=>{ const px=OX+x*CS+CS/2, py=OY+y*CS+CS/2; c.fillStyle='#ff7a1a'; c.beginPath(); c.moveTo(px,py-CS*0.32); c.lineTo(px+CS*0.22,py+CS*0.26); c.lineTo(px-CS*0.22,py+CS*0.26); c.fill(); c.fillStyle='#fff'; c.fillRect(px-CS*0.12,py-CS*0.02,CS*0.24,CS*0.08); c.fillStyle='#333'; c.fillRect(px-CS*0.28,py+CS*0.24,CS*0.56,CS*0.06); });
-    taxis.forEach(tx=>{ if(tx.gone) return; let ox=0, oy=0; if(tx.bump>0){ const k=Math.sin(tx.bump*Math.PI)*CS*0.25*tx.bdist; if(tx.h) ox=k*tx.f; else oy=k*tx.f; } drawTaxi(c,tx,OX+tx.x*CS+ox,OY+tx.y*CS+oy,sk, hintT>0 && hintId===tx.id); });
+    taxis.forEach(tx=>{ if(tx.gone) return; let ox=0, oy=0; if(tx.bump>0){ const k=Math.sin(tx.bump*Math.PI)*CS*0.25*tx.bdist; if(tx.h) ox=k*tx.f; else oy=k*tx.f; } drawTaxi(c,tx,OX+tx.x*CS+ox,OY+tx.y*CS+oy,sk, hintT>0 && hintId===tx.id, freeSet.has(tx.id)); });
     anims.forEach(a=>{ const k=a.t/a.dur, tx=a.tx; let x=OX+tx.x*CS, y=OY+tx.y*CS;
-      if(a.crane){ y-=k*300; c.globalAlpha=1-k; } else { const d=k*k*(N+tx.len+2)*CS; if(tx.h) x+=d*tx.f; else y+=d*tx.f; }
-      drawTaxi(c,tx,x,y,sk,false); c.globalAlpha=1; });
-    if(craneArmed){ c.fillStyle='rgba(255,204,0,'+(0.5+0.5*Math.sin(t*6))+')'; c.font='bold 18px Orbitron, sans-serif'; c.textAlign='center'; c.fillText('🏗️ TAP ANY TAXI',W/2,OY-56); }
-    c.fillStyle='rgba(255,255,255,0.8)'; c.font='bold 16px Orbitron, sans-serif'; c.textAlign='center'; c.fillText(`TAXIS LEFT ${left()}`+(moveLimit?`   MOVES ${moves}/${moveLimit}`:''), W/2, 60);
-    if(timeMax>0){ const f=timeLeft/timeMax; c.fillStyle='rgba(255,255,255,0.1)'; c.fillRect(30,80,W-60,8); c.fillStyle=f<0.2?'#ff3b3b':f<0.4?'#ffe14a':'#ffcc00'; c.fillRect(30,80,(W-60)*Math.min(1,f),8); }
+      if(a.crane){ y-=k*300; c.globalAlpha=1-k; } else { const d=k*k*(N+tx.len+1)*CS; if(tx.h) x+=d*tx.f; else y+=d*tx.f; c.globalAlpha=Math.max(0,1-k*k); }
+      drawTaxi(c,tx,x,y,sk,false,false); c.globalAlpha=1; });
+    if(cur&&cur.on&&!done){ const p=0.6+0.4*Math.sin(t*8); c.strokeStyle=`rgba(255,225,60,${p})`; c.lineWidth=5; rr(c,OX+cur.x*CS+2,OY+cur.y*CS+2,CS-4,CS-4,8); c.stroke(); }
+    drawQueue(c); drawPanel(c);
     if(lost){ c.fillStyle='rgba(0,0,0,0.5)'; c.fillRect(0,0,W,H); }
   },
   attract(c,tt){
-    c.fillStyle='#1b1d24'; c.fillRect(0,0,W,H); N=6; CS=80;
-    for(let i=0;i<7;i++){ const tx={x:0,y:0,h:true,len:2+(i%2),f:1,col:STRIPES[i%8]}; const x=((tt*80+i*190)%(W+200))-160; drawTaxi(c,tx,x,150+i*95,['#f4f4f0','#c9c9c2'],false); }
+    c.fillStyle='#1b1d24'; c.fillRect(0,0,W,H); CS=80;
+    for(let i=0;i<7;i++){ const tx={x:0,y:0,h:true,len:2+(i%2),f:i%2?-1:1,col:STRIPES[i%8]}; const sp=(tt*(70+i*9)+i*230)%(W+260); const x=tx.f>0? sp-200 : W-sp; drawTaxi(c,tx,x,90+i*88,['#f4f4f0','#c9c9c2'],false,false); }
   }
 };
-function drawTaxi(c,tx,x,y,sk,hl){
+/* left: the passenger queue (one waiting person per taxi still in the rank) */
+function drawQueue(c){
+  const x0=150, y0=ptop+10, n=left();
+  c.fillStyle='rgba(0,0,0,0.35)'; rr(c,x0,y0,160,48,10); c.fill();
+  c.fillStyle='#ffcc00'; c.font='bold 18px Orbitron, sans-serif'; c.textAlign='center'; c.fillText('🚏 QUEUE',x0+80,y0+31);
+  const show=Math.min(n,Math.floor((560-y0)/36));
+  for(let i=0;i<show;i++){ const p=people[i%people.length], px=x0+50+(i%2)*60, py=y0+86+Math.floor(i/2)*58+Math.sin(t*3+p.ph)*2;
+    c.fillStyle=p.c; rr(c,px-11,py-6,22,30,7); c.fill(); c.fillStyle=p.s?'#6b4a2f':'#3d2a1c'; c.beginPath(); c.arc(px,py-16,10,0,7); c.fill();
+    c.fillStyle='#222'; c.fillRect(px-8,py+22,6,12); c.fillRect(px+2,py+22,6,12); }
+  if(n>show){ c.fillStyle='rgba(255,255,255,0.7)'; c.font='bold 16px Orbitron, sans-serif'; c.fillText('+'+(n-show)+' more',x0+80,y0+86+Math.ceil(show/2)*58); }
+  c.fillStyle='rgba(255,255,255,0.45)'; c.font='bold 13px Orbitron, sans-serif'; c.fillText('PC: ARROWS + SPACE',x0+80,700);
+}
+/* right: stage info (clock, moves, tips). Race bars are parked in its lower half. */
+function drawPanel(c){
+  const x=PX, y=ptop, h=(raceOn?300:400)-(ptop-96); c.fillStyle='rgba(0,0,0,0.4)'; rr(c,x,y,PW,h,14); c.fill();
+  c.textAlign='center'; const cx=x+PW/2;
+  c.fillStyle='rgba(255,255,255,0.7)'; c.font='bold 15px Orbitron, sans-serif'; c.fillText(api.tutorial?'PRACTICE':(api.boss?'⚠ RUSH HOUR':'STAGE '+(GAME._n||'')),cx,y+28);
+  c.fillStyle='#ffcc00'; c.font='bold 54px Orbitron, sans-serif'; c.fillText(left(),cx,y+88);
+  c.fillStyle='rgba(255,255,255,0.8)'; c.font='bold 14px Orbitron, sans-serif'; c.fillText('TAXIS LEFT',cx,y+110);
+  let yy=y+140;
+  if(timeMax>0){ const f=timeLeft/timeMax; c.fillStyle='rgba(255,255,255,0.12)'; rr(c,x+20,yy,PW-40,14,7); c.fill(); c.fillStyle=f<0.2?'#ff3b3b':f<0.4?'#ffe14a':'#2fd36a'; rr(c,x+20,yy,(PW-40)*Math.min(1,f),14,7); c.fill();
+    c.fillStyle=timeLeft<8?'#ff5a5a':'#fff'; c.font='bold 20px Orbitron, sans-serif'; c.fillText('⏱ '+Math.ceil(timeLeft)+'s',cx,yy+42); yy+=62; }
+  if(moveLimit){ const r=moveLimit-moves; c.fillStyle=r<=2?'#ff5a5a':r<=5?'#ffe14a':'#fff'; c.font='bold 20px Orbitron, sans-serif'; c.fillText('MOVES LEFT '+r,cx,yy+16); yy+=40; }
+  else { c.fillStyle='rgba(255,255,255,0.7)'; c.font='bold 15px Orbitron, sans-serif'; c.fillText('MOVES '+moves,cx,yy+16); yy+=40; }
+  if(craneArmed){ c.fillStyle='rgba(255,204,0,'+(0.5+0.5*Math.sin(t*6))+')'; c.font='bold 17px Orbitron, sans-serif'; c.fillText('🏗️ TAP ANY TAXI',cx,yy+14); yy+=34; }
+  if(!raceOn && yy<y+h-40){ c.fillStyle='rgba(255,255,255,0.55)'; c.font='13px Orbitron, sans-serif';
+    const tips=easyB? ['Glowing arrows = free road','Tap one to drive it out'] : ['Arrows show the way out','Bumps waste moves'];
+    tips.forEach((s,i)=>{ if(yy+18+i*20<y+h-8) c.fillText(s,cx,yy+18+i*20); }); }
+}
+/* RACE: the shell's progress bars would sit over the grid top — park them in the right panel's lower slot (above the GO button) */
+function placeBars(){ try{ const el=document.getElementById('mpBars'), on=!!(el&&el.style.display!=='none'&&el.innerHTML); raceOn=on; if(!on) return;
+  const cv=document.querySelector('canvas'); if(!cv) return; const b=cv.getBoundingClientRect(), k=b.width/W; const S=(p,v)=>el.style.setProperty(p,v,'important');
+  S('left',(b.left+(PX+10)*k)+'px'); S('top',(b.top+(ptop+(300-(ptop-96))+12)*k)+'px'); S('bottom','auto'); S('transform','none'); S('flex-direction','column'); S('max-width',((PW-20)*k)+'px'); }catch(e){} }
+function drawTaxi(c,tx,x,y,sk,hl,free){
   const w=(tx.h?tx.len:1)*CS, h=(tx.h?1:tx.len)*CS, p=CS*0.1;
   c.save(); c.translate(x+w/2,y+h/2); if(!tx.h) c.rotate(Math.PI/2); if(tx.f<0) c.rotate(Math.PI);
   const L=(tx.h?w:h)-p*2, Wd=CS-p*2;
@@ -634,7 +693,8 @@ function drawTaxi(c,tx,x,y,sk,hl){
   c.fillStyle='#223344'; rr(c,L/2-Wd*0.42,-Wd*0.34,Wd*0.26,Wd*0.68,5); c.fill();              // windscreen (front)
   c.fillStyle='rgba(34,51,68,0.8)'; for(let k=0;k<tx.len;k++){ rr(c,-L/2+8+k*(L-Wd*0.5)/tx.len,-Wd*0.22,(L-Wd*0.6)/tx.len-6,Wd*0.44,4); c.fill(); }
   c.fillStyle='#ffe98a'; c.fillRect(L/2-4,-Wd*0.4,4,Wd*0.16); c.fillRect(L/2-4,Wd*0.24,4,Wd*0.16);   // headlights
-  c.fillStyle='#fff'; c.beginPath(); c.moveTo(L/2-Wd*0.5,0); c.lineTo(L/2-Wd*0.8,-Wd*0.16); c.lineTo(L/2-Wd*0.8,Wd*0.16); c.fill();  // arrow
+  if(free){ c.shadowColor='#3dff7a'; c.shadowBlur=12+6*Math.sin(t*5); }
+  c.fillStyle=free?'#3dff7a':'#fff'; c.beginPath(); c.moveTo(L/2-Wd*0.5,0); c.lineTo(L/2-Wd*0.8,-Wd*0.16); c.lineTo(L/2-Wd*0.8,Wd*0.16); c.fill(); c.shadowBlur=0;  // arrow
   if(hl){ c.strokeStyle='#fff45a'; c.lineWidth=4; rr(c,-L/2-3,-Wd/2-3,L+6,Wd+6,12); c.stroke(); }
   c.restore();
 }
@@ -646,12 +706,12 @@ function tapTaxi(tx){
   const b=blocker(tx);
   if(b){ const dist=path(tx).findIndex(([x,y])=>x===b.x&&y===b.y); tx.bdist=Math.max(0.3,dist); tx.bump=1; api.sfx.bump(); api.fx.shake(3); api.event('exit2');
     if(moveLimit && moves>=moveLimit) lose('OUT OF MOVES!'); return; }
-  tx.gone=true; hist.push({id:tx.id,moves:moves-1}); anims.push({tx,t:0,dur:0.55});
+  tx.gone=true; hist.push({id:tx.id,moves:moves-1}); anims.push({tx,t:0,dur:0.55}); barT=0;
   api.sfx.pickup(); api.addScore(60*(1+api.dk*0.5)*(tx.len===3?1.5:1), OX+tx.x*CS+CS/2, OY+tx.y*CS+CS/2); api.event('exit');
   afterMove();
 }
 function afterMove(){
-  if(left()===0){ done=true; api.fx.flash('#fff',.35); for(let i=0;i<6;i++) api.fx.burst(Math.random()*W,200+Math.random()*500,STRIPES[i],22,260,1,3); api.sfx.clear(); setTimeout(()=>api.stageClear(),1000); return; }
+  if(left()===0){ done=true; api.counter('🚐 LEFT',0,''); api.fx.flash('#fff',.35); for(let i=0;i<6;i++) api.fx.burst(OX+Math.random()*N*CS,OY+Math.random()*N*CS,STRIPES[i],22,260,1,3); api.sfx.clear(); setTimeout(()=>api.stageClear(),1000); return; }
   if(moveLimit && moves>=moveLimit) lose('OUT OF MOVES!');
 }
 function lose(msg){ if(lost||done) return; lost=true; GAME._loses=(GAME._loses||[]); GAME._loses.push(msg); api.toast(msg); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>{ lost=false; api.loseLife(); },900); }
