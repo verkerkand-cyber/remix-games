@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BB-1.4 · 2026-10-17">
+<meta name="build" content="BUILD-BB-1.5 · 2026-10-26">
 <title>Brick Blitz</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BB-1.4 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-BB-1.5 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,58 +489,69 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* BRICK BLITZ — neon Breakout remix (#23) — PROTOTYPE: 3 test stages */
+/* BRICK BLITZ — neon Breakout remix (#23). 100 stages. LANDSCAPE 1280x720 + RACE (1.5, 26 Oct 2026):
+   a WIDE 18-column wall; the paddle sits ABOVE the bottom-right action button so it never goes under a control.
+   You move the paddle yourself (drag / arrow keys) and launch with 🚀 LAUNCH (Space). No auto-launch, no auto-paddle.
+   Wall layouts come from a seeded RNG (stage number) so both racers get the same wall. Beginner 1-10: big paddle,
+   slow ball, a 🛡️ ball-saver beam (3 saves). Leaving the ball on the paddle too long costs a life (no hands = no win). */
 (function(){
-const W=600, H=900;
-const COLS=10, BW=56, BH=26, GAP=2, BX=(W-COLS*(BW+GAP)+GAP)/2, BTOP=70;
-const PY=H-80, PH=16, BR=9;
-let idle=0, api, t, bricks, balls, pad, lasers, drops, done, lost, held, stageT, eff, sd, rows, descend, descY, trail;
+const W=1280, H=720;
+const FL=112, FR=1264, FT=74;                       // field walls (left edge clear of the ability column, top clear of the HUD)
+const COLS=18, BW=59, BH=22, GAP=4, BX=FL+Math.round((FR-FL-(COLS*(BW+GAP)-GAP))/2);
+const PY=478, PH=16, BR=9, SAVY=512, DEAD=548;      // paddle top stays above the action-button zone (y>520)
+let idle=0, api, t, bricks, balls, pad, lasers, done, lost, stageT, eff, sd, rows, descend, descY, trail, btop, saves, fuse, fuse0, drag, easy;
 
 function rng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let x=Math.imul(s^s>>>15,1|s); x=x+Math.imul(x^x>>>7,61|x)^x; return ((x^x>>>14)>>>0)/4294967296; }; }
 const ROWCOL=['#ff3b5c','#ff9a2e','#ffe14a','#3bff7a','#29f3ff','#c45cff'];
 const HPCOL=['#29f3ff','#ff3df0','#ffe14a','#ff7a2e','#7dff5a'];
 
-/* ---------- stage builder ---------- */
+/* ---------- stage builder (seeded by stage number: same wall for every racer) ---------- */
 function makeStage(n,a){
-  const R=rng(n===0?99:n*7727+a.diff*313+5), L=a.level, boss=a.boss;
-  rows = n===0? 3 : Math.min(12, Math.round(a.dv([3,6,8],10,12)) + (boss?2:0));
-  const maxHp = n===0? 1 : Math.min(5, 1+Math.floor(a.dv([0.4,2.2,3.6],4,4.9)));
-  const steelP = n===0? 0 : L<20? 0 : Math.min(0.14, (L-20)/400);
-  const pat = n===0? 0 : Math.floor(R()*6);
+  const R=rng(n===0?99:n*7727+a.diff*313+5), L=a.level, boss=a.boss, tut=a.content===0;
+  btop = tut? 214 : 88;
+  rows = tut? 2 : Math.min(8, Math.round(a.dv([3,6,8],8,8)) + (boss?1:0));
+  const maxHp = tut||easy? 1 : Math.min(5, 1+Math.floor(a.dv([0.4,2.2,3.6],4,4.9)));
+  const steelP = tut? 0 : L<20? 0 : Math.min(0.14, (L-20)/400);
+  const pat = tut||(easy&&L<=3)? 0 : Math.floor(R()*7), m=(COLS-1)/2;
+  const band = tut? 8 : easy? Math.min(COLS, 8+Math.ceil(L*0.6)) : COLS;     // Beginner 1-10: a shorter wall in the middle
+  const c0 = Math.floor((COLS-band)/2);
   bricks=[];
-  for(let r=0;r<rows;r++) for(let c=0;c<COLS;c++){
+  for(let r=0;r<rows;r++) for(let c=c0;c<c0+band;c++){
     let on=true;
-    if(pat===1) on = (r+c)%2===0 || r<2;                        // checker
-    if(pat===2) on = Math.abs(c-4.5) <= r*0.6+0.6;              // pyramid
-    if(pat===3) on = Math.abs(c-4.5)+Math.abs(r-rows/2) <= rows/2+2.5; // diamond
-    if(pat===4) on = c!==2 && c!==7;                            // columns
-    if(pat===5) on = R()<0.8;                                   // scatter
+    if(pat===1) on = (r+c)%2===0 || r<2;                               // checker
+    if(pat===2) on = Math.abs(c-m) <= r*1.3+1.5;                       // pyramid
+    if(pat===3) on = Math.abs(c-m)/1.7+Math.abs(r-rows/2) <= rows/2+2; // diamond
+    if(pat===4) on = c%6!==2;                                          // pillars
+    if(pat===5) on = R()<0.8;                                          // scatter
+    if(pat===6) on = Math.abs(c-m)>1.2 || r===0;                       // split wall
     if(!on) continue;
     let hp = 1 + Math.floor(R()*maxHp); if(r<2 && maxHp>1) hp=Math.max(hp,maxHp-1);
     const steel = R()<steelP && r>0;
-    bricks.push({x:BX+c*(BW+GAP), y:BTOP+r*(BH+GAP), w:BW, h:BH, row:r, hp: steel? 99 : hp, max:hp, steel, hit:0});
+    bricks.push({x:BX+c*(BW+GAP), y:btop+r*(BH+GAP), w:BW, h:BH, row:r, hp: steel? 99 : hp, max:hp, steel, hit:0});
   }
   // BOSS: a big armoured core that slides side to side below the wall
-  if(boss){ const hp=Math.round(Math.min(90, 14+L*0.35)); bricks.push({x:W/2-90, y:BTOP+rows*(BH+GAP)+24, w:180, h:40, hp, max:hp, steel:false, hit:0, boss:true, dir:1, spd:a.dv([60,110,170],220,420)}); }
-  // never a stage that is only steel
+  if(boss){ const hp=Math.round(Math.min(90, (easy?10:14)+L*0.35)); bricks.push({x:W/2-100, y:btop+rows*(BH+GAP)+22, w:200, h:38, hp, max:hp, steel:false, hit:0, boss:true, dir:1, spd:a.dv([90,160,240],300,560)}); }
   if(!bricks.some(b=>!b.steel)) bricks.forEach(b=>{ b.steel=false; b.hp=1; });
   // harder levels: the wall creeps down (reach the paddle = lose a life)
-  descend = n===0? 0 : L<35? 0 : a.dv([0,1.6,3.2],4.5,14);
+  descend = tut? 0 : L<35? 0 : a.dv([0,1.2,2.4],3.4,10);
   descY=0;
 }
-function ballSpeed(){ return (api.content===0? 380 : api.dv([420,560,690],820,1180)) * (eff.slow>0?0.6:1) * (1+Math.min(0.35, stageT/120)); }
-function padW(){ return (api.content===0? 150 : api.dv([130,100,82],62,44)) * (eff.wide>0?1.6:1); }
+function ballSpeed(){ const L=api.level; const b = api.content===0? 300 : easy? 300+L*6 : api.dv([340,440,560],660,1000);
+  return b * (eff.slow>0?0.6:1) * (1+Math.min(easy?0.15:0.35, stageT/120)); }
+function padW(){ const L=api.level; const b = api.content===0? 270 : easy? 250-L*4 : api.dv([200,130,100],72,50); return b*(eff.wide>0?1.6:1); }
 function newBall(){ return {x:pad.x, y:PY-BR-2, vx:0, vy:0, stuck:true}; }
 function launch(b){ if(!b.stuck) return; const a=(-Math.PI/2)+(Math.random()-.5)*0.6, s=ballSpeed(); b.vx=Math.cos(a)*s; b.vy=Math.sin(a)*s; b.stuck=false; api.sfx.shoot(); api.event('launch'); }
+function launchAll(){ if(done||lost) return false; if(!balls.some(b=>b.stuck)) return false; balls.forEach(launch); fuse=fuse0; return true; }
 function live(){ return bricks.filter(b=>!b.steel && b.hp>0).length; }
 
 const GAME = window.GAME = {
   id:'brick-blitz', title:'Brick Blitz', titleHTML:'BRICK<br>BLITZ', tagline:'Smash the neon wall',
-  build:'BUILD-BB-1.4 · 2026-10-17', theme:{a:'#29f3ff', b:'#ff3df0', bg:'#070418'},
-  w:W, h:H, stages:100, lives:3, livesIcon:'⚪', joystick:false, coinPts:40,
+  build:'BUILD-BB-1.5 · 2026-10-26', theme:{a:'#29f3ff', b:'#ff3df0', bg:'#070418'},
+  landscape:true, race:true, w:W, h:H, stages:100, lives:3, livesIcon:'⚪', joystick:false, coinPts:40,
   abilities:[
+    {id:'launch', icon:'🚀', name:'LAUNCH', cd:0, key:'Space', keyLabel:'SPC', desc:'FREE — launch the ball off your paddle. While 🔫 LASER is on, HOLD it to shoot.'},
     {id:'multi', icon:'🔮', name:'MULTI', cd:12, key:'Digit1', keyLabel:'1', desc:'Splits every ball into three.'},
-    {id:'laser', icon:'🔫', name:'LASER', cd:20, key:'Digit2', keyLabel:'2', desc:'Your paddle fires lasers for 6 seconds.'},
+    {id:'laser', icon:'🔫', name:'LASER', cd:20, key:'Digit2', keyLabel:'2', desc:'For 6 seconds, HOLD 🚀 (Space) to fire lasers from your paddle.'},
     {id:'wide', icon:'↔️', name:'WIDE', cd:15, key:'Digit3', keyLabel:'3', desc:'Makes your paddle much wider for 10 seconds.'},
     {id:'slow', icon:'🐢', name:'SLOW-MO', cd:15, key:'Digit4', keyLabel:'4', desc:'Slows the ball down for 7 seconds.'}
   ],
@@ -558,60 +569,68 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#29f3ff,#ff3df0)'}
   ],
   story:`<h3>THE NEON WALL</h3><p>The city's power grid has been walled in by glowing bricks, and the lights are going out block by block.</p><p>You've got one paddle, one ball and a lot of nerve. Smash through the wall and switch the city back on.</p>`,
-  howto:`<h3>GOAL</h3><p>Break every coloured brick. Grey <b>steel</b> bricks can't be broken — they don't count.</p><h3>HOW TO PLAY</h3><ul><li>Drag anywhere (or use ◀ ▶) to move the paddle.</li><li>Tap (or press SPACE) to launch the ball.</li><li>Where the ball hits the paddle changes its angle.</li><li>Brighter bricks take more hits.</li><li>Drop every ball and you lose a life.</li><li>On hard stages the wall <b>creeps down</b> — don't let it reach you.</li></ul><h3>ABILITIES</h3><ul><li>🔮 <b>MULTI</b> <span class="key">1</span> — three balls for every one</li><li>🔫 <b>LASER</b> <span class="key">2</span> — paddle shoots lasers</li><li>↔️ <b>WIDE</b> <span class="key">3</span> — extra-wide paddle</li><li>🐢 <b>SLOW-MO</b> <span class="key">4</span> — slows the ball</li></ul>`,
+  howto:`<h3>GOAL</h3><p>Break every coloured brick. Grey <b>steel</b> bricks can't be broken — they don't count.</p><h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> slide anywhere on the screen to move the paddle left and right. PC: mouse, or ◀ ▶ arrow keys / A D.</li><li><b>Right thumb:</b> tap <b>🚀 LAUNCH</b> to fire the ball off your paddle. PC: SPACE (or click).</li><li>Don't wait too long — if the ball sits on your paddle until the timer runs out, you lose a life.</li><li>Where the ball hits the paddle changes its angle.</li><li>Brighter bricks take more hits. Drop every ball and you lose a life.</li><li>Beginner: the glowing <b>🛡️ saver beam</b> under your paddle bounces the ball back a few times.</li><li>On hard stages the wall <b>creeps down</b> — don't let it reach you.</li><li><b>RACE:</b> both players get the same wall — first to smash it wins.</li></ul><h3>ABILITIES</h3><ul><li>🔮 <b>MULTI</b> <span class="key">1</span> — three balls for every one</li><li>🔫 <b>LASER</b> <span class="key">2</span> — HOLD 🚀 / SPACE to shoot</li><li>↔️ <b>WIDE</b> <span class="key">3</span> — extra-wide paddle</li><li>🐢 <b>SLOW-MO</b> <span class="key">4</span> — slows the ball</li></ul>`,
   tutorial:[
-    {text:'Drag left and right to move your paddle.', ev:'move'},
-    {text:'Tap (or press SPACE) to launch the ball.', ev:'launch'},
+    {text:'Move the paddle with the mouse or ◀ ▶ arrow keys.', touch:'Hold your phone sideways. Slide your <b>left thumb</b> to move the paddle.', ev:'move'},
+    {text:'Press <b>SPACE</b> (or click) to launch the ball.', touch:'Tap <b>🚀 LAUNCH</b> with your right thumb.', ev:'launch'},
     {text:'Break a brick!', ev:'brick'},
-    {text:'Tap <b>🔮 MULTI</b> (key 1) for three balls!', ev:'ab_multi'},
+    {text:'Press <b>1</b> for 🔮 MULTI — three balls!', touch:'Tap <b>🔮 MULTI</b> on the left for three balls!', ev:'ab_multi'},
     {text:'Break every brick to finish the stage!', time:6}
   ],
   stageIntro:{1:'SMASH THE WALL', 3:'TOUGHER BRICKS', 20:'STEEL BRICKS — GO AROUND THEM', 35:'THE WALL IS MOVING!'},
   bossName:'MEGA WALL!',
   ending:{"0":["#LIGHTS ON","The last brick shatters, and for a second the whole city is silent.","Then, block by block, the lights flicker back on: the street lamps, the shop signs, the big neon sign on top of the stadium.","People step out onto their balconies and cheer.","#THE PADDLE","Nobody knows who broke the wall.","But the next morning a small glowing paddle is hanging above the door of the power station.","Somebody left a note under it: THANKS, WHOEVER YOU ARE."],"1":["#THE DEEPER WALL","Behind the neon wall was a second wall, made of steel and older than the city itself.","Someone built it to lock the city's power away. Someone who didn't want the lights to ever come back.","#THE CORE","You found the core that fed it: a red, humming block that fought back every time you hit it.","A hundred stages. A hundred walls. And every one moved faster than the last.","#POWER SURGE","When the core finally cracked, the power didn't just come back. It surged.","Every light in the city blazed twice as bright. You could see it from space.","The power company still doesn't know how the bill got paid.","It didn't. You just broke the meter too."],"2":["#THE IMPOSSIBLE WALL","Expert was never meant to be finished.","The wall fell faster than anyone could react. Steel everywhere. A paddle barely wider than the ball.","Scientists ran the numbers. They said it couldn't be done.","You did it a hundred times in a row.","#THE LAST CORE","At the very end, the wall stopped falling. It started to talk.","It said it had been built to test the one person who could keep up with it. It had waited a very long time.","Then it opened, brick by brick, like a door.","#THE OTHER SIDE","Behind it was every arcade that ever closed. Every machine that ever got unplugged. All of them dark.","One by one, as you walked past, they switched back on.","The high score tables all showed the same name. Yours.","#LEGEND","Somewhere, right now, a kid is putting their last coin into a machine with your name at the top.","They'll never beat it.","But they'll try. And that's the whole point."]},
-  _dbg(){ return {get bricks(){return bricks;}, get balls(){return balls;}, get pad(){return pad;}, restart:()=>GAME.startStage(GAME._n, api), get lost(){return lost;}, clearAll:()=>{ bricks.forEach(b=>{ if(!b.steel) b.hp=0; }); }}; },
+  abTime(id){ const tot={laser:6,wide:10,slow:7}[id]; return tot&&eff&&eff[id]>0? {left:eff[id],total:tot} : null; },
+  _dbg(){ return {get bricks(){return bricks;}, get balls(){return balls;}, get pad(){return pad;}, get lost(){return lost;}, get done(){return done;}, get saves(){return saves;}, get fuse(){return fuse;}, get descY(){return descY;},
+    PY, FL, FR, BR, padW, restart:()=>GAME.startStage(GAME._n, api), clearAll:()=>{ bricks.forEach(b=>{ if(!b.steel) b.hp=0; }); }}; },
   init(a){ api=a; },
   startStage(n,a){
-    api=a; this._n=n; t=0; stageT=0; idle=0; done=false; lost=false; lasers=[]; drops=[]; trail=[]; eff={laser:0,wide:0,slow:0}; sd=0;
-    makeStage(n,a); pad={x:W/2, tx:W/2}; balls=[newBall()]; held=false;
+    api=a; this._n=n; t=0; stageT=0; idle=0; done=false; lost=false; lasers=[]; trail=[]; eff={laser:0,wide:0,slow:0}; sd=0; drag=null;
+    easy = a.diff===0 && a.content!==0 && a.level<=10;
+    makeStage(n,a); pad={x:W/2, tx:W/2}; balls=[newBall()];
+    saves = a.content===0? 99 : easy? 3 : (a.diff===0 && a.level<=20)? 1 : 0;
+    fuse0 = a.content===0? Infinity : a.diff===0? 20 : 12; fuse=fuse0;
   },
-  respawn(){ lost=false; balls=[newBall()]; lasers=[]; trail=[]; if(descY>0) descY=Math.max(0,descY-200); },
+  respawn(){ lost=false; balls=[newBall()]; lasers=[]; trail=[]; fuse=fuse0; if(descY>0) descY=Math.max(0,descY-160); },
   stageBonus(){ return Math.max(0, Math.round((90-stageT)*20)); },
   useAbility(id){
     if(done||lost) return false;
-    if(id==='multi'){ const nb=[]; balls.forEach(b=>{ if(b.stuck) launch(b); const s=Math.hypot(b.vx,b.vy)||ballSpeed(), a=Math.atan2(b.vy,b.vx); nb.push({x:b.x,y:b.y,vx:Math.cos(a-0.35)*s,vy:Math.sin(a-0.35)*s}); nb.push({x:b.x,y:b.y,vx:Math.cos(a+0.35)*s,vy:Math.sin(a+0.35)*s}); }); balls.push(...nb.slice(0,24)); api.sfx.power(); return true; }
-    if(id==='laser'){ eff.laser=6; api.sfx.power(); return true; }
+    if(id==='launch'){ launchAll(); return true; }
+    if(id==='multi'){ launchAll(); const nb=[]; balls.forEach(b=>{ const s=Math.hypot(b.vx,b.vy)||ballSpeed(), a=Math.atan2(b.vy,b.vx); nb.push({x:b.x,y:b.y,vx:Math.cos(a-0.35)*s,vy:Math.sin(a-0.35)*s}); nb.push({x:b.x,y:b.y,vx:Math.cos(a+0.35)*s,vy:Math.sin(a+0.35)*s}); }); balls.push(...nb.slice(0,24)); api.sfx.power(); return true; }
+    if(id==='laser'){ eff.laser=6; api.sfx.power(); api.toast('HOLD 🚀 / SPACE TO FIRE!'); return true; }
     if(id==='wide'){ eff.wide=10; api.sfx.power(); return true; }
     if(id==='slow'){ eff.slow=7; balls.forEach(b=>{ b.vx*=0.6; b.vy*=0.6; }); api.sfx.power(); return true; }
   },
-  onPointer(type,x,y){
+  // mouse: the paddle follows the pointer, click launches. Touch: slide (relative, so the left thumb reaches the whole wall)
+  onPointer(type,x,y,id,pt){
     if(done||lost) return;
-    if(type==='down'){ held=true; pad.tx=x; if(balls.some(b=>b.stuck)) balls.forEach(launch); }
-    else if(type==='move'){ pad.tx=x; api.event('move'); }
-    else if(type==='up') held=false;
+    const mouse = pt==='mouse';
+    if(type==='down'){ if(mouse){ pad.tx=x; launchAll(); } else drag={x0:x, p0:pad.tx, id}; }
+    else if(type==='move'){ if(mouse) pad.tx=x; else if(drag) pad.tx=drag.p0+(x-drag.x0)*1.7; else return; api.event('move'); }
+    else if(type==='up'){ if(!mouse) drag=null; }
   },
   update(dt){
     t+=dt; if(done||lost) return; stageT+=dt;
     for(const k in eff) if(eff[k]>0) eff[k]=Math.max(0,eff[k]-dt);
-    // paddle
-    const d=api.input.dir(); if(d.x){ pad.tx=pad.x+d.x*900*dt; api.event('move'); }
-    if(api.input.keys.Space && balls.some(b=>b.stuck)) balls.forEach(launch);
-    const pw=padW(); pad.tx=Math.max(pw/2+6,Math.min(W-pw/2-6,pad.tx)); pad.x+= (pad.tx-pad.x)*Math.min(1,dt*22);
-    // lasers
-    if(eff.laser>0){ sd-=dt; if(sd<=0){ sd=0.22; lasers.push({x:pad.x-pw/2+8,y:PY-6},{x:pad.x+pw/2-8,y:PY-6}); api.sfx.shoot(); } }
+    const K=api.input.keys, d=api.input.dir(); if(d.x){ pad.tx=pad.x+d.x*1500*dt; api.event('move'); }
+    if(K.Space && balls.some(b=>b.stuck)) launchAll();
+    const pw=padW(); pad.tx=Math.max(FL+pw/2+4,Math.min(FR-pw/2-4,pad.tx)); pad.x+=(pad.tx-pad.x)*Math.min(1,dt*30);
+    // the ball can't wait on the paddle forever: launch it or lose a life
+    if(balls.some(b=>b.stuck)){ fuse-=dt; if(fuse<=0){ lose('TOO SLOW — LAUNCH THE BALL!'); return; } }
+    // lasers: ONLY while LASER is on AND you hold 🚀 / Space
+    if(eff.laser>0 && K.Space){ sd-=dt; if(sd<=0){ sd=0.2; lasers.push({x:pad.x-pw/2+8,y:PY-6},{x:pad.x+pw/2-8,y:PY-6}); api.sfx.shoot(); } }
     lasers.forEach(l=>{ l.y-=900*dt; for(const b of bricks){ if(b.hp>0 && l.x>b.x && l.x<b.x+b.w && l.y>b.y+descY && l.y<b.y+descY+b.h){ l.y=-99; hitBrick(b); break; } } });
-    lasers=lasers.filter(l=>l.y>0);
+    lasers=lasers.filter(l=>l.y>FT);
     // wall creeping down
-    if(descend>0){ descY+=descend*dt; const low=Math.max(...bricks.filter(b=>b.hp>0).map(b=>b.y+BH), 0)+descY; if(low>PY-30){ lose('THE WALL REACHED YOU!'); return; } }
-    bricks.forEach(b=>{ if(b.boss && b.hp>0){ b.x+=b.dir*b.spd*dt; if(b.x<8){ b.x=8; b.dir=1; } if(b.x+b.w>W-8){ b.x=W-8-b.w; b.dir=-1; } } });
-    // balls (sub-stepped so fast balls never skip through bricks)
+    if(descend>0){ descY+=descend*dt; const low=Math.max(...bricks.filter(b=>b.hp>0&&!b.steel).map(b=>b.y+b.h), 0)+descY; if(low>PY-24){ lose('THE WALL REACHED YOU!'); return; } }
+    bricks.forEach(b=>{ if(b.boss && b.hp>0){ b.x+=b.dir*b.spd*dt; if(b.x<FL+6){ b.x=FL+6; b.dir=1; } if(b.x+b.w>FR-6){ b.x=FR-6-b.w; b.dir=-1; } } });
     const target=ballSpeed(); idle+=dt;
     // anti-stall: if nothing has been hit for a while, nudge the ball's angle so it can't loop forever
     if(idle>10){ idle=0; balls.forEach(b=>{ if(!b.stuck){ const a=Math.atan2(b.vy,b.vx)+(Math.random()<.5?-1:1)*0.35; const s=Math.hypot(b.vx,b.vy); b.vx=Math.cos(a)*s; b.vy=Math.sin(a)*s; } }); }
     for(const b of balls){
       if(b.stuck){ b.x=pad.x; b.y=PY-BR-2; continue; }
       const sp=Math.hypot(b.vx,b.vy); if(sp>0){ const k=target/sp; b.vx*=k; b.vy*=k; }
-      if(Math.abs(b.vy) < target*0.25){ b.vy = (b.vy<0?-1:1)*target*0.25; }
+      if(Math.abs(b.vy) < target*0.42){ b.vy=(b.vy<0?-1:1)*target*0.42; b.vx=Math.sign(b.vx||1)*Math.sqrt(target*target-b.vy*b.vy); }
       const steps=Math.ceil(target*dt/6);
       for(let s=0;s<steps;s++){ moveBall(b, dt/steps, pw); if(b.dead) break; }
     }
@@ -620,46 +639,53 @@ const GAME = window.GAME = {
     balls=balls.filter(b=>!b.dead);
     if(!balls.length){ lose('BALL LOST!'); return; }
     const left=live();
-    api.counter('🧱 BRICKS', left+' left', left<=3?'low':'');
-    if(left===0){ done=true; api.fx.flash('#fff',.4); for(let i=0;i<8;i++) api.fx.burst(Math.random()*W,150+Math.random()*400,HPCOL[i%5],24,280,1,3); api.sfx.clear(); setTimeout(()=>api.stageClear(),900); }
+    api.counter('🧱 BRICKS', left, left<=3?'low':'');
+    if(left===0){ done=true; api.fx.flash('#fff',.4); for(let i=0;i<10;i++) api.fx.burst(FL+Math.random()*(FR-FL),120+Math.random()*300,HPCOL[i%5],24,280,1,3); api.sfx.clear(); setTimeout(()=>api.stageClear(),900); }
   },
   render(c){
     const bg=api.cos('Background').colors, pc=api.cos('Paddle').colors;
     const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,bg[0]); g.addColorStop(1,bg[1]); c.fillStyle=g; c.fillRect(0,0,W,H);
-    // retro floor grid
-    c.save(); c.strokeStyle='rgba(255,61,240,0.14)'; c.lineWidth=1; for(let i=0;i<14;i++){ const y=H-260+Math.pow(i/13,1.8)*260 + ((t*40)%20)*(i/13); c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); } for(let i=-10;i<=10;i++){ c.beginPath(); c.moveTo(W/2+i*30,H-260); c.lineTo(W/2+i*150,H); c.stroke(); } c.restore();
-    // side walls
-    c.fillStyle='rgba(41,243,255,0.25)'; c.fillRect(0,0,4,H); c.fillRect(W-4,0,4,H); c.fillRect(0,0,W,4);
-    if(descend>0){ c.fillStyle='rgba(255,59,59,0.35)'; c.fillRect(0,PY-30,W,2); }
+    // retro floor grid behind the wall
+    c.save(); c.strokeStyle='rgba(255,61,240,0.12)'; c.lineWidth=1; const gy=300;
+    for(let i=0;i<12;i++){ const y=gy+Math.pow(i/11,1.8)*(PY-gy) + ((t*30)%14)*(i/11); c.beginPath(); c.moveTo(FL,y); c.lineTo(FR,y); c.stroke(); }
+    for(let i=-14;i<=14;i++){ c.beginPath(); c.moveTo((FL+FR)/2+i*40,gy); c.lineTo((FL+FR)/2+i*120,PY); c.stroke(); } c.restore();
+    // the pit under the paddle
+    const pg0=c.createLinearGradient(0,SAVY,0,H); pg0.addColorStop(0,'rgba(255,40,90,0.16)'); pg0.addColorStop(0.25,'rgba(0,0,0,0.55)'); pg0.addColorStop(1,'rgba(0,0,0,0.85)'); c.fillStyle=pg0; c.fillRect(0,SAVY,W,H-SAVY);
+    c.strokeStyle='rgba(255,59,92,0.10)'; c.lineWidth=1; for(let y=SAVY+14;y<H;y+=18){ c.beginPath(); c.moveTo(FL,y); c.lineTo(FR,y); c.stroke(); }
+    // walls
+    c.save(); c.shadowColor='#29f3ff'; c.shadowBlur=12; c.fillStyle='rgba(41,243,255,0.55)'; c.fillRect(FL-4,FT,4,SAVY-FT); c.fillRect(FR,FT,4,SAVY-FT); c.fillRect(FL-4,FT-4,FR-FL+8,4); c.restore();
+    if(descend>0){ c.fillStyle='rgba(255,59,59,0.45)'; c.fillRect(FL,PY-24,FR-FL,2); }
+    // ball-saver beam
+    if(saves>0 && saves<99){ c.save(); c.globalAlpha=0.55+0.25*Math.sin(t*6); c.shadowColor='#7dff5a'; c.shadowBlur=14; c.fillStyle='#7dff5a'; c.fillRect(FL,SAVY-2,FR-FL,3); c.restore();
+      c.fillStyle='#7dff5a'; c.font='bold 14px Orbitron, sans-serif'; c.textAlign='left'; c.fillText('🛡️ SAVER ×'+saves,FL+8,SAVY+20); }
+    else if(saves>=99){ c.globalAlpha=0.5; c.fillStyle='#7dff5a'; c.fillRect(FL,SAVY-2,FR-FL,3); c.globalAlpha=1; }
     // bricks
     for(const b of bricks){ if(b.hp<=0) continue; const y=b.y+descY;
       if(b.steel){ const sg=c.createLinearGradient(0,y,0,y+b.h); sg.addColorStop(0,'#c9d3e0'); sg.addColorStop(1,'#56606e'); c.fillStyle=sg; c.fillRect(b.x,y,b.w,b.h); c.strokeStyle='#eef4ff'; c.lineWidth=1; c.strokeRect(b.x+.5,y+.5,b.w-1,b.h-1); continue; }
-      if(b.boss){ c.save(); c.shadowColor='#ff3b3b'; c.shadowBlur=24+10*Math.sin(t*6); const gb=c.createLinearGradient(0,y,0,y+b.h); gb.addColorStop(0,'#ff9a9a'); gb.addColorStop(1,'#6a0010'); c.fillStyle=gb; rr(c,b.x,y,b.w,b.h,10); c.fill(); c.restore(); c.fillStyle='#fff'; c.font='bold 14px Orbitron, sans-serif'; c.textAlign='center'; c.fillText('CORE '+b.hp,b.x+b.w/2,y+b.h/2+5); c.fillStyle='rgba(0,0,0,.5)'; c.fillRect(b.x+10,y+b.h-8,b.w-20,4); c.fillStyle='#7dff5a'; c.fillRect(b.x+10,y+b.h-8,(b.w-20)*b.hp/b.max,4); continue; }
+      if(b.boss){ c.save(); c.shadowColor='#ff3b3b'; c.shadowBlur=24+10*Math.sin(t*6); const gb=c.createLinearGradient(0,y,0,y+b.h); gb.addColorStop(0,'#ff9a9a'); gb.addColorStop(1,'#6a0010'); c.fillStyle=gb; rr(c,b.x,y,b.w,b.h,10); c.fill(); c.restore(); c.fillStyle='#fff'; c.font='bold 14px Orbitron, sans-serif'; c.textAlign='center'; c.fillText('CORE '+b.hp,b.x+b.w/2,y+b.h/2+4); c.fillStyle='rgba(0,0,0,.5)'; c.fillRect(b.x+10,y+b.h-7,b.w-20,4); c.fillStyle='#7dff5a'; c.fillRect(b.x+10,y+b.h-7,(b.w-20)*b.hp/b.max,4); continue; }
       const col= b.hp===1? ROWCOL[(b.row||0)%ROWCOL.length] : HPCOL[Math.min(4,b.hp-1)];
-      c.save(); c.shadowColor=col; c.shadowBlur=10+(b.hit>0?16:0);
-      const bg2=c.createLinearGradient(0,y,0,y+BH); bg2.addColorStop(0,'#ffffff'); bg2.addColorStop(0.25,col); bg2.addColorStop(1,shade(col)); c.fillStyle=bg2;
+      c.save(); c.shadowColor=col; c.shadowBlur=8+(b.hit>0?16:0);
+      const bg2=c.createLinearGradient(0,y,0,y+b.h); bg2.addColorStop(0,'#ffffff'); bg2.addColorStop(0.25,col); bg2.addColorStop(1,shade(col)); c.fillStyle=bg2;
       c.fillRect(b.x,y,b.w,b.h); c.restore();
-      if(b.hp>1){ c.fillStyle='rgba(0,0,0,0.45)'; c.font='bold 12px Orbitron, sans-serif'; c.textAlign='center'; c.fillText(b.hp,b.x+b.w/2,y+b.h/2+5); }
+      if(b.hp>1){ c.fillStyle='rgba(0,0,0,0.45)'; c.font='bold 12px Orbitron, sans-serif'; c.textAlign='center'; c.fillText(b.hp,b.x+b.w/2,y+b.h/2+4); }
       if(b.hit>0) b.hit-=0.016;
     }
-    // lasers
     c.strokeStyle='#ff3b3b'; c.lineWidth=3; lasers.forEach(l=>{ c.beginPath(); c.moveTo(l.x,l.y); c.lineTo(l.x,l.y+16); c.stroke(); });
-    // trail + balls
     trail.forEach(p=>{ c.globalAlpha=p.l*2; c.fillStyle=pc[0]; c.beginPath(); c.arc(p.x,p.y,BR*p.l*3,0,7); c.fill(); }); c.globalAlpha=1;
     for(const b of balls){ c.save(); c.shadowColor='#fff'; c.shadowBlur=16; const bg3=c.createRadialGradient(b.x-3,b.y-3,1,b.x,b.y,BR); bg3.addColorStop(0,'#ffffff'); bg3.addColorStop(1,eff.slow>0?'#7dff5a':pc[0]); c.fillStyle=bg3; c.beginPath(); c.arc(b.x,b.y,BR,0,7); c.fill(); c.restore(); }
     // paddle
     const pw=padW(); c.save(); c.shadowColor=pc[0]; c.shadowBlur=20; const pg=c.createLinearGradient(0,PY,0,PY+PH); pg.addColorStop(0,'#fff'); pg.addColorStop(0.35,pc[0]); pg.addColorStop(1,pc[1]); c.fillStyle=pg; rr(c,pad.x-pw/2,PY,pw,PH,8); c.fill(); c.restore();
     if(eff.laser>0){ c.fillStyle='#ff3b3b'; c.fillRect(pad.x-pw/2+5,PY-8,6,8); c.fillRect(pad.x+pw/2-11,PY-8,6,8); }
-    if(balls.some(b=>b.stuck) && !lost){ c.fillStyle='rgba(255,255,255,'+(0.5+0.5*Math.sin(t*5))+')'; c.font='bold 18px Orbitron, sans-serif'; c.textAlign='center'; c.fillText('TAP TO LAUNCH',W/2,PY-70); }
-    // active effects
-    let ex=12; [['laser','🔫'],['wide','↔️'],['slow','🐢']].forEach(([k,ic])=>{ if(eff[k]>0){ c.font='16px sans-serif'; c.textAlign='left'; c.fillStyle='#fff'; c.fillText(ic+' '+Math.ceil(eff[k]),ex,H-20); ex+=70; } });
+    if(balls.some(b=>b.stuck) && !lost){ c.fillStyle='rgba(255,255,255,'+(0.55+0.45*Math.sin(t*5))+')'; c.font='bold 20px Orbitron, sans-serif'; c.textAlign='center';
+      c.fillText(api.input.touch?'TAP 🚀 LAUNCH':'PRESS SPACE TO LAUNCH',pad.x<W/2?Math.max(FL+170,pad.x):Math.min(FR-170,pad.x),PY-60);
+      if(isFinite(fuse) && fuse<8){ c.fillStyle=fuse<4?'#ff3b5c':'#ffe14a'; c.font='bold 18px Orbitron, sans-serif'; c.fillText('⏳ '+Math.ceil(fuse),pad.x,PY-32); } }
     if(lost){ c.fillStyle='rgba(0,0,0,0.5)'; c.fillRect(0,0,W,H); }
   },
   attract(c,tt){
     c.fillStyle='#070418'; c.fillRect(0,0,W,H);
-    for(let r=0;r<6;r++) for(let k=0;k<COLS;k++){ const col=HPCOL[(r+k)%5]; c.globalAlpha=0.35+0.3*Math.sin(tt*2+r+k); c.fillStyle=col; c.fillRect(BX+k*(BW+GAP),180+r*(BH+GAP),BW,BH); } c.globalAlpha=1;
-    const bx=W/2+Math.sin(tt*1.7)*220, by=520+Math.abs(Math.sin(tt*2.3))*-200; c.fillStyle='#fff'; c.beginPath(); c.arc(bx,by,BR,0,7); c.fill();
-    c.fillStyle='#29f3ff'; rr(c,bx-60,PY,120,PH,8); c.fill();
+    for(let r=0;r<6;r++) for(let k=0;k<COLS;k++){ const col=HPCOL[(r+k)%5]; c.globalAlpha=0.35+0.3*Math.sin(tt*2+r+k); c.fillStyle=col; c.fillRect(BX+k*(BW+GAP),120+r*(BH+GAP),BW,BH); } c.globalAlpha=1;
+    const bx=W/2+Math.sin(tt*1.3)*420, by=PY-20-Math.abs(Math.sin(tt*2.3))*200; c.fillStyle='#fff'; c.beginPath(); c.arc(bx,by,BR,0,7); c.fill();
+    c.fillStyle='#29f3ff'; rr(c,bx-90,PY,180,PH,8); c.fill();
   }
 };
 function rr(c,x,y,w,h,r){ c.beginPath(); if(c.roundRect) c.roundRect(x,y,w,h,r); else c.rect(x,y,w,h); }
@@ -673,15 +699,14 @@ function hitBrick(b){
 }
 function moveBall(b, dt, pw){
   b.x+=b.vx*dt; b.y+=b.vy*dt;
-  if(b.x<BR+4){ b.x=BR+4; b.vx=Math.abs(b.vx); } if(b.x>W-BR-4){ b.x=W-BR-4; b.vx=-Math.abs(b.vx); }
-  if(b.y<BR+4){ b.y=BR+4; b.vy=Math.abs(b.vy); }
-  // paddle
+  if(b.x<FL+BR){ b.x=FL+BR; b.vx=Math.abs(b.vx); } if(b.x>FR-BR){ b.x=FR-BR; b.vx=-Math.abs(b.vx); }
+  if(b.y<FT+BR){ b.y=FT+BR; b.vy=Math.abs(b.vy); }
   if(b.vy>0 && b.y+BR>=PY && b.y+BR<=PY+PH+10 && b.x>pad.x-pw/2-BR && b.x<pad.x+pw/2+BR){
-    const off=Math.max(-1,Math.min(1,(b.x-pad.x)/(pw/2))), a=-Math.PI/2+off*1.05, s=Math.hypot(b.vx,b.vy);
+    const off=Math.max(-1,Math.min(1,(b.x-pad.x)/(pw/2))), a=-Math.PI/2+off*0.95, s=Math.hypot(b.vx,b.vy);
     b.vx=Math.cos(a)*s; b.vy=Math.sin(a)*s; b.y=PY-BR-1; api.sfx.click();
   }
-  if(b.y>H+20){ b.dead=true; return; }
-  // bricks
+  if(b.vy>0 && saves>0 && b.y+BR>=SAVY){ b.y=SAVY-BR-1; b.vy=-Math.abs(b.vy); if(saves<99){ saves--; api.toast(saves? '🛡️ SAVED! '+saves+' LEFT' : '🛡️ LAST SAVE USED!'); } api.sfx.bump(); api.fx.burst(b.x,SAVY,'#7dff5a',12,200,.4,3); }
+  if(b.y>DEAD){ b.dead=true; return; }
   for(const k of bricks){ if(k.hp<=0) continue; const y=k.y+descY;
     const cx=Math.max(k.x,Math.min(b.x,k.x+k.w)), cy=Math.max(y,Math.min(b.y,y+k.h)), dx=b.x-cx, dy=b.y-cy;
     if(dx*dx+dy*dy<=BR*BR){
@@ -691,7 +716,7 @@ function moveBall(b, dt, pw){
     }
   }
 }
-function lose(msg){ if(lost||done) return; GAME._loses=(GAME._loses||[]); GAME._loses.push(msg); lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>{ api.loseLife(); },900); }
+function lose(msg){ if(lost||done) return; GAME._loses=(GAME._loses||[]); GAME._loses.push(msg); lost=true; drag=null; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>{ api.loseLife(); },900); }
 })();
 
 </script>
