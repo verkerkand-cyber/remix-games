@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SH-1.12 · 2026-10-18">
+<meta name="build" content="BUILD-SH-1.13 · 2026-10-26">
 <title>Star Hijack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SH-1.12 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SH-1.13 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,20 +489,27 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* STAR HIJACK — space shooter remix (#11) */
+/* STAR HIJACK — space shooter remix (#11)
+   1.13 (26 Oct): LANDSCAPE 1280x720 + RACE. Wide formation across the sky, your ship along the bottom.
+   Phone: left thumb drags the ship (left ~60% of the screen), right thumb HOLDS 🔫 FIRE (bottom-right). No auto-fire.
+   The ship row is limited to x 130-920 so it never goes under the FIRE button (bottom-right 300x200 stays clear).
+   RACE: all gameplay randomness comes from rnd(), seeded at stage start (shell-seeded Math.random + stage number),
+   so both racers get the same waves, dives and pickups. Beginner 1-10 very gentle (ease ramps out by stage 31). */
 (function(){
-const W=540, H=900, PY=800;
-let api, stageN, t, ship, bullets, ebullets, enemies, wings, stars, waves, waveI, spawnQ, diveT, beam, shieldT, rapidT, pickups, boss, done, drag, kills, waveDelay;
+const W=1280, H=720, PY=628, XMIN=130, XMAX=920, CX=(XMIN+XMAX)/2;
+let api, stageN, t, ship, bullets, ebullets, enemies, wings, stars, waves, waveI, spawnQ, diveT, beam, shieldT, rapidT, pickups, boss, done, drag, kills, waveDelay, ease, rowY;
+let rs=1; function rnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
 const ET={ bee:{hp:1,pts:50,col:'#ffd23f',col2:'#3fa9ff',r:15}, moth:{hp:1,pts:80,col:'#ff4f7a',col2:'#ffd0e0',r:16}, guard:{hp:2,pts:150,col:'#3dff9a',col2:'#a066ff',r:19} };
 
 const GAME = window.GAME = {
   id:'star-hijack', title:'Star Hijack', titleHTML:'STAR<br>HIJACK', tagline:'Steal their ships · Space shooter remix',
-  build:'BUILD-SH-1.12 · 2026-10-18', theme:{a:'#ff3d7f', b:'#3fe0ff', bg:'#03020c'},
-  w:W, h:H, stages:100, lives:3, livesIcon:'▲', joystick:false,
+  build:'BUILD-SH-1.13 · 2026-10-26', theme:{a:'#ff3d7f', b:'#3fe0ff', bg:'#03020c'},
+  landscape:true, race:true, w:W, h:H, stages:100, lives:3, livesIcon:'▲', joystick:false,
   abilities:[
     {id:'beam', icon:'🧲', name:'CAPTURE BEAM', cd:14, key:'Digit1', keyLabel:'1', desc:'Grab an enemy above you as a wingman (max 2).'},
     {id:'shield', icon:'🛡️', name:'SHIELD', cd:16, key:'Digit2', keyLabel:'2', desc:'3 seconds of protection.'},
-    {id:'nova', icon:'✴️', name:'NOVA BOMB', cd:28, key:'Digit3', keyLabel:'3', desc:'Wipes enemy bullets and hurts everything.'}
+    {id:'nova', icon:'✴️', name:'NOVA BOMB', cd:28, key:'Digit3', keyLabel:'3', desc:'Wipes enemy bullets and hurts everything.'},
+    {id:'fire', icon:'🔫', name:'FIRE', cd:0, key:'Space', keyLabel:'SPC', desc:'FREE — HOLD to fire. Your guns only shoot while you hold it.'}
   ],
   shop:[
     {id:'s_arrow', cat:'Ship', name:'Arrow', cost:0, colors:['#3fe0ff','#ffffff'], desc:'Standard issue fighter.'},
@@ -522,10 +529,10 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ff3d7f,#3fe0ff,#ffd23f)'}
   ],
   story:`<h3>THE SWARM</h3><p>The <b>Vrak Swarm</b> has crossed into human space: thousands of insect-like warships moving as one mind.</p><p>You fly the <b>Arrow</b>, an experimental fighter fitted with a stolen Vrak technology: the <b>Capture Beam</b>.</p><h3>TURN THEIR SHIPS AGAINST THEM</h3><p>Pull enemy ships into your beam and they switch sides. Captured ships fly next to you as <b>wingmen</b> and fire with you. They also take a hit to protect you.</p><ul><li><b style="color:#ffd23f">Drones</b> — fast and many.</li><li><b style="color:#ff4f7a">Stingers</b> — dive at you and shoot.</li><li><b style="color:#3dff9a">Guardians</b> — armoured, take 2 hits.</li><li><b style="color:#ff3d7f">The Dreadnought</b> — the Swarm's flagship. Stage 3.</li></ul>`,
-  howto:`<h3>GOAL</h3><p>Destroy every wave of the Swarm. Your ship fires while your finger is on the screen (PC: while you hold a move key or SPACE). Let go and it stops firing.</p><h3>CONTROLS</h3><ul><li><b>PC:</b> <span class="key">←</span> <span class="key">→</span> or <span class="key">A</span> <span class="key">D</span> to move, or hold the mouse button and drag</li><li><b>Phone:</b> put your finger anywhere and slide left/right, and the ship follows</li></ul><h3>ABILITIES</h3><ul><li>🧲 <b>CAPTURE BEAM</b> <span class="key">1</span> — grab an enemy above you. It becomes your wingman (max 2)</li><li>🛡️ <b>SHIELD</b> <span class="key">2</span> — 3 seconds of protection</li><li>✴️ <b>NOVA BOMB</b> <span class="key">3</span> — wipes enemy bullets and hurts everything</li></ul><h3>PICKUPS</h3><p>Grab the glowing <b>P</b> orbs for rapid fire.</p><h3>WINGMEN</h3><p>If you get hit while you have a wingman, the wingman is lost instead of your life.</p>`,
+  howto:`<h3>GOAL</h3><p>Hold your phone <b>sideways</b>. Destroy every wave of the Swarm. Your guns only fire while you <b>hold FIRE</b> — let go and they stop.</p><h3>CONTROLS</h3><ul><li><b>Left thumb:</b> put it down anywhere on the left part of the screen and slide left/right — the ship follows.</li><li><b>Right thumb:</b> HOLD <b>🔫 FIRE</b> (bottom-right) to shoot.</li><li><b>PC:</b> <span class="key">←</span> <span class="key">→</span> or <span class="key">A</span> <span class="key">D</span> to move, HOLD <span class="key">SPACE</span> to fire (or drag with the mouse).</li></ul><h3>ABILITIES</h3><ul><li>🧲 <b>CAPTURE BEAM</b> <span class="key">1</span> — grab an enemy above you. It becomes your wingman (max 2)</li><li>🛡️ <b>SHIELD</b> <span class="key">2</span> — 3 seconds of protection</li><li>✴️ <b>NOVA BOMB</b> <span class="key">3</span> — wipes enemy bullets and hurts everything</li></ul><h3>PICKUPS</h3><p>Grab the glowing <b>P</b> orbs for rapid fire.</p><h3>WINGMEN</h3><p>If you get hit while you have a wingman, the wingman is lost instead of your life.</p><h3>RACE</h3><p>In a multiplayer race both pilots get the same waves — first to clear the stage wins.</p>`,
   tutorial:[
-    {text:'Move with <b>← →</b> or <b>A D</b> (or drag with the mouse). Hold a key to fire.', touch:'Put your finger anywhere and <b>slide</b> to move. You fire while your finger is down.', ev:'move'},
-    {text:'Shoot down <b>3 enemies</b>.', ev:'kill3'},
+    {text:'Hold your phone sideways. Move with <b>← →</b> or <b>A D</b>.', touch:'Hold your phone sideways. <b>Left thumb:</b> slide on the left side of the screen to move.', ev:'move'},
+    {text:'HOLD <b>SPACE</b> to fire. Shoot down <b>3 enemies</b>.', touch:'<b>Right thumb:</b> HOLD <b>🔫 FIRE</b> to shoot. Shoot down <b>3 enemies</b>.', ev:'kill3'},
     {text:'Get under an enemy and press <b>🧲 CAPTURE BEAM</b> (key 1) to steal it!', touch:'Get under an enemy and tap <b>🧲 CAPTURE BEAM</b> to steal it!', ev:'capture'},
     {text:'Your new wingman fires with you. Now try <b>🛡️ SHIELD</b> (key 2).', touch:'Your new wingman fires with you. Now tap <b>🛡️ SHIELD</b>.', ev:'ab_shield'},
     {text:'Finally, <b>✴️ NOVA BOMB</b> (key 3) clears the screen.', touch:'Finally, tap <b>✴️ NOVA BOMB</b> to clear the screen.', ev:'ab_nova'},
@@ -533,38 +540,45 @@ const GAME = window.GAME = {
   ],
   stageIntro:{1:'THE SWARM ARRIVES', 4:'GUARDIANS INBOUND'}, bossName:'DREADNOUGHT DETECTED!', ending:{"0": ["#THE SWARM IS BROKEN", "The last Dreadnought falls silent. Without its hive-mind, the Vrak Swarm drifts apart like leaves on the solar wind.", "Captured wingmen peel away from your Arrow and turn for home, free at last.", "Earth's fleet arrives to find the sector empty — and one battered fighter waiting for them.", "#PILOT", "They ask how you did it. One hundred battles. No backup. No retreat.", "You just smile and point at the scorch marks on your hull.", "The Arrow is towed into the hangar. Tomorrow they'll build a hundred more like it.", "But tonight the stars are quiet, and that is enough."], "1": ["#THE QUEEN'S SIGNAL", "The Dreadnoughts are gone, but one of your captured wingmen won't stop transmitting.", "It's broadcasting a single image, over and over: a planet wrapped in living metal, deep in uncharted space.", "The Vrak homeworld. And at its core, the Hive Queen — the mind that controls every ship in the Swarm.", "#THE LONG FLIGHT", "Command says it's a suicide mission. You fuel the Arrow anyway.", "Your wingmen fly beside you — not as prisoners any more, but as friends. They know the way home.", "Six months through the dark. Then the planet rises ahead, glittering with ten million ships.", "#AN OFFER", "The Queen doesn't attack. She speaks.", "She has watched you break her Swarm a hundred times. She has never lost before. She wants to know why you never gave up.", "You don't answer. You just line up your sights. The Queen goes quiet… and for the first time in ten thousand years, the Swarm pulls back."], "2": ["#THE TRUE ENDING", "Expert was never meant to be survived. The Swarm adapted to every move you made, filled the sky with bullets, dived faster than any human could react.", "And you broke it anyway. A hundred times.", "#INSIDE THE HIVE", "The Hive Queen opens a path into the heart of her homeworld and lets the Arrow fly in alone.", "Inside, there are no weapons. Just light, and ten billion quiet voices.", "The Swarm was never an army. It was a species so afraid of dying out that it forgot how to do anything except conquer.", "#THE QUEEN'S CHOICE", "She shows you everything: the dead stars, the empty worlds, the long lonely centuries of war.", "Then she asks you to decide their future.", "You tell her the same thing your wingmen learned flying beside you: that a swarm can choose to be a family instead.", "#A NEW SKY", "The Vrak fleets turn around. Not in defeat — in peace.", "Ten million ships line up on either side of the Arrow as it flies home, forming a corridor of light across the galaxy.", "Earth sees it in the night sky and thinks it is the end of the world.", "It is the beginning of a new one.", "#LEGEND", "Your wingmen never leave your side again.", "And in the Vrak language, the word for \"hope\" is now the name of a small, battered fighter called the Arrow."]},
 
-  _dbg(){ return {get enemies(){return enemies;}, get boss(){return boss;}, get waveI(){return waveI;}, get ship(){return ship;}, get wings(){return wings;}}; },
-  init(a){ api=a; stars=Array.from({length:140},()=>({x:Math.random()*W,y:Math.random()*H,z:Math.random()*3+0.5})); },
+  _dbg(){ return {get enemies(){return enemies;}, get boss(){return boss;}, get waveI(){return waveI;}, get waves(){return waves;}, get ship(){return ship;}, get wings(){return wings;}, get ebullets(){return ebullets;}, get ease(){return ease;}, get done(){return done;}, PY, XMIN, XMAX}; },
+  init(a){ api=a; stars=Array.from({length:220},()=>({x:Math.random()*W,y:Math.random()*H,z:Math.random()*3+0.5})); },
   startStage(n,a){
-    api=a; stageN=a.content; t=0; bullets=[]; ebullets=[]; enemies=[]; pickups=[]; boss=null; done=false; kills=0; beam=0; shieldT=0; rapidT=0; drag=null;
-    ship={x:W/2, inv:2, fire:0, dead:0}; wings = n>1 && a.extra.wings ? a.extra.wings : 0;
+    api=a; stageN=a.content; t=0; bullets=[]; ebullets=[]; enemies=[]; pickups=[]; boss=null; done=false; kills=0; beam=0; shieldT=0; rapidT=0; drag=null; spawnQ=null;
+    rs=(((Math.random()*1e9)|0) ^ Math.imul(n+1,0x9E3779B1))|0;   // RACE: shell seeds Math.random -> same rs on both phones
+    ease = a.diff===0 && !a.tutorial ? Math.max(0, 1-(a.level-1)/30) : (a.tutorial?1:0);   // Beginner: 1 at stage 1, 0.7 at 10, 0.37 at 20, 0 from 31
+    rowY = stageN===0 ? 270 : 142;   // tutorial box covers the top-left -> tutorial formation sits lower
+    ship={x:CX, inv:2, fire:0, dead:0}; wings = n>1 && a.extra.wings ? a.extra.wings : 0;
     const B='bee',M='moth',G='guard';
     const c=stageN, L=a.level;
     waves = c===0? [[B,B,B,B,B,B]] :
       c===1? [[B,B,B,B,B,B,B,B,M,M,M,M],[B,B,B,B,B,B,B,B,M,M,M,M,M,M,B,B]] :
       c===2? [[B,B,B,B,B,B,M,M,M,M,G,G],[B,B,B,B,M,M,M,M,M,M,G,G,G,G],[B,B,B,B,B,B,B,B,M,M,M,M,G,G,G,G]] :
              [[B,B,B,B,M,M,M,M,G,G,G,G],[M,M,M,M,M,M,G,G,G,G,B,B,B,B],['BOSS']];
-    // longer stages as the level climbs
     if(c===1 && L>=15) waves.push([B,B,B,B,M,M,M,M,M,M,G,G,G,G]);
     if(c>0 && L>=60) waves.splice(waves.length-(c===3?1:0),0,[G,G,G,G,M,M,M,M,M,M,G,G,G,G,B,B]);
-    waveI=-1; waveDelay=0.8; diveT=3;
+    if(c>0 && ease>0){   // Beginner: smaller waves, and stages 1-8 skip a wave
+      if(ease>0.6 && waves.length>2) waves.splice(c===3?1:waves.length-1,1);
+      waves=waves.map(w=>w[0]==='BOSS'?w:w.slice(0,Math.max(5,Math.ceil(w.length*(1-0.45*ease))))); }
+    waveI=-1; waveDelay=0.8; diveT=3+ease*2;
   },
-  respawn(){ ship.inv=2.5; ship.dead=0; ship.x=W/2; ebullets=[]; },
+  respawn(){ ship.inv=2.5+ease; ship.dead=0; ship.x=CX; ebullets=[]; },
   useAbility(id){
     if(ship.dead>0) return false;
+    if(id==='fire') return true;
     if(id==='beam'){ beam=1.3; api.sfx.power(); return true; }
     if(id==='shield'){ shieldT=3; api.sfx.power(); return true; }
     if(id==='nova'){ ebullets.forEach(b=>api.fx.burst(b.x,b.y,'#fff',3,80,.3,2)); ebullets=[]; api.fx.flash('#fff',.5); api.fx.shake(10); api.sfx.boom();
       enemies.slice().forEach(e=>hitEnemy(e,2)); if(boss) hurtBoss(6); return true; }
   },
+  // left thumb: relative drag on the left ~60% of the world (the right thumb lives on the FIRE button); a mouse drags anywhere
   onPointer(type,x,y,id,ptype,buttons){
-    if(type==='down'){ drag={id, sx:x, shipX:ship.x}; }
-    else if(type==='move' && drag && drag.id===id && (ptype!=='mouse' || buttons)){ ship.x=Math.max(24,Math.min(W-24, drag.shipX+(x-drag.sx)*1.25)); api.event('move'); }
+    if(type==='down'){ if(ptype==='mouse' || x<W*0.62) drag={id, sx:x, shipX:ship.x}; }
+    else if(type==='move' && drag && drag.id===id && (ptype!=='mouse' || buttons)){ ship.x=Math.max(XMIN,Math.min(XMAX, drag.shipX+(x-drag.sx)*1.4)); api.event('move'); }
     else if(type==='up' && drag && drag.id===id) drag=null;
   },
   update(dt){
     t+=dt;
-    for(const s of stars){ s.y+=s.z*40*dt; if(s.y>H){ s.y=0; s.x=Math.random()*W; } }
+    for(const s of stars){ s.y+=s.z*30*dt; if(s.y>H){ s.y=0; s.x=Math.random()*W; } }
     shieldT=Math.max(0,shieldT-dt); rapidT=Math.max(0,rapidT-dt); beam=Math.max(0,beam-dt);
     api.setActive(0,beam>0); api.setActive(1,shieldT>0);
     // waves
@@ -575,93 +589,99 @@ const GAME = window.GAME = {
       } }
     }
     if(spawnQ && spawnQ.length){ spawnQ[0].d-=dt; while(spawnQ.length && spawnQ[0].d<=0) enemies.push(spawnQ.shift().e); }
-    // ship
+    // ship — you only fire while FIRE / SPACE is held (no auto-fire)
     if(ship.dead>0){ ship.dead-=dt; if(ship.dead<=0) api.loseLife(); }
     else {
-      const d=api.input.dir(); if(d.x){ ship.x=Math.max(24,Math.min(W-24,ship.x+d.x*420*dt)); api.event('move'); }
+      const d=api.input.dir(); if(d.x){ ship.x=Math.max(XMIN,Math.min(XMAX,ship.x+d.x*520*dt)); api.event('move'); }
       ship.inv=Math.max(0,ship.inv-dt);
-      ship.fire-=dt; if(ship.fire<=0&&(drag||(function(K){return K.Space||K.ArrowLeft||K.ArrowRight||K.ArrowUp||K.ArrowDown||K.KeyA||K.KeyD||K.KeyW||K.KeyS;})(api.input.keys))){ ship.fire=rapidT>0?0.085:0.17; fireShot(ship.x,PY-22); for(let i=0;i<wings;i++) fireShot(ship.x+(i?38:-38),PY-12); if(Math.random()<.4) api.sfx.shoot(); }
+      ship.fire-=dt; if(ship.fire<=0 && api.input.keys.Space){ ship.fire=rapidT>0?0.085:0.17; fireShot(ship.x,PY-22); for(let i=0;i<wings;i++) fireShot(ship.x+(i?38:-38),PY-12); if(Math.random()<.4) api.sfx.shoot(); }
     }
     // bullets
-    for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i]; b.y-=900*dt; if(b.y<-20){ bullets.splice(i,1); continue; }
+    for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i]; b.y-=820*dt; if(b.y<-20){ bullets.splice(i,1); continue; }
       let hit=false; for(const e of enemies){ if(e.st!=='cap' && Math.abs(e.x-b.x)<ET[e.type].r && Math.abs(e.y-b.y)<ET[e.type].r){ hitEnemy(e,1); hit=true; break; } }
       if(!hit && boss && Math.abs(boss.x-b.x)<80 && Math.abs(boss.y-b.y)<34){ hurtBoss(1); hit=true; api.fx.spark(b.x,b.y,0,-60,'#ff3d7f',.2,3); }
       if(hit) bullets.splice(i,1); }
+    const hr=12-ease*4;   // Beginner: smaller hitbox
     for(let i=ebullets.length-1;i>=0;i--){ const b=ebullets[i]; b.x+=b.vx*dt; b.y+=b.vy*dt; if(b.y>H+20||b.y<-20||b.x<-20||b.x>W+20){ ebullets.splice(i,1); continue; }
-      if(ship.dead<=0 && Math.hypot(b.x-ship.x,b.y-PY)<12){ ebullets.splice(i,1); playerHit(); } }
-    // formation offset
-    const fx=Math.sin(t*0.8)*30, fy=Math.sin(t*1.3)*6;
+      if(ship.dead<=0 && Math.hypot(b.x-ship.x,b.y-PY)<hr){ ebullets.splice(i,1); playerHit(); } }
+    // formation sways across the wide sky
+    const fx=Math.sin(t*0.6)*90, fy=Math.sin(t*1.3)*6;
     diveT-=dt;
-    if(diveT<=0 && stageN>=0){ diveT=(stageN===0?99:api.dv([3.2,2.2,1.5],0.9,0.18))*(0.6+Math.random()*0.8); const cand=enemies.filter(e=>e.st==='form'); const k=Math.min(cand.length, api.dk>=1&&stageN>1?(api.dk>=2.6?(api.dk>=3.5?Math.min(6,Math.floor(api.dk)):3):2):1);
-      for(let i=0;i<k;i++){ const e=cand.splice(Math.floor(Math.random()*cand.length),1)[0]; e.st='dive'; e.vx=0; e.vy=-120; e.shots=e.type==='bee'?(api.dk>=0.5?1:0):2; } }
+    if(diveT<=0 && stageN>=0){ diveT=(stageN===0?99:api.dv([3.2,2.2,1.5],0.9,0.18)*(1+1.3*ease))*(0.6+rnd()*0.8); const cand=enemies.filter(e=>e.st==='form'); const k=Math.min(cand.length, api.dk>=1&&stageN>1?(api.dk>=2.6?(api.dk>=3.5?Math.min(6,Math.floor(api.dk)):3):2):1);
+      for(let i=0;i<k;i++){ const e=cand.splice(Math.floor(rnd()*cand.length),1)[0]; e.st='dive'; e.vx=0; e.vy=-100; e.shots=e.type==='bee'?(api.dk>=0.5?1:0):(ease>0.3?1:2); } }
+    const vmax=(240+Math.min(api.dk>=3?420:160,api.dk*50))*(1-0.3*ease), steer=(210-90*ease);
     for(let i=enemies.length-1;i>=0;i--){ const e=enemies[i]; const sx=e.sx+fx, sy=e.sy+fy;
       if(e.st==='enter'){ e.p+=dt/1.7; const p=Math.min(1,e.p), q=1-p; e.x=q*q*e.x0+2*q*p*e.cx+p*p*sx; e.y=q*q*e.y0+2*q*p*e.cy+p*p*sy; if(p>=1) e.st='form'; }
       else if(e.st==='form'){ e.x=sx; e.y=sy; }
-      else if(e.st==='dive'){ e.vy=Math.min(e.vy+500*dt, 300+Math.min(api.dk>=3?520:200,api.dk*60)); e.vx+=Math.sign(ship.x-e.x)*260*dt; e.vx=Math.max(-220,Math.min(220,e.vx)); e.x+=e.vx*dt; e.y+=e.vy*dt;
-        if(e.shots>0 && e.y>260 && Math.random()<dt*1.6){ e.shots--; aimShot(e.x,e.y); }
+      else if(e.st==='dive'){ e.vy=Math.min(e.vy+420*dt, vmax); e.vx+=Math.sign(ship.x-e.x)*steer*dt; e.vx=Math.max(-200,Math.min(200,e.vx)); e.x+=e.vx*dt; e.y+=e.vy*dt;
+        if(e.shots>0 && e.y>rowY+90 && e.y<PY-120 && rnd()<dt*1.6){ e.shots--; aimShot(e.x,e.y); }
         if(e.y>H+30){ e.y=-30; e.st='ret'; } }
       else if(e.st==='ret'){ const dx=sx-e.x, dy=sy-e.y, d=Math.hypot(dx,dy); if(d<6) e.st='form'; else { e.x+=dx/d*320*dt; e.y+=dy/d*320*dt; } }
       else if(e.st==='cap'){ e.y+=(PY-e.y)*dt*4; e.x+=(ship.x-e.x)*dt*4; if(Math.abs(e.y-PY)<20){ enemies.splice(i,1); wings=Math.min(2,wings+1); api.toast('WINGMAN JOINED!'); api.sfx.clear(); api.event('capture'); } continue; }
-      if(e.st!=='cap' && ship.dead<=0 && Math.hypot(e.x-ship.x,e.y-PY)<ET[e.type].r+12){ hitEnemy(e,9); playerHit(); }
-      // beam capture
-      if(beam>0 && e.st!=='cap' && e.y<PY-30){ const w=18+(PY-e.y)*0.18; if(Math.abs(e.x-ship.x)<w){ if(wings<2){ e.st='cap'; beam=0; api.sfx.power(); } else { hitEnemy(e,9); } } }
+      if(e.st!=='cap' && ship.dead<=0 && Math.hypot(e.x-ship.x,e.y-PY)<ET[e.type].r+hr){ hitEnemy(e,9); playerHit(); }
+      if(beam>0 && e.st!=='cap' && e.y<PY-30){ const w=18+(PY-e.y)*0.2; if(Math.abs(e.x-ship.x)<w){ if(wings<2){ e.st='cap'; beam=0; api.sfx.power(); } else { hitEnemy(e,9); } } }
     }
     // boss
     if(boss){ boss.t+=dt; boss.flash=Math.max(0,boss.flash-dt); const rage=boss.hp<boss.max/2;
-      boss.x=W/2+Math.sin(boss.t*(rage?0.9:0.6))*(W/2-110); boss.y=Math.min(170,boss.y+60*dt);
-      boss.cd-=dt; if(boss.cd<=0){ boss.cd=api.dv([1.7,1.3,1.0],0.65,0.2)*(rage?0.7:1); const n=rage?7:5; for(let k=0;k<n;k++){ const a=Math.PI/2+(k-(n-1)/2)*0.22; ebullets.push({x:boss.x,y:boss.y+30,vx:Math.cos(a)*220,vy:Math.sin(a)*220}); } api.sfx.shoot(); }
-      boss.cd2-=dt; if(boss.cd2<=0){ boss.cd2=rage?1.2:2.2; aimShot(boss.x-60,boss.y+10); aimShot(boss.x+60,boss.y+10); }
-      boss.sp-=dt; if(boss.sp<=0 && enemies.length<6){ boss.sp=6; for(const s of [-1,1]){ const e=mk('bee',boss.x+s*60,boss.y); e.st='dive'; e.vx=s*80; e.vy=0; e.shots=1; e.sx=W/2; e.sy=120; enemies.push(e); } } }
+      boss.x=CX+Math.sin(boss.t*(rage?0.8:0.55))*380; boss.y=Math.min(190,boss.y+60*dt);
+      boss.cd-=dt; if(boss.cd<=0){ boss.cd=api.dv([1.7,1.3,1.0],0.65,0.2)*(rage?0.7:1)*(1+0.7*ease); const n=ease>0.2?(rage?4:3):(rage?7:5), sp=api.dv([155,180,205],240,300)*(1-0.3*ease); for(let k=0;k<n;k++){ const a=Math.PI/2+(k-(n-1)/2)*0.22; ebullets.push({x:boss.x,y:boss.y+30,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp}); } api.sfx.shoot(); }
+      boss.cd2-=dt; if(boss.cd2<=0){ boss.cd2=(rage?1.2:2.2)*(1+ease); aimShot(boss.x-60,boss.y+10); aimShot(boss.x+60,boss.y+10); }
+      boss.sp-=dt; if(boss.sp<=0 && enemies.length<6){ boss.sp=6+ease*4; for(const s of [-1,1]){ const e=mk('bee',boss.x+s*60,boss.y); e.st='dive'; e.vx=s*80; e.vy=0; e.shots=ease>0.3?0:1; e.sx=CX+s*120; e.sy=rowY; enemies.push(e); } } }
     // pickups
-    for(let i=pickups.length-1;i>=0;i--){ const p=pickups[i]; p.y+=120*dt; if(p.y>H+10){ pickups.splice(i,1); continue; } if(Math.hypot(p.x-ship.x,p.y-PY)<26){ pickups.splice(i,1); rapidT=6; api.sfx.pickup(); api.toast('RAPID FIRE!'); } }
+    for(let i=pickups.length-1;i>=0;i--){ const p=pickups[i]; p.y+=110*dt; if(p.y>H+10){ pickups.splice(i,1); continue; } if(Math.hypot(p.x-ship.x,p.y-PY)<28){ pickups.splice(i,1); rapidT=6; api.sfx.pickup(); api.toast('RAPID FIRE!'); } }
   },
   render(c){
     c.fillStyle=GAME.theme.bg; c.fillRect(0,0,W,H);
-    const ng=c.createRadialGradient(W*0.3,H*0.3,10,W*0.3,H*0.3,420); ng.addColorStop(0,'rgba(90,30,140,0.35)'); ng.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=ng; c.fillRect(0,0,W,H);
+    for(const [nx,ny,nr,col] of [[W*0.22,H*0.35,460,'rgba(90,30,140,0.35)'],[W*0.8,H*0.25,380,'rgba(20,80,140,0.28)']]){ const ng=c.createRadialGradient(nx,ny,10,nx,ny,nr); ng.addColorStop(0,col); ng.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=ng; c.fillRect(0,0,W,H); }
+    // distant planet on the right (sits behind the FIRE button area — decoration only)
+    c.save(); const pg=c.createRadialGradient(1150,560,20,1180,600,220); pg.addColorStop(0,'#3a1f5c'); pg.addColorStop(1,'#0a0618'); c.fillStyle=pg; c.beginPath(); c.arc(1180,620,190,0,Math.PI*2); c.fill();
+    c.strokeStyle='rgba(255,61,127,0.35)'; c.lineWidth=3; c.beginPath(); c.ellipse(1180,620,280,40,-0.25,Math.PI*1.05,Math.PI*1.95); c.stroke(); c.restore();
     for(const s of stars){ c.fillStyle=s.z>2.5?'#fff':'#8aa0ff'; c.globalAlpha=Math.min(1,s.z/3); c.fillRect(s.x,s.y,s.z*0.7,s.z*1.6); } c.globalAlpha=1;
+    // flight lane: shows how far the ship can travel
+    c.save(); c.strokeStyle='rgba(63,224,255,0.14)'; c.lineWidth=2; c.setLineDash([6,10]); c.beginPath(); c.moveTo(XMIN-30,PY+42); c.lineTo(XMAX+30,PY+42); c.stroke(); c.setLineDash([]);
+    c.fillStyle='rgba(63,224,255,0.35)'; for(const x of [XMIN-30,XMAX+30]) c.fillRect(x-2,PY+34,4,16); c.restore();
     // beam
     if(beam>0){ c.save(); c.globalCompositeOperation='lighter'; const g=c.createLinearGradient(0,PY,0,0); g.addColorStop(0,'rgba(63,224,255,0.55)'); g.addColorStop(1,'rgba(160,102,255,0.05)'); c.fillStyle=g;
-      c.beginPath(); c.moveTo(ship.x-14,PY-20); c.lineTo(ship.x-18-PY*0.18,0); c.lineTo(ship.x+18+PY*0.18,0); c.lineTo(ship.x+14,PY-20); c.fill();
-      c.strokeStyle='rgba(255,255,255,0.4)'; for(let k=0;k<6;k++){ const yy=(PY-((t*500+k*140)%PY)); const ww=18+(PY-yy)*0.18; c.beginPath(); c.ellipse(ship.x,yy,ww,5,0,0,Math.PI*2); c.stroke(); } c.restore(); }
-    // bullets
+      c.beginPath(); c.moveTo(ship.x-14,PY-20); c.lineTo(ship.x-18-PY*0.2,0); c.lineTo(ship.x+18+PY*0.2,0); c.lineTo(ship.x+14,PY-20); c.fill();
+      c.strokeStyle='rgba(255,255,255,0.4)'; for(let k=0;k<6;k++){ const yy=(PY-((t*500+k*110)%PY)); const ww=18+(PY-yy)*0.2; c.beginPath(); c.ellipse(ship.x,yy,ww,5,0,0,Math.PI*2); c.stroke(); } c.restore(); }
     const lc=api.cos('Laser').colors;
     c.save(); c.shadowColor=lc[0]; c.shadowBlur=10; c.fillStyle=lc[0]; for(const b of bullets){ c.fillRect(b.x-2,b.y-9,4,18); } c.fillStyle=lc[1]; for(const b of bullets) c.fillRect(b.x-1,b.y-7,2,14); c.restore();
     c.save(); c.shadowColor='#ff3d7f'; c.shadowBlur=10; for(const b of ebullets){ c.fillStyle='#ff3d7f'; c.beginPath(); c.arc(b.x,b.y,5,0,Math.PI*2); c.fill(); c.fillStyle='#fff'; c.beginPath(); c.arc(b.x,b.y,2,0,Math.PI*2); c.fill(); } c.restore();
     for(const p of pickups){ c.save(); c.shadowColor='#ffd23f'; c.shadowBlur=16; c.fillStyle='#ffd23f'; c.beginPath(); c.arc(p.x,p.y,11,0,Math.PI*2); c.fill(); c.fillStyle='#000'; c.font='bold 13px Orbitron'; c.textAlign='center'; c.fillText('P',p.x,p.y+5); c.restore(); }
     for(const e of enemies) drawEnemy(c,e);
     if(boss) drawBoss(c);
-    // ship + wings
     if(ship.dead<=0 && !(ship.inv>0 && Math.floor(t*12)%2)){
       const sc=api.cos('Ship').colors; drawShip(c,ship.x,PY,sc[0],sc[1],1);
       for(let i=0;i<wings;i++) drawShip(c,ship.x+(i?38:-38),PY+10,'#ffd23f',sc[0],0.7);
       if(shieldT>0){ c.save(); c.strokeStyle='#3fe0ff'; c.globalAlpha=.5+.3*Math.sin(t*14); c.lineWidth=3; c.shadowColor='#3fe0ff'; c.shadowBlur=18; c.beginPath(); c.arc(ship.x,PY,wings?64:32,0,Math.PI*2); c.stroke(); c.restore(); }
     }
-    if(rapidT>0){ c.fillStyle='#ffd23f'; c.font='bold 12px Orbitron'; c.textAlign='center'; c.fillText('RAPID '+Math.ceil(rapidT),ship.x,PY+44); }
+    if(rapidT>0){ c.fillStyle='#ffd23f'; c.font='bold 13px Orbitron'; c.textAlign='center'; c.fillText('RAPID '+Math.ceil(rapidT),ship.x,PY+62); }
   }
 };
 
-function mk(type,x,y){ return {type,x,y,hp:ET[type].hp,st:'enter',p:0,sx:x,sy:y,flap:Math.random()*6}; }
+function mk(type,x,y){ return {type,x,y,hp:ET[type].hp,st:'enter',p:0,sx:x,sy:y,flap:rnd()*6}; }
 function startWave(list){
-  if(list[0]==='BOSS'){ const hp=Math.round(api.dv([70,95,120],200,600)); boss={x:W/2,y:-80,hp,max:hp,t:0,cd:2,cd2:3,sp:4,flash:0}; api.toast('DREADNOUGHT!'); spawnQ=[]; return; }
-  spawnQ=[]; const cols=8;
+  if(list[0]==='BOSS'){ const hp=Math.round(api.dv([70,95,120],200,600)*(1-0.4*ease)); boss={x:CX,y:-80,hp,max:hp,t:0,cd:2+ease,cd2:3+ease,sp:4+ease*3,flash:0}; api.toast('DREADNOUGHT!'); spawnQ=[]; return; }
+  spawnQ=[]; const cols=10;
   const slots=list.map((tp,i)=>({tp, r:Math.floor(i/cols), c:i%cols}));
   slots.sort((a,b)=> (a.tp==='guard'?0:a.tp==='moth'?1:2)-(b.tp==='guard'?0:b.tp==='moth'?1:2));
   slots.forEach((s,i)=>{ s.r=Math.floor(i/cols); s.c=i%cols; });
   slots.forEach((s,i)=>{
-    const e=mk(s.tp,0,0); e.sx=W/2+(s.c-(cols-1)/2)*52; e.sy=130+s.r*48;
-    const left=Math.floor(i/4)%2===0; e.x0=left?-40:W+40; e.y0=260+(i%4)*10; e.cx=left?W*0.85:W*0.15; e.cy=620; e.x=e.x0; e.y=e.y0;
+    const inRow=Math.min(cols, slots.length-s.r*cols);
+    const e=mk(s.tp,0,0); e.sx=CX+(s.c-(inRow-1)/2)*58; e.sy=rowY+s.r*48;
+    const left=Math.floor(i/4)%2===0; e.x0=left?-40:W+40; e.y0=rowY+40+(i%4)*10; e.cx=left?W*0.7:W*0.2; e.cy=rowY+300; e.x=e.x0; e.y=e.y0;
     if(stageN===0){ e.st='form'; e.x=e.sx; e.y=e.sy; }
     spawnQ.push({e, d:(i%4===0 && i>0)? 0.9 : 0.14});
   });
 }
 function fireShot(x,y){ if(bullets.length<40) bullets.push({x,y}); }
-function aimShot(x,y){ const a=Math.atan2(PY-y, ship.x-x), s=api.dv([190,240,290],380,620); ebullets.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s}); }
+function aimShot(x,y){ const a=Math.atan2(PY-y, ship.x-x), s=api.dv([160,200,245],320,520)*(1-0.3*ease); ebullets.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s}); }
 function hitEnemy(e,dmg){
   e.hp-=dmg; if(e.hp>0){ api.sfx.bump(); api.fx.burst(e.x,e.y,'#fff',5,100,.25,2); return; }
   const i=enemies.indexOf(e); if(i<0) return; enemies.splice(i,1);
   const xc=api.cos('Explosion').colors; api.fx.burst(e.x,e.y,xc[0],18,240,.55,3); api.fx.burst(e.x,e.y,ET[e.type].col,10,160,.5,3); api.sfx.small();
   const pts=ET[e.type].pts*(e.st==='dive'?2:1); api.addScore(pts,e.x,e.y-12); kills++; if(kills===3) api.event('kill3');
-  if(Math.random()<0.06) pickups.push({x:e.x,y:e.y}); if(Math.random()<0.1) api.addCoins(1);
+  if(rnd()<0.06+ease*0.04) pickups.push({x:Math.max(XMIN,Math.min(XMAX,e.x)),y:e.y}); if(rnd()<0.1) api.addCoins(1);
 }
 function hurtBoss(d){ boss.hp-=d; boss.flash=.08; if(boss.hp<=0){ const bx=boss.x,by=boss.y; api.addScore(8000,bx,by); api.addCoins(12); api.fx.burst(bx,by,'#ffd23f',120,480,1.4,4); api.fx.burst(bx,by,'#ff3d7f',80,360,1.2,4); api.fx.shake(20); api.fx.flash('#fff',.7); api.sfx.boom(); boss=null; } }
 function playerHit(){
@@ -696,8 +716,9 @@ function drawBoss(c){
   c.fillStyle='#ffd23f'; c.beginPath(); c.arc(0,0,12+Math.sin(t*6)*3,0,Math.PI*2); c.fill();
   for(const s of [-1,1]){ c.fillStyle='#3fe0ff'; c.beginPath(); c.arc(s*55,0,6,0,Math.PI*2); c.fill(); }
   c.restore();
-  c.fillStyle='#300'; c.fillRect(W/2-150,64,300,8); c.fillStyle='#ff3d7f'; c.fillRect(W/2-150,64,300*Math.max(0,boss.hp/boss.max),8);
-  c.font='bold 11px Orbitron, sans-serif'; c.textAlign='center'; c.fillStyle='#fff'; c.fillText('DREADNOUGHT',W/2,58);
+  // health bar rides under the boss (the top strip belongs to the HUD and the race bars)
+  const bx=boss.x, by=boss.y+50; c.fillStyle='#300'; c.fillRect(bx-110,by,220,8); c.fillStyle='#ff3d7f'; c.fillRect(bx-110,by,220*Math.max(0,boss.hp/boss.max),8);
+  c.font='bold 11px Orbitron, sans-serif'; c.textAlign='center'; c.fillStyle='#fff'; c.fillText('DREADNOUGHT',bx,by+22);
 }
 })();
 
