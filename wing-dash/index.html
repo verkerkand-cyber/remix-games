@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-WD-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-WD-1.2 · 2026-10-26">
 <title>Wing Dash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-WD-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-WD-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,15 +489,22 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* WING DASH — tap-flyer remix (#59). 100 stages. Flap through the neon gates, grab the gems, never touch the pillars. */
+/* WING DASH — tap-flyer remix (#59). 100 stages. Flap through the neon gates, grab the gems, never touch the pillars.
+   1.2 (26 Oct): LANDSCAPE 1280x720 — bird left-of-centre (x=360), ~900px view ahead. RACE mode: the gate course comes
+   from its own seeded generator (seed taken from Math.random at stage start, which the shell seeds in a race) so both
+   racers fly the identical course. Gaps always sit between the HUD strip and the action buttons (y 100..505).
+   Beginner 1-10: gentle gravity, slow scroll, wide gaps, ground BOUNCES instead of killing. Idle bird starts falling
+   after 4 s and the gates come — an idle player loses lives, never clears. */
 (function(){
-const W=600,H=900,BX=170,GROUND=H-70;
-let api,t,b,gates,shots,gems,done,lost,eff,grace,passed,goal,spawnX,boss,city,stars,feathers,wind,windT,flapT;
+const W=1280,H=720,BX=360,GROUND=620,TOPY=100,BOTY=505,BR=16;
+let api,t,b,gates,shots,gems,done,lost,eff,grace,passed,goal,spawnX,boss,city,stars,feathers,wind,windT,flapT,idleT,easy,rs=1;
 function R(a,b){ return a+Math.random()*(b-a); }
+function rnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+function RR(a,b){ return a+rnd()*(b-a); }
 const GAME=window.GAME={
   id:'wing-dash',title:'Wing Dash',titleHTML:'WING<br>DASH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-WD-1.1 · 2026-10-17',theme:{a:'#3dd8ff',b:'#ffd23f',bg:'#0a0a24'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🐦',joystick:false,coinPts:40,
+  build:'BUILD-WD-1.2 · 2026-10-26',theme:{a:'#3dd8ff',b:'#ffd23f',bg:'#0a0a24'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🐦',joystick:false,coinPts:40,
   abilities:[
     {id:'flap',icon:'🪽',name:'FLAP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — flap up. Or just tap anywhere on the game (↑ / W / click on PC).'},
     {id:'shield',icon:'🛡️',name:'BUBBLE',cd:18,key:'Digit1',keyLabel:'1',desc:'A bubble keeps you safe from pillars, blades and shots for 5 seconds.'},
@@ -506,18 +513,20 @@ const GAME=window.GAME={
   shop:[{id:'w_b',cat:'Bird',name:'Sky Blue',cost:0,colors:['#3dd8ff'],desc:'Classic.'},{id:'w_p',cat:'Bird',name:'Hot Pink',cost:150,colors:['#ff3bd4'],desc:'Loud and proud.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3dd8ff,#ffd23f)'}],
   story:`<h3>WING DASH</h3><p>The neon city has closed its sky with gates. One little bird is going to fly through every single one of them.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap anywhere</b> to flap (SPACE, ↑ or W on PC). Let go and you fall.</li><li>Fly through the gaps in the glowing pillars. Touching a pillar, a blade or the ground costs a life.</li><li>Grab the gems in the gaps for gold. Pass the number of gates shown at the top to clear the stage.</li><li>Every 10th stage a giant drone hunts you — every gate you pass zaps it!</li></ul>`,
-  tutorial:[{text:'Tap anywhere (or SPACE) to flap. Keep tapping to stay up!',ev:'flap'},{text:'Fly through the gap in the pillars!',ev:'gate'},{text:'Pass all the gates!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Right thumb:</b> tap the <b>🪽 FLAP</b> button — or tap <b>anywhere</b> on the game — to flap. Let go and you fall. PC: SPACE, ↑ or W (or click).</li><li><b>Left thumb:</b> the power-ups on the left edge — 🛡️ BUBBLE (1), 🐌 SLOW-MO (2), 💥 GATE BUSTER (3).</li><li>Fly through the gaps in the glowing pillars. Touching a pillar, a blade or the ground costs a life (on early Beginner stages the ground just bounces you).</li><li>Grab the gems for gold. Pass the number of gates shown at the top to clear the stage.</li><li>Every 10th stage a giant drone hunts you — every gate you pass zaps it!</li><li>RACE: both players fly the exact same course — first to the end wins.</li></ul>`,
+  tutorial:[{text:'Tap <b>SPACE</b> (or click) to flap. Keep tapping to stay up!',touch:'Hold your phone sideways. Tap <b>🪽 FLAP</b> (right thumb) or anywhere to flap!',ev:'flap'},{text:'Fly through the gap in the pillars!',ev:'gate'},{text:'Pass all the gates!',time:5}],
   stageIntro:{1:'FLY THROUGH THE GATES'},bossName:'THE HUNTER DRONE!',ending:{"0":["#FREE","The sky is open again."],"1":["#ACE","Fastest wings in the city."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const tot={shield:5,slow:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get pl(){return {x:BX,y:b.y};}, get b(){return b;}, get gates(){return gates;}, get lost(){return lost;}, get passed(){return passed;}, flap:()=>flap()}; },
+  _dbg(){ return {get pl(){return {x:BX,y:b.y};}, get b(){return b;}, get gates(){return gates;}, get shots(){return shots;}, get boss(){return boss;}, get lost(){return lost;}, get done(){return done;}, get passed(){return passed;}, get goal(){return goal;}, get easy(){return easy;}, get rs(){return rs;}, BX, GROUND, flap:()=>flap()}; },
   init(a){api=a; mkCity();},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1.5; eff={shield:-9,slow:-9}; gates=[]; shots=[]; gems=[]; feathers=[]; passed=0; wind=0; windT=3; flapT=0;
-    b={y:H*0.42,vy:0,rot:0,started:false};
-    goal=a.content===0?4:Math.round(a.dv([10,16,22],30,45)); spawnX=W+60; boss=null;
-    if(a.boss){ goal=Math.round(goal*1.2); boss={x:W-90,y:220,hp:goal,max:goal,fireT:2.5,t:0,hurt:0}; }
+  startStage(n,a){ api=a; rs=(Math.random()*1e9)|0;   // in a RACE the shell seeds Math.random -> same course on every phone
+    t=0; done=false; lost=false; grace=1.5; eff={shield:-9,slow:-9}; gates=[]; shots=[]; gems=[]; feathers=[]; passed=0; wind=0; windT=3; flapT=0; idleT=0;
+    easy=a.content===0||(a.diff===0&&a.level<=10);
+    b={y:300,vy:0,rot:0,started:false};
+    goal=a.content===0?4:easy?6+Math.floor(a.level/2):Math.round(a.dv([10,16,22],30,45)); spawnX=W+60; boss=null;
+    if(a.boss){ goal=Math.round(goal*1.2); boss={x:W-170,y:300,hp:goal,max:goal,fireT:easy?4:2.5,t:0,hurt:0}; }
     if(!city) mkCity(); },
-  respawn(){ lost=false; grace=2; b.y=H*0.42; b.vy=0; b.started=false; shots=[]; gates=gates.filter(g=>g.x>BX+260||g.x<BX-120); },
+  respawn(){ lost=false; grace=2; b.y=300; b.vy=0; b.started=false; idleT=0; shots=[]; gates=gates.filter(g=>g.x>BX+300||g.x<BX-120); },
   stageBonus(){ return passed*25; },
   useAbility(id){ if(done||lost) return false; if(id==='flap') return flap();
     if(id==='blast'){ const g=gates.find(g=>!g.done&&g.x>BX-20); if(!g) return false; g.done=true; g.broken=true; passGate(g); api.fx.burst(g.x,g.gy,'#ffd23f',40,420,.8,4); api.fx.shake(10); api.sfx.boom(); return true; }
@@ -528,88 +537,84 @@ const GAME=window.GAME={
     if(lost){ b.vy+=1800*dt0; b.y=Math.min(GROUND-14,b.y+b.vy*dt0); b.rot=Math.min(1.5,b.rot+dt0*5); return; }
     const dt=dt0*(eff.slow>0?0.5:1);
     const K=api.input.keys, up=K.ArrowUp||K.KeyW; if(up&&!this._u) flap(); this._u=up;
-    const spd=b.started?api.dv([170,215,255],290,380)*(api.content===0?0.85:1):0;
-    // bird physics
-    if(b.started){ const g=api.dv([1350,1550,1750],1850,2100)*(api.content===0?0.9:1); b.vy+=g*dt; b.vy+=wind*dt; b.vy=Math.min(b.vy,820); b.y+=b.vy*dt; b.rot=Math.max(-0.5,Math.min(1.2,b.vy/650)); }
-    else { b.y=H*0.42+Math.sin(t*4)*10; }
-    if(b.y<20){ b.y=20; b.vy=Math.max(0,b.vy); }
-    if(b.y>GROUND-16){ b.y=GROUND-16; crash('YOU HIT THE GROUND!'); return; }
-    // wind gusts from level 30
-    if(api.level>=30&&api.content!==0){ windT-=dt; if(windT<=0){ windT=R(3,6); wind=(Math.random()<.5?-1:1)*api.dv([0,260,420],520,800)*Math.min(1,(api.level-29)/40); } }
-    // gates
-    if(b.started){ spawnX-=spd*dt; if(spawnX<=W+60 && gates.filter(g=>!g.done).length+passed<goal+2){ spawnGate(); spawnX+=api.dv([330,300,270],250,220); } }
+    if(!b.started&&(idleT+=dt0)>4) b.started=true;   // no hands = the bird drops and the gates come anyway
+    const L=api.level, spd=b.started?(easy?135+L*4:api.dv([175,215,255],290,380)):0;
+    if(b.started){ const g=easy?950+L*15:api.dv([1300,1500,1700],1800,2050); b.vy+=g*dt; b.vy+=wind*dt; b.vy=Math.min(b.vy,easy?520:780); b.y+=b.vy*dt; b.rot=Math.max(-0.5,Math.min(1.2,b.vy/600)); }
+    else { b.y=300+Math.sin(t*4)*10; }
+    if(b.y<TOPY-12){ b.y=TOPY-12; b.vy=Math.max(0,b.vy); }
+    if(b.y>GROUND-BR){ if(easy){ b.y=GROUND-BR; b.vy=-430; api.sfx.bump&&api.sfx.bump(); api.toast('BOUNCE! TAP TO FLAP'); } else { b.y=GROUND-BR; crash('YOU HIT THE GROUND!'); return; } }
+    if(L>=30&&!easy&&api.content!==0){ windT-=dt; if(windT<=0){ windT=R(3,6); wind=(Math.random()<.5?-1:1)*api.dv([0,240,380],480,740)*Math.min(1,(L-29)/40); } }
+    if(b.started){ spawnX-=spd*dt; if(spawnX<=W+60 && gates.filter(g=>!g.done).length+passed<goal+2){ spawnGate(); spawnX+=easy?440-L*6:api.dv([380,340,300],280,250); } }
     gates.forEach(g=>{ g.x-=spd*dt; g.t+=dt; if(g.amp){ g.gy=g.by+Math.sin(g.t*g.spdm+g.ph)*g.amp; }
       if(g.blade){ g.blade.a+=dt*8; g.blade.y=g.gy+Math.sin(g.t*2.2)*g.gap*0.3; }
-      if(!g.done&&g.x<BX-30){ g.done=true; passGate(g); }
-      if(!g.broken&&Math.abs(g.x-BX)<30+16){ const top=g.gy-g.gap/2, bot=g.gy+g.gap/2; if(b.y-13<top||b.y+13>bot) hitThing('YOU HIT A PILLAR!'); }
-      if(g.blade&&!g.broken&&Math.hypot(g.x-BX,g.blade.y-b.y)<22+14) hitThing('SLICED BY A BLADE!'); });
-    gates=gates.filter(g=>g.x>-80);
-    gems.forEach(m=>{ m.x-=spd*dt; m.t+=dt; if(!m.got&&Math.hypot(m.x-BX,m.y-b.y)<30){ m.got=true; api.addScore(m.big?150:50,m.x,m.y); api.sfx.coin(); api.fx.burst(m.x,m.y,m.big?'#ff3bd4':'#3dffd8',14,200,.5,3); if(m.big) api.addCoins(2); } });
+      if(!g.done&&g.x<BX-36){ g.done=true; passGate(g); }
+      if(!g.broken&&Math.abs(g.x-BX)<35+BR-3){ const top=g.gy-g.gap/2, bot=g.gy+g.gap/2; if(b.y-BR+3<top||b.y+BR-3>bot) hitThing('YOU HIT A PILLAR!'); }
+      if(g.blade&&!g.broken&&Math.hypot(g.x-BX,g.blade.y-b.y)<22+BR-2) hitThing('SLICED BY A BLADE!'); });
+    gates=gates.filter(g=>g.x>-90);
+    gems.forEach(m=>{ m.x-=spd*dt; m.t+=dt; if(!m.got&&Math.hypot(m.x-BX,m.y-b.y)<34){ m.got=true; api.addScore(m.big?150:50,m.x,m.y); api.sfx.coin(); api.fx.burst(m.x,m.y,m.big?'#ff3bd4':'#3dffd8',14,200,.5,3); if(m.big) api.addCoins(2); } });
     gems=gems.filter(m=>m.x>-40&&!m.got);
-    // boss drone
-    if(boss){ boss.t+=dt; boss.hurt-=dt; boss.y=200+Math.sin(boss.t*0.9)*140; boss.x=W-90+Math.sin(boss.t*1.7)*20; boss.fireT-=dt;
-      if(boss.fireT<=0&&b.started){ boss.fireT=api.dv([2.4,1.7,1.2],0.9,0.55); const n=api.level>=60?3:api.level>=25?2:1; for(let i=0;i<n;i++){ const a=Math.atan2(b.y-boss.y,BX-boss.x)+(i-(n-1)/2)*0.22, v=api.dv([260,320,380],420,520); shots.push({x:boss.x-30,y:boss.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v}); } api.sfx.shoot(); } }
-    shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; if(Math.hypot(s.x-BX,s.y-b.y)<20){ s.gone=true; hitThing('THE DRONE GOT YOU!'); } });
+    if(boss){ boss.t+=dt; boss.hurt-=dt; boss.y=300+Math.sin(boss.t*0.9)*150; boss.x=W-170+Math.sin(boss.t*1.7)*24; boss.fireT-=dt;
+      if(boss.fireT<=0&&b.started){ boss.fireT=easy?3.6:api.dv([2.4,1.7,1.2],0.9,0.55); const n=easy?1:L>=60?3:L>=25?2:1; for(let i=0;i<n;i++){ const a=Math.atan2(b.y-boss.y,BX-boss.x)+(i-(n-1)/2)*0.2, v=easy?240:api.dv([300,360,420],460,560); shots.push({x:boss.x-36,y:boss.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v}); } api.sfx.shoot(); } }
+    shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; if(Math.hypot(s.x-BX,s.y-b.y)<22){ s.gone=true; hitThing('THE DRONE GOT YOU!'); } });
     shots=shots.filter(s=>!s.gone&&s.x>-30&&s.y>-30&&s.y<H+30);
-    if(Math.random()<dt*20) feathers.push({x:BX-14,y:b.y+R(-4,4),vx:-spd*0.6,vy:R(-20,20),l:.4,c:1});
+    if(Math.random()<dt*20) feathers.push({x:BX-18,y:b.y+R(-4,4),vx:-spd*0.6,vy:R(-20,20),l:.4});
     api.counter(boss?'🤖 DRONE':'🚪 GATES', boss?Math.max(0,boss.hp):Math.max(0,goal-passed));
     if((boss?boss.hp<=0:passed>=goal)&&!done){ done=true; api.toast(boss?'DRONE DOWN!':'ALL GATES PASSED!'); api.sfx.clear(); api.fx.flash('#fff',.3); if(boss) api.fx.burst(boss.x,boss.y,'#ff3bd4',80,500,1.2,5); setTimeout(()=>api.stageClear(),1000); } },
   render(c){ const col=api.cos('Bird').colors[0];
     const sky=c.createLinearGradient(0,0,0,H); sky.addColorStop(0,'#0a0a24'); sky.addColorStop(.6,'#2a1050'); sky.addColorStop(1,'#ff3b8a'); c.fillStyle=sky; c.fillRect(0,0,W,H);
-    stars.forEach(s=>{ c.globalAlpha=.4+.6*Math.abs(Math.sin(t*s.tw+s.x)); c.fillStyle='#fff'; c.fillRect((s.x-t*8)%W<0?(s.x-t*8)%W+W:(s.x-t*8)%W,s.y,s.s,s.s); }); c.globalAlpha=1;
-    // moon
-    c.fillStyle='#ffe9a8'; c.shadowColor='#ffd23f'; c.shadowBlur=40; c.beginPath(); c.arc(470,170,46,0,7); c.fill(); c.shadowBlur=0;
-    // parallax skyline
-    city.forEach((L,li)=>{ const off=(t*L.sp)%L.w; c.fillStyle=L.c; L.b.forEach(bd=>{ for(const k of [0,1]){ const x=bd.x-off+k*L.w; if(x>W||x+bd.w<0) continue; c.fillRect(x,GROUND-bd.h,bd.w,bd.h); if(li===1){ c.fillStyle='rgba(255,210,63,.55)'; for(let wy=GROUND-bd.h+14;wy<GROUND-10;wy+=22) for(let wx=x+6;wx<x+bd.w-8;wx+=14) if(((wx*7+wy*3)|0)%5<2) c.fillRect(wx,wy,6,9); c.fillStyle=L.c; } } }); });
-    // gates
+    stars.forEach(s=>{ c.globalAlpha=.4+.6*Math.abs(Math.sin(t*s.tw+s.x)); c.fillStyle='#fff'; const x=((s.x-t*8)%W+W)%W; c.fillRect(x,s.y,s.s,s.s); }); c.globalAlpha=1;
+    c.fillStyle='#ffe9a8'; c.shadowColor='#ffd23f'; c.shadowBlur=50; c.beginPath(); c.arc(860,190,58,0,7); c.fill(); c.shadowBlur=0;
+    c.fillStyle='rgba(42,16,80,.5)'; c.beginPath(); c.arc(880,178,52,0,7); c.fill();
+    city.forEach((Lr,li)=>{ const off=(t*Lr.sp)%Lr.w; c.fillStyle=Lr.c; Lr.b.forEach(bd=>{ for(const k of [0,1]){ const x=bd.x-off+k*Lr.w; if(x>W||x+bd.w<0) continue; c.fillRect(x,GROUND-bd.h,bd.w,bd.h); if(li===1){ c.fillStyle='rgba(255,210,63,.55)'; for(let wy=GROUND-bd.h+14;wy<GROUND-10;wy+=22) for(let wx=x+6;wx<x+bd.w-8;wx+=14) if(((wx*7+wy*3)|0)%5<2) c.fillRect(wx,wy,6,9); c.fillStyle=Lr.c; } } }); });
     gates.forEach(g=>{ if(g.broken){ c.globalAlpha=Math.max(0,1-(g.t-g.bt)*2); }
       const top=g.gy-g.gap/2, bot=g.gy+g.gap/2, gc=g.amp?'#ff3bd4':'#3dffd8';
-      [[ -10,top],[bot,GROUND]].forEach(([y0,y1],i)=>{ const gr=c.createLinearGradient(g.x-30,0,g.x+30,0); gr.addColorStop(0,'#0b2a3a'); gr.addColorStop(.5,g.amp?'#5a1a5a':'#1a5a6a'); gr.addColorStop(1,'#0b2a3a'); c.fillStyle=gr; c.fillRect(g.x-30,y0,60,y1-y0);
-        c.strokeStyle=gc; c.lineWidth=3; c.shadowColor=gc; c.shadowBlur=18; c.strokeRect(g.x-30,y0,60,y1-y0); c.fillStyle=gc; const cy=i===0?y1-16:y0; c.fillRect(g.x-36,cy,72,16); c.shadowBlur=0; });
+      [[-10,top],[bot,GROUND]].forEach(([y0,y1],i)=>{ const gr=c.createLinearGradient(g.x-35,0,g.x+35,0); gr.addColorStop(0,'#0b2a3a'); gr.addColorStop(.5,g.amp?'#5a1a5a':'#1a5a6a'); gr.addColorStop(1,'#0b2a3a'); c.fillStyle=gr; c.fillRect(g.x-35,y0,70,y1-y0);
+        c.strokeStyle=gc; c.lineWidth=3; c.shadowColor=gc; c.shadowBlur=18; c.strokeRect(g.x-35,y0,70,y1-y0); c.fillStyle=gc; const cy=i===0?y1-16:y0; c.fillRect(g.x-42,cy,84,16); c.shadowBlur=0; });
+      if(easy&&!g.done&&!g.broken){ c.strokeStyle='rgba(255,255,255,.25)'; c.setLineDash([8,10]); c.lineWidth=2; c.beginPath(); c.moveTo(g.x-34,g.gy); c.lineTo(g.x+34,g.gy); c.stroke(); c.setLineDash([]); }
       if(g.blade){ const bl=g.blade; c.save(); c.translate(g.x,bl.y); c.rotate(bl.a); c.fillStyle='#e0e6f0'; c.shadowColor='#ff3b3b'; c.shadowBlur=14; for(let k=0;k<4;k++){ c.rotate(Math.PI/2); c.beginPath(); c.moveTo(0,-4); c.lineTo(22,-10); c.lineTo(18,4); c.closePath(); c.fill(); } c.fillStyle='#ff3b3b'; c.beginPath(); c.arc(0,0,6,0,7); c.fill(); c.restore(); c.shadowBlur=0; }
       c.globalAlpha=1; });
-    gems.forEach(m=>{ const s=m.big?14:10, y=m.y+Math.sin(m.t*4)*4; c.save(); c.translate(m.x,y); c.rotate(m.t*2); c.fillStyle=m.big?'#ff3bd4':'#3dffd8'; c.shadowColor=c.fillStyle; c.shadowBlur=16; c.beginPath(); c.moveTo(0,-s); c.lineTo(s*.8,0); c.lineTo(0,s); c.lineTo(-s*.8,0); c.closePath(); c.fill(); c.fillStyle='rgba(255,255,255,.7)'; c.fillRect(-2,-s*.6,3,s*.5); c.restore(); });
+    gems.forEach(m=>{ const s=m.big?15:11, y=m.y+Math.sin(m.t*4)*4; c.save(); c.translate(m.x,y); c.rotate(m.t*2); c.fillStyle=m.big?'#ff3bd4':'#3dffd8'; c.shadowColor=c.fillStyle; c.shadowBlur=16; c.beginPath(); c.moveTo(0,-s); c.lineTo(s*.8,0); c.lineTo(0,s); c.lineTo(-s*.8,0); c.closePath(); c.fill(); c.fillStyle='rgba(255,255,255,.7)'; c.fillRect(-2,-s*.6,3,s*.5); c.restore(); });
     c.shadowBlur=0;
-    // ground
     const gg=c.createLinearGradient(0,GROUND,0,H); gg.addColorStop(0,'#2a1050'); gg.addColorStop(1,'#0a0a24'); c.fillStyle=gg; c.fillRect(0,GROUND,W,H-GROUND);
-    c.strokeStyle='#ff3bd4'; c.lineWidth=3; c.shadowColor='#ff3bd4'; c.shadowBlur=14; c.beginPath(); c.moveTo(0,GROUND); c.lineTo(W,GROUND); c.stroke(); c.shadowBlur=0;
-    c.strokeStyle='rgba(255,59,212,.35)'; c.lineWidth=2; for(let i=0;i<14;i++){ const x=((i*60-t*200)%840+840)%840-120; c.beginPath(); c.moveTo(x,GROUND); c.lineTo(x-80,H); c.stroke(); }
-    // boss
-    if(boss){ const bx=boss.x,by=boss.y; c.save(); c.translate(bx,by); if(boss.hurt>0) c.translate(R(-4,4),R(-4,4));
+    c.strokeStyle=easy?'#3dffd8':'#ff3bd4'; c.lineWidth=3; c.shadowColor=c.strokeStyle; c.shadowBlur=14; c.beginPath(); c.moveTo(0,GROUND); c.lineTo(W,GROUND); c.stroke(); c.shadowBlur=0;
+    c.strokeStyle='rgba(255,59,212,.35)'; c.lineWidth=2; for(let i=0;i<24;i++){ const x=((i*64-t*200)%1536+1536)%1536-128; c.beginPath(); c.moveTo(x,GROUND); c.lineTo(x-90,H); c.stroke(); }
+    if(boss){ const bx=boss.x,by=boss.y; c.save(); c.translate(bx,by); if(boss.hurt>0) c.translate(R(-4,4),R(-4,4)); c.scale(1.15,1.15);
       c.fillStyle='#2a2a40'; c.shadowColor='#ff3bd4'; c.shadowBlur=24; c.beginPath(); c.ellipse(0,0,62,36,0,0,7); c.fill(); c.shadowBlur=0;
       c.fillStyle=boss.hurt>0?'#fff':'#ff3bd4'; c.beginPath(); c.arc(-24,0,15,0,7); c.fill(); c.fillStyle='#000'; c.beginPath(); c.arc(-28,0,6,0,7); c.fill();
       c.strokeStyle='#8a8aa0'; c.lineWidth=4; [[-40,-34],[40,-34]].forEach(([px,py])=>{ c.beginPath(); c.moveTo(px*.6,-26); c.lineTo(px,py); c.stroke(); c.save(); c.translate(px,py); c.scale(1,.25); c.rotate(t*30); c.fillStyle='rgba(200,220,255,.6)'; c.fillRect(-26,-3,52,6); c.restore(); });
-      c.restore(); c.fillStyle='#000a'; c.fillRect(bx-50,by+48,100,9); c.fillStyle='#ff3bd4'; c.fillRect(bx-50,by+48,100*Math.max(0,boss.hp)/boss.max,9); }
-    shots.forEach(s=>{ c.fillStyle='#ff3b3b'; c.shadowColor='#ff3b3b'; c.shadowBlur=14; c.beginPath(); c.arc(s.x,s.y,8,0,7); c.fill(); }); c.shadowBlur=0;
-    // feathers / trail
-    feathers.forEach(f=>{ c.globalAlpha=f.l/0.4*0.6; c.fillStyle=col; c.fillRect(f.x,f.y,4,4); }); c.globalAlpha=1;
-    // bird
-    if(!(grace>0&&!lost&&Math.floor(t*12)%2)){ c.save(); c.translate(BX,b.y); c.rotate(b.rot);
+      c.restore(); c.fillStyle='#000a'; c.fillRect(bx-60,by+52,120,10); c.fillStyle='#ff3bd4'; c.fillRect(bx-60,by+52,120*Math.max(0,boss.hp)/boss.max,10); }
+    shots.forEach(s=>{ c.fillStyle='#ff3b3b'; c.shadowColor='#ff3b3b'; c.shadowBlur=14; c.beginPath(); c.arc(s.x,s.y,9,0,7); c.fill(); }); c.shadowBlur=0;
+    feathers.forEach(f=>{ c.globalAlpha=f.l/0.4*0.6; c.fillStyle=col; c.fillRect(f.x,f.y,5,5); }); c.globalAlpha=1;
+    if(!(grace>0&&!lost&&Math.floor(t*12)%2)){ c.save(); c.translate(BX,b.y); c.rotate(b.rot); c.scale(1.2,1.2);
       c.fillStyle=col; c.shadowColor=col; c.shadowBlur=20; c.beginPath(); c.ellipse(0,0,19,15,0,0,7); c.fill(); c.shadowBlur=0;
       c.fillStyle='rgba(255,255,255,.85)'; c.beginPath(); c.ellipse(4,5,10,7,0,0,7); c.fill();
       const wa=Math.sin(flapT*22)*0.9*(flapT<0.35?1:0.35); c.save(); c.translate(-4,-2); c.rotate(-0.3+wa); c.fillStyle=col; c.beginPath(); c.ellipse(-8,0,13,7,0,0,7); c.fill(); c.strokeStyle='rgba(0,0,0,.25)'; c.lineWidth=2; c.stroke(); c.restore();
       c.fillStyle='#fff'; c.beginPath(); c.arc(8,-5,6,0,7); c.fill(); c.fillStyle='#111'; c.beginPath(); c.arc(10,-5,3,0,7); c.fill();
       c.fillStyle='#ffa21f'; c.beginPath(); c.moveTo(15,-1); c.lineTo(27,3); c.lineTo(15,7); c.closePath(); c.fill();
       c.restore();
-      if(eff.shield>0){ c.strokeStyle='rgba(120,220,255,.85)'; c.lineWidth=3; c.shadowColor='#3dd8ff'; c.shadowBlur=18; c.beginPath(); c.arc(BX,b.y,30+Math.sin(t*10)*2,0,7); c.stroke(); c.shadowBlur=0; } }
-    if(!b.started&&!lost){ c.fillStyle='#fff'; c.font='bold 30px sans-serif'; c.textAlign='center'; c.globalAlpha=.6+.4*Math.sin(t*6); c.fillText('TAP TO FLAP',W/2,H*0.62); c.globalAlpha=1; }
-    if(wind&&api.level>=30&&Math.abs(wind)>50){ c.fillStyle='rgba(255,255,255,.18)'; for(let i=0;i<10;i++){ const x=(i*67+t*90)%W, y=((i*131+(wind>0?1:-1)*t*240)%H+H)%H; c.fillRect(x,y,2,30); } }
+      if(eff.shield>0){ c.strokeStyle='rgba(120,220,255,.85)'; c.lineWidth=3; c.shadowColor='#3dd8ff'; c.shadowBlur=18; c.beginPath(); c.arc(BX,b.y,34+Math.sin(t*10)*2,0,7); c.stroke(); c.shadowBlur=0; } }
+    if(!b.started&&!lost){ c.fillStyle='#fff'; c.font='bold 40px sans-serif'; c.textAlign='center'; c.globalAlpha=.6+.4*Math.sin(t*6); c.fillText('TAP TO FLAP',W/2+60,430); c.globalAlpha=1; }
+    if(wind&&L30()&&Math.abs(wind)>50){ c.fillStyle='rgba(255,255,255,.18)'; for(let i=0;i<16;i++){ const x=(i*83+t*90)%W, y=((i*131+(wind>0?1:-1)*t*240)%H+H)%H; c.fillRect(x,y,2,30); } }
     if(eff.slow>0){ c.fillStyle='rgba(60,120,255,.08)'; c.fillRect(0,0,W,H); }
     if(lost){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(0,0,W,H); } },
   attract(c,tt){ const sky=c.createLinearGradient(0,0,0,H); sky.addColorStop(0,'#0a0a24'); sky.addColorStop(1,'#ff3b8a'); c.fillStyle=sky; c.fillRect(0,0,W,H);
-    for(let i=0;i<3;i++){ const x=((i*260-tt*160)%780+780)%780-60, gy=380+Math.sin(i*2.1)*120; c.strokeStyle='#3dffd8'; c.lineWidth=3; c.shadowColor='#3dffd8'; c.shadowBlur=16; c.strokeRect(x-30,-10,60,gy-110); c.strokeRect(x-30,gy+110,60,H); }
-    c.shadowBlur=0; c.fillStyle='#3dd8ff'; c.beginPath(); c.ellipse(180,420+Math.sin(tt*5)*40,19,15,0,0,7); c.fill(); }
+    for(let i=0;i<4;i++){ const x=((i*360-tt*160)%1440+1440)%1440-60, gy=320+Math.sin(i*2.1)*100; c.strokeStyle='#3dffd8'; c.lineWidth=3; c.shadowColor='#3dffd8'; c.shadowBlur=16; c.strokeRect(x-35,-10,70,gy-110); c.strokeRect(x-35,gy+110,70,H); }
+    c.shadowBlur=0; c.fillStyle='#3dd8ff'; c.beginPath(); c.ellipse(BX,320+Math.sin(tt*5)*40,23,18,0,0,7); c.fill(); }
 };
-function mkCity(){ city=[]; stars=[]; for(let i=0;i<60;i++) stars.push({x:Math.random()*W,y:Math.random()*H*0.6,s:Math.random()<.2?2:1,tw:R(1,4)});
-  [[ '#1a0c38',14,900],[ '#120828',40,900]].forEach(([c,sp,w],li)=>{ const L={c,sp,w,b:[]}; let x=0; while(x<w){ const bw=R(50,110); L.b.push({x,w:bw,h:li?R(90,260):R(180,420)}); x+=bw+R(0,14); } city.push(L); }); }
-function flap(){ if(done||lost) return false; b.started=true; b.vy=-api.dv([470,500,530],540,560); flapT=0; api.sfx.blip(); api.event('flap'); for(let i=0;i<4;i++) feathers.push({x:BX-10,y:b.y+6,vx:R(-120,-40),vy:R(40,140),l:.4}); return true; }
+function L30(){ return api&&api.level>=30; }
+function mkCity(){ city=[]; stars=[]; for(let i=0;i<90;i++) stars.push({x:Math.random()*W,y:Math.random()*GROUND*0.7,s:Math.random()<.2?2:1,tw:R(1,4)});
+  [['#1a0c38',14,1600],['#120828',40,1600]].forEach(([c,sp,w],li)=>{ const Lr={c,sp,w,b:[]}; let x=0; while(x<w){ const bw=R(60,130); Lr.b.push({x,w:bw,h:li?R(80,220):R(160,360)}); x+=bw+R(0,16); } city.push(Lr); }); }
+function flap(){ if(done||lost) return false; b.started=true; b.vy=easy?-(380+api.level*4):-api.dv([450,480,510],520,540); flapT=0; api.sfx.blip(); api.event('flap'); for(let i=0;i<4;i++) feathers.push({x:BX-12,y:b.y+6,vx:R(-120,-40),vy:R(40,140),l:.4}); return true; }
+// course generator — ONLY rnd() (own seeded stream), so a race gives both phones the identical gates
 function spawnGate(){ const L=api.level, tut=api.content===0;
-  const gap=tut?320:api.dv([290,225,180],165,118); const margin=gap/2+60; const ms=api.dv([200,240,280],320,360), pv=gates.length?gates[gates.length-1].by:H*0.42; const by=R(Math.max(margin,pv-ms),Math.min(GROUND-margin,pv+ms));
-  const g={x:W+60,by,gy:by,gap,t:0,amp:0,spdm:0,ph:R(0,6),done:false};
-  if(!tut&&L>=6&&Math.random()<Math.min(0.85,0.25+L/120)){ g.amp=Math.min(api.dv([50,90,130],150,190), by-gap/2-40, GROUND-40-by-gap/2); g.amp=Math.max(0,g.amp); g.spdm=api.dv([1.2,1.8,2.4],2.8,3.6); }
-  if(!tut&&L>=18&&Math.random()<Math.min(0.6,(L-15)/90)) g.blade={a:0,y:by};
+  const gap=tut?320:easy?310-L*5:api.dv([285,225,180],165,120); const lo=TOPY+gap/2, hi=BOTY-gap/2;
+  const ms=easy?110:api.dv([170,210,250],290,330), pv=gates.length?gates[gates.length-1].by:300; const by=RR(Math.max(lo,pv-ms),Math.min(hi,pv+ms));
+  const g={x:W+60,by,gy:by,gap,t:0,amp:0,spdm:0,ph:RR(0,6),done:false};
+  const rm=rnd(), rb=rnd(), rg=rnd(), rg2=rnd(), rg3=rnd(), rg4=rnd();
+  if(!tut&&!easy&&L>=6&&rm<Math.min(0.85,0.25+L/120)){ g.amp=Math.max(0,Math.min(api.dv([50,80,110],130,160), by-lo, hi-by)); g.spdm=api.dv([1.2,1.8,2.4],2.8,3.6); }
+  if(!tut&&!easy&&L>=18&&rb<Math.min(0.6,(L-15)/90)) g.blade={a:0,y:by};
   gates.push(g);
-  if(Math.random()<.75) gems.push({x:g.x+(Math.random()<.5?0:150),y:g.amp?by:by+R(-gap*.2,gap*.2),t:0,big:Math.random()<.15});
+  if(rg<.75) gems.push({x:g.x+(rg2<.5?0:190),y:g.amp?by:by+(rg3-.5)*gap*.4,t:0,big:rg4<.15});
 }
 function passGate(g){ passed++; api.addScore(100*(1+api.dk*.5),BX,b.y-40); api.sfx.pickup(); api.event('gate');
   if(g.broken) g.bt=g.t;
