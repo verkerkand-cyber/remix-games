@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CG-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-CG-1.1 · 2026-10-26">
 <title>Color Gate</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-CG-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-CG-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,36 +489,45 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* COLOR GATE — colour-switch remix. 100 stages. Hop your glowing ball up through spinning gates — only through YOUR colour. */
+/* COLOR GATE — colour-switch remix. 100 stages. Hop your glowing ball through spinning gates — only through YOUR colour.
+   1.1 (26 Oct): LANDSCAPE 1280x720 — the climb is turned on its side: each hop pushes the ball RIGHT, a headwind pulls it
+   back LEFT, ~860px of the track ahead is visible. Internal maths still runs in the old "up" frame (IW x IH) and render
+   rotates it (screen X = W-(y-camY), screen Y = x). RACE mode: gates/orbs/colours come from a seeded stage RNG.
+   Beginner 1-10: slower spin, fewer gates, wider gaps, 3 free "bounce backs" from a wrong colour per stage.
+   Idle: the launch pad fades after a few seconds, then the headwind blows you off the left edge (costs a life). */
 (function(){
-const W=600,H=900,BX=300,BR=13,TH=20,Q=Math.PI/2,GRAV=1600,HOP=560;
+const W=1280,H=720,IW=720,IH=1280,BX=360,BR=13,TH=20,Q=Math.PI/2,GRAV=1600,HOP=560,AHEAD=860;
 const COLS=['#ff2e88','#ffd23f','#2ee8ff','#a64dff'],CN=['PINK','YELLOW','BLUE','PURPLE'];
-let api,t,ball,obs,orbs,stars,camY,done,lost,eff,grace,shieldOn,finishY,trail,bg,pass,goal,isBoss,eye,flashCol;
-function R(a,b){ return a+Math.random()*(b-a); }
-function shuf(){ const a=[0,1,2,3]; for(let i=3;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+let api,t,ball,obs,orbs,stars,camY,done,lost,eff,grace,shieldOn,finishY,trail,bg,pass,goal,isBoss,eye,flashCol,rs=1,easy,tut,bounces,idleT;
+// seeded stage RNG (race: the shell seeds Math.random before startStage, so both phones draw the same seed)
+function rnd(){ rs|=0; rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+function R(a,b){ return a+rnd()*(b-a); }
+function SX(y){ return W-(y-camY); }   // world progress y -> screen X
+function shuf(){ const a=[0,1,2,3]; for(let i=3;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function norm(a){ a%=Math.PI*2; return a<0?a+Math.PI*2:a; }
 const GAME=window.GAME={
   id:'color-gate',title:'Color Gate',titleHTML:'COLOR<br>GATE',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-CG-1.0 · 2026-10-17',theme:{a:'#ff2e88',b:'#2ee8ff',bg:'#0b0620'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🔮',joystick:false,coinPts:40,
+  build:'BUILD-CG-1.1 · 2026-10-26',theme:{a:'#ff2e88',b:'#2ee8ff',bg:'#0b0620'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🔮',joystick:false,coinPts:40,
   abilities:[
-    {id:'hop',icon:'⏫',name:'HOP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — hop your ball up. Or just tap anywhere on the game (↑ / W / click on PC).'},
+    {id:'hop',icon:'⏫',name:'HOP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — push your ball forward (right). Or just tap anywhere on the game (→ / ↑ / D / W / click on PC).'},
     {id:'slow',icon:'🐌',name:'SLOW SPIN',cd:18,key:'Digit1',keyLabel:'1',desc:'Every gate spins and slides at half speed for 5 seconds.'},
     {id:'ghost',icon:'👻',name:'GHOST',cd:20,key:'Digit2',keyLabel:'2',desc:'Pass through ANY colour for 3 seconds.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:15,key:'Digit3',keyLabel:'3',desc:'A bubble that saves you from one wrong colour (or one fall).'}],
   shop:[{id:'cg_g',cat:'Ball',name:'Glass Ball',cost:0,colors:['#ffffff'],desc:'Shiny and classic.'},{id:'cg_r',cat:'Ball',name:'Ringed Planet',cost:150,colors:['#ffd23f'],desc:'Your ball wears a spinning ring.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff2e88,#ffd23f,#2ee8ff,#a64dff)'}],
-  story:`<h3>COLOR GATE</h3><p>The Prism Tower is locked by spinning neon gates. Each gate only opens for one colour at a time. One little glowing ball is going all the way to the top.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap anywhere</b> to hop up (PC: SPACE, ↑ or W). Stop tapping and you fall.</li><li>Only pass through the part of a gate that is <b>the same colour as your ball</b>. Touching any other colour costs a life.</li><li>The 4-colour orbs change your ball's colour. Grab ⭐ stars for gold.</li><li>Falling off the bottom of the screen costs a life too.</li><li>Reach the FINISH line. Every 10th stage: get through every ring of the giant EYE.</li></ul>`,
-  tutorial:[{text:'Tap anywhere (or SPACE) to hop up. Keep tapping to climb!',ev:'hop'},{text:'Pass through the gate where it matches YOUR colour!',ev:'pass'},{text:'Orbs switch your colour. Reach the FINISH line!',time:5}],
+  story:`<h3>COLOR GATE</h3><p>The Prism Tunnel is locked by spinning neon gates and a howling headwind. Each gate only opens for one colour at a time. One little glowing ball is going all the way through.</p>`,
+  howto:`<h3>HOW TO PLAY</h3><ul><li>📱 <b>Hold your phone sideways.</b> Right thumb: the big ⏫ HOP button (or tap anywhere on the game). Left thumb: the power-ups on the left.</li><li>Every hop pushes your ball <b>forward (right)</b>. Stop tapping and the headwind blows you back. PC: SPACE, →, ↑, D or W · powers 1 2 3.</li><li>Only pass through the part of a gate that is <b>the same colour as your ball</b>. Touching any other colour costs a life.</li><li>The 4-colour orbs change your ball's colour. Grab ⭐ stars for gold.</li><li>Blown off the left edge costs a life too — and the launch pad fades if you wait too long.</li><li>Beginner stages 1-10: a wrong colour just bounces you back (3 times per stage).</li><li>Reach the FINISH line. Every 10th stage: get through every ring of the giant EYE.</li></ul>`,
+  tutorial:[{text:'Phone sideways! Tap anywhere or the ⏫ button (PC: SPACE) to hop RIGHT. Keep tapping!',ev:'hop'},{text:'Pass through the gate where it matches YOUR colour!',ev:'pass'},{text:'Orbs switch your colour. Reach the FINISH line!',time:5}],
   stageIntro:{1:'MATCH YOUR COLOUR'},bossName:'THE PRISM EYE!',ending:{"0":["#TOP","You reached the top of the Prism Tower."],"1":["#MASTER","No gate can stop you."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='shield') return shieldOn?{left:1,total:1,label:'ON'}:null; const tot={slow:5,ghost:3}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get ball(){return ball;}, get obs(){return obs;}, get lost(){return lost;}, get done(){return done;}, get camY(){return camY;}, get finishY(){return finishY;}, get orbsL(){return orbs;}, hop:()=>hop(), colAt:(o,y,c)=>colAt(o,y,c), spin:(o,d)=>spin(o,d)}; },
+  _dbg(){ return {get ball(){return ball;}, get obs(){return obs;}, get lost(){return lost;}, get done(){return done;}, get camY(){return camY;}, get finishY(){return finishY;}, get orbsL(){return orbs;}, get grace(){return grace;}, get t(){return t;}, get easy(){return easy;}, hop:()=>hop(), colAt:(o,y,c)=>colAt(o,y,c), spin:(o,d,tt)=>spin(o,d,tt), GRAV,HOP,IH,AHEAD,BR,TH}; },
   init(a){api=a; mkBg();},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=0.5; eff={slow:-9,ghost:-9}; shieldOn=false; trail=[]; pass=0; flashCol=0;
-    ball={y:0,vy:0,col:Math.floor(Math.random()*4),started:false,rest:0}; camY=-620; obs=[]; orbs=[]; stars=[]; eye=null; isBoss=a.boss; build(); if(!bg) mkBg(); },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=0.5; eff={slow:-9,ghost:-9}; shieldOn=false; trail=[]; pass=0; flashCol=0; bounces=0; idleT=0;
+    rs=((Math.random()*1e9)|0)^(a.level*7919); tut=a.content===0; easy=tut||(a.diff===0&&a.level<=10);
+    ball={y:0,vy:0,col:Math.floor(rnd()*4),started:false,rest:0}; camY=-AHEAD; obs=[]; orbs=[]; stars=[]; eye=null; isBoss=a.boss; build(); if(!bg) mkBg(); },
   respawn(){ lost=false; grace=1.2; let p=-1; obs.forEach((o,i)=>{ if(o.passed) p=i; });
-    ball.rest=p<0?0:obs[p].top-95; ball.y=ball.rest; ball.vy=0; ball.started=false; camY=ball.y-560; trail=[]; },
+    ball.rest=p<0?0:obs[p].top-95; ball.y=ball.rest; ball.vy=0; ball.started=false; idleT=0; camY=ball.y-AHEAD; trail=[]; },
   stageBonus(){ return pass*30; },
   useAbility(id){ if(done||lost) return false; if(id==='hop') return hop();
     if(id==='shield'){ if(shieldOn) return false; shieldOn=true; api.sfx.power(); return true; }
@@ -527,71 +536,71 @@ const GAME=window.GAME={
   update(dt){ t+=dt; if(done){ return; } for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; flashCol-=dt;
     const sm=eff.slow>0?0.45:1; obs.forEach(o=>spin(o,dt*sm));
     if(lost) return;
-    const K=api.input.keys, up=K.ArrowUp||K.KeyW; if(up&&!this._u) hop(); this._u=up;
+    const K=api.input.keys, up=K.ArrowUp||K.KeyW||K.ArrowRight||K.KeyD; if(up&&!this._u) hop(); this._u=up;
     if(ball.started){ ball.vy=Math.min(ball.vy+GRAV*dt,900); ball.y+=ball.vy*dt; }
-    else ball.y=ball.rest+Math.sin(t*4)*5;
+    else { ball.y=ball.rest+Math.sin(t*4)*5; idleT+=dt; if(idleT>(easy?12:7)){ ball.started=true; ball.vy=0; api.toast('TOO SLOW — THE PAD FADED!'); } }
     trail.push(ball.y); if(trail.length>12) trail.shift();
-    const ty=ball.y-470; if(ty<camY) camY+=(ty-camY)*Math.min(1,dt*9);
-    if(ball.y-camY>H+20){ if(shieldOn){ shieldOn=false; ball.vy=-820; grace=0.8; api.toast('SHIELD BOUNCE!'); api.sfx.bump(); api.fx.burst(BX,ball.y-camY-20,'#bfefff',20,260,.5,3); } else { crash('YOU FELL!'); return; } }
+    const ty=ball.y-AHEAD; if(ty<camY) camY+=(ty-camY)*Math.min(1,dt*9);
+    if(ball.y-camY>IH+20){ if(shieldOn){ shieldOn=false; ball.vy=-820; grace=0.8; api.toast('SHIELD BOUNCE!'); api.sfx.bump(); api.fx.burst(40,BX,'#bfefff',20,260,.5,3); } else { crash('BLOWN AWAY!'); return; } }
     // collisions
     if(ball.started&&grace<=0&&eff.ghost<=0) for(const o of obs){ if(ball.y-BR>o.bot+4||ball.y+BR<o.top-4) continue; const c=colAt(o); if(c>=0&&c!==ball.col){ wrong(o); break; } }
-    obs.forEach((o,i)=>{ if(!o.passed&&ball.y<o.top-BR){ o.passed=true; pass++; api.addScore(60*(1+api.dk*.5),BX,ball.y-camY-30); api.sfx.pickup(); api.event('pass'); api.fx.burst(BX,o.top-camY,COLS[ball.col],16,220,.5,3); } });
-    orbs.forEach(o=>{ if(!o.got&&Math.abs(o.y-ball.y)<BR+18){ o.got=true; let c; do{ c=Math.floor(Math.random()*4); }while(c===ball.col); ball.col=c; flashCol=.35; api.sfx.coin(); api.event('swap'); api.fx.burst(BX,o.y-camY,COLS[c],24,260,.6,3); api.fx.text(BX+60,o.y-camY,CN[c]+'!',COLS[c],16); } });
-    stars.forEach(s=>{ if(!s.got&&Math.abs(s.y-ball.y)<BR+16){ s.got=true; api.addScore(100*(1+api.dk*.5),BX,s.y-camY); api.sfx.coin(); api.fx.burst(BX,s.y-camY,'#fff6a0',14,200,.5,3); } });
+    obs.forEach((o,i)=>{ if(!o.passed&&ball.y<o.top-BR){ o.passed=true; pass++; api.addScore(60*(1+api.dk*.5),SX(ball.y)+30,BX); api.sfx.pickup(); api.event('pass'); api.fx.burst(SX(o.top),BX,COLS[ball.col],16,220,.5,3); } });
+    orbs.forEach(o=>{ if(!o.got&&Math.abs(o.y-ball.y)<BR+18){ o.got=true; let c=o.c; if(c===ball.col) c=(c+1)%4; ball.col=c; flashCol=.35; api.sfx.coin(); api.event('swap'); api.fx.burst(SX(o.y),BX,COLS[c],24,260,.6,3); api.fx.text(SX(o.y),BX-50,CN[c]+'!',COLS[c],16); } });
+    stars.forEach(s=>{ if(!s.got&&Math.abs(s.y-ball.y)<BR+16){ s.got=true; api.addScore(100*(1+api.dk*.5),SX(s.y),BX); api.sfx.coin(); api.fx.burst(SX(s.y),BX,'#fff6a0',14,200,.5,3); } });
     let left=obs.filter(o=>!o.passed).length;
     if(eye&&obs.indexOf(eye)===obs.length-1&&obs.length-left>=obs.length-1){ const L=eye.layers; let n=0; L.forEach(l=>{ if(ball.y>eye.y-l.R-TH/2-BR) n++; if(ball.y>eye.y+l.R-TH/2-BR) n++; }); eye.cross=n; api.counter('👁️ EYE RINGS',n); }
     else api.counter('🎯 GATES',left);
-    if(ball.y<finishY&&!done){ done=true; api.toast(eye?'THE EYE IS BROKEN!':'FINISH!'); api.sfx.clear(); api.fx.flash('#fff',.3); api.fx.burst(BX,ball.y-camY,COLS[ball.col],60,420,1,4); if(eye){ api.fx.shake(10); api.fx.burst(BX,eye.y-camY,'#fff',80,500,1.2,5); } setTimeout(()=>api.stageClear(),900); } },
-  render(c){ const sk=c.createLinearGradient(0,0,0,H); sk.addColorStop(0,'#070418'); sk.addColorStop(.55,'#160a38'); sk.addColorStop(1,'#2a0a3a'); c.fillStyle=sk; c.fillRect(0,0,W,H);
-    bg.forEach(s=>{ const y=((s.y-camY*s.p)%H+H)%H; c.globalAlpha=s.a*(.5+.5*Math.sin(t*s.tw+s.x)); c.fillStyle=s.c; c.fillRect(s.x,y,s.s,s.s); }); c.globalAlpha=1;
-    // faint side rails
-    c.strokeStyle='rgba(166,77,255,.18)'; c.lineWidth=2; for(let i=0;i<12;i++){ const y=((i*90-camY*.6)%1080+1080)%1080-90; c.beginPath(); c.moveTo(0,y); c.lineTo(30,y+30); c.moveTo(W,y); c.lineTo(W-30,y+30); c.stroke(); }
-    // start pad
-    const py=14-camY; if(py<H+20){ c.fillStyle='#2ee8ff'; c.shadowColor='#2ee8ff'; c.shadowBlur=16; c.fillRect(BX-50,py,100,6); c.shadowBlur=0; c.fillStyle='rgba(46,232,255,.15)'; c.fillRect(BX-50,py+6,100,40); }
-    // finish
-    const fy=finishY-camY; if(fy>-40&&fy<H+40){ for(let x=0;x<W;x+=30){ c.fillStyle=((x/30)%2)?'#fff':'#111'; c.fillRect(x,fy-10,30,10); c.fillStyle=((x/30)%2)?'#111':'#fff'; c.fillRect(x,fy,30,10); }
-      c.fillStyle='#ffd23f'; c.shadowColor='#ffd23f'; c.shadowBlur=18; c.font='bold 34px sans-serif'; c.textAlign='center'; c.fillText('FINISH',W/2,fy-26); c.shadowBlur=0; }
-    obs.forEach(o=>{ if(o.bot-camY<-60||o.top-camY>H+60) return; draw(c,o); });
-    orbs.forEach(o=>{ if(o.got) return; const y=o.y-camY; if(y<-40||y>H+40) return; c.save(); c.translate(BX,y); c.rotate(t*3); c.shadowBlur=14; for(let i=0;i<4;i++){ c.fillStyle=COLS[i]; c.shadowColor=COLS[i]; c.beginPath(); c.moveTo(0,0); c.arc(0,0,16,i*Q,(i+1)*Q); c.closePath(); c.fill(); } c.shadowBlur=0; c.strokeStyle='#fff'; c.lineWidth=2; c.beginPath(); c.arc(0,0,16,0,7); c.stroke(); c.restore(); });
-    stars.forEach(s=>{ if(s.got) return; const y=s.y-camY; if(y<-40||y>H+40) return; star(c,BX,y,15+Math.sin(t*5)*2,t*1.5); });
-    // ball
+    if(ball.y<finishY&&!done){ done=true; api.toast(eye?'THE EYE IS BROKEN!':'FINISH!'); api.sfx.clear(); api.fx.flash('#fff',.3); api.fx.burst(SX(ball.y),BX,COLS[ball.col],60,420,1,4); if(eye){ api.fx.shake(10); api.fx.burst(SX(eye.y),BX,'#fff',80,500,1.2,5); } setTimeout(()=>api.stageClear(),900); } },
+  render(c){ const sk=c.createLinearGradient(0,0,W,0); sk.addColorStop(0,'#2a0a3a'); sk.addColorStop(.45,'#160a38'); sk.addColorStop(1,'#070418'); c.fillStyle=sk; c.fillRect(0,0,W,H);
+    c.save(); c.transform(0,1,-1,0,W,0);   // world frame: x across (0..IW = screen top..bottom), y = progress (screen right..left)
+    bg.forEach(s=>{ const y=((s.y-camY*s.p)%IH+IH)%IH; c.globalAlpha=s.a*(.5+.5*Math.sin(t*s.tw+s.x)); c.fillStyle=s.c; c.fillRect(s.x,y,s.s,s.s); }); c.globalAlpha=1;
+    c.strokeStyle='rgba(166,77,255,.18)'; c.lineWidth=2; for(let i=0;i<16;i++){ const y=((i*90-camY*.6)%1440+1440)%1440-90; c.beginPath(); c.moveTo(0,y); c.lineTo(30,y+30); c.moveTo(IW,y); c.lineTo(IW-30,y+30); c.stroke(); }
+    const py=ball.rest+14-camY, pf=Math.max(.25,1-idleT/(easy?12:7)); if(py>-60&&py<IH+60){ c.globalAlpha=ball.started?.35:pf; c.fillStyle='#2ee8ff'; c.shadowColor='#2ee8ff'; c.shadowBlur=16; c.fillRect(BX-50,py,100,6); c.shadowBlur=0; c.fillStyle='rgba(46,232,255,.15)'; c.fillRect(BX-50,py+6,100,40); c.globalAlpha=1; }
+    const fy=finishY-camY; if(fy>-40&&fy<IH+40){ for(let x=0;x<IW;x+=30){ c.fillStyle=((x/30)%2)?'#fff':'#111'; c.fillRect(x,fy-10,30,10); c.fillStyle=((x/30)%2)?'#111':'#fff'; c.fillRect(x,fy,30,10); } }
+    obs.forEach(o=>{ if(o.bot-camY<-60||o.top-camY>IH+60) return; draw(c,o); });
+    orbs.forEach(o=>{ if(o.got) return; const y=o.y-camY; if(y<-40||y>IH+40) return; c.save(); c.translate(BX,y); c.rotate(t*3); c.shadowBlur=14; for(let i=0;i<4;i++){ c.fillStyle=COLS[i]; c.shadowColor=COLS[i]; c.beginPath(); c.moveTo(0,0); c.arc(0,0,16,i*Q,(i+1)*Q); c.closePath(); c.fill(); } c.shadowBlur=0; c.strokeStyle='#fff'; c.lineWidth=2; c.beginPath(); c.arc(0,0,16,0,7); c.stroke(); c.restore(); });
+    stars.forEach(s=>{ if(s.got) return; const y=s.y-camY; if(y<-40||y>IH+40) return; star(c,BX,y,15+Math.sin(t*5)*2,t*1.5); });
     const by=ball.y-camY, col=COLS[ball.col], gh=eff.ghost>0; if(!lost){
       trail.forEach((ty,i)=>{ c.globalAlpha=(i/trail.length)*.35; c.fillStyle=col; c.beginPath(); c.arc(BX,ty-camY+6,BR*(i/trail.length),0,7); c.fill(); }); c.globalAlpha=1;
       if(!(grace>0&&ball.started&&Math.floor(t*14)%2)){ c.globalAlpha=gh?.55:1; const rg=c.createRadialGradient(BX-4,by-5,2,BX,by,BR+2); rg.addColorStop(0,'#fff'); rg.addColorStop(.35,col); rg.addColorStop(1,col); c.fillStyle=rg; c.shadowColor=col; c.shadowBlur=flashCol>0?40:22; c.beginPath(); c.arc(BX,by,BR,0,7); c.fill(); c.shadowBlur=0;
         if(api.cos('Ball').id==='cg_r'){ c.save(); c.translate(BX,by); c.rotate(-.35); c.scale(1,.32); c.strokeStyle='#ffd23f'; c.lineWidth=5; c.beginPath(); c.arc(0,0,BR+9,Math.PI*.05+t,Math.PI*.95+t); c.stroke(); c.restore(); }
         c.globalAlpha=1; }
       if(gh){ c.strokeStyle=COLS[Math.floor(t*10)%4]; c.lineWidth=3; c.setLineDash([6,6]); c.beginPath(); c.arc(BX,by,BR+8,t*4,t*4+6.3); c.stroke(); c.setLineDash([]); }
-      if(shieldOn){ c.strokeStyle='rgba(150,230,255,.9)'; c.lineWidth=3; c.shadowColor='#2ee8ff'; c.shadowBlur=16; c.beginPath(); c.arc(BX,by,BR+12+Math.sin(t*8)*2,0,7); c.stroke(); c.shadowBlur=0; }
-      if(!ball.started){ c.fillStyle='#fff'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.globalAlpha=.6+.4*Math.sin(t*6); c.fillText('TAP TO HOP',W/2,Math.min(H-40,by+80)); c.globalAlpha=1; } }
-    // colour reminder chip (bottom)
-    c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(W/2-95,H-46,190,34); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=12; c.beginPath(); c.arc(W/2-70,H-29,9,0,7); c.fill(); c.shadowBlur=0; c.font='bold 17px sans-serif'; c.textAlign='left'; c.fillText(gh?'GHOST — ANY':'YOU ARE '+CN[ball.col],W/2-55,H-23);
+      if(shieldOn){ c.strokeStyle='rgba(150,230,255,.9)'; c.lineWidth=3; c.shadowColor='#2ee8ff'; c.shadowBlur=16; c.beginPath(); c.arc(BX,by,BR+12+Math.sin(t*8)*2,0,7); c.stroke(); c.shadowBlur=0; } }
+    c.restore();
+    // screen-space text / overlays (kept off the HUD strip, the left ability column and the bottom-right buttons)
+    const fx=SX(finishY); if(fx>-60&&fx<W+60){ c.fillStyle='#ffd23f'; c.shadowColor='#ffd23f'; c.shadowBlur=18; c.font='bold 30px sans-serif'; c.textAlign='center'; c.fillText('FINISH ▶',fx+20,110); c.shadowBlur=0; }
+    if(!lost&&!ball.started){ const bx=SX(ball.y); c.fillStyle='#fff'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.globalAlpha=.6+.4*Math.sin(t*6); c.fillText('TAP TO HOP ▶',bx+40,440); c.globalAlpha=1; }
+    c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(100,664,210,36); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=12; c.beginPath(); c.arc(124,682,9,0,7); c.fill(); c.shadowBlur=0; c.font='bold 17px sans-serif'; c.textAlign='left'; c.fillText(gh?'GHOST — ANY':'YOU ARE '+CN[ball.col],140,688);
+    if(easy&&!tut&&bounces<3){ c.fillStyle='rgba(255,255,255,.55)'; c.font='bold 13px sans-serif'; c.fillText('BOUNCE-BACKS LEFT: '+(3-bounces),100,654); }
     if(eff.slow>0){ c.fillStyle='rgba(60,140,255,.08)'; c.fillRect(0,0,W,H); }
     if(lost){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ const sk=c.createLinearGradient(0,0,0,H); sk.addColorStop(0,'#070418'); sk.addColorStop(1,'#2a0a3a'); c.fillStyle=sk; c.fillRect(0,0,W,H);
-    c.lineWidth=TH; c.shadowBlur=18; for(let i=0;i<4;i++){ c.strokeStyle=c.shadowColor=COLS[i]; c.beginPath(); c.arc(W/2,420,150,tt+i*Q,tt+(i+1)*Q); c.stroke(); } c.shadowBlur=0;
-    c.fillStyle=COLS[2]; c.shadowColor=COLS[2]; c.shadowBlur=20; c.beginPath(); c.arc(W/2,700+Math.sin(tt*4)*30,BR,0,7); c.fill(); c.shadowBlur=0; }
+  attract(c,tt){ const sk=c.createLinearGradient(0,0,W,0); sk.addColorStop(0,'#2a0a3a'); sk.addColorStop(1,'#070418'); c.fillStyle=sk; c.fillRect(0,0,W,H);
+    c.lineWidth=TH; c.shadowBlur=18; for(let i=0;i<4;i++){ c.strokeStyle=c.shadowColor=COLS[i]; c.beginPath(); c.arc(760,380,170,tt+i*Q,tt+(i+1)*Q); c.stroke(); } c.shadowBlur=0;
+    c.fillStyle=COLS[2]; c.shadowColor=COLS[2]; c.shadowBlur=20; c.beginPath(); c.arc(420+Math.sin(tt*4)*40,380,BR*1.3,0,7); c.fill(); c.shadowBlur=0; }
 };
-function mkBg(){ bg=[]; for(let i=0;i<90;i++) bg.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()<.2?2:1,p:R(.1,.4),a:R(.3,1),tw:R(1,4),c:Math.random()<.2?COLS[i%4]:'#fff'}); }
-function mk(type,yb,w){ const o={type,passed:false,cx:BX,a:R(0,6.28),w:w*(Math.random()<.5?-1:1),wob:api.level>=40&&api.content!==0&&Math.random()<.4,cols:shuf()};
+function mkBg(){ bg=[]; for(let i=0;i<130;i++) bg.push({x:Math.random()*IW,y:Math.random()*IH,s:Math.random()<.2?2:1,p:R(.1,.4),a:R(.3,1),tw:R(1,4),c:Math.random()<.2?COLS[i%4]:'#fff'}); }
+function mk(type,yb,w){ const o={type,passed:false,cx:BX,a:R(0,6.28),w:w*(rnd()<.5?-1:1),wob:api.level>=40&&api.content!==0&&rnd()<.4,cols:shuf()};
   if(type==='ring'){ o.layers=[{R:150,m:0,d:0}]; o.hh=150+TH/2; }
   else if(type==='ring2'){ o.layers=[{R:165,m:0,d:0},{R:118,m:1,d:0}]; o.hh=165+TH/2; }
   else if(type==='square'){ o.s=118; o.w*=.8; o.hh=118*1.42+TH/2; }
-  else if(type==='cross'){ o.L=155; o.cx=BX+(Math.random()<.5?-1:1)*105; o.hh=Math.sqrt(155*155-105*105)+TH+6; }
-  else if(type==='bar'||type==='bar2'){ const v=Math.abs(w)*95; o.rows=type==='bar'?[{dy:0,off:R(0,600),v:v*(Math.random()<.5?-1:1),cols:o.cols}]:[{dy:-38,off:R(0,600),v,cols:o.cols},{dy:38,off:R(0,600),v:-v*1.15,cols:shuf()}]; o.hh=(type==='bar'?0:38)+TH/2; }
+  else if(type==='cross'){ o.L=155; o.cx=BX+(rnd()<.5?-1:1)*105; o.hh=Math.sqrt(155*155-105*105)+TH+6; }
+  else if(type==='bar'||type==='bar2'){ const v=Math.abs(w)*95; o.rows=type==='bar'?[{dy:0,off:R(0,720),v:v*(rnd()<.5?-1:1),cols:o.cols}]:[{dy:-38,off:R(0,720),v,cols:o.cols},{dy:38,off:R(0,720),v:-v*1.15,cols:shuf()}]; o.hh=(type==='bar'?0:38)+TH/2; }
   o.bot=yb; o.y=yb-o.hh; o.top=o.y-o.hh; return o; }
-function build(){ const L=api.level, tut=api.content===0; let w=tut?0.6:api.dv([0.95,1.55,2.1],2.6,3.3), gap=tut?460:api.dv([470,420,380],350,330);
-  let n=tut?3:Math.round(api.dv([7,11,15],18,24)); if(isBoss) n=Math.max(2,Math.round(n*.25));
+function build(){ const L=api.level; let w=tut?0.6:api.dv([0.95,1.55,2.1],2.6,3.3), gap=tut?460:api.dv([470,420,380],350,330);
+  let n=tut?3:Math.round(api.dv([7,11,15],18,24));
+  if(easy&&!tut){ w*=.6+.04*(L-1); gap+=70-5*L; n=4+Math.floor(L/3); } if(isBoss) n=Math.max(2,Math.round(n*.25));
   const pool=['ring']; if(L>=3) pool.push('bar'); if(L>=6) pool.push('square'); if(L>=10) pool.push('cross'); if(L>=18&&api.content!==1) pool.push('ring2'); if(L>=30&&api.content!==1) pool.push('bar2');
-  let y=-260, last='', lt=0;
-  for(let i=0;i<n;i++){ let ty; do{ ty=tut?'ring':pool[Math.floor(Math.random()*pool.length)]; }while(pool.length>2&&ty===last); last=ty;
+  let y=-260, last='', lt=0, oc=ball.col;
+  for(let i=0;i<n;i++){ let ty; do{ ty=tut?'ring':pool[Math.floor(rnd()*pool.length)]; }while(pool.length>2&&ty===last); last=ty;
     const o=mk(ty,y,w); obs.push(o); if(o.layers||o.type==='square') stars.push({y:o.y,got:false}); else stars.push({y:o.top-70,got:false});
-    lt=o.top; y=o.top-gap; if(i<n-1||isBoss){ if(tut?i===0:Math.random()<api.dv([.55,.7,.8],.9)) orbs.push({y:o.top-gap/2,got:false}); } }
+    lt=o.top; y=o.top-gap; if(i<n-1||isBoss){ if(tut?i===0:rnd()<api.dv([.55,.7,.8],.9)){ oc=(oc+1+Math.floor(rnd()*3))%4; orbs.push({y:o.top-gap/2,got:false,c:oc}); } } }
   if(isBoss){ const nl=Math.round(api.dv([3,4,4],4,4)), rs=nl===3?[262,186,110]:[265,205,145,85], ew=Math.min(w*.7,1.9), diverge=L>=40;
-    const o={type:'eye',passed:false,cx:BX,a:R(0,6.28),w:ew*(Math.random()<.5?-1:1),cols:shuf(),layers:[],cross:0}, sp=diverge?Math.min(.5,(L-35)/250)/(rs.length-1):0;
+    const o={type:'eye',passed:false,cx:BX,a:R(0,6.28),w:ew*(rnd()<.5?-1:1),cols:shuf(),layers:[],cross:0}, sp=diverge?Math.min(.5,(L-35)/250)/(rs.length-1):0;
     rs.forEach((r,i)=>o.layers.push({R:r,m:i%2,d:sp*i}));
     o.hh=rs[0]+TH/2; y-=0; o.bot=y; o.y=y-o.hh; o.top=o.y-o.hh; obs.push(o); eye=o; stars.push({y:o.y,got:false}); lt=o.top; }
   finishY=lt-210; }
-function spin(o,dt){ const m=o.wob?(1+.7*Math.sin(t*1.3+o.cols[0])):1;
+function spin(o,dt,tt=t){ const m=o.wob?(1+.7*Math.sin(tt*1.3+o.cols[0])):1;
   if(o.layers||!o.rows) o.a+=o.w*dt*m; else o.rows.forEach(r=>r.off+=r.v*dt*m); }
 function segs(o){ const out=[]; if(o.type==='square'){ const p=[]; for(let k=0;k<4;k++){ const an=o.a+k*Q+Math.PI/4, d=o.s*Math.SQRT2; p.push([o.cx+Math.cos(an)*d,o.y+Math.sin(an)*d]); } for(let k=0;k<4;k++) out.push([p[k],p[(k+1)%4],o.cols[k]]); }
   else if(o.type==='cross'){ for(let k=0;k<4;k++){ const an=o.a+k*Q; out.push([[o.cx,o.y],[o.cx+Math.cos(an)*o.L,o.y+Math.sin(an)*o.L],o.cols[k]]); } } return out; }
@@ -599,12 +608,12 @@ function sd(px,py,[ax,ay],[bx,by]){ const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy; let u
 // colour the ball is touching on obstacle o (-1 = none); a wrong colour wins over a right one
 function colAt(o,y=ball.y,bc=ball.col){ let hit=-1; const chk=c=>{ if(hit<0||c!==bc) hit=c; };
   if(o.layers) o.layers.forEach(l=>{ const d=Math.hypot(BX-o.cx,y-o.y); if(Math.abs(d-l.R)<TH/2+BR){ const th=Math.atan2(y-o.y,BX-o.cx), an=norm((l.m?Math.PI-th:th)-o.a-l.d); chk(o.cols[Math.floor(an/Q)&3]); } });
-  else if(o.rows) o.rows.forEach(r=>{ if(Math.abs(y-(o.y+r.dy))<TH/2+BR){ const u=((BX-r.off)%600+600)%600; chk(r.cols[Math.floor(u/150)&3]); } });
+  else if(o.rows) o.rows.forEach(r=>{ if(Math.abs(y-(o.y+r.dy))<TH/2+BR){ const u=((BX-r.off)%720+720)%720; chk(r.cols[Math.floor(u/180)&3]); } });
   else segs(o).forEach(([a,b,c])=>{ if(sd(BX,y,a,b)<TH/2+BR*.85) chk(c); });
   return hit; }
 function draw(c,o){ const cy=o.y-camY; c.lineWidth=TH; c.lineCap='butt'; c.shadowBlur=16;
   if(o.layers){ if(o.type==='eye') drawEye(c,o,cy); o.layers.forEach(l=>{ for(let i=0;i<4;i++){ const a0=o.a+l.d+i*Q; c.strokeStyle=c.shadowColor=COLS[o.cols[i]]; c.beginPath(); if(l.m) c.arc(o.cx,cy,l.R,Math.PI-a0-Q+.012,Math.PI-a0-.012); else c.arc(o.cx,cy,l.R,a0+.012,a0+Q-.012); c.stroke(); } }); }
-  else if(o.rows) o.rows.forEach(r=>{ const yy=cy+r.dy; for(let k=-1;k<5;k++){ const x0=((r.off%600)+600)%600+k*150-600; for(let m=0;m<2;m++){ const x=x0+m*600; if(x>W||x+150<0) continue; const ci=r.cols[((k%4)+4)%4]; c.fillStyle=c.shadowColor=COLS[ci]; c.fillRect(x+1,yy-TH/2,148,TH); } } });
+  else if(o.rows) o.rows.forEach(r=>{ const yy=cy+r.dy; for(let k=-1;k<5;k++){ const x0=((r.off%720)+720)%720+k*180-720; for(let m=0;m<2;m++){ const x=x0+m*720; if(x>IW||x+180<0) continue; const ci=r.cols[((k%4)+4)%4]; c.fillStyle=c.shadowColor=COLS[ci]; c.fillRect(x+1,yy-TH/2,178,TH); } } });
   else { c.lineCap='round'; segs(o).forEach(([a,b,ci])=>{ c.strokeStyle=c.shadowColor=COLS[ci]; c.beginPath(); c.moveTo(a[0],a[1]-camY); c.lineTo(b[0],b[1]-camY); c.stroke(); }); c.lineCap='butt';
     if(o.type==='cross'){ c.fillStyle='#fff'; c.shadowColor='#fff'; c.beginPath(); c.arc(o.cx,cy,13,0,7); c.fill(); } }
   c.shadowBlur=0; }
@@ -616,9 +625,10 @@ function drawEye(c,o,cy){ const r0=o.layers[0].R+28, g=c.createRadialGradient(o.
   const tot=o.layers.length*2, hp=Math.max(0,o.cross)/tot, bw=200; c.fillStyle='rgba(0,0,0,.6)'; c.fillRect(o.cx-bw/2,o.top-camY-34,bw,10); c.fillStyle='#ff2e88'; c.fillRect(o.cx-bw/2,o.top-camY-34,bw*(o.passed?0:hp||1),10);
   c.lineWidth=TH; c.shadowBlur=16; }
 function star(c,x,y,r,a){ c.save(); c.translate(x,y); c.rotate(a); c.fillStyle='#fff6a0'; c.shadowColor='#ffd23f'; c.shadowBlur=18; c.beginPath(); for(let i=0;i<10;i++){ const rr=i%2?r*.45:r, an=i*Math.PI/5-Math.PI/2; c.lineTo(Math.cos(an)*rr,Math.sin(an)*rr); } c.closePath(); c.fill(); c.restore(); c.shadowBlur=0; }
-function hop(){ if(done||lost) return false; if(!ball.started){ ball.started=true; grace=Math.min(grace,.25); } ball.vy=-HOP; api.sfx.blip(); api.event('hop'); api.fx.burst(BX,ball.y-camY+12,COLS[ball.col],5,120,.3,2); return true; }
-function wrong(o){ if(shieldOn){ shieldOn=false; grace=0.9; api.toast('SHIELD SAVED YOU!'); api.sfx.bump(); api.fx.burst(BX,ball.y-camY,'#bfefff',24,300,.5,3); return; } crash('WRONG COLOUR!'); }
-function crash(msg){ if(lost||done) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(9); for(let i=0;i<4;i++) api.fx.burst(BX,Math.min(H-20,ball.y-camY),COLS[i],10,340,.8,4); setTimeout(()=>api.loseLife(),900); }
+function hop(){ if(done||lost) return false; if(!ball.started){ ball.started=true; grace=Math.min(grace,.25); } ball.vy=-HOP; api.sfx.blip(); api.event('hop'); api.fx.burst(SX(ball.y)-12,BX,COLS[ball.col],5,120,.3,2); return true; }
+function wrong(o){ if(shieldOn){ shieldOn=false; grace=0.9; api.toast('SHIELD SAVED YOU!'); api.sfx.bump(); api.fx.burst(SX(ball.y),BX,'#bfefff',24,300,.5,3); return; }
+  if(easy&&bounces<3){ bounces++; grace=1; ball.vy=380; api.toast(tut?'WRONG COLOUR — BOUNCED BACK!':'WRONG COLOUR — BOUNCED BACK! ('+(3-bounces)+' left)'); api.sfx.bump(); api.fx.burst(SX(ball.y),BX,'#fff',16,240,.4,3); return; } crash('WRONG COLOUR!'); }
+function crash(msg){ if(lost||done) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(9); for(let i=0;i<4;i++) api.fx.burst(Math.max(20,SX(ball.y)),BX,COLS[i],10,340,.8,4); setTimeout(()=>api.loseLife(),900); }
 })();
 
 </script>
