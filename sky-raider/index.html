@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SR-1.2 · 2026-10-19">
+<meta name="build" content="BUILD-SR-1.3 · 2026-10-26">
 <title>Sky Raider</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SR-1.2 · 2026-10-19 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SR-1.3 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -491,9 +491,13 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 <script>
 /* SKY RAIDER — Defender remix (#34). Guard the townships from alien abductors.
    1.2: shooting is manual (FIRE button / Space / second finger) + real online 2-player CO-OP (NET-1).
-   Host runs the world for both ships; guest draws snapshots with its OWN camera following P2. */
+   Host runs the world for both ships; guest draws snapshots with its OWN camera following P2.
+   1.3: LANDSCAPE 1280x720 (SHELL-LANDSCAPE-1). Wide side-scrolling view, stick flies, HOLD 🔫 FIRE (Space) to shoot.
+        Beginner 1-10 much gentler (fewer/slower aliens, slower bullets, people survive falls). Edge arrows point at aliens.
+        Note: 'grace' on a ship = seconds of blink-safety after (re)spawn, not a race setting. */
 (function(){
-const W=600,H=900,WW=2400,GY=800,TOP=170;
+const W=1280,H=720,WW=4400,GY=610,TOP=140,MIDY=360,LOOK=260;
+const easy=()=>api.diff===0&&api.level<=10;   // Beginner 1-10 (+ tutorial): gentle
 const KINDS=['lander','mutant','pod','boss'], HST=['walk','held','fall','carried','dead'], TAGC=['#00e5ff','#ff3bd4'];
 let api,t,sh,pls,cam,shots,ens,ebul,hum,done,lost,spawnLeft;
 let nid=0,evq=[],evSeq=0,evSeen=0,snapN=0,snapSeen=0,lastCnt=null,moveId=null,ptrs={},p2hold=false,nShots=0;
@@ -505,18 +509,18 @@ function me(){ return (isGuest()&&pls&&pls[1])||sh; }
 function ev(k,...a){ if(!isHost()) return; evq.push([++evSeq,t,k,...a]); if(evq.length>30) evq.shift(); }
 function T(msg){ api.toast(msg); ev('toast',msg); }
 function nm(i){ const n=net(); return String((n&&n.names[i])||('P'+(i+1))).slice(0,12); }
-function mkShip(i,x,y){ return {i,x,y,vx:0,face:1,dead:false,respT:0,grace:2,fireT:0,sh:0,rp:0}; }
-function enemy(k,x,y){ return {id:++nid,k,x:x??Math.random()*WW,y:y??TOP+40+Math.random()*200,vx:0,vy:0,t:Math.random()*3,grab:null,hp:k==='boss'?14:1,shT:2+Math.random()*3}; }
+function mkShip(i,x,y){ return {i,x,y,vx:0,face:1,dead:false,respT:0,grace:easy()?3:2,fireT:0,sh:0,rp:0}; }
+function enemy(k,x,y){ return {id:++nid,k,x:x??Math.random()*WW,y:y??TOP+40+Math.random()*220,vx:0,vy:0,t:Math.random()*3,grab:null,hp:k==='boss'?(easy()?10:14):1,shT:(easy()?4:2)+Math.random()*3}; }
 // nearest flying ship (single player: always the ship)
 function near(o){ if(!pls||pls.length<2) return sh; let b=null,bd=1e9; for(const p of pls){ if(p.dead) continue; const d=Math.abs(wd(p.x-o.x))+Math.abs(p.y-o.y); if(d<bd){ bd=d; b=p; } } return b; }
 function boomFx(wx,y,col,n,sp,life,sz){ api.fx.burst(sx(wx),y,col,n,sp,life,sz); ev('b',Math.round(wx),Math.round(y),col,n,sp,life,sz); }
 const GAME=window.GAME={
   id:'sky-raider',title:'Sky Raider',titleHTML:'SKY<br>RAIDER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-SR-1.2 · 2026-10-19',theme:{a:'#00e5ff',b:'#ff3bd4',bg:'#05040f'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🚀',joystick:true,coinPts:40,
+  build:'BUILD-SR-1.3 · 2026-10-26',theme:{a:'#00e5ff',b:'#ff3bd4',bg:'#05040f'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🚀',joystick:true,coinPts:40,
   net:{mode:'coop'},
   abilities:[
-    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — fire your laser the way you face. Hold Space on PC.'},
+    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — HOLD to keep firing your laser the way you face (PC: hold Space). Nothing fires unless you hold it.'},
     {id:'bomb',icon:'💥',name:'SMART BOMB',cd:18,key:'Digit1',keyLabel:'1',desc:'Destroys every alien on screen.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'6 seconds of safety.'},
     {id:'rapid',icon:'🔥',name:'RAPID',cd:15,key:'Digit3',keyLabel:'3',desc:'Double laser + fast fire for 8 seconds.'},
@@ -524,28 +528,28 @@ const GAME=window.GAME={
   shop:[{id:'s_n',cat:'Ship',name:'Neon',cost:0,colors:['#00e5ff'],desc:'Classic.'},{id:'s_g',cat:'Ship',name:'Gold',cost:200,colors:['#ffd23f'],desc:'Shiny.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#00e5ff,#ff3bd4)'}],
   story:`<h3>SKY RAIDER</h3><p>Alien landers are beaming people up from the townships. Fly the night sky, blast them, and catch anyone who falls.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> with one finger to fly (arrow keys / WASD on PC).</li><li><b>Shoot:</b> tap <b>🔫 FIRE</b>, or hold a SECOND finger anywhere on the screen (PC: hold Space or the mouse button). Your laser fires the way you face.</li><li>Landers grab people and carry them up. If they reach the top they turn into fast mutants!</li><li>Shoot a lander that's carrying someone, then catch the person before they fall. Fly low to drop them home.</li><li>The scanner at the top shows the whole world.</li><li><b>Play together:</b> two ships share lives, score and people. Each phone follows its own ship; the scanner shows both. Aliens go for whoever is closer. A shot-down ship is back after 2 seconds — but the team loses a life.</li></ul>`,
-  tutorial:[{text:'Drag to fly. Tap 🔫 FIRE (or Space) to shoot the green lander!',ev:'kill'},{text:'Clear every alien!',time:6}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Hold your phone sideways.</b></li><li><b>Left thumb:</b> the stick flies your ship left, right, up and down (PC: arrow keys / WASD).</li><li><b>Right thumb:</b> HOLD <b>🔫 FIRE</b> to keep shooting (PC: hold Space or the mouse button). Your laser fires the way you face. Nothing fires by itself.</li><li>Arrows on the screen edges point to aliens you can't see yet.</li><li>Landers grab people and carry them up. If they reach the top they turn into fast mutants!</li><li>Shoot a lander that's carrying someone, then catch the person before they fall. Fly low to drop them home.</li><li>The scanner at the top shows the whole world.</li><li><b>Play together:</b> two ships share lives, score and people. Each phone follows its own ship; the scanner shows both. Aliens go for whoever is closer. A shot-down ship is back after 2 seconds — but the team loses a life.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. LEFT thumb: stick to fly. RIGHT thumb: HOLD 🔫 FIRE to shoot the green lander! (PC: arrows + hold Space)',ev:'kill'},{text:'Follow the edge arrows. Clear every alien!',time:6}],
   stageIntro:{1:'STOP THE ABDUCTIONS'},bossName:'MOTHERSHIP!',ending:{"0":["#SAFE","The townships are safe."],"1":["#ACE","Ace of the night sky."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const p=me(); if(!p) return null; if(id==='shield') return {left:Math.max(0,p.sh),total:6}; if(id==='rapid') return {left:Math.max(0,p.rp),total:8}; return null; },
   _dbg(){ return {get ens(){return ens;}, get sh(){return sh;}, get pls(){return pls;}, get hum(){return hum;}, get shots(){return shots;}, get lost(){return lost;}, get done(){return done;}, get cam(){return cam;}, fire:(i)=>tryFire(pls[i||0]),
     get net2(){ return {role:net()&&net().role, p:(pls||[]).map(p=>[Math.round(p.x),Math.round(p.y),p.dead?1:0,p.face]), ens:(ens||[]).length, cam:Math.round(cam), hum:(hum||[]).filter(h=>h.st!=='dead').length, shots:(shots||[]).length, done, lives:api.lives}; }}; },
   init(a){api=a;},
   startStage(n,a){ api=a; t=0; done=false; lost=false; shots=[]; ebul=[]; nid=0; evq=[]; lastCnt=null; moveId=null; ptrs={}; p2hold=false;
-    const N2=!!net(); sh=mkShip(0,300,N2?400:450); pls=[sh]; if(N2) pls.push(mkShip(1,200,540)); cam=sh.x;
-    if(isGuest()) cam=pls[1].x;
-    hum=[]; for(let i=0;i<8;i++) hum.push({x:i*WW/8+Math.random()*200,y:GY,vy:0,st:'walk',d:Math.random()<.5?-1:1,by:0});
-    const tut=a.content===0, M=N2?1.3:1; const N=tut?2:Math.round(a.dv([6,10,14],18,30)*M); ens=[]; for(let i=0;i<N;i++) ens.push(enemy('lander',wrap(sh.x+500+i*(N2?(WW-1000)/N:WW/N)))); // 2P: keep the start area around both ships clear
-    if(!tut&&a.level>=2) for(let i=0;i<Math.round(a.dv([1,3,5],6,12)*M);i++) ens.push(enemy('pod',wrap(sh.x+900+i*300)));
-    if(a.boss){ const b=enemy('boss',wrap(sh.x+1200),220); if(N2) b.hp=Math.round(b.hp*1.3); b.max=b.hp; ens.push(b); }
+    const N2=!!net(); sh=mkShip(0,400,N2?300:MIDY); pls=[sh]; if(N2) pls.push(mkShip(1,300,440)); cam=wrap(sh.x+LOOK);
+    if(isGuest()) cam=wrap(pls[1].x+LOOK);
+    hum=[]; for(let i=0;i<10;i++) hum.push({x:i*WW/10+Math.random()*250,y:GY,vy:0,st:'walk',d:Math.random()<.5?-1:1,by:0});
+    const tut=a.content===0, M=N2?1.3:1, E=easy();
+    const N=tut?2:E?Math.round((3+a.level*0.4)*M):Math.round(a.dv([6,10,14],18,30)*M); ens=[]; for(let i=0;i<N;i++) ens.push(enemy('lander',wrap(sh.x+1000+i*(WW-1700)/N))); // the start view stays clear
+    const nP=tut||(E&&a.level<6)?0:a.level>=2?Math.round((E?1:a.dv([1,3,5],6,12))*M):0; for(let i=0;i<nP;i++) ens.push(enemy('pod',wrap(sh.x+1400+i*380)));
+    if(a.boss){ const b=enemy('boss',wrap(sh.x+1600),250); if(N2) b.hp=Math.round(b.hp*1.3); b.max=b.hp; ens.push(b); }
     spawnLeft=0; },
   respawn(){ if(net()) return; // co-op: the shot-down ship comes back on its own timer; the stage stays as it is
-    lost=false; sh.y=450; sh.vx=0; sh.grace=2; ebul=[]; },
+    lost=false; sh.y=MIDY; sh.vx=0; sh.grace=easy()?3:2; ebul=[]; },
   netRevive(){ if(!pls) return; pls.forEach(p=>{ if(p.dead) backUp(p); p.grace=Math.max(p.grace,3); }); },
   stageBonus(){ return hum.filter(h=>h.st!=='dead').length*100; },
-  // phone: first finger = move stick, any other finger held = fire. PC mouse: hold the button to fire.
-  onPointer(type,x,y,id,ptype){ if(ptype==='mouse'){ if(type==='down') ptrs.m=1; else if(type==='up') delete ptrs.m; return; }
-    if(type==='down'){ if(moveId===null) moveId=id; else ptrs[id]=1; } else if(type==='up'){ if(id===moveId) moveId=null; delete ptrs[id]; } },
+  // phone: left thumb = shell joystick, right thumb = the 🔫 FIRE button (Space). PC mouse: hold the button to fire.
+  onPointer(type,x,y,id,ptype){ if(ptype!=='mouse') return; if(type==='down') ptrs.m=1; else if(type==='up') delete ptrs.m; },
   // the shell never forwards the guest's move-stick finger, so every guest pointer is a fire finger
   onPointer2(type,x,y){ if(type==='down') p2hold=true; else if(type==='up') p2hold=false; },
   useAbility(id){ return useAb(sh,id); },
@@ -555,19 +559,19 @@ const GAME=window.GAME={
     if(N2) ctl(pls[1],api.input2.dir(),!!api.input2.keys.Space||p2hold,dt);
     camFollow(sh,dt);
     shots.forEach(s=>{ s.x=wrap(s.x+s.vx*dt); s.l-=dt; }); shots=shots.filter(s=>s.l>0);
-    const spd=api.dv([60,95,130],150,240);
+    const E=easy(), spd=api.dv([60,95,130],150,240)*(E?0.7:1), hb=E?0.75:1;
     ens.forEach(e=>{ e.t+=dt; if(e.hp<=0) return; const tg=near(e);
       if(e.k==='lander'){ if(!e.grab){ const th=hum.filter(h=>h.st==='walk').sort((a,b)=>Math.abs(wd(a.x-e.x))-Math.abs(wd(b.x-e.x)))[0];
           if(th&&Math.abs(wd(th.x-e.x))<12){ e.vx=0; e.y+=spd*dt*1.3; if(e.y>=GY-40){ e.grab=th; th.st='held'; } }
-          else { e.x=wrap(e.x+(th?Math.sign(wd(th.x-e.x)):1)*spd*dt); e.y+= (Math.sin(e.t*2)*40)*dt + (e.y<300?20*dt:0); } }
+          else { e.x=wrap(e.x+(th?Math.sign(wd(th.x-e.x)):1)*spd*dt); e.y+= (Math.sin(e.t*2)*40)*dt + (e.y<260?20*dt:0); } }
         else { e.y-=spd*0.45*dt; e.grab.x=e.x; e.grab.y=e.y+30; if(e.y<TOP+10){ e.grab.st='dead'; e.grab=null; e.k='mutant'; T('MUTANT!'); api.sfx.hurt(); ev('s','hurt'); } } }
       else if(e.k==='mutant'){ if(tg){ e.x=wrap(e.x+Math.sign(wd(tg.x-e.x))*spd*1.9*dt); e.y+=Math.sign(tg.y-e.y)*spd*1.3*dt; } e.y+=Math.sin(e.t*12)*60*dt; }
       else if(e.k==='pod'){ e.x=wrap(e.x+Math.cos(e.t*.7)*spd*.5*dt); e.y=Math.max(TOP+20,Math.min(GY-60,e.y+Math.sin(e.t*.9)*40*dt)); }
-      else if(e.k==='boss'){ e.x=wrap(e.x+Math.sin(e.t*.5)*120*dt); e.y=220+Math.sin(e.t)*60; }
-      e.shT-=dt; if(e.shT<=0&&tg&&!tg.dead&&Math.abs(wd(e.x-tg.x))<W/2&&!lost){ e.shT=api.dv([3.2,2.2,1.4],1,0.5)*(e.k==='boss'?0.4:1); const a=Math.atan2(tg.y-e.y,wd(tg.x-e.x)), v=api.dv([170,230,290],320,480);
-        const n=e.k==='boss'?3:1; for(let i=0;i<n;i++){ const aa=a+(i-(n-1)/2)*0.25; ebul.push({x:e.x,y:e.y,vx:Math.cos(aa)*v,vy:Math.sin(aa)*v,l:3}); } }
-      shots.forEach(s=>{ if(s.l>0&&Math.abs(wd(s.x-e.x))<(e.k==='boss'?50:22)&&Math.abs(s.y-e.y)<(e.k==='boss'?30:18)){ s.l=0; e.hp--; boomFx(s.x,s.y,'#fff',4,120,.2,2); } });
-      pls.forEach(p=>{ if(!lost&&!p.dead&&p.grace<=0&&Math.abs(wd(e.x-p.x))<26&&Math.abs(e.y-p.y)<22) die(p); }); });
+      else if(e.k==='boss'){ e.x=wrap(e.x+Math.sin(e.t*.5)*120*dt); e.y=260+Math.sin(e.t)*70; }
+      e.shT-=dt; if(e.shT<=0&&tg&&!tg.dead&&Math.abs(wd(e.x-tg.x))<(E?520:W/2)&&!lost){ e.shT=api.dv([3.2,2.2,1.4],1,0.5)*(e.k==='boss'?0.4:1)*(E?1.6:api.diff===0?1.2:1); const a=Math.atan2(tg.y-e.y,wd(tg.x-e.x)), v=api.dv([170,230,290],320,480)*(E?0.7:1);
+        const n=e.k==='boss'?(E?2:3):1; for(let i=0;i<n;i++){ const aa=a+(i-(n-1)/2)*0.25; ebul.push({x:e.x,y:e.y,vx:Math.cos(aa)*v,vy:Math.sin(aa)*v,l:3}); } }
+      shots.forEach(s=>{ if(s.l>0&&Math.abs(wd(s.x-e.x))<(e.k==='boss'?50:22)&&Math.abs(s.y-e.y)<(e.k==='boss'?30:E?24:18)){ s.l=0; e.hp--; boomFx(s.x,s.y,'#fff',4,120,.2,2); } });
+      pls.forEach(p=>{ if(!lost&&!p.dead&&p.grace<=0&&Math.abs(wd(e.x-p.x))<26*hb&&Math.abs(e.y-p.y)<22*hb) die(p); }); });
     ens.forEach(e=>{ if(e.hp<=0&&!e.dead){ e.dead=true; const p={lander:150,mutant:150,pod:100,boss:1500}[e.k]; api.addScore(p*(1+api.dk*.5),sx(e.x),e.y); boomFx(e.x,e.y,e.k==='boss'?'#ff3bd4':'#3bff7a',e.k==='boss'?60:20,320,.6,3); api.sfx.boom(); ev('s','boom'); api.event('kill');
         if(e.grab){ e.grab.st='fall'; e.grab.vy=0; e.grab=null; }
         if(e.k==='pod') for(let i=0;i<3;i++) ens.push(Object.assign(enemy('mutant',e.x,e.y),{t:i})); } });
@@ -575,9 +579,9 @@ const GAME=window.GAME={
     hum.forEach(h=>{ if(h.st==='walk'){ h.x=wrap(h.x+h.d*14*dt); if(Math.random()<dt*.3) h.d*=-1; }
       if(h.st==='fall'){ h.vy+=220*dt; h.y+=h.vy*dt; const c=lost?null:pls.find(p=>!p.dead&&Math.abs(wd(h.x-p.x))<30&&Math.abs(h.y-p.y)<30);
         if(c){ h.st='carried'; h.by=c.i; T('CAUGHT!'); api.addScore(500,sx(h.x),h.y); api.sfx.pickup(); ev('s','pickup'); }
-        else if(h.y>=GY){ if(h.vy>330){ h.st='dead'; boomFx(h.x,GY,'#ff3b3b',8,100,.4,2); } else { h.st='walk'; h.y=GY; } } }
+        else if(h.y>=GY){ if(h.vy>330&&!E){ h.st='dead'; boomFx(h.x,GY,'#ff3b3b',8,100,.4,2); } else { h.st='walk'; h.y=GY; } } }
       if(h.st==='carried'){ const c=pls[h.by]||sh; h.x=c.x; h.y=c.y+26; if(c.y>GY-60){ h.st='walk'; h.y=GY; api.addScore(500,sx(h.x),GY); api.sfx.coin(); ev('s','coin'); } } });
-    ebul.forEach(b=>{ b.x=wrap(b.x+b.vx*dt); b.y+=b.vy*dt; b.l-=dt; pls.forEach(p=>{ if(b.l>0&&!lost&&!p.dead&&p.grace<=0&&Math.abs(wd(b.x-p.x))<14&&Math.abs(b.y-p.y)<12){ b.l=0; die(p); } }); }); ebul=ebul.filter(b=>b.l>0&&b.y>TOP&&b.y<H);
+    ebul.forEach(b=>{ b.x=wrap(b.x+b.vx*dt); b.y+=b.vy*dt; b.l-=dt; pls.forEach(p=>{ if(b.l>0&&!lost&&!p.dead&&p.grace<=0&&Math.abs(wd(b.x-p.x))<14*hb&&Math.abs(b.y-p.y)<12*hb){ b.l=0; die(p); } }); }); ebul=ebul.filter(b=>b.l>0&&b.y>TOP&&b.y<H);
     api.counter('👽 ALIENS',ens.length);
     if(!ens.length&&!lost){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); ev('clear'); setTimeout(()=>api.stageClear(),900); } },
   // ===== NET-1 co-op: host -> guest snapshot (small flat arrays, world coords; the guest has its own camera) =====
@@ -607,19 +611,22 @@ const GAME=window.GAME={
     shots.forEach(o=>{ o.x=wrap(o.x+o.vx*dt); }); ebul.forEach(o=>{ o.x=wrap(o.x+o.vx*dt); o.y+=o.vy*dt; });
     camFollow(me(),dt); },
   render(c){ const M=me(), N=net();
-    c.fillStyle='#05040f'; c.fillRect(0,0,W,H);
-    const g=c.createLinearGradient(0,TOP,0,GY); g.addColorStop(0,'#05040f'); g.addColorStop(1,'#2a0a3a'); c.fillStyle=g; c.fillRect(0,TOP,W,GY-TOP);
-    for(let i=0;i<70;i++){ const x=((i*137-cam*0.2)%W+W)%W, y=TOP+((i*97)%500); c.fillStyle=`rgba(255,255,255,${.3+.5*((i*7)%10)/10})`; c.fillRect(x,y,2,2); }
-    c.strokeStyle='#ff3bd4'; c.lineWidth=2; c.shadowColor='#ff3bd4'; c.shadowBlur=10; c.beginPath(); for(let x=0;x<=W;x+=10){ const wx=cam-W/2+x; const y=GY-30-Math.abs(Math.sin(wx*0.004)*60+Math.sin(wx*0.011)*25); x?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); c.shadowBlur=0;
+    const g=c.createLinearGradient(0,0,0,GY); g.addColorStop(0,'#05040f'); g.addColorStop(.6,'#140828'); g.addColorStop(1,'#3a0d4a'); c.fillStyle=g; c.fillRect(0,0,W,H);
+    for(let i=0;i<120;i++){ const x=((i*137-cam*0.15)%W+W)%W, y=TOP+((i*97)%(GY-TOP-120)); c.fillStyle=`rgba(255,255,255,${.25+.55*((i*7)%10)/10})`; c.fillRect(x,y,2,2); }
+    // big moon + far mountains + city skyline (parallax)
+    c.fillStyle='rgba(255,59,212,.13)'; c.beginPath(); c.arc(((900-cam*0.05)%(W+400)+W+400)%(W+400)-200,250,90,0,7); c.fill();
+    c.strokeStyle='#ff3bd4'; c.lineWidth=2; c.shadowColor='#ff3bd4'; c.shadowBlur=10; c.beginPath(); for(let x=0;x<=W;x+=10){ const wx=cam*0.6-W/2+x; const y=GY-60-Math.abs(Math.sin(wx*0.004)*70+Math.sin(wx*0.011)*30); x?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); c.shadowBlur=0;
+    for(let k=0;k<22;k++){ const bw=40+(k*53)%50, bh=30+(k*71)%70, bx=((k*97-cam*0.8)%(W+120)+W+120)%(W+120)-60; c.fillStyle='#12061f'; c.fillRect(bx,GY-bh,bw,bh); c.fillStyle='rgba(255,210,63,.55)'; for(let q=0;q<4;q++) if((k+q)%3) c.fillRect(bx+6+q*9,GY-bh+8+(q%2)*12,4,5); }
     c.fillStyle='#1a0726'; c.fillRect(0,GY,W,H-GY); c.fillStyle='#ff3bd4'; c.fillRect(0,GY,W,2);
-    hum.forEach(h=>{ if(h.st==='dead') return; const x=sx(h.x); if(x<-20||x>W+20) return; c.fillStyle='#ffd23f'; c.fillRect(x-3,h.y-16,6,12); c.beginPath(); c.arc(x,h.y-20,4,0,7); c.fill(); });
+    c.strokeStyle='rgba(255,59,212,.25)'; c.lineWidth=1; c.beginPath(); for(let k=0;k<30;k++){ const x=((k*90-cam)%W+W)%W; c.moveTo(x,GY+2); c.lineTo(W/2+(x-W/2)*2.2,H); } c.stroke();
+    hum.forEach(h=>{ if(h.st==='dead') return; const x=sx(h.x); if(x<-20||x>W+20) return; c.fillStyle='#ffd23f'; c.fillRect(x-3,h.y-16,6,12); c.beginPath(); c.arc(x,h.y-20,4,0,7); c.fill(); if(h.st==='fall'){ c.fillStyle='#fff'; c.font='bold 14px sans-serif'; c.textAlign='center'; c.fillText('HELP!',x,h.y-30); } });
     c.shadowBlur=14;
     ens.forEach(e=>{ const x=sx(e.x); if(x<-60||x>W+60) return;
       if(e.k==='lander'){ c.shadowColor=c.fillStyle='#3bff7a'; c.beginPath(); c.arc(x,e.y,13,Math.PI,0); c.fill(); c.fillRect(x-14,e.y,28,6); c.fillRect(x-14,e.y+6,3,10); c.fillRect(x+11,e.y+6,3,10); if(e.grab){ c.strokeStyle='rgba(59,255,122,.4)'; c.beginPath(); c.moveTo(x,e.y+8); c.lineTo(x,e.y+30); c.stroke(); } }
       else if(e.k==='mutant'){ c.shadowColor=c.fillStyle=(t*10|0)%2?'#ff3b3b':'#ff9f1c'; c.fillRect(x-12,e.y-10,24,20); c.fillStyle='#000'; c.fillRect(x-7,e.y-4,4,4); c.fillRect(x+3,e.y-4,4,4); }
       else if(e.k==='pod'){ c.shadowColor=c.fillStyle='#b14bff'; c.beginPath(); for(let i=0;i<8;i++){ const a=i*Math.PI/4+t; c.lineTo(x+Math.cos(a)*(i%2?8:16),e.y+Math.sin(a)*(i%2?8:16)); } c.fill(); }
       else { c.shadowColor=c.fillStyle='#ff3bd4'; c.beginPath(); c.ellipse(x,e.y,60,22,0,0,7); c.fill(); c.fillStyle='#7df9ff'; c.beginPath(); c.arc(x,e.y-14,20,Math.PI,0); c.fill(); c.fillStyle='#fff'; c.fillRect(x-40,e.y+30,80*e.hp/(e.max||14),5); } });
-    c.shadowColor=c.fillStyle='#ff5050'; ebul.forEach(b=>{ c.beginPath(); c.arc(sx(b.x),b.y,4,0,7); c.fill(); });
+    c.shadowColor=c.fillStyle='#ff5050'; ebul.forEach(b=>{ c.beginPath(); c.arc(sx(b.x),b.y,5,0,7); c.fill(); });
     c.shadowColor=c.fillStyle='#fff'; shots.forEach(s=>{ const x=sx(s.x); c.fillRect(x-(s.vx>0?40:0),s.y-1.5,40,3); });
     pls.forEach(p=>{ if(lost||p.dead) return; if(p.grace>0&&(t*10|0)%2===0) return; const x=sx(p.x),y=p.y,f=p.face, col=N?TAGC[p.i]:api.cos('Ship').colors[0];
       if(x<-60||x>W+60) return;
@@ -627,36 +634,40 @@ const GAME=window.GAME={
       c.fillStyle='#ff9f1c'; c.beginPath(); c.moveTo(x-f*18,y-5); c.lineTo(x-f*(30+Math.random()*14),y); c.lineTo(x-f*18,y+5); c.fill();
       if(p.sh>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(x,y,32,0,7); c.stroke(); } });
     c.shadowBlur=0;
-    if(N) pls.forEach(p=>{ const x=sx(p.x); if(x<-40||x>W+40) return; const s=nm(p.i), col=TAGC[p.i]; c.font='bold 15px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.75)';
-      const m=p.dead?'↻ '+s.toUpperCase()+' '+Math.max(0,p.respT).toFixed(1):s, yy=p.dead?p.y:p.y-24; if(p.dead) c.globalAlpha=0.6+0.3*Math.sin(t*8);
+    // edge arrows: aliens off this screen (left arrows clear of the ability column, right ones above the FIRE buttons)
+    const seen={}; ens.forEach(e=>{ const d=wd(e.x-cam); if(Math.abs(d)<W/2+10) return; const s=d>0?1:-1, y=Math.max(TOP+20,Math.min(470,e.y)), k=s+':'+Math.round(y/40); if(seen[k]) return; seen[k]=1;
+      const x=s>0?W-26:110, a=0.5+0.4*Math.sin(t*6); c.globalAlpha=a; c.fillStyle=e.k==='boss'?'#ff3bd4':e.k==='mutant'?'#ff3b3b':'#3bff7a'; c.beginPath(); c.moveTo(x+s*16,y); c.lineTo(x-s*6,y-12); c.lineTo(x-s*6,y+12); c.fill(); c.globalAlpha=1; });
+    if(N) pls.forEach(p=>{ const x=sx(p.x); if(x<-40||x>W+40) return; const s=nm(p.i), col=TAGC[p.i]; c.font='bold 18px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.75)';
+      const m=p.dead?'↻ '+s.toUpperCase()+' '+Math.max(0,p.respT).toFixed(1):s, yy=p.dead?p.y:p.y-26; if(p.dead) c.globalAlpha=0.6+0.3*Math.sin(t*8);
       c.strokeText(m,x,yy); c.fillStyle=col; c.fillText(m,x,yy); c.globalAlpha=1; });
-    // scanner (centred on this phone's ship)
-    c.fillStyle='rgba(0,0,0,.7)'; c.fillRect(20,80,W-40,70); c.strokeStyle='#00e5ff'; c.lineWidth=1; c.strokeRect(20,80,W-40,70);
-    const mx=x=>20+(W-40)*(0.5+wd(x-M.x)/WW), my=y=>82+66*(y-TOP)/(GY-TOP);
-    c.strokeStyle='rgba(255,255,255,.4)'; c.strokeRect(mx(cam-W/2),81,(W-40)*W/WW,68);
+    // scanner (centred on this phone's ship), under the HUD strip
+    const X0=300,SW=W-600,Y0=76,SH=54;
+    c.fillStyle='rgba(0,0,0,.7)'; c.fillRect(X0,Y0,SW,SH); c.strokeStyle='#00e5ff'; c.lineWidth=1; c.strokeRect(X0,Y0,SW,SH);
+    const mx=x=>X0+SW*(0.5+wd(x-M.x)/WW), my=y=>Y0+2+(SH-4)*(y-TOP)/(GY-TOP);
+    c.strokeStyle='rgba(255,255,255,.4)'; c.strokeRect(mx(cam-W/2),Y0+1,SW*W/WW,SH-2);
     hum.forEach(h=>{ if(h.st!=='dead'){ c.fillStyle='#ffd23f'; c.fillRect(mx(h.x)-1,my(h.y)-1,3,3); } });
     ens.forEach(e=>{ c.fillStyle=e.k==='mutant'?'#ff3b3b':e.k==='pod'?'#b14bff':e.k==='boss'?'#ff3bd4':'#3bff7a'; c.fillRect(mx(e.x)-2,my(e.y)-2,4,4); });
     pls.forEach(p=>{ if(p.dead&&(t*6|0)%2) return; c.fillStyle=N?TAGC[p.i]:'#fff'; c.fillRect(mx(p.x)-3,my(p.y)-2,6,4); if(N&&p!==M){ c.strokeStyle=TAGC[p.i]; c.strokeRect(mx(p.x)-5,my(p.y)-4,10,8); } });
     if(lost||(N&&M.dead)){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,TOP,W,H-TOP); } },
-  attract(c,tt){ c.fillStyle='#05040f'; c.fillRect(0,0,W,H); c.fillStyle='#00e5ff'; c.beginPath(); const x=W/2+Math.sin(tt)*150,y=500; c.moveTo(x+30,y); c.lineTo(x-22,y-12); c.lineTo(x-22,y+12); c.fill(); }
+  attract(c,tt){ c.fillStyle='#05040f'; c.fillRect(0,0,W,H); c.fillStyle='#ff3bd4'; c.fillRect(0,GY,W,2); c.fillStyle='#00e5ff'; c.beginPath(); const x=W/2+Math.sin(tt)*400,y=MIDY,f=Math.cos(tt)>=0?1:-1; c.moveTo(x+f*30,y); c.lineTo(x-f*22,y-12); c.lineTo(x-f*22,y+12); c.fill(); }
 };
 function setT(o,x,y){ if(o.tx===undefined||Math.abs(wd(x-o.x))>200||Math.abs(y-o.y)>200){ o.x=x; o.y=y; } o.tx=x; o.ty=y; }
-function camFollow(p,dt){ if(!p) return; const tg=wrap(p.x+p.face*120), d=wd(tg-cam); cam=Math.abs(d)>500?tg:wrap(cam+d*Math.min(1,dt*3)); }
+function camFollow(p,dt){ if(!p) return; const tg=wrap(p.x+p.face*LOOK), d=wd(tg-cam); cam=Math.abs(d)>900?tg:wrap(cam+d*Math.min(1,dt*3)); }
 // one ship from its own controls. Nothing fires unless that player presses/holds fire.
 function ctl(p,d,fire,dt){ p.sh-=dt; p.rp-=dt; p.grace-=dt; p.fireT-=dt;
   if(p.dead){ p.respT-=dt; if(p.respT<=0) backUp(p); return; }
   if(lost) return;
   if(Math.abs(d.x)>0.2) p.face=Math.sign(d.x);
-  p.vx+=d.x*900*dt; p.vx*=Math.pow(0.35,dt); p.vx=Math.max(-520,Math.min(520,p.vx)); p.x=wrap(p.x+p.vx*dt); p.y=Math.max(TOP+10,Math.min(GY-20,p.y+d.y*360*dt));
+  p.vx+=d.x*1000*dt; p.vx*=Math.pow(0.35,dt); p.vx=Math.max(-620,Math.min(620,p.vx)); p.x=wrap(p.x+p.vx*dt); p.y=Math.max(TOP+14,Math.min(GY-24,p.y+d.y*380*dt));
   if(fire) tryFire(p); }
 function tryFire(p){ if(!p||done||lost||p.dead||p.fireT>0) return false; p.fireT=p.rp>0?0.09:0.2; const ys=p.rp>0?[-6,6]:[0];
   ys.forEach(o=>shots.push({x:p.x+p.face*30,y:p.y+o,vx:p.face*1100+p.vx,l:0.55})); api.sfx.shoot(); return true; }
 function useAb(p,id){ if(done||lost||!p||p.dead) return false;
   if(id==='fire'){ tryFire(p); return true; }
-  if(id==='bomb'){ const cx=p===sh?cam:wrap(p.x+p.face*120); ens.forEach(e=>{ if(Math.abs(wd(e.x-cx))<W/2+20){ e.hp=0; } }); api.fx.flash('#fff',.5); api.sfx.boom(); ev('flash'); return true; }
-  if(id==='hyper'){ p.x=wrap(p.x+600+Math.random()*1200); p.y=200+Math.random()*400; if(p===sh) cam=p.x; p.grace=1; api.sfx.power(); ev('s','power'); return true; }
+  if(id==='bomb'){ const cx=p===sh?cam:wrap(p.x+p.face*LOOK); ens.forEach(e=>{ if(Math.abs(wd(e.x-cx))<W/2+20){ e.hp=0; } }); api.fx.flash('#fff',.5); api.sfx.boom(); ev('flash'); return true; }
+  if(id==='hyper'){ p.x=wrap(p.x+900+Math.random()*(WW-1800)); p.y=TOP+60+Math.random()*(GY-TOP-160); if(p===sh) cam=p.x; p.grace=1; api.sfx.power(); ev('s','power'); return true; }
   if(id==='shield') p.sh=6; else p.rp=8; api.sfx.power(); ev('s','power'); return true; }
-function backUp(p){ p.dead=false; p.respT=0; p.vx=0; p.y=450; p.grace=2.5; ebul=ebul.filter(b=>Math.abs(wd(b.x-p.x))>200); ev('up',Math.round(p.x),p.y,p.i); }
+function backUp(p){ p.dead=false; p.respT=0; p.vx=0; p.y=MIDY; p.grace=2.5; ebul=ebul.filter(b=>Math.abs(wd(b.x-p.x))>200); ev('up',Math.round(p.x),p.y,p.i); }
 function die(p){ if(done||p.sh>0) return;
   if(!net()){ if(lost) return; lost=true; api.fx.burst(sx(p.x),p.y,'#00e5ff',40,300,.8,3); api.sfx.hurt(); api.fx.shake(10); hum.forEach(h=>{ if(h.st==='carried'){ h.st='fall'; h.vy=0; } }); setTimeout(()=>api.loseLife(),1000); return; }
   // co-op: this ship is down for 2 s, the team loses one life, the other keeps flying
