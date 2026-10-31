@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BX-1.2 · 2026-10-18">
+<meta name="build" content="BUILD-BX-1.3 · 2026-10-26">
 <title>Bug Blaster</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BX-1.2 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-BX-1.3 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,70 +489,110 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* BUG BLASTER — Centipede remix (#28) — PROTOTYPE: 3 test stages */
+/* BUG BLASTER — garden-centipede remix (#28). 100 stages. LANDSCAPE 1280x720 (SHELL-LANDSCAPE-1) + RACE.
+   1.3 (26 Oct): wide garden across the whole screen, bugs snake in from BOTH sides. Your blaster lives in the glowing
+   strip at the bottom-middle (kept clear of the joystick corner and the FIRE button corner). HOLD FIRE (Space) to shoot —
+   no auto-fire. RACE: every layout and enemy timing comes from a generator seeded by the STAGE NUMBER only, so both
+   racers get the identical garden. Beginner 1-10: short slow bugs, soft mushrooms, no spider before stage 6. */
 (function(){
-const W=600, H=900, CS=30, COLS=20, ROWS=26, PZ=H-200;
-let touchN=0, graceT=0, api,t,mush,segs,ship,shots,fireT,done,lost,spider,eff,mouse;
-function cell(x,y){ return Math.floor(y/CS)*COLS+Math.floor(x/CS); }
-function makeStage(n,a){ mush=new Map(); const nm=n===0?20:Math.round(a.dv([35,55,75],90,140));
-  for(let i=0;i<nm;i++){ const x=Math.floor(Math.random()*COLS), y=2+Math.floor(Math.random()*(ROWS-8)); mush.set(y*COLS+x,4); }
-  const len=n===0?6:Math.min(30,Math.round(a.dv([9,13,17],22,30))); const sp=n===0?90:a.dv([110,160,210],260,420);
-  segs=[]; for(let i=0;i<len;i++) segs.push({x:W/2-i*CS*0.9,y:CS/2,dir:1,sp,head:i===0,down:0});
-  spider = (n===0||a.level<10)? null : {x:-30,y:PZ+60,vx:a.dv([90,140,180],220,340),vy:120,t:0}; }
-const GAME = window.GAME = {
-  id:'bug-blaster', title:'Bug Blaster', titleHTML:'BUG<br>BLASTER', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-BX-1.2 · 2026-10-18', theme:{a:'#7dff5a', b:'#ff3df0', bg:'#060a06'},
-  w:W, h:H, stages:100,  lives:3, livesIcon:'🔫', joystick:true, coinPts:30,
+const W=1280,H=720,CS=40,COLS=32,ROWS=18,TOP=2,PZT=460,PZB=690,PX0=290,PX1=970,BOT=700;
+let api,t,mush,segs,ship,shots,fireT,done,lost,spider,spT,flea,fleaT,eff,graceT,mouse,easy,chainN,grass;
+let rs=1; function R(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+const cell=(x,y)=>Math.floor(y/CS)*COLS+Math.floor(x/CS), cx=k=>(k%COLS)*CS+CS/2, cy=k=>Math.floor(k/COLS)*CS+CS/2;
+function mhp(){ return api.content===0||easy?2:api.level<40?3:4; }
+function makeStage(a){ const L=a.level, tut=a.content===0, boss=a.boss;
+  rs=(Math.imul(L+7,2654435761)^Math.imul(a.diff+1,40503)^0x51ed27)|0; for(let i=0;i<5;i++) R();   // RACE: same stage = same garden
+  mush=new Map(); const nm=tut?14:easy?Math.round(18+L*1.5):Math.round(a.dv([45,70,95],120,170)), hp=mhp();
+  for(let i=0;i<nm;i++){ const x=Math.floor(R()*COLS), y=TOP+1+Math.floor(R()*8); mush.set(y*COLS+x,hp); }
+  if(!easy&&!tut){ const nz=Math.round(a.dv([2,6,10],12,16)); for(let i=0;i<nz;i++){ const x=Math.floor((PX0+R()*(PX1-PX0))/CS), y=12+Math.floor(R()*4); mush.set(y*COLS+x,hp); } }
+  let len=tut?6:easy?6+Math.floor(L/3):Math.round(a.dv([10,16,22],28,40));
+  let sp=tut?70:easy?68+L*3.5:a.dv([95,150,200],250,380);
+  let nc=tut?1:easy?(L>=8?2:1):L<30?2:3; if(boss){ nc++; len=Math.round(len*1.4); sp*=1.1; }
+  segs=[]; chainN=0; const per=Math.max(3,Math.round(len/nc));
+  for(let c=0;c<nc;c++){ const dir=c%2?-1:1, row=tut?TOP+3:TOP+c, id=chainN++, delay=c>1?(c-1)*6*CS:0;
+    for(let i=0;i<per;i++){ const x=dir>0? -CS/2-i*CS*0.9-delay : W+CS/2+i*CS*0.9+delay; segs.push({x,y:row*CS+CS/2,dir,vd:1,sp,head:i===0,ty:null,c:id,hp:(boss&&i===0)?5:1,q:boss&&i===0}); } }
+  spT=easy?(L<6?1e9:6):tut?1e9:2+R()*3; spider=null; fleaT=(!tut&&L>=12)?4+R()*4:1e9; flea=null;
+  grass=[]; for(let i=0;i<70;i++) grass.push([R()*W,90+R()*620,6+R()*10]); }
+const GAME=window.GAME={
+  id:'bug-blaster',title:'Bug Blaster',titleHTML:'BUG<br>BLASTER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-BX-1.3 · 2026-10-26',theme:{a:'#7dff5a',b:'#ff3df0',bg:'#060a06'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🔫',joystick:true,coinPts:30,
   abilities:[
-    {id:'spread', icon:'🔱', name:'SPREAD', cd:15, key:'Digit1', keyLabel:'1', desc:'Triple shot for 8 seconds.'},
-    {id:'freeze', icon:'❄️', name:'FREEZE', cd:20, key:'Digit2', keyLabel:'2', desc:'Freezes all bugs for 4 seconds.'},
-    {id:'spray', icon:'💨', name:'BUG SPRAY', cd:25, key:'Digit3', keyLabel:'3', desc:'Destroys the 5 closest bug segments.'},
-    {id:'shield', icon:'🛡️', name:'SHIELD', cd:20, key:'Digit4', keyLabel:'4', desc:'6 seconds of safety.'}],
-  shop:[{id:'s_g',cat:'Blaster',name:'Lime',cost:0,colors:['#7dff5a'],desc:'Classic.'},{id:'b_d',cat:'Garden',name:'Night Garden',cost:0,colors:['#060a06','#0e1a10'],desc:'Dark garden.'},{id:'b_s',cat:'Garden',name:'Dusk',cost:180,colors:['#140818','#3a1440'],desc:'Purple dusk.'}],
-  premium:[{name:'Ultimate Pack', price:'$3', desc:'Everything in the shop.', swatch:'linear-gradient(90deg,#7dff5a,#ff3df0)'}],
-  story:`<h3>THE BUG INVASION</h3><p>A giant bug is snaking through the garden. Blast every segment before it reaches you.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>Drag (or arrow keys) to move in the bottom zone. You fire while your finger is down (PC: while moving or holding SPACE).</li><li>Shot segments turn into mushrooms. Mushrooms take 4 hits.</li><li>Destroy every bug segment to clear the stage.</li></ul>`,
-  tutorial:[{text:'Drag to move. You fire by yourself — hit the bug!', ev:'hit'},{text:'Destroy every segment!', time:6}],
-  stageIntro:{1:'BLAST THE BUG'}, bossName:'QUEEN BUG!', ending:{"0":["#SAFE","The garden is safe."],"1":["#CLEAN","No bug will ever return."],"2":["#LEGEND","Impossible. You did it."]},
-  _dbg(){ return {get segs(){return segs;}, get ship(){return ship;}, get lost(){return lost;}}; },
-  abTime(id){ const tot={spread:8,freeze:4,shield:6}[id]; return tot? {left:Math.max(0,eff[id]),total:tot} : null; },
-  init(a){ api=a; },
-  startStage(n,a){ api=a; this._n=n; t=0; graceT=0; done=false; lost=false; shots=[]; fireT=0; eff={spread:0,freeze:0,shield:0}; ship={x:W/2,y:H-60}; mouse=null; makeStage(n,a); },
-  respawn(){ lost=false; ship={x:W/2,y:H-60}; eff.shield=2.5; segs.forEach(s=>{ if(s.y>PZ-60){ s.y=CS/2; } }); },
+    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — HOLD to blast. Your blaster only shoots while you hold it.'},
+    {id:'spread',icon:'🔱',name:'SPREAD',cd:15,key:'Digit1',keyLabel:'1',desc:'Triple shot for 8 seconds.'},
+    {id:'freeze',icon:'❄️',name:'FREEZE',cd:20,key:'Digit2',keyLabel:'2',desc:'Freezes all bugs for 4 seconds.'},
+    {id:'spray',icon:'💨',name:'BUG SPRAY',cd:25,key:'Digit3',keyLabel:'3',desc:'Destroys the 5 bug segments closest to you.'}],
+  shop:[{id:'s_g',cat:'Blaster',name:'Lime',cost:0,colors:['#7dff5a'],desc:'Classic.'},{id:'s_c',cat:'Blaster',name:'Ice',cost:150,colors:['#5af0ff'],desc:'Cool blue.'},{id:'b_d',cat:'Garden',name:'Night Garden',cost:0,colors:['#060a06','#0e1a10'],desc:'Dark garden.'},{id:'b_s',cat:'Garden',name:'Dusk',cost:180,colors:['#140818','#3a1440'],desc:'Purple dusk.'}],
+  premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#7dff5a,#ff3df0)'}],
+  story:`<h3>THE BUG INVASION</h3><p>Giant bugs are snaking through the garden from both sides. Blast every segment before they reach you.</p>`,
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick moves your blaster around the glowing strip at the bottom. PC: arrow keys or WASD (or drag with the mouse).</li><li><b>Right thumb:</b> HOLD <b>🔫 FIRE</b> to shoot straight up (PC: hold SPACE). It only fires while you hold it.</li><li>Shot segments turn into mushrooms. Mushrooms block bugs and take a few hits.</li><li>The 🕷️ spider hunts you in your strip — shoot it for big points. Fleas drop from the sky and plant mushrooms.</li><li>Destroy every bug segment to clear the stage. Every 10th stage: the QUEEN BUG (gold head, takes 5 hits).</li><li>Abilities on the left: 1 SPREAD · 2 FREEZE · 3 BUG SPRAY.</li></ul>`,
+  tutorial:[{text:'Move with the arrow keys. <b>HOLD SPACE</b> to shoot — hit the bug!',touch:'Left thumb moves. <b>HOLD 🔫 FIRE</b> to shoot — hit the bug!',ev:'hit'},{text:'Shot bugs turn into mushrooms. Destroy every segment!',time:6}],
+  stageIntro:{1:'HOLD 🔫 FIRE TO SHOOT'},bossName:'QUEEN BUG!',ending:{"0":["#SAFE","The garden is safe."],"1":["#CLEAN","No bug will ever return."],"2":["#LEGEND","Impossible. You did it."]},
+  _dbg(){ return {get segs(){return segs;}, get ship(){return ship;}, get lost(){return lost;}, get done(){return done;}, get spider(){return spider;}, get mush(){return mush;}, get seed(){return rs;}, PZT,PZB,PX0,PX1}; },
+  abTime(id){ const tot={spread:8,freeze:4}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
+  init(a){api=a;},
+  startStage(n,a){ api=a; t=0; graceT=1.5; done=false; lost=false; shots=[]; fireT=0; eff={spread:0,freeze:0,shield:0}; mouse=null;
+    easy=a.diff===0&&a.level<=10; ship={x:(PX0+PX1)/2,y:PZB-20}; makeStage(a); },
+  respawn(){ lost=false; ship={x:(PX0+PX1)/2,y:PZB-20}; eff.shield=2.5; spider=null; spT=3; segs.forEach(s=>{ if(s.y>PZT-CS){ s.y=TOP*CS+CS/2; s.vd=1; s.ty=null; } }); },
   stageBonus(){ return 0; },
-  useAbility(id){ if(done||lost) return false;
-    if(id==='spray'){ segs.sort((a,b)=>Math.hypot(a.x-ship.x,a.y-ship.y)-Math.hypot(b.x-ship.x,b.y-ship.y)).slice(0,5).forEach(s=>s.dead=true); kill(); api.sfx.boom(); return true; }
-    eff[id]= id==='freeze'?4: id==='spread'?8:6; api.sfx.power(); return true; },
-  onPointer(type,x,y,id,pt){ if(pt!=='mouse'){ if(type==='down') touchN++; else if(type==='up') touchN=Math.max(0,touchN-1); } if(pt==='mouse'){ if(type==='down') mouse={x,y}; else if(type==='move'&&mouse) mouse={x,y}; else if(type==='up') mouse=null; } },
+  useAbility(id){ if(done||lost) return false; if(id==='fire') return true;
+    if(id==='spray'){ segs.slice().sort((a,b)=>Math.hypot(a.x-ship.x,a.y-ship.y)-Math.hypot(b.x-ship.x,b.y-ship.y)).slice(0,5).forEach(s=>{ api.fx.burst(s.x,s.y,'#b8ffb0',10,160,.4,3); hitSeg(s,true); }); api.sfx.boom(); return true; }
+    eff[id]=id==='freeze'?4:8; api.sfx.power(); return true; },
+  onPointer(type,x,y,id,pt){ if(pt==='touch'||pt==='pen') return;   // phones move with the shell's joystick; a mouse drags
+    if(type==='down') mouse={x,y}; else if(type==='move'&&mouse) mouse={x,y}; else if(type==='up') mouse=null; },
   update(dt){ t+=dt; if(done) return; for(const k in eff) if(eff[k]>0) eff[k]-=dt;
     if(!lost){ let d=api.input.dir(); if(mouse){ const dx=mouse.x-ship.x, dy=mouse.y-ship.y, m=Math.hypot(dx,dy); d=m>8?{x:dx/m,y:dy/m}:{x:0,y:0}; }
-      ship.x=Math.max(15,Math.min(W-15,ship.x+d.x*420*dt)); ship.y=Math.max(PZ,Math.min(H-20,ship.y+d.y*420*dt)); if(d.x||d.y) api.event('move');
-      fireT-=dt; if(fireT<=0&&(touchN>0||mouse||d.x||d.y||api.input.keys.Space)){ fireT=0.12; (eff.spread>0?[-0.2,0,0.2]:[0]).forEach(o=>shots.push({x:ship.x,y:ship.y-14,vx:Math.sin(o)*900,vy:-900})); } }
-    shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt;
-      const k=cell(s.x,s.y); if(mush.has(k)){ const h=mush.get(k)-1; if(h<=0) mush.delete(k); else mush.set(k,h); s.y=-99; api.addScore(1,s.x,s.y,true); return; }
-      for(const g of segs){ if(!g.dead && Math.abs(g.x-s.x)<14 && Math.abs(g.y-s.y)<14){ g.dead=true; s.y=-99; mush.set(cell(g.x,g.y),4); api.addScore((g.head?100:10)*(1+api.dk*0.5),g.x,g.y); api.fx.burst(g.x,g.y,'#7dff5a',10,180,.4,3); api.sfx.small(); api.event('hit'); break; } }
-      if(spider && Math.hypot(spider.x-s.x,spider.y-s.y)<18){ api.addScore(300,spider.x,spider.y); api.fx.burst(spider.x,spider.y,'#ff3df0',20,220,.5,3); spider.x=-200; s.y=-99; } });
-    shots=shots.filter(s=>s.y>-20 && s.x>0 && s.x<W); kill();
-    if(eff.freeze<=0) segs.forEach(g=>{ if(g.down>0){ const dy=Math.min(g.down,g.sp*dt); g.y+=dy; g.down-=dy; return; }
-      g.x+=g.dir*g.sp*dt; const ahead=cell(g.x+g.dir*CS/2,g.y);
-      if((g.x<CS/2&&g.dir<0)||(g.x>W-CS/2&&g.dir>0)||(g.x>0&&g.x<W&&mush.has(ahead))){ g.dir*=-1; g.down=CS; if(g.y>H-CS) g.y=PZ; } });
-    if(spider && eff.freeze<=0){ spider.t+=dt; spider.x+=spider.vx*dt; spider.y=PZ+80+Math.sin(spider.t*3)*90; if(spider.x>W+40) { spider.x=-40; } }
-    // frozen bugs (and 1 s after the freeze ends) can't hurt you
-    if(eff.freeze>0) graceT=1; else if(graceT>0) graceT-=dt;
-    if(!lost && eff.shield<=0 && eff.freeze<=0 && graceT<=0){ const hit=segs.some(g=>Math.hypot(g.x-ship.x,g.y-ship.y)<22) || (spider && Math.hypot(spider.x-ship.x,spider.y-ship.y)<24);
+      ship.x=Math.max(PX0+16,Math.min(PX1-16,ship.x+d.x*460*dt)); ship.y=Math.max(PZT+16,Math.min(PZB-14,ship.y+d.y*420*dt)); if(d.x||d.y) api.event('move');
+      fireT-=dt; if(api.input.keys.Space&&fireT<=0){ fireT=0.11; (eff.spread>0?[-0.22,0,0.22]:[0]).forEach(o=>shots.push({x:ship.x,y:ship.y-16,vx:Math.sin(o)*1100,vy:-Math.cos(o)*1100})); if((t*9|0)%2) api.sfx.shoot&&api.sfx.shoot(); } }
+    shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; if(s.y<TOP*CS-10){ s.y=-99; return; }
+      const k=cell(s.x,s.y); if(mush.has(k)){ const h=mush.get(k)-1; if(h<=0){ mush.delete(k); api.addScore(5,s.x,s.y,true); } else mush.set(k,h); api.fx.burst(s.x,s.y,'#c45cff',4,90,.2,2); s.y=-99; return; }
+      for(const g of segs){ if(!g.dead&&Math.abs(g.x-s.x)<(g.q?20:16)&&Math.abs(g.y-s.y)<(g.q?20:16)){ s.y=-99; hitSeg(g,false); break; } }
+      if(s.y>0&&spider&&Math.hypot(spider.x-s.x,spider.y-s.y)<24){ const dd=Math.abs(spider.y-ship.y), pts=dd<80?900:dd<160?600:300; api.addScore(pts,spider.x,spider.y); api.fx.burst(spider.x,spider.y,'#ff3df0',20,220,.5,3); api.sfx.boom(); spider=null; spT=easy?7:3+R()*3; s.y=-99; }
+      if(s.y>0&&flea&&Math.abs(flea.x-s.x)<16&&Math.abs(flea.y-s.y)<18){ if(--flea.hp<=0){ api.addScore(200,flea.x,flea.y); api.fx.burst(flea.x,flea.y,'#ffb84a',14,200,.4,3); flea=null; } s.y=-99; } });
+    shots=shots.filter(s=>s.y>-20&&s.x>0&&s.x<W); segs=segs.filter(g=>!g.dead);
+    const fr=eff.freeze>0;
+    if(!fr) segs.forEach(g=>{ const v=g.sp*(easy&&g.y>PZT-CS?0.6:1);
+      if(g.ty!==null){ const dy=g.ty-g.y, st=Math.min(Math.abs(dy),Math.max(v,140)*dt); g.y+=Math.sign(dy)*st; if(Math.abs(g.ty-g.y)<0.5){ g.y=g.ty; g.ty=null; } return; }
+      g.x+=g.dir*v*dt; const inside=g.x>CS/2&&g.x<W-CS/2, ahead=cell(g.x+g.dir*CS/2,g.y);
+      if((g.x<=CS/2&&g.dir<0)||(g.x>=W-CS/2&&g.dir>0)||(inside&&mush.has(ahead))){ g.dir*=-1; g.x=Math.max(CS/2,Math.min(W-CS/2,g.x));
+        if(g.vd>0&&g.y+CS>BOT) g.vd=-1; else if(g.vd<0&&g.y-CS<PZT) g.vd=1; g.ty=g.y+CS*g.vd; } });
+    // spider: zig-zags through your strip
+    if(!spider){ spT-=dt; if(spT<=0){ const L=api.level, l=R()<.5; spider={x:l?PX0-40:PX1+40,y:PZT+40,vx:(l?1:-1)*(easy?80:api.dv([120,170,220],260,380)),vy:(easy?90:api.dv([140,200,260],300,420)),t:0}; } }
+    else if(!fr){ spider.t+=dt; spider.x+=spider.vx*dt; spider.y+=spider.vy*dt; if(spider.y<PZT-20||spider.y>PZB){ spider.vy*=-1; spider.y=Math.max(PZT-20,Math.min(PZB,spider.y)); }
+      if(R()<dt*1.2) spider.vy*=-1; const k=cell(spider.x,spider.y); if(mush.has(k)&&R()<dt*2) mush.delete(k);
+      if(spider.x<PX0-80||spider.x>PX1+80){ spider=null; spT=easy?6:2+R()*3; } }
+    // flea: drops straight down and plants mushrooms
+    if(!flea){ fleaT-=dt; if(fleaT<=0){ fleaT=api.dv([9,6,4],3,1.8)+R()*3; flea={x:Math.floor((PX0+R()*(PX1-PX0))/CS)*CS+CS/2,y:TOP*CS,hp:2,last:-1}; } }
+    else if(!fr){ flea.y+=api.dv([260,340,420],480,600)*dt; const r=Math.floor(flea.y/CS); if(r!==flea.last){ flea.last=r; if(r>TOP&&r<ROWS-1&&R()<0.3&&!mush.has(r*COLS+Math.floor(flea.x/CS))) mush.set(r*COLS+Math.floor(flea.x/CS),mhp()); } if(flea.y>H+20) flea=null; }
+    if(fr) graceT=Math.max(graceT,1); else if(graceT>0) graceT-=dt;
+    if(!lost&&eff.shield<=0&&graceT<=0){ const rr=easy?17:22, hit=segs.some(g=>Math.hypot(g.x-ship.x,g.y-ship.y)<rr+(g.q?5:0))||(spider&&Math.hypot(spider.x-ship.x,spider.y-ship.y)<rr+4)||(flea&&Math.hypot(flea.x-ship.x,flea.y-ship.y)<rr);
       if(hit){ lost=true; api.fx.burst(ship.x,ship.y,'#fff',30,260,.8,3); api.sfx.boom(); api.toast('BITTEN!'); setTimeout(()=>api.loseLife(),900); } }
-    api.counter('🐛 BUG', segs.length+' left', segs.length<=3?'low':'');
-    if(!segs.length && !done){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); } },
-  render(c){ const bg=api.cos('Garden').colors; const gr=c.createLinearGradient(0,0,0,H); gr.addColorStop(0,bg[0]); gr.addColorStop(1,bg[1]); c.fillStyle=gr; c.fillRect(0,0,W,H);
-    c.fillStyle='rgba(125,255,90,0.06)'; c.fillRect(0,PZ,W,H-PZ);
-    mush.forEach((h,k)=>{ const x=(k%COLS)*CS+CS/2, y=Math.floor(k/COLS)*CS+CS/2; c.fillStyle='#f0e6d0'; c.fillRect(x-4,y,8,10); c.fillStyle=['#5a2a6a','#8a3aa0','#c45cff','#ff3df0'][h-1]; c.beginPath(); c.arc(x,y,12*(0.5+h/8),Math.PI,0); c.fill(); });
-    segs.forEach(g=>{ c.save(); c.shadowColor='#7dff5a'; c.shadowBlur=10; c.fillStyle=g.head?'#ffe14a':'#3bff7a'; c.beginPath(); c.arc(g.x,g.y,13,0,7); c.fill(); c.restore(); if(g.head){ c.fillStyle='#000'; c.fillRect(g.x-5+g.dir*3,g.y-4,3,3); c.fillRect(g.x+2+g.dir*3,g.y-4,3,3); } });
-    if(spider){ c.fillStyle='#ff3df0'; c.beginPath(); c.arc(spider.x,spider.y,12,0,7); c.fill(); c.strokeStyle='#ff3df0'; c.lineWidth=2; for(let i=-1;i<=1;i+=2) for(let k=0;k<3;k++){ c.beginPath(); c.moveTo(spider.x,spider.y); c.lineTo(spider.x+i*20,spider.y-8+k*8+Math.sin(t*20+k)*3); c.stroke(); } }
-    c.fillStyle='#fff'; shots.forEach(s=>c.fillRect(s.x-2,s.y-8,4,12));
-    if(!lost){ c.save(); c.shadowColor='#7dff5a'; c.shadowBlur=16; c.fillStyle='#7dff5a'; c.beginPath(); c.moveTo(ship.x,ship.y-16); c.lineTo(ship.x+13,ship.y+12); c.lineTo(ship.x-13,ship.y+12); c.fill(); c.restore(); if(eff.shield>0){ c.strokeStyle='#7df9ff'; c.lineWidth=3; c.beginPath(); c.arc(ship.x,ship.y,24,0,7); c.stroke(); } } },
-  attract(c,tt){ c.fillStyle='#060a06'; c.fillRect(0,0,W,H); for(let i=0;i<14;i++){ c.fillStyle=i?'#3bff7a':'#ffe14a'; c.beginPath(); c.arc((tt*120+600-i*26)%(W+400)-100,300+Math.sin(tt*2+i*0.4)*60,13,0,7); c.fill(); } }
+    api.counter('🐛 BUG',segs.length+' left',segs.length<=3?'low':'');
+    if(!segs.length&&!done){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); } },
+  render(c){ const bg=api.cos('Garden').colors, sc=api.cos('Blaster').colors[0]; const gr=c.createLinearGradient(0,0,0,H); gr.addColorStop(0,bg[0]); gr.addColorStop(1,bg[1]); c.fillStyle=gr; c.fillRect(0,0,W,H);
+    c.strokeStyle='rgba(125,255,90,0.10)'; c.lineWidth=2; grass.forEach(g=>{ c.beginPath(); c.moveTo(g[0],g[1]); c.quadraticCurveTo(g[0]+3,g[1]-g[2]*.6,g[0]+Math.sin(t+g[0])*3,g[1]-g[2]); c.stroke(); });
+    // your strip (bottom-middle)
+    c.save(); c.fillStyle='rgba(125,255,90,0.07)'; c.strokeStyle='rgba(125,255,90,'+(0.3+Math.sin(t*3)*0.1)+')'; c.lineWidth=2; c.setLineDash([10,8]); c.beginPath(); c.roundRect?c.roundRect(PX0,PZT,PX1-PX0,PZB-PZT+14,16):c.rect(PX0,PZT,PX1-PX0,PZB-PZT+14); c.fill(); c.stroke(); c.restore();
+    mush.forEach((h,k)=>{ const x=cx(k), y=cy(k), r=8+h*2.2; c.fillStyle='#efe2c4'; c.fillRect(x-4,y-1,8,12); c.fillStyle=['#5a2a6a','#8a3aa0','#c45cff','#ff3df0'][Math.min(3,h-1)]; c.beginPath(); c.arc(x,y,r,Math.PI,0); c.fill(); c.fillStyle='rgba(255,255,255,.55)'; c.beginPath(); c.arc(x-r*.4,y-r*.45,2.2,0,7); c.arc(x+r*.3,y-r*.6,1.8,0,7); c.fill(); });
+    segs.forEach((g,i)=>{ const r=g.q?19:14, w=Math.sin(t*14+i)*4; c.strokeStyle=g.q?'#ffd84a':'#2bd862'; c.lineWidth=2; c.beginPath(); c.moveTo(g.x-6,g.y); c.lineTo(g.x-8,g.y+r+2+w); c.moveTo(g.x+6,g.y); c.lineTo(g.x+8,g.y+r+2-w); c.stroke();
+      c.save(); c.shadowColor=g.q?'#ffd84a':'#7dff5a'; c.shadowBlur=12; const gg=c.createRadialGradient(g.x-4,g.y-5,2,g.x,g.y,r); gg.addColorStop(0,g.q?'#fff6b0':g.head?'#fff3a0':'#b8ffb0'); gg.addColorStop(1,g.q?'#ff9a1c':g.head?'#ffc21a':'#1fbf55'); c.fillStyle=gg; c.beginPath(); c.arc(g.x,g.y,r,0,7); c.fill(); c.restore();
+      if(g.head){ c.fillStyle='#000'; c.beginPath(); c.arc(g.x-5+g.dir*4,g.y-3,3,0,7); c.arc(g.x+4+g.dir*4,g.y-3,3,0,7); c.fill(); c.strokeStyle='#ffe14a'; c.beginPath(); c.moveTo(g.x+g.dir*6,g.y-r+2); c.lineTo(g.x+g.dir*14,g.y-r-8); c.moveTo(g.x,g.y-r+2); c.lineTo(g.x+g.dir*4,g.y-r-10); c.stroke();
+        if(g.q){ c.fillStyle='#ffd84a'; c.beginPath(); c.moveTo(g.x-10,g.y-r+2); c.lineTo(g.x-8,g.y-r-8); c.lineTo(g.x-3,g.y-r-1); c.lineTo(g.x,g.y-r-10); c.lineTo(g.x+3,g.y-r-1); c.lineTo(g.x+8,g.y-r-8); c.lineTo(g.x+10,g.y-r+2); c.fill(); } } });
+    if(spider){ const s=spider; c.strokeStyle='#ff3df0'; c.lineWidth=2.5; for(let i=-1;i<=1;i+=2) for(let k=0;k<4;k++){ const ay=s.y-9+k*6+Math.sin(t*22+k)*3; c.beginPath(); c.moveTo(s.x,s.y); c.lineTo(s.x+i*16,ay-8); c.lineTo(s.x+i*26,ay+4); c.stroke(); }
+      c.save(); c.shadowColor='#ff3df0'; c.shadowBlur=14; c.fillStyle='#b01fa8'; c.beginPath(); c.ellipse(s.x,s.y,14,11,0,0,7); c.fill(); c.restore(); c.fillStyle='#fff'; c.fillRect(s.x-6,s.y-4,3,3); c.fillRect(s.x+3,s.y-4,3,3); }
+    if(flea){ c.save(); c.shadowColor='#ffb84a'; c.shadowBlur=10; c.fillStyle='#ff8a1c'; c.beginPath(); c.ellipse(flea.x,flea.y,9,14,0,0,7); c.fill(); c.restore(); c.fillStyle='rgba(255,220,150,.5)'; c.beginPath(); c.ellipse(flea.x-10,flea.y-6,7,4,-.5,0,7); c.ellipse(flea.x+10,flea.y-6,7,4,.5,0,7); c.fill(); }
+    c.save(); c.shadowColor='#e6fffa'; c.shadowBlur=10; c.fillStyle='#e6fffa'; shots.forEach(s=>c.fillRect(s.x-2,s.y-9,4,14)); c.restore();
+    if(!lost){ const x=ship.x,y=ship.y; c.save(); c.shadowColor=sc; c.shadowBlur=18; c.fillStyle=sc; c.beginPath(); c.moveTo(x,y-18); c.lineTo(x+15,y+12); c.lineTo(x+5,y+7); c.lineTo(x,y+14); c.lineTo(x-5,y+7); c.lineTo(x-15,y+12); c.closePath(); c.fill(); c.restore();
+      c.fillStyle='#0b2a10'; c.beginPath(); c.arc(x,y,4,0,7); c.fill(); if(api.input.keys.Space){ c.fillStyle='rgba(255,255,255,.8)'; c.beginPath(); c.arc(x,y-20,4+Math.random()*3,0,7); c.fill(); }
+      if(eff.shield>0||graceT>0){ c.strokeStyle='rgba(125,249,255,'+(0.5+Math.sin(t*12)*.3)+')'; c.lineWidth=3; c.beginPath(); c.arc(x,y,26,0,7); c.stroke(); } }
+    if(eff.freeze>0){ c.fillStyle='rgba(140,220,255,.08)'; c.fillRect(0,0,W,H); } },
+  attract(c,tt){ c.fillStyle='#060a06'; c.fillRect(0,0,W,H); for(let i=0;i<16;i++){ c.fillStyle=i?'#3bff7a':'#ffe14a'; c.beginPath(); c.arc((tt*160+900-i*30)%(W+500)-100,360+Math.sin(tt*2+i*0.4)*80,15,0,7); c.fill(); } }
 };
-function kill(){ segs=segs.filter(g=>!g.dead); segs.forEach((g,i)=>{ if(i===0||Math.hypot(g.x-segs[i-1].x,g.y-segs[i-1].y)>CS*1.4) g.head=true; }); }
+// a hit segment: becomes a mushroom; the one behind it becomes the head of a new bug
+function hitSeg(g,force){ if(g.dead) return; if(!force&&--g.hp>0){ api.fx.burst(g.x,g.y,'#ffd84a',6,120,.25,2); api.sfx.small(); api.event('hit'); return; }
+  g.dead=true; const k=cell(g.x,g.y); if(Math.floor(k/COLS)>TOP-1&&g.x>0&&g.x<W) mush.set(k,mhp());
+  api.addScore((g.q?1500:g.head?100:10)*(1+api.dk*0.5),g.x,g.y); api.fx.burst(g.x,g.y,g.q?'#ffd84a':'#7dff5a',g.q?30:10,180,.4,3); api.sfx.small(); api.event('hit');
+  const i=segs.indexOf(g), n=segs[i+1]; if(n&&n.c===g.c){ const id=chainN++; n.head=true; for(let j=i+1;j<segs.length&&segs[j].c===g.c;j++) segs[j].c=id; } }
 })();
 
 </script>
