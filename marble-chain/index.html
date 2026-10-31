@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-MC-1.1 · 2026-10-18">
+<meta name="build" content="BUILD-MC-1.2 · 2026-10-26">
 <title>Marble Chain</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-MC-1.1 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-MC-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,23 +489,28 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* MARBLE CHAIN — marble shooter remix. 100 stages. The Sun Idol fires glowing orbs at a chain of sky-marbles rolling to the Void Pit. */
+/* MARBLE CHAIN — marble shooter remix. 100 stages. The Sun Idol fires glowing orbs at a chain of sky-marbles rolling to the Void Pit.
+   1.2 (26 Oct): LANDSCAPE 1280x720 (wide tracks, HUD strip / ability column / action buttons kept clear), RACE mode
+   (chain colours come from a generator seeded by the stage number, so both racers get the same chains), FIRE = Space /
+   big button (hold to keep firing), SWAP = S / ▼ / tap the Idol, Beginner 1-10 much easier (3 colours, slow, short chains). */
 (function(){
-const W=600,H=900,R=17,D=34,STEP=3,SHOT=1150,PULL=460;
+const W=1280,H=720,R=17,D=34,STEP=3,SHOT=1150,PULL=460;
 const PAL=[['#ff4060','#6a0018'],['#2ec4ff','#003070'],['#ffe14a','#6a4a00'],['#3bff7a','#005a22'],['#c45cff','#34086a'],['#ff9a2e','#6a2800']];
-let api,t,tracks,shots,cur,nxt,aim,aiming,swapTap,done,lost,lostT,nC,combo,bombNext,revT,slowT,fireCD,warnT,SX,SY,bgC,sprites,skinK,fired,popped,lay;
+let api,t,rng,srng,seed,holdT=0,tracks,shots,cur,nxt,aim,aiming,swapTap,done,lost,lostT,nC,combo,bombNext,revT,slowT,fireCD,warnT,SX,SY,bgC,sprites,skinK,fired,popped,lay;
 
 /* ---------- paths ---------- */
 function resample(raw){ const out=[raw[0]]; let carry=0; for(let i=1;i<raw.length;i++){ const a=raw[i-1],b=raw[i],d=Math.hypot(b.x-a.x,b.y-a.y); let u=STEP-carry; while(u<=d){ out.push({x:a.x+(b.x-a.x)*u/d,y:a.y+(b.y-a.y)*u/d}); u+=STEP; } carry=d-(u-STEP); } return out; }
 function spiral(cx,cy,rx,ry,turns,r1,th0){ const p=[]; for(let i=0;i<=900;i++){ const u=i/900,th=th0+u*turns*Math.PI*2,r=1-(1-r1)*u; p.push({x:cx+Math.cos(th)*rx*r,y:cy+Math.sin(th)*ry*r}); } return p; }
-function serpent(){ const p=[],rows=[180,320,460,600],x0=95,x1=505,rr=70; p.push({x:-30,y:180});
-  rows.forEach((y,k)=>{ const right=k%2===0, xa=right?x0:x1, xb=right?x1:x0, last=k===rows.length-1; const xe=last?(right?x1:115):xb;
-    for(let i=0;i<=40;i++) p.push({x:(k?xa:20)+(xe-(k?xa:20))*i/40,y}); if(last) return;
+function serpent(){ const p=[],rows=[130,250,370,490],x0=170,x1=1110,rr=60; p.push({x:-30,y:rows[0]});
+  rows.forEach((y,k)=>{ const right=k%2===0, xa=right?x0:x1, xb=right?x1:x0, last=k===rows.length-1; const xe=last?(right?x1:300):xb;
+    for(let i=0;i<=60;i++) p.push({x:(k?xa:20)+(xe-(k?xa:20))*i/60,y}); if(last) return;
     for(let i=1;i<=40;i++){ const a=-Math.PI/2+Math.PI*i/40; p.push({x:xb+(right?1:-1)*Math.cos(a)*rr,y:y+rr+Math.sin(a)*rr}); } }); return p; }
-function loops(){ const p=[],a=43,b=95; for(let u=-Math.PI;u<=3*Math.PI+1e-6;u+=0.02) p.push({x:95+a*u-b*Math.sin(u),y:250-b*Math.cos(u)});
-  for(let i=1;i<=50;i++){ const g=-Math.PI/2+Math.PI*i/50; p.push({x:500+Math.cos(g)*90,y:435+Math.sin(g)*90}); }
-  for(let u=-Math.PI;u<=Math.PI+1e-6;u+=0.02) p.push({x:365-(a*u-b*Math.sin(u)),y:620+b*Math.cos(u)}); for(let i=1;i<=20;i++) p.push({x:230-120*i/20,y:525}); return p; }
-function mk(raw,mir){ if(mir) raw=raw.map(q=>({x:W-q.x,y:q.y})); const pts=resample(raw); return {pts,L:(pts.length-1)*STEP,m:[],queue:0,rem:0,lastc:-1,run:0,intro:true}; }
+function loops(){ const p=[],a=40,b=80,c1=180,c2=545,xe=1010,Rt=(c2-b-(c1+b))/2; // top pass (loops up), U-turn on the right, bottom pass (loops down) back to the left
+  for(let u=-Math.PI;u<=7*Math.PI+1e-6;u+=0.02) p.push({x:130+a*u-b*Math.sin(u),y:c1-b*Math.cos(u)});
+  for(let i=1;i<=50;i++){ const g=-Math.PI/2+Math.PI*i/50; p.push({x:xe+Math.cos(g)*Rt,y:c1+b+Rt+Math.sin(g)*Rt}); }
+  for(let v=0;v<=6*Math.PI+1e-6;v+=0.02) p.push({x:xe-a*v-b*Math.sin(v),y:c2-b*Math.cos(v)}); for(let i=1;i<=20;i++) p.push({x:xe-a*6*Math.PI-110*i/20,y:c2-b}); return p; }
+function mulb(a){ return function(){ a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function mk(raw,mir){ if(mir) raw=raw.map(mir); const pts=resample(raw); return {pts,L:(pts.length-1)*STEP,m:[],queue:0,rem:0,lastc:-1,run:0,intro:true}; }
 function pos(tr,s){ const P=tr.pts; let k=s/STEP; if(k<=0) return P[0]; if(k>=P.length-1) return P[P.length-1]; const i=k|0,f=k-i,A=P[i],B=P[i+1]; return {x:A.x+(B.x-A.x)*f,y:A.y+(B.y-A.y)*f,a:Math.atan2(B.y-A.y,B.x-A.x)}; }
 function ang(tr,s){ const P=tr.pts; let i=Math.max(0,Math.min(P.length-2,(s/STEP)|0)); return Math.atan2(P[i+1].y-P[i].y,P[i+1].x-P[i].x); }
 
@@ -523,7 +528,7 @@ function bombBall(c,x,y){ c.save(); c.shadowColor='#ff9a2e'; c.shadowBlur=16+6*M
 function buildBg(){ bgC=document.createElement('canvas'); bgC.width=W; bgC.height=H; const c=bgC.getContext('2d');
   const g=c.createRadialGradient(SX,SY,40,W/2,H/2,700); g.addColorStop(0,'#3a1a10'); g.addColorStop(0.45,'#1a0c22'); g.addColorStop(1,'#07040e'); c.fillStyle=g; c.fillRect(0,0,W,H);
   c.strokeStyle='rgba(255,190,90,0.06)'; c.lineWidth=2; for(let y=0;y<H;y+=60){ for(let x=(y/60)%2*45;x<W;x+=90) c.strokeRect(x+3,y+3,84,54); }
-  c.fillStyle='rgba(255,210,120,0.07)'; c.font='bold 54px serif'; c.textAlign='center'; for(let i=0;i<14;i++) c.fillText(['☼','◬','⌘','✦'][i%4],(i*173)%W,90+(i*311)%(H-120));
+  c.fillStyle='rgba(255,210,120,0.07)'; c.font='bold 54px serif'; c.textAlign='center'; for(let i=0;i<22;i++) c.fillText(['☼','◬','⌘','✦'][i%4],60+(i*373)%(W-120),110+(i*211)%(H-140));
   tracks.forEach(tr=>{ const P=tr.pts; const path=()=>{ c.beginPath(); c.moveTo(P[0].x,P[0].y); for(let i=1;i<P.length;i+=2) c.lineTo(P[i].x,P[i].y); };
     c.lineJoin=c.lineCap='round'; path(); c.strokeStyle='#ffb347'; c.shadowColor='#ff8a00'; c.shadowBlur=18; c.lineWidth=D+14; c.stroke(); c.shadowBlur=0;
     path(); c.strokeStyle='#1c0e08'; c.lineWidth=D+8; c.stroke(); path(); c.strokeStyle='#2c1a12'; c.lineWidth=D-4; c.stroke();
@@ -533,8 +538,8 @@ function buildBg(){ bgC=document.createElement('canvas'); bgC.width=W; bgC.heigh
 /* ---------- chain logic ---------- */
 function req(a,b){ return D*((a.sz)+(b.sz))/2; }
 function present(){ const s=new Set(); tracks.forEach(tr=>tr.m.forEach(m=>{ if(m.s>-D) s.add(m.c); })); return [...s]; }
-function pick(){ const s=present(); return s.length? s[Math.floor(Math.random()*s.length)] : Math.floor(Math.random()*nC); }
-function newColour(tr){ let c; if(tr.lastc>=0 && tr.run<2 && Math.random()<0.38) c=tr.lastc; else { do{ c=Math.floor(Math.random()*nC); }while(nC>1 && c===tr.lastc); }
+function pick(){ const s=present(); return s.length? s[Math.floor(srng()*s.length)] : Math.floor(srng()*nC); }
+function newColour(tr){ let c; if(tr.lastc>=0 && tr.run<2 && rng()<0.38) c=tr.lastc; else { do{ c=Math.floor(rng()*nC); }while(nC>1 && c===tr.lastc); }
   tr.run = c===tr.lastc? tr.run+1 : 1; tr.lastc=c; return c; }
 function stepTrack(tr,dt){ const m=tr.m;
   while(tr.queue>0 && (!m.length || m[m.length-1].s>-D*0.5)){ tr.queue--; m.push({c:newColour(tr),s:m.length?Math.min(0,m[m.length-1].s-D):0,sz:1,ia:0,ix:0,iy:0,pend:false}); }
@@ -559,7 +564,7 @@ function match(tr,i,isCombo){ const m=tr.m; if(i<0||i>=m.length) return false; c
   return true; }
 function allCount(){ return tracks.reduce((s,tr)=>s+tr.queue+tr.m.length,0); }
 function visible(){ const out=[]; tracks.forEach((tr,ti)=>tr.m.forEach((q,i)=>{ if(q.s>=0 && q.s<=tr.L && !q.pend){ const p=pos(tr,q.s); out.push({tr,ti,i,q,x:p.x,y:p.y}); } })); return out; }
-function ray(a,vis){ vis=vis||visible(); const dx=Math.cos(a),dy=Math.sin(a); for(let d=30;d<1400;d+=6){ const x=SX+dx*d,y=SY+dy*d; if(x<-20||x>W+20||y<60||y>H+20) return {x,y,hit:null}; for(const o of vis) if((o.x-x)*(o.x-x)+(o.y-y)*(o.y-y)<D*D*0.85) return {x,y,hit:o}; } return {x:SX+dx*1400,y:SY+dy*1400,hit:null}; }
+function ray(a,vis){ vis=vis||visible(); const dx=Math.cos(a),dy=Math.sin(a); for(let d=30;d<1400;d+=6){ const x=SX+dx*d,y=SY+dy*d; if(x<-20||x>W+20||y<70||y>H+20) return {x,y,hit:null}; for(const o of vis) if((o.x-x)*(o.x-x)+(o.y-y)*(o.y-y)<D*D*0.85) return {x,y,hit:o}; } return {x:SX+dx*1400,y:SY+dy*1400,hit:null}; }
 
 /* ---------- shooting ---------- */
 function fire(){ if(done||lost||fireCD>0) return false; fireCD=0.22; fired++; combo=0;
@@ -578,36 +583,41 @@ function setup(tr,cnt,v,introTo){ tr.queue=cnt; tr.rem=cnt; tr.m=[]; tr.v=v; tr.
 
 const GAME=window.GAME={
   id:'marble-chain',title:'Marble Chain',titleHTML:'MARBLE<br>CHAIN',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-MC-1.1 · 2026-10-18',theme:{a:'#ffb347',b:'#2ec4ff',bg:'#120818'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'☀️',joystick:false,coinPts:40,
+  build:'BUILD-MC-1.2 · 2026-10-26',theme:{a:'#ffb347',b:'#2ec4ff',bg:'#120818'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'☀️',joystick:false,coinPts:40,
   abilities:[
-    {id:'swap',icon:'🔄',name:'SWAP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — swap your marble with the next one. Or tap the Sun Idol.'},
+    {id:'fire',icon:'🔆',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — shoot your marble where the dotted line points. Hold to keep firing.'},
+    {id:'swap',icon:'🔄',name:'SWAP',cd:0,key:'KeyS',keyLabel:'S',desc:'FREE — swap your marble with the next one. Or tap the Sun Idol.'},
     {id:'reverse',icon:'⏪',name:'REVERSE',cd:18,key:'Digit1',keyLabel:'1',desc:'The chain rolls backwards for 3 seconds.'},
     {id:'slow',icon:'🐢',name:'SLOW',cd:15,key:'Digit2',keyLabel:'2',desc:'The chain crawls at a third of its speed for 6 seconds.'},
     {id:'bomb',icon:'💣',name:'BOMB MARBLE',cd:20,key:'Digit3',keyLabel:'3',desc:'Your next shot explodes and blasts every marble near it.'}],
   shop:[{id:'o_gloss',cat:'Orbs',name:'Glossy Orbs',cost:0,colors:['#ff4060'],desc:'Shiny polished marbles.'},{id:'o_neon',cat:'Orbs',name:'Neon Rings',cost:150,colors:['#2ec4ff'],desc:'Glowing neon marbles.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop, forever.',swatch:'linear-gradient(90deg,#ffb347,#2ec4ff)'}],
   story:`<h3>THE SUN IDOL</h3><p>Deep in a forgotten desert temple, a stone <b>Sun Idol</b> has guarded the sky-marbles for a thousand years.</p><p>Now the <b>Void Pit</b> has opened, and it is swallowing the marbles one chain at a time. If the last chain falls in, the sun goes out.</p><p>Wake the Idol. Fire. Match three. Don't let them fall.</p>`,
-  howto:`<h3>GOAL</h3><p>Destroy the whole marble chain before it rolls into the Void Pit.</p><h3>CONTROLS</h3><ul><li><b>Phone:</b> touch and drag to aim, let go to shoot. Tap the Sun Idol to swap marbles.</li><li><b>PC:</b> aim with the mouse and click to shoot (or ◀ ▶ to turn and ▲ / ENTER to shoot). <b>SPACE</b> swaps.</li></ul><h3>RULES</h3><ul><li>Shoot a marble into the chain. <b>3 or more</b> of the same colour pop.</li><li>If the marbles either side of a gap match, the chain <b>pulls back together</b> — and can pop again for a <b>COMBO</b>.</li><li>Your current marble sits in the Idol's mouth; the small one behind is next.</li><li>If the chain reaches the Void Pit you lose a life and the chain starts again.</li><li>Boss stages: <b>two chains</b> on two tracks at once!</li></ul><h3>ABILITIES</h3><ul><li>🔄 <b>SWAP</b> <span class="key">SPACE</span> — free</li><li>⏪ <b>REVERSE</b> <span class="key">1</span> — chain backs up for 3s</li><li>🐢 <b>SLOW</b> <span class="key">2</span> — chain crawls for 6s</li><li>💣 <b>BOMB MARBLE</b> <span class="key">3</span> — next shot explodes</li></ul>`,
-  tutorial:[{text:'Drag to aim, let go to <b>shoot</b> a marble.',ev:'shoot'},{text:'Hit marbles of the <b>same colour</b> — 3 in a row pop!',ev:'pop'},{text:'Tap the Sun Idol (or SPACE) to <b>swap</b>. Clear the whole chain!',time:5}],
+  howto:`<h3>GOAL</h3><p>Destroy the whole marble chain before it rolls into the Void Pit.</p><h3>CONTROLS</h3><p><b>Hold your phone sideways.</b></p><ul><li><b>Phone — right thumb:</b> touch and drag anywhere on the track area to aim (the dotted line shows where it goes), let go to shoot. Or aim, then tap the big 🔆 <b>FIRE</b> button (bottom right). 🔄 <b>SWAP</b> button or tap the Sun Idol to swap marbles.</li><li><b>Phone — left thumb:</b> the ability buttons on the left (⏪ 🐢 💣).</li><li><b>PC:</b> aim with the mouse and click to shoot, or ◀ ▶ (A / D) to turn the Idol and <b>SPACE</b> (or ▲ / ENTER) to shoot — hold SPACE to keep firing. <b>S</b> or ▼ swaps. <b>1 2 3</b> = abilities.</li></ul><h3>RULES</h3><ul><li>Shoot a marble into the chain. <b>3 or more</b> of the same colour pop.</li><li>If the marbles either side of a gap match, the chain <b>pulls back together</b> — and can pop again for a <b>COMBO</b>.</li><li>Your current marble sits in the Idol's mouth; the small one behind is next.</li><li>If the chain reaches the Void Pit you lose a life and the chain starts again. Doing nothing never wins — the chain keeps rolling.</li><li>Boss stages: <b>two chains</b> on two tracks at once!</li><li><b>Race:</b> both players get exactly the same chains — first to clear wins.</li></ul><h3>ABILITIES</h3><ul><li>🔆 <b>FIRE</b> <span class="key">SPACE</span> — free</li><li>🔄 <b>SWAP</b> <span class="key">S</span> — free</li><li>⏪ <b>REVERSE</b> <span class="key">1</span> — chain backs up for 3s</li><li>🐢 <b>SLOW</b> <span class="key">2</span> — chain crawls for 6s</li><li>💣 <b>BOMB MARBLE</b> <span class="key">3</span> — next shot explodes</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. <b>Drag</b> to aim, let go (or 🔆 FIRE / SPACE) to <b>shoot</b>.',ev:'shoot'},{text:'Hit marbles of the <b>same colour</b> — 3 in a row pop!',ev:'pop'},{text:'Tap the Sun Idol, 🔄 SWAP or <b>S</b> to swap. Clear the whole chain!',time:5}],
   stageIntro:{1:'DESTROY THE CHAIN',2:'THE SERPENT PATH',3:'THE TWIN LOOPS'},bossName:'TWIN CHAINS!',
   ending:{"0":["#THE SUN RISES","The last marble shatters at the lip of the Void Pit.","The pit groans, shrinks, and closes like a sleepy eye.","The Sun Idol glows warm and gold, and dawn spills across the desert."],"1":["#THE IDOL SPEAKS","On Hard, the Idol finally opens its stone mouth and says one word: 'Thanks.'","Turns out it has been waiting a thousand years for someone fast enough."],"2":["#LEGEND","Expert was never meant to be finished.","The Void Pit didn't just close. It ran away.","The temple carves your face next to the Idol's. Both of them are smiling."]},
   abTime(id){ if(id==='reverse') return {left:Math.max(0,revT),total:3}; if(id==='slow') return {left:Math.max(0,slowT),total:6}; if(id==='bomb') return bombNext?{left:1,total:1,label:'ARMED'}:null; return null; },
-  _dbg(){ return {get tracks(){return tracks;}, get cur(){return cur;}, get nxt(){return nxt;}, get lost(){return lost;}, get done(){return done;}, get shots(){return shots;}, get S(){return {x:SX,y:SY};}, count:allCount,
+  _dbg(){ return {get tracks(){return tracks;}, get cur(){return cur;}, get nxt(){return nxt;}, get lost(){return lost;}, get done(){return done;}, get shots(){return shots;}, get S(){return {x:SX,y:SY};}, get seed(){return seed;}, get lay(){return lay;}, count:allCount,
     fire:(a)=>{ aim=a; return fire(); }, swap, best:()=>{ const vis=visible(); let best=null; [[cur,false],[nxt,true]].forEach(([col,sw])=>{ vis.forEach(o=>{ if(o.q.c!==col) return; const m=o.tr.m; let n=1,i=o.i; while(i>0&&m[i-1].c===col){n++;i--;} i=o.i; while(i<m.length-1&&m[i+1].c===col){n++;i++;}       const lead=pos(o.tr,o.q.s+o.tr.v*Math.hypot(o.x-SX,o.y-SY)/SHOT*(slowT>0?.35:1)); const a=Math.atan2(lead.y-SY,lead.x-SX), r=ray(a,vis); if(!r.hit||r.hit.tr!==o.tr||r.hit.q.c!==col) return; const sc=n*1000+o.q.s/o.tr.L*100-(sw?1:0); if(!best||sc>best.sc) best={a,sw,sc}; }); }); return best; }}; },
   init(a){ api=a; },
-  startStage(n,a){ api=a; t=0; done=false; lost=false; shots=[]; aiming=false; swapTap=false; combo=0; bombNext=false; revT=0; slowT=0; fireCD=0; warnT=0; fired=0; popped=0;
-    const L=a.level, tut=a.content===0; nC=tut?3:Math.min(6,Math.round(a.dv([3,4.6,5.6],6,6)));
-    const v=tut?15:a.dv([20,34,46],56,85), cnt=tut?14:Math.round(a.dv([24,50,70],85,120)), mir=n%2===0;
-    if(a.boss){ lay='boss'; SX=W/2; SY=520; tracks=[mk(spiral(300,520,272,352,1.2,0.36,-Math.PI/2)),mk(spiral(300,520,272,352,1.2,0.36,Math.PI/2))]; tracks.forEach(tr=>setup(tr,Math.round(cnt*0.55),v*0.75,0.1)); }
+  startStage(n,a){ api=a; t=0; done=false; lost=false; shots=[]; aiming=false; swapTap=false; combo=0; bombNext=false; revT=0; slowT=0; fireCD=0; warnT=0; fired=0; popped=0; holdT=0;
+    const tut=a.content===0, beg=a.diff===0&&n<=10&&!tut; seed=(Math.imul(n+1,2654435761)^(a.diff*40503)^(a.boss?777:0))>>>0; rng=mulb(seed); srng=mulb(seed^0x5bd1e995);
+    nC=tut||beg?3:Math.min(6,Math.round(a.dv([3,4.6,5.6],6,6)));
+    // Beginner 1-10: slow, short chains, 3 colours, chain only rolls in a little way at the start
+    const v=tut?15:beg?12+n*0.9:a.dv([20,34,46],56,85)*1.1, cnt=tut?14:beg?Math.round(16+n*1.2):Math.round(a.dv([24,50,70],85,120)*1.1);
+    const vf=y=>c=>({x:c.x,y:2*y-c.y}), hf=c=>({x:W-c.x,y:c.y}), mir=n%2===0;
+    if(a.boss){ lay='boss'; SX=580; SY=395; tracks=[mk(spiral(580,395,450,285,1.2,0.36,-Math.PI/2)),mk(spiral(580,395,450,285,1.2,0.36,Math.PI/2))]; tracks.forEach(tr=>setup(tr,Math.round(cnt*0.55),v*0.75,0.1)); }
     else { const k=tut?0:(Math.max(1,n)-1)%3; lay=['spiral','serpent','loops'][k];
-      if(k===0){ SX=W/2; SY=525; tracks=[mk(spiral(300,525,265,330,1.6,0.36,-Math.PI/2),mir)]; }
-      else if(k===1){ SX=W/2; SY=790; tracks=[mk(serpent(),mir)]; } else { SX=W/2; SY=805; tracks=[mk(loops(),mir)]; }
-      setup(tracks[0],cnt,v*(k===0?1:0.9),tut?0.12:a.dv([0.16,0.26,0.32],0.34,0.38)); }
-    aim=-Math.PI/2; makeSprites(api.cos('Orbs').id==='o_neon'?1:0); buildBg(); cur=Math.floor(Math.random()*nC); nxt=Math.floor(Math.random()*nC); },
-  respawn(){ lost=false; shots=[]; revT=0; slowT=0; tracks.forEach(tr=>{ tr.queue=Math.max(tr.rem,0); tr.m=[]; tr.intro=true; tr.lastc=-1; }); cur=Math.floor(Math.random()*nC); nxt=Math.floor(Math.random()*nC); },
+      if(tut){ SX=640; SY=478; tracks=[mk(spiral(640,478,400,185,1.3,0.45,-Math.PI/2))]; }   // low: the tutorial box covers the top
+      else if(k===0){ SX=580; SY=395; tracks=[mk(spiral(580,395,450,285,1.6,0.36,-Math.PI/2),mir&&vf(395))]; }
+      else if(k===1){ SX=640; SY=628; tracks=[mk(serpent(),mir&&hf)]; } else { SX=560; SY=362; tracks=[mk(loops(),mir&&vf(362.5))]; }
+      setup(tracks[0],cnt,v*(k===0?1:0.9),tut||beg?0.1:a.dv([0.16,0.26,0.32],0.34,0.38)); }
+    aim=-Math.PI/2; makeSprites(api.cos('Orbs').id==='o_neon'?1:0); buildBg(); cur=Math.floor(srng()*nC); nxt=Math.floor(srng()*nC); },
+  respawn(){ lost=false; shots=[]; revT=0; slowT=0; tracks.forEach(tr=>{ tr.queue=Math.max(tr.rem,0); tr.m=[]; tr.intro=true; tr.lastc=-1; }); cur=Math.floor(srng()*nC); nxt=Math.floor(srng()*nC); },
   stageBonus(){ return Math.max(0,popped*4-fired*2)+200; },
-  useAbility(id){ if(done||lost) return false; if(id==='swap') return swap();
+  useAbility(id){ if(done||lost) return false; if(id==='fire') return fire(); if(id==='swap') return swap();
     if(id==='reverse'){ revT=3; api.sfx.power(); api.fx.flash('#2ec4ff',.2); return true; }
     if(id==='slow'){ slowT=6; api.sfx.power(); return true; }
     if(id==='bomb'){ if(bombNext) return false; bombNext=true; api.sfx.power(); return true; } return false; },
@@ -619,13 +629,14 @@ const GAME=window.GAME={
   update(dt){ t+=dt; if(done) return; fireCD-=dt;
     if(lost){ lostT-=dt; tracks.forEach(tr=>tr.m.forEach(q=>q.s+=700*dt)); if(lostT<=0 && lostT>-5){ lostT=-9; api.loseLife(); } return; }
     if(revT>0) revT-=dt; if(slowT>0) slowT-=dt;
-    const K=api.input.keys; if(K.ArrowLeft||K.KeyA) aim-=2.6*dt; if(K.ArrowRight||K.KeyD) aim+=2.6*dt; const f=K.ArrowUp||K.KeyW||K.Enter; if(f&&!this._f) fire(); this._f=f;
+    const K=api.input.keys; if(K.ArrowLeft||K.KeyA) aim-=2.6*dt; if(K.ArrowRight||K.KeyD) aim+=2.6*dt; const f=K.ArrowUp||K.KeyW||K.Enter; if(f&&!this._f) fire(); this._f=f; const sw=K.ArrowDown; if(sw&&!this._s) swap(); this._s=sw;
+    if(K.Space){ holdT+=dt; if(holdT>0.4 && fireCD<=0){ fire(); fireCD=0.33; } } else holdT=0;   // player HOLDS fire: keeps shooting
     shots.forEach(s=>{ const st=Math.ceil(SHOT*dt/8); for(let i=0;i<st&&!s.gone;i++) stepShot(s,dt/st); }); shots=shots.filter(s=>!s.gone);
     tracks.forEach(tr=>{ if(!lost) stepTrack(tr,dt); });
     const pc=present(); if(pc.length){ if(!pc.includes(cur)) cur=pick(); if(!pc.includes(nxt)) nxt=pick(); }
     const left=allCount(); api.counter('🔮 MARBLES',left);
     let danger=0; tracks.forEach(tr=>{ if(tr.m.length) danger=Math.max(danger,tr.m[0].s/tr.L); }); warnT-=dt; if(danger>0.86 && warnT<=0){ warnT=0.6; api.sfx.blip(); }
-    if(!left && !lost && !done){ done=true; api.toast('CHAIN DESTROYED!'); api.sfx.clear(); api.fx.flash('#fff',.35); for(let i=0;i<8;i++) api.fx.burst(80+Math.random()*440,200+Math.random()*500,PAL[i%6][0],20,300,1,4); setTimeout(()=>api.stageClear(),1000); } },
+    if(!left && !lost && !done){ done=true; api.toast('CHAIN DESTROYED!'); api.sfx.clear(); api.fx.flash('#fff',.35); for(let i=0;i<8;i++) api.fx.burst(200+Math.random()*800,150+Math.random()*400,PAL[i%6][0],20,300,1,4); setTimeout(()=>api.stageClear(),1000); } },
   render(c){ c.drawImage(bgC,0,0);
     tracks.forEach(tr=>{ const e=tr.pts[tr.pts.length-1], dg=tr.m.length?tr.m[0].s/tr.L:0, pul=0.5+0.5*Math.sin(t*(dg>0.8?14:4));
       c.save(); c.translate(e.x,e.y); c.shadowColor='#ff2050'; c.shadowBlur=20+20*pul*(dg>0.8?1.5:0.6); c.fillStyle='#ff2050'; c.beginPath(); c.arc(0,0,30,0,7); c.fill(); c.shadowBlur=0;
@@ -640,8 +651,8 @@ const GAME=window.GAME={
     shots.forEach(s=>{ c.save(); c.globalAlpha=0.35; c.fillStyle=s.bomb?'#ff9a2e':PAL[s.c][0]; c.beginPath(); c.arc(s.x-s.vx*0.02,s.y-s.vy*0.02,R*0.7,0,7); c.fill(); c.restore(); s.bomb?bombBall(c,s.x,s.y):ball(c,s.x,s.y,s.c,t*10); });
     idol(c);
     if(lost){ c.fillStyle='rgba(30,0,10,0.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ t=tt; if(!sprites) makeSprites(0); c.fillStyle='#120818'; c.fillRect(0,0,W,H); for(let i=0;i<26;i++){ const a=tt*0.6+i*0.24, r=260-i*7; ball(c,300+Math.cos(a)*r,450+Math.sin(a)*r*1.2,i%6,a*3); }
-    c.save(); c.translate(300,450); c.rotate(tt); c.fillStyle='#ffb347'; c.shadowColor='#ff8a00'; c.shadowBlur=30; for(let k=0;k<12;k++){ c.rotate(Math.PI/6); c.beginPath(); c.moveTo(-10,-40); c.lineTo(0,-64); c.lineTo(10,-40); c.fill(); } c.beginPath(); c.arc(0,0,42,0,7); c.fill(); c.restore(); }
+  attract(c,tt){ t=tt; if(!sprites) makeSprites(0); c.fillStyle='#120818'; c.fillRect(0,0,W,H); for(let i=0;i<30;i++){ const a=tt*0.6+i*0.22, r=280-i*6; ball(c,640+Math.cos(a)*r*1.6,380+Math.sin(a)*r,i%6,a*3); }
+    c.save(); c.translate(640,380); c.rotate(tt); c.fillStyle='#ffb347'; c.shadowColor='#ff8a00'; c.shadowBlur=30; for(let k=0;k<12;k++){ c.rotate(Math.PI/6); c.beginPath(); c.moveTo(-10,-40); c.lineTo(0,-64); c.lineTo(10,-40); c.fill(); } c.beginPath(); c.arc(0,0,42,0,7); c.fill(); c.restore(); }
 };
 function idol(c){ c.save(); c.translate(SX,SY);
   c.save(); c.rotate(t*0.5); c.fillStyle='#ffb347'; c.shadowColor='#ff8a00'; c.shadowBlur=24; for(let k=0;k<12;k++){ c.rotate(Math.PI/6); c.beginPath(); c.moveTo(-9,-40); c.lineTo(0,-58-(k%2)*8); c.lineTo(9,-40); c.fill(); } c.restore();
