@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-TB-1.2 · 2026-10-19">
+<meta name="build" content="BUILD-TB-1.3 · 2026-10-26">
 <title>Tube Blaster</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-TB-1.2 · 2026-10-19 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-TB-1.3 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -491,17 +491,24 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 <script>
 /* TUBE BLASTER — Tempest remix (#38). Spin round the rim of a neon tube and blast what climbs up.
    1.2: shooting is manual (hold a finger / Space / 🔫 FIRE) + real online 2-player CO-OP (NET-1).
-   Host runs the tube for both claws; guest sends its controls and draws the host's snapshots. */
+   Host runs the tube for both claws; guest sends its controls and draws the host's snapshots.
+   1.3: LANDSCAPE 1280x720 (SHELL-LANDSCAPE-1). Wide oval tube kept clear of HUD / ability column / stick / FIRE.
+        Left thumb stick: point at the spot on the rim you want. Right thumb: HOLD 🔫 FIRE (PC: ← → + hold Space).
+        Touching the screen never fires. Beginner 1-10 much gentler (slower, fewer, rim warning, no early bullets). */
 (function(){
-const W=600,H=900,CX=300,CY=470,RO=280,RI=46,N=16;
+const W=1280,H=720,CX=640,CY=394,RX=410,RY=262,RI=0.16,N=16,SPD=11;
 const KINDS=['flip','tank','fuse','core'], TAGC=['#00e5ff','#ff3bd4'];
 let api,t,pls,ens,shots,ebul,done,lost,eff,kills,goal,spawnT,shape,warp;
 let nid=0,evq=[],evSeq=0,evSeen=0,snapN=0,snapSeen=0,lastK=null,nShots=0;
 function ang(i){ return -Math.PI/2+(i+0.5)*2*Math.PI/N; }
-function rim(i,d){ // d 0=deep centre, 1=rim. shapes squash the circle
-  const a=ang(i), r=RI+(RO-RI)*Math.pow(d,1.6); const sy=shape===1?0.8:1;
-  const k=shape===2?1+0.18*Math.cos(4*a):1; return {x:CX+Math.cos(a)*r*k, y:CY+Math.sin(a)*r*sy*k}; }
-function edge(i,d){ const a=-Math.PI/2+i*2*Math.PI/N, r=RI+(RO-RI)*Math.pow(d,1.6); const sy=shape===1?0.8:1, k=shape===2?1+0.18*Math.cos(4*a):1; return {x:CX+Math.cos(a)*r*k,y:CY+Math.sin(a)*r*sy*k}; }
+// wide oval tube (1280x720): d 0=deep centre, 1=rim. Sized so the claw never reaches the HUD strip, the stick or the FIRE corner.
+const SX=()=>shape===1?1.04:1, SY=()=>shape===1?0.86:1;
+function pt(a,d){ const r=RI+(1-RI)*Math.pow(d,1.6), k=shape===2?(1+0.15*Math.cos(4*a))/1.15:1; return {x:CX+Math.cos(a)*r*k*RX*SX(), y:CY+Math.sin(a)*r*k*RY*SY()}; }
+function rim(i,d){ return pt(ang(i),d); }
+function edge(i,d){ return pt(-Math.PI/2+i*2*Math.PI/N,d); }
+// lane whose rim point lies in direction (dx,dy) from the centre (stick direction, mouse / tap position)
+function laneAt(dx,dy){ const a=Math.atan2(dy/(RY*SY()),dx/(RX*SX())); return ((Math.round(((a+Math.PI/2)/(2*Math.PI))*N-0.5)%N)+N)%N; }
+const easy=()=>api.diff===0&&api.level<=10;   // Beginner 1-10 (+ tutorial): gentle
 const lane=x=>((Math.round(x)%N)+N)%N;
 const ldist=(a,b)=>{ let d=((b-a)%N+N)%N; if(d>N/2) d-=N; return d; };
 function net(){ return api&&api.net; }
@@ -513,15 +520,15 @@ function ev(k,...a){ if(!isHost()) return; evq.push([++evSeq,t,k,...a]); if(evq.
 function T(msg){ api.toast(msg); ev('toast',msg); }
 function S(k){ api.sfx[k]&&api.sfx[k](); ev('s',k); }
 function boomFx(x,y,col,n,sp,life,sz){ x=Math.round(x); y=Math.round(y); api.fx.burst(x,y,col,n,sp,life,sz); ev('b',x,y,col,n,sp,life,sz); }
-function mkClaw(i,p){ return {i,p,tp:p,fireT:0,dead:false,respT:0,grace:1.5,sh:0,rp:0,hold:false,ptrs:{},drag:null,moveId:null,lastL:lane(p)}; }
+function mkClaw(i,p){ return {i,p,tp:p,tgt:null,md:false,fireT:0,dead:false,respT:0,grace:1.5,sh:0,rp:0,lastL:lane(p)}; }
 function near(e){ let b=null,bd=99; for(const p of pls){ if(p.dead) continue; const d=Math.abs(ldist(lane(e.l),lane(p.p))); if(d<bd){ bd=d; b=p; } } return b; }
 const GAME=window.GAME={
   id:'tube-blaster',title:'Tube Blaster',titleHTML:'TUBE<br>BLASTER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-TB-1.2 · 2026-10-19',theme:{a:'#ffd23f',b:'#2e7bff',bg:'#02020a'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🔺',joystick:false,coinPts:40,
+  build:'BUILD-TB-1.3 · 2026-10-26',theme:{a:'#ffd23f',b:'#2e7bff',bg:'#02020a'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🔺',joystick:true,coinPts:40,
   net:{mode:'coop'},
   abilities:[
-    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — shoot down your lane. Or hold a finger on the screen / hold Space.'},
+    {id:'fire',icon:'🔫',name:'FIRE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — HOLD it to keep shooting down your lane (PC: hold Space). Nothing fires unless you hold it.'},
     {id:'zap',icon:'⚡',name:'SUPER ZAP',cd:20,key:'Digit1',keyLabel:'1',desc:'Destroys everything in the tube.'},
     {id:'slow',icon:'🐌',name:'SLOW-MO',cd:18,key:'Digit2',keyLabel:'2',desc:'Enemies climb at half speed for 6 seconds.'},
     {id:'rapid',icon:'🔥',name:'RAPID',cd:15,key:'Digit3',keyLabel:'3',desc:'Super-fast fire for 8 seconds.'},
@@ -529,55 +536,59 @@ const GAME=window.GAME={
   shop:[{id:'c_y',cat:'Claw',name:'Yellow',cost:0,colors:['#ffd23f'],desc:'Classic.'},{id:'c_g',cat:'Claw',name:'Green',cost:150,colors:['#3bff7a'],desc:'Green.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#2e7bff)'}],
   story:`<h3>TUBE BLASTER</h3><p>Something is crawling up out of the neon tube. Hold the rim. Blast everything that climbs.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag left/right</b> anywhere (or tap a spot on the rim) to slide round the tube. PC: ← → keys.</li><li><b>Shoot:</b> keep your finger on the screen while you drag, or tap <b>🔫 FIRE</b>. PC: hold Space (or the mouse button). Nothing fires unless you do.</li><li>Flippers that reach the rim crawl towards you — shoot them or move away!</li><li>Destroy the number of enemies shown to warp to the next tube.</li><li><b>Play together:</b> each phone has a stick — drag your first finger left/right to slide your claw round the rim; hold a SECOND finger anywhere (or tap 🔫 FIRE / hold Space) to shoot. Two claws on the same rim share lives and score. Enemies on the rim go for the closer claw. A claw that gets hit is back after 2 seconds — but the team loses a life.</li></ul>`,
-  tutorial:[{text:'Drag left or right to slide round the rim.',ev:'move'},{text:'Keep your finger down (or tap 🔫 FIRE / hold Space) to shoot!',ev:'kill'},{text:'Destroy them all to warp!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb — stick:</b> push it towards the spot on the rim you want (up = top of the tube, left = left side…). Your claw slides round to it. PC: ← → (or A / D) slide round the rim, or click a spot on the rim.</li><li><b>Right thumb — 🔫 FIRE:</b> HOLD the big button to keep shooting down your lane. PC: hold <b>SPACE</b>. Nothing fires unless you hold it.</li><li>Enemies climb up the tube towards the rim. Shoot them before they get there! Ones that reach the rim crawl towards you — shoot them or move away. Orange dots are enemy shots: shoot them or dodge.</li><li>Destroy the number shown (🎯 LEFT) to warp to the next tube. Do nothing and they'll get you.</li><li>Abilities (left side, or keys 1-4): ⚡ zap everything, 🐌 slow-mo, 🔥 rapid fire, 🛡️ shield.</li><li><b>Play together:</b> each phone steers its own claw with the stick and holds its own 🔫 FIRE. Two claws on one rim share lives and score. Rim crawlers go for the closer claw. A claw that gets hit is back after 2 seconds — but the team loses a life.</li></ul>`,
+  tutorial:[{text:'Press <b>← →</b> to slide round the rim.',touch:'<b>Left thumb:</b> push the stick towards a spot on the rim — your claw slides there.',ev:'move'},
+    {text:'HOLD <b>SPACE</b> to shoot down your lane!',touch:'<b>Right thumb:</b> HOLD the big <b>🔫 FIRE</b> button to shoot down your lane!',ev:'kill'},
+    {text:'Destroy them all to warp!',time:5}],
   stageIntro:{1:'HOLD THE RIM'},bossName:'THE CORE!',ending:{"0":["#WARP","Tube cleared."],"1":["#ACE","Master of the tube."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const p=me(); if(id==='slow') return eff?{left:Math.max(0,eff.slow),total:6}:null; if(!p) return null; if(id==='rapid') return {left:Math.max(0,p.rp),total:8}; if(id==='shield') return {left:Math.max(0,p.sh),total:6}; return null; },
-  _dbg(){ return {get pl(){return pls&&pls[0];}, get pls(){return pls;}, get ens(){return ens;}, get shots(){return shots;}, get ebul(){return ebul;}, get lost(){return lost;}, get done(){return done;}, get kills(){return kills;}, get goal(){return goal;}, fire:(i)=>tryFire(pls[i||0]), clear:()=>{ kills=goal; },
+  _dbg(){ return {get pl(){return pls&&pls[0];}, get pls(){return pls;}, get ens(){return ens;}, get shots(){return shots;}, get ebul(){return ebul;}, get lost(){return lost;}, get done(){return done;}, get kills(){return kills;}, get goal(){return goal;}, fire:(i)=>tryFire(pls[i||0]), clear:()=>{ kills=goal; }, laneOf:(i)=>lane(pls[i||0].p), aim:(l,i)=>{ pls[i||0].tgt=lane(l); },
     get net2(){ return {role:net()&&net().role, p:(pls||[]).map(p=>[+p.p.toFixed(2),lane(p.p),p.dead?1:0,+p.grace.toFixed(1)]), ens:(ens||[]).length, shots:(shots||[]).length, ebul:(ebul||[]).length, done, warp:warp>0, left:Math.max(0,goal-kills), lives:api.lives}; }}; },
   init(a){api=a;},
   startStage(n,a){ api=a; t=0; done=false; lost=false; warp=0; eff={slow:-9}; ens=[]; shots=[]; ebul=[]; kills=0; spawnT=1; shape=(n+2)%3; nid=0; evq=[]; lastK=null; nShots=0;
-    const N2=!!net(); GAME.joystick=N2; pls=[mkClaw(0,0)]; if(N2) pls.push(mkClaw(1,N/2));
-    goal=a.content===0?5:Math.round(a.dv([14,22,30],40,70)*(N2?1.3:1));
+    const N2=!!net(); pls=[mkClaw(0,N/2)]; if(N2){ pls[0].p=pls[0].tp=pls[0].lastL=N/2-2; pls.push(mkClaw(1,N/2+2)); }  // start at the bottom of the tube, nearest the thumbs
+    goal=a.content===0?5:Math.round((easy()?8+a.stage*0.6:a.dv([14,22,30],40,70))*(N2?1.3:1));
     if(a.boss){ const hp=Math.round(a.dv([20,30,40],50,80)*(N2?1.3:1)); ens.push({id:++nid,k:'core',l:0,d:0.02,hp,max:hp,t:0}); } },
   respawn(){ if(net()) return; // co-op: the hit claw comes back on its own timer; the stage stays as it is
     lost=false; ens=ens.filter(e=>e.k==='core'||e.d<0.5); ebul=[]; pls[0].grace=2; },
   netRevive(){ if(!pls) return; ens=ens.filter(e=>e.k==='core'||e.d<0.5); ebul=[]; pls.forEach(p=>{ if(p.dead) backUp(p); p.grace=Math.max(p.grace,3); }); },
   useAbility(id){ return useAb(pls&&pls[0],id); },
   useAbility2(id){ if(!pls||!pls[1]) return false; return useAb(pls[1],id); },
-  // P1: first finger drags round the rim; any finger held down (or mouse button) fires
-  onPointer(type,x,y,id,ptype){ if(!pls) return; ptr(pls[0],type,x,y,id==null?'m':id,net()&&ptype!=='mouse'?'stick':'drag'); },
-  // guest's finger (the shell sends one pointer stream, no id)
-  onPointer2(type,x,y){ if(!pls||!pls[1]) return; ptr(pls[1],type,x,y,'g','fire'); },
+  // touch: the shell's stick steers and 🔫 FIRE shoots — other fingers do nothing. Mouse: click / drag on the rim = go there (never fires).
+  onPointer(type,x,y,id,ptype){ if(!pls||ptype!=='mouse') return; ptr(pls[0],type,x,y); },
+  // guest: its stick arrives as input2.dir(); every other finger / click it sends = "go to this spot on the rim"
+  onPointer2(type,x,y){ if(!pls||!pls[1]) return; ptr(pls[1],type,x,y); },
   update(dt){ t+=dt; if(warp>0){ warp+=dt; return; } if(done) return; eff.slow-=dt;
     ctl(pls[0],api.input.keys,api.input,dt);
     if(pls[1]) ctl(pls[1],api.input2.keys,api.input2,dt);
     shots.forEach(s=>s.d-=dt*2.4); shots=shots.filter(s=>s.d>0&&!s.hit);
-    const slow=eff.slow>0?0.5:1, sp=api.dv([0.16,0.24,0.32],0.4,0.7)*slow;
-    spawnT-=dt; const alive=ens.filter(e=>e.k!=='core').length; if(spawnT<=0&&kills+alive<goal){ spawnT=api.dv([1.6,1.1,0.7],0.5,0.25)*(api.content===0?2:1)*(pls.length>1?0.8:1); const r=Math.random();
-      ens.push({id:++nid,k:api.content===0?'flip':r<0.6?'flip':r<0.85?'tank':'fuse',l:Math.floor(Math.random()*N),d:0,hp:1,t:0,rimT:0}); }
+    const slow=eff.slow>0?0.5:1, ez=easy(), st=api.stage, sp=api.dv([0.16,0.24,0.32],0.4,0.7)*slow*(ez?0.72:1);
+    spawnT-=dt; const alive=ens.filter(e=>e.k!=='core').length; if(spawnT<=0&&kills+alive<goal){ spawnT=api.dv([1.6,1.1,0.7],0.5,0.25)*(api.content===0?2:1)*(pls.length>1?0.8:1)*(ez?1.4:1); const r=Math.random();
+      const k=api.content===0||(ez&&st<=3)?'flip':ez&&st<=6?(r<0.75?'flip':'tank'):r<0.6?'flip':r<0.85?'tank':'fuse';
+      ens.push({id:++nid,k,l:Math.floor(Math.random()*N),d:0,hp:1,t:0,rimT:0,warn:ez?1.2:0}); }
     ens.forEach(e=>{ e.t+=dt;
-      if(e.k==='core'){ e.l=(e.l+dt*1.2)%N; if(Math.random()<dt*api.dv([0.8,1.2,1.6],2,3.5)*slow) ebul.push({l:Math.floor(Math.random()*N),d:0.05}); }
+      if(e.k==='core'){ e.l=(e.l+dt*1.2)%N; if(Math.random()<dt*api.dv([0.8,1.2,1.6],2,3.5)*slow*(ez?0.6:1)) ebul.push({l:Math.floor(Math.random()*N),d:0.05}); }
       else if(e.d<1){ e.d+=sp*dt*(e.k==='fuse'?1.5:e.k==='tank'?0.7:1); if(e.k==='fuse'&&e.t%1.2<dt) e.l=lane(e.l+(Math.random()<.5?1:-1));
-        if(e.k!=='fuse'&&Math.random()<dt*0.25*slow&&api.content!==0) ebul.push({l:lane(e.l),d:e.d});
+        if(e.k!=='fuse'&&Math.random()<dt*0.25*slow*(ez?0.4:1)&&api.content!==0&&!(ez&&st<=5)) ebul.push({l:lane(e.l),d:e.d});
         if(e.d>=1){ e.d=1; if(e.k==='tank'){ e.hp=0; e.split=true; } } }
-      else { e.rimT+=dt; if(e.rimT>api.dv([0.9,0.6,0.4],0.3,0.15)/slow){ e.rimT=0; const tg=near(e); if(tg){ const d=ldist(lane(e.l),lane(tg.p)); if(d) e.l=lane(e.l+Math.sign(d)); } } }
+      else if(e.warn>0) e.warn-=dt*slow;   // Beginner 1-10: flashes on the rim for a moment before it can hurt anyone
+      else { e.rimT+=dt; if(e.rimT>(ez?1.5:api.dv([0.9,0.6,0.4],0.3,0.15))/slow){ e.rimT=0; const tg=near(e); if(tg){ const d=ldist(lane(e.l),lane(tg.p)); if(d) e.l=lane(e.l+Math.sign(d)); } } }
       // the core sits where every lane meets: any shot that reaches the middle hits it
       shots.forEach(s=>{ if(!s.hit&&(e.k==='core'?s.d<0.1:(s.l===lane(e.l)&&Math.abs(s.d-e.d)<0.08))){ s.hit=true; e.hp--; } });
-      if(e.k!=='core'&&e.d>=0.97) pls.forEach(p=>{ if(!lost&&!p.dead&&p.grace<=0&&p.sh<=0&&lane(e.l)===lane(p.p)) die(p); }); });
+      if(e.k!=='core'&&e.d>=0.97&&!(e.warn>0)) pls.forEach(p=>{ if(!lost&&!p.dead&&p.grace<=0&&p.sh<=0&&lane(e.l)===lane(p.p)) die(p); }); });
     ens.forEach(e=>{ if(e.hp<=0&&!e.dead){ e.dead=true; const p=rim(lane(e.l),e.d);
       if(e.k==='core'){ api.addScore(3000,p.x,p.y); boomFx(CX,CY,'#ff3bd4',80,400,.8,3); S('boom'); kills=goal; }
       else if(e.k==='tank'&&!e.split){ kills++; api.addScore(150,p.x,p.y); [-1,1].forEach(o=>ens.push({id:++nid,k:'flip',l:lane(e.l+o),d:e.d,hp:1,t:0,rimT:0})); S('small'); }
       else if(e.split){ [-1,1].forEach(o=>ens.push({id:++nid,k:'flip',l:lane(e.l+o),d:1,hp:1,t:0,rimT:0})); }
       else { kills++; api.addScore((e.k==='fuse'?250:150)*(1+api.dk*.5),p.x,p.y,true); boomFx(p.x,p.y,e.k==='fuse'?'#3bff7a':'#ff3b5c',12,220,.4,2); S('small'); api.event('kill'); } } });
     ens=ens.filter(e=>!e.dead);
-    ebul.forEach(b=>{ b.d+=dt*0.45*slow; shots.forEach(s=>{ if(!s.hit&&s.l===b.l&&Math.abs(s.d-b.d)<0.06){ s.hit=true; b.gone=true; } });
+    ebul.forEach(b=>{ b.d+=dt*(ez?0.32:0.45)*slow; shots.forEach(s=>{ if(!s.hit&&s.l===b.l&&Math.abs(s.d-b.d)<0.06){ s.hit=true; b.gone=true; } });
       if(b.d>=1){ b.gone=true; pls.forEach(p=>{ if(!lost&&!p.dead&&p.grace<=0&&p.sh<=0&&b.l===lane(p.p)) die(p); }); } }); ebul=ebul.filter(b=>!b.gone);
     api.counter('🎯 LEFT',Math.max(0,goal-kills));
     if(kills>=goal&&!ens.some(e=>e.k==='core')&&!lost){ done=true; warp=0.01; ens=[]; ebul=[]; api.sfx.clear(); T('WARP!'); ev('warp'); setTimeout(()=>api.stageClear(),1300); } },
   // ===== NET-1 co-op: host -> guest snapshot (small flat arrays) =====
   netState(){ const R=Math.round, e=[], s=[], b=[];
-    ens.forEach(o=>e.push(o.id,o.k==='core'?R(o.l*10)/10:lane(o.l),R(o.d*1000),KINDS.indexOf(o.k),Math.max(0,o.hp),o.max||0));
+    ens.forEach(o=>e.push(o.id,o.k==='core'?R(o.l*10)/10:lane(o.l),R(o.d*1000),KINDS.indexOf(o.k)+(o.warn>0&&o.d>=1?10:0),Math.max(0,o.hp),o.max||0));
     shots.forEach(o=>s.push(o.l,R(o.d*1000))); ebul.forEach(o=>b.push(o.l,R(o.d*1000)));
     return {n:++snapN, st:api.stage, p:pls.map(p=>[R(p.p*100)/100,p.dead?Math.max(1,R(p.respT*10)):0,Math.max(0,R(p.grace*10)),Math.max(0,R(p.sh*10)),Math.max(0,R(p.rp*10))]),
       e, s, b, k:Math.max(0,goal-kills), sl:Math.max(0,R(eff.slow*10)), w:warp>0?1:0, sh:shape, v:evq.filter(x=>t-x[1]<1.2).slice(-20).map(x=>[x[0],...x.slice(2)])}; },
@@ -586,7 +597,7 @@ const GAME=window.GAME={
     shape=s.sh; eff.slow=s.sl/10; if(s.w&&!warp) warp=0.01;
     const em={}; ens.forEach(o=>em[o.id]=o); const ne=[];
     for(let i=0;i<s.e.length;i+=6){ const id=s.e[i]; const o=em[id]||{id,d:s.e[i+2]/1000,t:Math.random()*3,rimT:0};
-      o.l=s.e[i+1]; o.td=s.e[i+2]/1000; if(Math.abs(o.td-o.d)>0.3) o.d=o.td; o.k=KINDS[s.e[i+3]]||'flip'; o.hp=s.e[i+4]; o.max=s.e[i+5]; ne.push(o); }
+      o.l=s.e[i+1]; o.td=s.e[i+2]/1000; if(Math.abs(o.td-o.d)>0.3) o.d=o.td; o.k=KINDS[s.e[i+3]%10]||'flip'; o.warn=s.e[i+3]>=10?1:0; o.hp=s.e[i+4]; o.max=s.e[i+5]; ne.push(o); }
     ens=ne;
     shots=[]; for(let i=0;i<s.s.length;i+=2) shots.push({l:s.s[i],d:s.s[i+1]/1000});
     if(shots.length>nShots) api.sfx.shoot(); nShots=shots.length;
@@ -598,13 +609,14 @@ const GAME=window.GAME={
     ens.forEach(e=>{ e.t=(e.t||0)+dt; if(e.td!==undefined) e.d+=(e.td-e.d)*k; });
     shots.forEach(o=>o.d-=dt*2.4); ebul.forEach(o=>o.d=Math.min(1,o.d+dt*0.45*slow)); },
   render(c){ const M=me(), NT=net(); c.fillStyle='#02020a'; c.fillRect(0,0,W,H);
-    for(let i=0;i<80;i++){ const a=i*2.4, r=((i*53+t*(warp?900:30))%520); c.fillStyle='rgba(255,255,255,.5)'; c.fillRect(CX+Math.cos(a)*r,CY+Math.sin(a)*r,2,2); }
+    for(let i=0;i<120;i++){ const a=i*2.4, r=((i*53+t*(warp?900:30))%760); c.fillStyle='rgba(255,255,255,.5)'; c.fillRect(CX+Math.cos(a)*r,CY+Math.sin(a)*r,2,2); }
     const zoom=warp?1+warp*warp*3:1; c.save(); c.translate(CX,CY); c.scale(zoom,zoom); c.translate(-CX,-CY);
     const col=['#2e7bff','#ff3bd4','#3bff7a'][shape]; c.strokeStyle=col; c.shadowColor=col; c.shadowBlur=12; c.lineWidth=2;
     for(let i=0;i<N;i++){ const a=edge(i,1), b=edge(i,0); c.beginPath(); c.moveTo(a.x,a.y); c.lineTo(b.x,b.y); c.stroke(); }
     [1,0].forEach(d=>{ c.beginPath(); for(let i=0;i<=N;i++){ const p=edge(i%N,d); i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y); } c.stroke(); });
     pls.forEach(p=>{ if(lost||p.dead) return; const cl=lane(p.p); c.fillStyle=(NT?TAGC[p.i]:col)+(NT&&p!==M?'1c':'33'); c.beginPath(); const a1=edge(cl,1),a2=edge(cl+1,1),b2=edge(cl+1,0),b1=edge(cl,0); c.moveTo(a1.x,a1.y); c.lineTo(a2.x,a2.y); c.lineTo(b2.x,b2.y); c.lineTo(b1.x,b1.y); c.fill(); });
-    ens.forEach(e=>{ const l=lane(e.l), p=rim(l,e.d), s=6+18*Math.pow(e.d,1.6);
+    ens.forEach(e=>{ const l=lane(e.l), p=rim(l,e.d), s=7+21*Math.pow(e.d,1.6);
+      if(e.d>=1&&e.warn>0&&e.k!=='core'){ c.save(); c.globalAlpha=0.35+0.35*Math.sin(t*14); c.fillStyle='#ff3b5c'; c.beginPath(); c.arc(p.x,p.y,s*1.3,0,7); c.fill(); c.restore(); }
       if(e.k==='core'){ c.shadowColor=c.fillStyle='#ff3bd4'; c.beginPath(); for(let i=0;i<10;i++){ const a=i*Math.PI/5+t*2; c.lineTo(CX+Math.cos(a)*(i%2?20:38),CY+Math.sin(a)*(i%2?20:38)); } c.fill(); c.fillStyle='#fff'; c.fillRect(CX-30,CY+48,60*Math.min(1,e.hp/(e.max||20)),5); return; }
       c.strokeStyle=c.shadowColor=e.k==='flip'?'#ff3b5c':e.k==='tank'?'#b14bff':'#3bff7a'; c.lineWidth=2.5; const a=ang(l)+Math.PI/2;
       c.save(); c.translate(p.x,p.y); c.rotate(a + (e.d>=1?Math.sin(e.t*10)*0.4:0)); c.beginPath();
@@ -620,31 +632,26 @@ const GAME=window.GAME={
       if(p.sh>0){ c.strokeStyle='#7df9ff'; c.beginPath(); c.arc(m.x,m.y,30,0,7); c.stroke(); } if(big) c.restore(); });
     c.restore(); c.shadowBlur=0;
     if(NT&&!warp) pls.forEach(p=>{ const cl=lane(p.p), q=rim(cl,same&&p.i===1?1.2:1.1), s=nm(p.i), colr=TAGC[p.i]; c.font='bold 15px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.75)';
-      const m=p.dead?'↻ '+s.toUpperCase()+' '+Math.max(0,p.respT).toFixed(1):s, yy=Math.max(100,Math.min(H-20,q.y+5)), xx=Math.max(56,Math.min(W-56,q.x)); if(p.dead) c.globalAlpha=0.6+0.3*Math.sin(t*8);
+      const m=p.dead?'↻ '+s.toUpperCase()+' '+Math.max(0,p.respT).toFixed(1):s, yy=Math.max(92,Math.min(H-14,q.y+5)), xx=Math.max(150,Math.min(W-150,q.x)); if(p.dead) c.globalAlpha=0.6+0.3*Math.sin(t*8);
       c.strokeText(m,xx,yy); c.fillStyle=colr; c.fillText(m,xx,yy); c.globalAlpha=1; });
     if(lost||(NT&&M&&M.dead)){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#02020a'; c.fillRect(0,0,W,H); c.strokeStyle='#2e7bff'; c.lineWidth=2; for(let k=0;k<6;k++){ const r=((k*60+tt*80)%360)+20; c.beginPath(); c.arc(CX,CY,r,0,7); c.stroke(); } }
+  attract(c,tt){ c.fillStyle='#02020a'; c.fillRect(0,0,W,H); c.strokeStyle='#2e7bff'; c.lineWidth=2; for(let k=0;k<6;k++){ const r=((k*60+tt*80)%360)+20; c.beginPath(); c.ellipse(CX,CY,r*1.5,r,0,0,7); c.stroke(); } }
 };
-// mode 'drag' (solo / mouse): first finger drags round the rim, any finger held fires.
-// mode 'stick' (2P host touch): the first finger is the shell's stick (steers in ctl), every other finger held fires.
-// mode 'fire' (2P guest): the shell keeps the guest's stick finger to itself, so every forwarded finger is a fire finger.
-function ptr(p,type,x,y,id,mode){
-  if(mode!=='drag'){ if(type==='down'){ if(mode==='stick'&&p.moveId===null) p.moveId=id; else p.ptrs[id]=1; } else if(type==='up'){ if(id===p.moveId) p.moveId=null; delete p.ptrs[id]; } p.hold=Object.keys(p.ptrs).length>0; return; }
-  if(type==='down'){ p.ptrs[id]=1; if(p.moveId===null){ p.moveId=id; p.drag={x,p:p.tp,moved:false}; } }
-  else if(type==='move'){ if(id===p.moveId&&p.drag&&!p.dead&&!done&&!lost){ const dx=x-p.drag.x; if(Math.abs(dx)>6) p.drag.moved=true; p.tp=p.drag.p+dx/26; } }
-  else if(type==='up'){ delete p.ptrs[id];
-    if(id===p.moveId){ if(p.drag&&!p.drag.moved&&Math.abs(x-p.drag.x)>6&&!p.dead&&!done&&!lost){ p.drag.moved=true; p.tp=p.drag.p+(x-p.drag.x)/26; } // lossy guest link: the release point still counts as a drag
-      if(p.drag&&!p.drag.moved&&!p.dead&&!done&&!lost){ const a=Math.atan2(y-CY,x-CX); const i=Math.round(((a+Math.PI/2)/(2*Math.PI))*N-0.5); p.tp=Math.round(p.tp)+ldist(lane(p.tp),i); }
-      p.drag=null; p.moveId=null; } }
-  p.hold=Object.keys(p.ptrs).length>0; }
-// one claw from its own controls. Nothing fires unless that player holds a finger / Space or taps FIRE.
+// mouse (host) or any forwarded guest finger: press / drag on the tube = slide the claw to that spot. Never fires.
+function ptr(p,type,x,y){
+  if(type==='down') p.md=true; else if(type==='up') p.md=false;
+  if(type!=='up'&&p.md&&!p.dead&&!done&&!lost&&Math.hypot((x-CX)/RX,(y-CY)/RY)>0.15) p.tgt=laneAt(x-CX,y-CY); }
+// one claw from its own controls. Nothing fires unless that player holds 🔫 FIRE / Space.
 function ctl(p,K,D,dt){ p.sh-=dt; p.rp-=dt; p.grace-=dt; p.fireT-=dt;
   if(p.dead){ p.respT-=dt; if(p.respT<=0) backUp(p); return; }
   if(lost) return;
-  const d=D.dir(); if(Math.abs(d.x)>0.2) p.tp+=d.x*dt*9; // arrow keys / A-D, or the 2P stick
+  const rx=(K.ArrowRight||K.KeyD?1:0)-(K.ArrowLeft||K.KeyA?1:0), d=D.dir();
+  if(rx){ p.tgt=null; p.tp+=rx*dt*9; }                          // keys: classic spin round the rim
+  else if(Math.hypot(d.x,d.y)>0.45) p.tgt=laneAt(d.x,d.y);      // stick: point at the spot on the rim you want
+  if(p.tgt!==null){ let dd=((p.tgt-p.tp)%N+N)%N; if(dd>N/2) dd-=N; const st=Math.min(Math.abs(dd),dt*SPD); p.tp+=Math.sign(dd)*st; if(Math.abs(dd)<0.02) p.tgt=null; }
   p.p+=(p.tp-p.p)*Math.min(1,dt*14);
   const L=lane(p.p); if(L!==p.lastL){ p.lastL=L; if(p.i===0) api.event('move'); }
-  if(p.hold||K.Space) tryFire(p); }
+  if(K.Space) tryFire(p); }
 function tryFire(p){ if(!p||done||lost||p.dead||p.fireT>0) return false; p.fireT=p.rp>0?0.06:0.14; p.nf=(p.nf||0)+1; shots.push({l:lane(p.p),d:1,o:p.i}); api.sfx.shoot(); return true; }
 function useAb(p,id){ if(done||lost||!p||p.dead) return false;
   if(id==='fire'){ tryFire(p); return true; }
@@ -656,7 +663,7 @@ function die(p){ if(done||p.sh>0) return;
   const q=rim(lane(p.p),1);
   if(!net()){ if(lost) return; lost=true; api.fx.burst(q.x,q.y,'#ffd23f',40,300,.7,3); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1000); return; }
   // co-op: this claw is down for 2 s, the team loses one life, the other keeps blasting
-  if(p.dead||api.lives<=0) return; p.dead=true; p.respT=2; p.hold=false; boomFx(q.x,q.y,TAGC[p.i],40,300,.7,3); api.sfx.hurt(); api.fx.shake(10); ev('ko');
+  if(p.dead||api.lives<=0) return; p.dead=true; p.respT=2; p.md=false; boomFx(q.x,q.y,TAGC[p.i],40,300,.7,3); api.sfx.hurt(); api.fx.shake(10); ev('ko');
   T(nm(p.i).toUpperCase()+' DOWN!'); api.loseLife(); }
 function netFx(a){ const k=a[1], F=api.fx, SF=api.sfx;
   if(k==='toast') api.toast(a[2]);
