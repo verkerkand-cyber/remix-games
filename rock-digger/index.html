@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RD-1.1 · 2026-10-18">
+<meta name="build" content="BUILD-RD-1.2 · 2026-10-26">
 <title>Rock Digger</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-RD-1.1 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-RD-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,11 +489,14 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* ROCK DIGGER — Boulder Dash remix. 100 stages. Dig through the cave, grab the gems, dodge falling boulders and reach the exit. */
+/* ROCK DIGGER — Boulder Dash remix. 100 stages. Dig through the cave, grab the gems, dodge falling boulders and reach the exit.
+   1.2 (26 Oct): LANDSCAPE 1280x720 (world drawn x1.2, camera scrolls, keeps clear of HUD / ability column / stick + button corners),
+   RACE mode (cave comes from the seeded stage RNG so both racers dig the same cave), cave clock (idle = time runs out),
+   Beginner 1-10 easy (small sparse caves, few rocks, no bugs until 8, slow bugs, lucky shield vs boulders, long clock). */
 (function(){
-const W=600,H=900,CS=40,E=0,D=1,S=2,B=3,R=4,G=5,X=6,A=7;
+const W=1280,H=720,CS=40,Z=1.2,VW=W/Z,VH=H/Z,E=0,D=1,S=2,B=3,R=4,G=5,X=6,A=7;
 const DX=[0,1,0,-1],DY=[-1,0,1,0],DK={U:0,R:1,D:2,L:3},GC=['#3ff4ff','#ff4fd8','#ffe14a','#5dff8a'];
-let api,t=0,g,fall,stamp,mvx,mvy,tickN=0,acc,TK=0.135,MW,MH,pl,ens=[],need,got,exitOpen,ex,ey,done,lost,eff,grab,camX=0,camY=0,TOP,seed,blasts,amoOn,amoT,amoP,amoCap,boss,ceil,ceilT,cT,debT,swipe,ptr,mouse,bot=false,botDir=null,pushT,espd,gi,tut,sx,sy,sndT;
+let api,t=0,g,fall,stamp,mvx,mvy,tickN=0,acc,TK=0.135,MW,MH,pl,ens=[],need,got,exitOpen,ex,ey,done,lost,eff,grab,camX=0,camY=0,seed,EZ=false,bsh=0,tLim=0,tLeft=0,warned=false,blasts,amoOn,amoT,amoP,amoCap,boss,ceil,ceilT,cT,debT,swipe,ptr,mouse,bot=false,botDir=null,pushT,espd,gi,tut,sx,sy,sndT;
 let rs=1; function rnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
 const ri=n=>Math.floor(rnd()*n), mr=n=>Math.floor(Math.random()*n);
 const inb=(x,y)=>x>=0&&y>=0&&x<MW&&y<MH, at=(x,y)=>inb(x,y)?g[y][x]:S;
@@ -501,7 +504,15 @@ const enAt=(x,y)=>ens.find(e=>!e.dead&&e.x===x&&e.y===y);
 const plAt=(x,y)=>!lost&&pl&&pl.x===x&&pl.y===y;
 const rounded=v=>v===R||v===G||v===B;
 const arr=v=>[...Array(MH)].map(()=>Array(MW).fill(v));
-const scr=(x,y)=>({x:x*CS+CS/2-camX,y:TOP+y*CS+CS/2-camY});
+const scr=(x,y)=>({x:(x*CS+CS/2-camX)*Z,y:(y*CS+CS/2-camY)*Z});
+// screen spots hidden by the HUD strip, ability column, joystick corner and action buttons
+const hid=(x,y)=>x<92||y<72||x>W-8||y>H-8||(y>520&&(x<262||x>978));
+function camGo(px,py,snap){ let cx,cy;
+  if(tut){ cx=-(92+(W-92-MW*CS*Z)/2)/Z; cy=-215/Z; }
+  else { const lx=-92/Z, hx=MW*CS-VW+8/Z, ly=-74/Z, hy=MH*CS-VH+205/Z, tx=px-700/Z, ty=py-370/Z;
+    cx=hx>=lx?Math.max(lx,Math.min(hx,tx)):Math.max(hx,Math.min(lx,tx)); cy=hy>=ly?Math.max(ly,Math.min(hy,ty)):Math.max(hy,Math.min(ly,ty)); }
+  if(snap){ camX=cx; camY=cy; } else { camX+=(cx-camX)*snap0; camY+=(cy-camY)*snap0; } }
+let snap0=.1;
 /* ---------- physics: boulders & gems fall, roll off rounded things ---------- */
 function mvObj(x,y,nx,ny){ g[ny][nx]=g[y][x]; g[y][x]=E; fall[ny][nx]=true; fall[y][x]=false; stamp[ny][nx]=tickN; mvx[ny][nx]=x-nx; mvy[ny][nx]=y-ny; }
 function physics(live){ let moved=false, land=0;
@@ -518,16 +529,16 @@ function settle(){ for(let i=0;i<500;i++){ tickN++; if(!physics(false)) break; }
 /* ---------- cave generator (seeded so a retry rebuilds the same cave) ---------- */
 function bfs(x0,y0,xPass){ const dist=arr(-1), q=[[x0,y0]]; dist[y0][x0]=0; for(let h=0;h<q.length;h++){ const [x,y]=q[h]; for(let d=0;d<4;d++){ const nx=x+DX[d],ny=y+DY[d]; if(!inb(nx,ny)||dist[ny][nx]>=0) continue; const v=g[ny][nx]; if(v===E||v===D||v===G||(xPass&&v===X)){ dist[ny][nx]=dist[y][x]+1; q.push([nx,ny]); } } } return dist; }
 function base(){ g=arr(D); fall=arr(false); stamp=arr(0); mvx=arr(0); mvy=arr(0); for(let y=0;y<MH;y++) for(let x=0;x<MW;x++) if(!x||!y||x===MW-1||y===MH-1) g[y][x]=S; }
-function gen(a){ rs=seed; const L=a.level; boss=a.boss; tut=a.content===0; ens=[]; ceil=0; amoOn=false; amoT=0; gi=a.stage%4;
-  if(tut){ MW=15; MH=12; base(); sx=2; sy=2; [[6,3],[9,6],[4,8]].forEach(([x,y])=>g[y][x]=G); [[6,2],[11,7],[3,5]].forEach(([x,y])=>g[y][x]=R); for(let x=7;x<11;x++) g[4][x]=E; g[sy][sx]=E; ex=12; ey=9; g[ey][ex]=X; need=3; settle(); pl={x:sx,y:sy,f:1}; return; }
+function gen(a){ rs=seed; const L=a.level, st=a.stage; boss=a.boss; tut=a.content===0; EZ=!tut&&a.diff===0&&st<=10; ens=[]; ceil=0; amoOn=false; amoT=0; gi=st%4; tLim=0;
+  if(tut){ MW=18; MH=9; base(); sx=2; sy=2; [[6,3],[10,5],[13,2]].forEach(([x,y])=>g[y][x]=G); [[6,2],[12,4],[3,5]].forEach(([x,y])=>g[y][x]=R); for(let x=7;x<11;x++) g[4][x]=E; g[sy][sx]=E; ex=13; ey=6; g[ey][ex]=X; need=3; settle(); pl={x:sx,y:sy,f:1}; return; }
   for(let tries=0;tries<40;tries++){
-    MW=boss?Math.round(a.dv([18,22,26],28,30)):Math.round(a.dv([20,28,34],36,40)); MH=boss?Math.round(a.dv([24,28,32],34,38)):Math.round(a.dv([16,20,24],26,30)); base();
-    const pB=a.dv([.1,.15,.19],.21,.24), pG=.075, pE=.05;
+    MW=boss?(EZ?22:Math.round(a.dv([22,26,30],32,34))):(EZ?24+st:Math.round(a.dv([30,38,46],50,54))); MH=boss?(EZ?18:Math.round(a.dv([22,26,30],32,36))):(EZ?13+(st>>2):Math.round(a.dv([15,18,21],23,25))); base();
+    const pB=EZ?.05+st*.005:a.dv([.1,.15,.19],.21,.24), pG=.075, pE=.05;
     for(let y=1;y<MH-1;y++) for(let x=1;x<MW-1;x++){ const r=rnd(); g[y][x]=r<pB?R:r<pB+pG?G:r<pB+pG+pE?E:D; }
-    if(L>=3){ const nw=Math.floor(MH/5)+(boss?1:0); for(let k=0;k<nw;k++){ const y=3+ri(MH-5), x0=1+ri(MW-6), len=3+ri(6), v=L>=20&&rnd()<.3?S:B; for(let i=0;i<len;i++) if(x0+i<MW-1) g[y][x0+i]=v; } }
+    if(L>=3&&!(EZ&&st<5)){ const nw=Math.floor(MW*MH/(EZ?300:110))+(boss?1:0); for(let k=0;k<nw;k++){ const y=3+ri(MH-5), x0=1+ri(MW-6), len=3+ri(6), v=L>=20&&rnd()<.3?S:B; for(let i=0;i<len;i++) if(x0+i<MW-1) g[y][x0+i]=v; } }
     sx=boss?MW>>1:2; sy=boss?1:2; for(let y=1;y<=sy+2;y++) for(let x=sx-1;x<=sx+1;x++) g[y][x]=D; g[sy][sx]=E;
     settle();
-    const ne=boss?Math.round(a.dv([1,3,4],5,7)):L<6?0:Math.round(a.dv([1,4,7],8,12)), eStart=[];
+    const ne=EZ?(boss||st<8?0:1):boss?Math.round(a.dv([1,3,4],5,7)):L<6?0:Math.round(a.dv([1,4,7],8,12)), eStart=[];
     for(let k=0;k<ne;k++) for(let q=0;q<30;q++){ const x=2+ri(MW-8), y=3+ri(MH-5); if(Math.abs(x-sx)+Math.abs(y-sy)<10) continue; const len=3+ri(4), hz=rnd()<.6, cells=[];
       for(let i=0;i<len;i++){ const cx=hz?x+i:x, cy=hz?y:y+i; if(cx<MW-1&&cy<MH-1&&g[cy][cx]!==S){ g[cy][cx]=E; cells.push([cx,cy]); } } eStart.push(cells); break; }
     if(boss||(a.content===2&&L>=70)){ const ax=3+ri(MW-6), ay=(MH>>1)+ri(MH>>2); g[ay][ax]=A; if(g[ay][ax+1]!==S) g[ay][ax+1]=A; amoOn=true; }
@@ -538,19 +549,20 @@ function gen(a){ rs=seed; const L=a.level; boss=a.boss; tut=a.content===0; ens=[
     if(!cand.length) continue; cand.sort((p,q)=>q[2]-p[2]); const c=boss?cand[ri(cand.length)]:cand[ri(Math.max(1,cand.length/5|0))]; ex=c[0]; ey=c[1]; g[ey][ex]=X;
     dist=bfs(sx,sy); let gems=0; for(let y=1;y<MH-1;y++) for(let x=1;x<MW-1;x++) if(dist[y][x]>=0&&g[y][x]===G) gems++;
     let exOk=false; for(let d=0;d<4;d++){ const v=dist[ey+DY[d]]&&dist[ey+DY[d]][ex+DX[d]]; if(v>=0) exOk=true; }
-    const want=boss?Math.round(a.dv([8,14,20],24,30)):Math.round(a.dv([6,12,18],22,30));
+    const want=EZ?3+Math.round(st*.4):boss?Math.round(a.dv([8,14,20],24,30)):Math.round(a.dv([6,12,18],22,30));
     if((!exOk||gems*0.7<want)&&tries<39){ ens=[]; amoOn=false; continue; }
     need=Math.max(1,Math.min(want,Math.floor(gems*0.7))); break; }
   pl={x:sx,y:sy,f:1};
-  if(boss){ // time per collapsing row: always enough for a straight greedy run (x2.6 slack)
-    let cx=sx,cy=sy,Lc=0,worst=0; const taken=new Set();
-    for(let k=0;k<=need;k++){ const dist=bfs(cx,cy,k===need); let best=null; for(let y=1;y<MH-1;y++) for(let x=1;x<MW-1;x++){ const d=dist[y][x]; if(d<0) continue; if(k<need?(g[y][x]===G&&!taken.has(x+','+y)):(x===ex&&y===ey)){ const sc=d+3*Math.max(0,cy-y); if(!best||sc<best[3]) best=[x,y,d,sc]; } }
-      if(!best) break; taken.add(best[0]+','+best[1]); Lc+=best[2]; worst=Math.max(worst,(Lc*TK*2.6-8)/Math.max(1,best[1]-2)); cx=best[0]; cy=best[1]; }
-    cT=Math.max(a.dv([6,4.6,3.7],3.3,2.7),worst); ceilT=8; debT=4; }
+  // greedy gem run: boss = time per collapsing row (x2.6 slack, Beginner x4); other stages = the cave clock
+  let cx=sx,cy=sy,Lc=0,worst=0; const taken=new Set(), sl=EZ?4:2.6;
+  for(let k=0;k<=need;k++){ const dist=bfs(cx,cy,k===need); let best=null; for(let y=1;y<MH-1;y++) for(let x=1;x<MW-1;x++){ const d=dist[y][x]; if(d<0) continue; if(k<need?(g[y][x]===G&&!taken.has(x+','+y)):(x===ex&&y===ey)){ const sc=d+(boss?3*Math.max(0,cy-y):0); if(!best||sc<best[3]) best=[x,y,d,sc]; } }
+    if(!best) break; taken.add(best[0]+','+best[1]); Lc+=best[2]; worst=Math.max(worst,(Lc*TK*sl-8)/Math.max(1,best[1]-2)); cx=best[0]; cy=best[1]; }
+  if(boss){ cT=Math.max(EZ?7:a.dv([6,4.6,3.7],3.3,2.7),worst); ceilT=EZ?12:8; debT=4; }
+  else tLim=Math.ceil(Lc*TK*(EZ?6:a.dv([5,3.4,2.6],2.3,1.9))+(EZ?90:a.dv([60,40,28],24,15)));
   amoP=a.dv([.06,.09,.13],.15,.2); amoCap=Math.round(a.dv([30,45,60],70,90)); }
 /* ---------- player / enemies / amoeba ---------- */
 function getDir(){ if(bot) return botDir; if(swipe){ const s=swipe; swipe=null; return s; } const d=api.input.dir4(); if(d) return d;
-  if(mouse){ const p=scr(pl.x,pl.y), dx=mouse.x-p.x, dy=mouse.y-p.y; if(Math.max(Math.abs(dx),Math.abs(dy))<CS*0.6) return null; return Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U'); } return null; }
+  if(mouse){ const p=scr(pl.x,pl.y), dx=mouse.x-p.x, dy=mouse.y-p.y; if(Math.max(Math.abs(dx),Math.abs(dy))<CS*Z*.6) return null; return Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U'); } return null; }
 function movePl(nx,ny){ pl.ox=pl.x-nx; pl.oy=pl.y-ny; pl.x=nx; pl.y=ny; pl.mt=tickN; if(ptr) ptr.moved=true; api.event('move'); }
 function plTick(){ const d=getDir(); if(!d){ pushT=0; return; } const k=DK[d], dx=DX[k], dy=DY[k], nx=pl.x+dx, ny=pl.y+dy, v=at(nx,ny), gr=grab||api.input.keys.Space; if(dx) pl.f=dx;
   if(enAt(nx,ny)) return;
@@ -581,14 +593,14 @@ function boom(cx,cy,gems,dyn){ const e0=enAt(cx,cy); if(e0){ e0.dead=true; api.a
   chain.forEach(e=>boom(e.x,e.y,e.t==='b',dyn)); }
 function collect(x,y){ got++; g[y][x]=E; const s=scr(x,y); api.addScore(50*(1+api.dk*.5),s.x,s.y,true); api.fx.burst(s.x,s.y,GC[gi],10,160,.4,3); api.sfx.pickup(); api.event('gem');
   if(got>=need&&!exitOpen){ exitOpen=true; api.toast('EXIT OPEN! FIND THE GLOWING DOOR'); api.sfx.power(); api.fx.flash(GC[gi],.25); api.event('open'); } }
-function hitPlayer(msg){ if(lost||done) return; if(eff.helmet>0){ eff.helmet=0; api.toast('HELMET SAVED YOU!'); api.sfx.bump(); api.fx.flash('#7df9ff',.3); return; } die(msg); }
+function hitPlayer(msg){ if(lost||done) return; if(bsh>0){ bsh--; api.toast('LUCKY! BEGINNER SHIELD SAVED YOU'+(bsh?' (1 LEFT)':'')); api.sfx.bump(); api.fx.flash('#7df9ff',.3); return; } if(eff.helmet>0){ eff.helmet=0; api.toast('HELMET SAVED YOU!'); api.sfx.bump(); api.fx.flash('#7df9ff',.3); return; } die(msg); }
 function die(msg){ if(lost||done) return; lost=true; const s=scr(pl.x,pl.y); api.fx.burst(s.x,s.y,'#ffd23f',30,260,.8,3); api.sfx.hurt(); api.toast(msg||'OUCH!'); setTimeout(()=>api.loseLife(),1100); }
 function win(){ if(done) return; done=true; api.sfx.clear(); api.fx.flash('#fff',.35); api.toast('ESCAPED THE CAVE!'); const s=scr(pl.x,pl.y); api.fx.burst(s.x,s.y,GC[gi],40,300,.9,4); setTimeout(()=>api.stageClear(),900); }
 function toggleGrab(){ grab=!grab; api.setActive(0,grab); api.toast(grab?'GRAB ON: dig & collect without moving':'GRAB OFF'); api.sfx.click(); }
 function tick(){ tickN++; if(!lost&&!done) plTick(); physics(true); if(eff.freeze<=0){ if(tickN%espd===0) enTick(); amoTick(); } touch(); }
 function bossTick(dt){ ceilT-=dt; if(ceilT<=0&&ceil<MH-3){ ceilT=cT; ceil++; for(let x=0;x<MW;x++){ const e=enAt(x,ceil); if(e) e.dead=true; g[ceil][x]=S; fall[ceil][x]=false; }
     api.sfx.boom(); api.fx.shake(7); for(let i=0;i<6;i++){ const s=scr(1+mr(MW-2),ceil); api.fx.burst(s.x,s.y+CS/2,'#a08070',6,120,.5,3); } if(pl.y<=ceil) die('CRUSHED BY THE CAVE-IN!'); }
-  debT-=dt; if(debT<=0){ debT=api.dv([3.5,2.6,1.9],1.5,1.1); for(let k=0;k<10;k++){ const x=1+mr(MW-2), y=ceil+1, v=at(x,y); if((v===E||v===D)&&Math.abs(x-pl.x)>1&&!enAt(x,y)){ g[y][x]=R; fall[y][x]=true; stamp[y][x]=tickN; mvx[y][x]=0; mvy[y][x]=-1; break; } } } }
+  debT-=dt; if(debT<=0){ debT=EZ?5:api.dv([3.5,2.6,1.9],1.5,1.1); for(let k=0;k<10;k++){ const x=1+mr(MW-2), y=ceil+1, v=at(x,y); if((v===E||v===D)&&Math.abs(x-pl.x)>1&&!enAt(x,y)){ g[y][x]=R; fall[y][x]=true; stamp[y][x]=tickN; mvx[y][x]=0; mvy[y][x]=-1; break; } } } }
 /* ---------- sprites ---------- */
 let SP=null; function mk(w,h,f){ const c=document.createElement('canvas'); c.width=w; c.height=h; f(c.getContext('2d')); return c; }
 function sprites(){ if(SP) return SP; SP={};
@@ -618,8 +630,8 @@ function drawEnemy(c,e,x,y){ c.save(); c.translate(x,y); const fz=eff.freeze>0;
 /* ---------- game object ---------- */
 const GAME=window.GAME={
   id:'rock-digger',title:'Rock Digger',titleHTML:'ROCK<br>DIGGER',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-RD-1.1 · 2026-10-18',theme:{a:'#ffd23f',b:'#3ff4ff',bg:'#0a0610'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'⛏️',joystick:true,coinPts:40,
+  build:'BUILD-RD-1.2 · 2026-10-26',theme:{a:'#ffd23f',b:'#3ff4ff',bg:'#0a0610'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'⛏️',joystick:true,coinPts:40,
   abilities:[
     {id:'grab',icon:'✋',name:'GRAB',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — hold SPACE + an arrow to dig or grab a gem next to you WITHOUT moving (stay out from under boulders!). On a phone, tap this (or tap the screen) to switch grab mode on/off.'},
     {id:'helmet',icon:'⛑️',name:'HELMET',cd:20,key:'Digit1',keyLabel:'1',desc:'For 8 seconds, one boulder or blast bounces off your head.'},
@@ -628,43 +640,43 @@ const GAME=window.GAME={
   shop:[{id:'m_y',cat:'Miner',name:'Orange Overalls',cost:0,colors:['#ff8a2a'],desc:'Classic.'},{id:'m_c',cat:'Miner',name:'Neon Blue Suit',cost:150,colors:['#2ec8ff'],desc:'Glows in the dark.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#3ff4ff)'}],
   story:`<h3>ROCK DIGGER</h3><p>Deep under the Karoo lies a cave full of glowing gems — and a LOT of loose rock. Dig fast, think faster, and never stand under a boulder that's on the move.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Phone:</b> hold your thumb anywhere and slide it (a stick appears) to dig and walk. A quick swipe moves one step.</li><li><b>PC:</b> arrows / WASD to move. Hold the mouse button to walk towards the pointer.</li><li>Collect the gems 💎 shown at the top. Then the exit door lights up — walk into it!</li><li>Boulders and gems fall when nothing holds them up, and roll off round things. A falling boulder squashes you.</li><li>Walk sideways into a boulder to push it (if there's space behind).</li><li><b>✋ GRAB</b> (SPACE + arrow, or tap the screen on a phone) digs or grabs next to you without moving.</li><li>Fireflies and butterflies explode when they touch you. Drop a boulder on them — butterflies turn into gems!</li></ul>`,
-  tutorial:[{text:'Slide your thumb (arrows on PC) to dig. Grab a gem 💎!',ev:'gem'},{text:'Get all 3 gems to open the exit. Never stand under a FALLING boulder!',ev:'open'},{text:'Walk into the glowing exit door!',time:6}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> put it down on the left half and slide (a stick appears) to dig and walk.</li><li><b>Right thumb:</b> tap <b>✋ GRAB</b> (or tap the right half of the screen) to switch grab mode on/off. A quick swipe on the right half moves one step.</li><li><b>PC:</b> arrows / WASD to move, hold SPACE + arrow to grab, 1 2 3 for abilities. Or hold the mouse button to walk towards the pointer.</li><li>Every cave has a clock ⏱ — if it runs out you lose a life.</li><li>Collect the gems 💎 shown at the top. Then the exit door lights up — walk into it!</li><li>Boulders and gems fall when nothing holds them up, and roll off round things. A falling boulder squashes you.</li><li>Walk sideways into a boulder to push it (if there's space behind).</li><li><b>✋ GRAB</b> (SPACE + arrow, or tap the screen on a phone) digs or grabs next to you without moving.</li><li>Fireflies and butterflies explode when they touch you. Drop a boulder on them — butterflies turn into gems!</li></ul>`,
+  tutorial:[{text:'Arrow keys / WASD dig and walk. Grab a gem 💎!',touch:'Hold your phone sideways. LEFT thumb: slide to dig and walk. Grab a gem 💎!',ev:'gem'},{text:'Get all 3 gems to open the exit. Never stand under a FALLING boulder!',ev:'open'},{text:'Walk into the glowing exit door!',time:6}],
   stageIntro:{1:'DIG · GRAB GEMS 💎 · REACH THE EXIT',6:'FIREFLIES! DROP A BOULDER ON THEM',12:'BUTTERFLIES TURN INTO GEMS 💎'},bossName:'CAVE-IN! THE ROOF IS COMING DOWN',
   ending:{"0":["#DIAMOND","The cave is yours."],"1":["#DEEPER","Not one boulder touched you."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const tot={helmet:8,freeze:5}[id]; return tot&&eff?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get g(){return g;}, get fall(){return fall;}, get pl(){return pl;}, get need(){return need;}, get got(){return got;}, get exitOpen(){return exitOpen;}, get ex(){return ex;}, get ey(){return ey;}, get lost(){return lost;}, get done(){return done;}, get ens(){return ens;}, get MW(){return MW;}, get MH(){return MH;}, get ceil(){return ceil;}, get cT(){return cT;}, get TK(){return TK;}, setBot(d){ bot=true; botDir=d; }, botOff(){ bot=false; }}; },
+  _dbg(){ return {get g(){return g;}, get fall(){return fall;}, get pl(){return pl;}, get need(){return need;}, get got(){return got;}, get exitOpen(){return exitOpen;}, get ex(){return ex;}, get ey(){return ey;}, get lost(){return lost;}, get done(){return done;}, get ens(){return ens;}, get MW(){return MW;}, get MH(){return MH;}, get ceil(){return ceil;}, get cT(){return cT;}, get TK(){return TK;}, get tLeft(){return tLeft;}, get tLim(){return tLim;}, get bsh(){return bsh;}, get EZ(){return EZ;}, get boss(){return boss;}, get seed(){return seed;}, setBot(d){ bot=true; botDir=d; }, botOff(){ bot=false; }}; },
   init(a){ api=a; },
-  startStage(n,a){ api=a; seed=(Math.random()*1e9)|0; this.respawn(true); },
+  startStage(n,a){ api=a; seed=(Math.random()*1e9)|0; this.respawn(true); },   // in a RACE the shell seeds Math.random, so both phones get this same seed = same cave
   respawn(first){ const a=api; t=t||0; acc=0; done=false; lost=false; got=0; exitOpen=false; grab=false; swipe=null; ptr=null; mouse=null; pushT=0; sndT=0; blasts=[];
-    eff={helmet:first?0:2,freeze:0}; espd=a.level<40?2:1; TOP=a.content===0?330:90; gen(a); a.setActive(0,false);
-    const vh=H-TOP; camX=MW*CS<=W?(MW*CS-W)/2:Math.max(0,Math.min(MW*CS-W,pl.x*CS-W/2)); camY=MH*CS<=vh?(MH*CS-vh)/2:Math.max(0,Math.min(MH*CS-vh,pl.y*CS-vh/2)); },
-  stageBonus(){ return boss?Math.max(0,Math.ceil(((ey-ceil-1)*cT+ceilT)))*20:Math.max(0,got-need)*100; },
+    eff={helmet:first?0:2,freeze:0}; gen(a); espd=EZ?3:a.level<40?2:1; bsh=EZ?(a.stage<=5?2:1):0; tLeft=tLim; warned=false; a.setActive(0,false);
+    camGo(pl.x*CS+CS/2,pl.y*CS+CS/2,true); },
+  stageBonus(){ return boss?Math.max(0,Math.ceil(((ey-ceil-1)*cT+ceilT)))*20:Math.max(0,got-need)*100+Math.ceil(Math.max(0,tLeft))*5; },
   useAbility(id){ if(done||lost) return false;
     if(id==='grab'){ if(!api.input.keys.Space) toggleGrab(); return true; }
     if(id==='dyna'){ boom(pl.x,pl.y,false,true); return true; }
     eff[id]=id==='helmet'?8:5; api.sfx.power(); api.toast(id==='helmet'?'⛑️ HELMET ON':'❄️ FROZEN!'); return true; },
-  onPointer(type,x,y,id,pt){ if(type==='down'){ ptr={x,y,t0:t,id,moved:false}; if(pt==='mouse') mouse={x,y}; }
+  onPointer(type,x,y,id,pt){ if(type==='down'){ if(pt!=='mouse'&&x<W*.5) return; ptr={x,y,t0:t,id,moved:false}; if(pt==='mouse') mouse={x,y}; }   // left half = the stick
     else if(type==='move'){ if(mouse&&ptr) mouse={x,y}; }
     else if(type==='up'&&ptr&&ptr.id===id){ const dx=x-ptr.x,dy=y-ptr.y,dd=Math.hypot(dx,dy),dur=t-ptr.t0;
       if(dur<0.25&&dd<18&&!ptr.moved&&!done&&!lost) toggleGrab(); else if(!ptr.moved&&dd>30&&dur<0.45) swipe=Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U'); ptr=null; mouse=null; } },
   update(dt){ t+=dt; if(!g) return; for(const k in eff) if(eff[k]>0) eff[k]-=dt; sndT-=dt; if(pl.dig>0) pl.dig-=dt;
     blasts.forEach(b=>b.t-=dt); blasts=blasts.filter(b=>b.t>0);
-    const vh=H-TOP, fr=Math.min(1,acc/TK), mf=pl.mt===tickN?1-fr:0, px=(pl.x+(pl.ox||0)*mf)*CS+CS/2, py=(pl.y+(pl.oy||0)*mf)*CS+CS/2, k=Math.min(1,dt*7);
-    camX=MW*CS<=W?(MW*CS-W)/2:camX+(Math.max(0,Math.min(MW*CS-W,px-W/2))-camX)*k; camY=MH*CS<=vh?(MH*CS-vh)/2:camY+(Math.max(0,Math.min(MH*CS-vh,py-vh/2))-camY)*k;
+    const fr=Math.min(1,acc/TK), mf=pl.mt===tickN?1-fr:0, px=(pl.x+(pl.ox||0)*mf)*CS+CS/2, py=(pl.y+(pl.oy||0)*mf)*CS+CS/2; snap0=Math.min(1,dt*7); camGo(px,py,false);
     if(done) return;
     if(boss&&!lost) bossTick(dt);
+    if(tLim&&!lost){ tLeft-=dt; if(tLeft<=10&&!warned){ warned=true; api.toast('⏱ 10 SECONDS LEFT!'); api.sfx.hurt(); } if(tLeft<=0){ tLeft=0; die('OUT OF TIME!'); } }
     acc+=dt; let n=0; while(acc>=TK&&n<4){ acc-=TK; n++; tick(); } if(n>=4) acc=0;
     const left=Math.max(0,need-got);
-    if(boss) api.counter('💎 GEMS · ⏱ CAVE-IN',`${left||'EXIT!'} · ${Math.max(0,Math.ceil((ey-ceil-1)*cT+ceilT))}s`); else api.counter('💎 GEMS NEEDED',left||'EXIT!'); },
+    const tl=boss?Math.max(0,Math.ceil((ey-ceil-1)*cT+ceilT)):Math.ceil(tLeft); api.counter((left?'💎 GEMS LEFT':'🚪 EXIT OPEN')+(boss?' · CAVE-IN ':tLim?' · ⏱ ':'')+(boss||tLim?tl+'s':''),left); },
   render(c){ const sp=sprites(); c.fillStyle='#07050c'; c.fillRect(0,0,W,H); if(!g) return;
-    const fr=Math.min(1,acc/TK), oX=-camX, oY=TOP-camY;
-    const x0=Math.max(0,Math.floor(camX/CS)), x1=Math.min(MW-1,Math.floor((camX+W)/CS)), y0=Math.max(0,Math.floor((camY-TOP)/CS)), y1=Math.min(MH-1,Math.floor((camY+H-TOP)/CS));
+    const fr=Math.min(1,acc/TK), oX=-camX, oY=-camY; c.save(); c.scale(Z,Z);
+    const x0=Math.max(0,Math.floor(camX/CS)), x1=Math.min(MW-1,Math.floor((camX+VW)/CS)), y0=Math.max(0,Math.floor(camY/CS)), y1=Math.min(MH-1,Math.floor((camY+VH)/CS));
     c.fillStyle='#120c1a'; c.fillRect(oX+x0*CS,oY+y0*CS,(x1-x0+1)*CS,(y1-y0+1)*CS);
     for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){ const v=g[y][x], px=oX+x*CS, py=oY+y*CS;
       if(v===D) c.drawImage(sp.dirt[(x*7+y*3)%3],px,py); else if(v===S) c.drawImage(boss&&y<=ceil&&y>0?sp.rub:sp.steel,px,py); else if(v===B) c.drawImage(sp.brick,px,py);
       else if((x+y)%2===0){ c.fillStyle='#181024'; c.fillRect(px+18,py+18,4,4); } }
-    if(boss&&ceil>0){ const yy=oY+(ceil+1)*CS, w=ceilT<2?.5+.5*Math.sin(t*20):.25; const gr=c.createLinearGradient(0,yy,0,yy+50); gr.addColorStop(0,`rgba(255,60,40,${w})`); gr.addColorStop(1,'rgba(255,60,40,0)'); c.fillStyle=gr; c.fillRect(0,yy,W,50); }
+    if(boss&&ceil>0){ const yy=oY+(ceil+1)*CS, w=ceilT<2?.5+.5*Math.sin(t*20):.25; const gr=c.createLinearGradient(0,yy,0,yy+50); gr.addColorStop(0,`rgba(255,60,40,${w})`); gr.addColorStop(1,'rgba(255,60,40,0)'); c.fillStyle=gr; c.fillRect(oX,yy,MW*CS,50); }
     for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){ const v=g[y][x]; if(v!==R&&v!==G&&v!==X&&v!==A) continue; let px=oX+x*CS, py=oY+y*CS;
       if(stamp[y][x]===tickN){ px+=mvx[y][x]*(1-fr)*CS; py+=mvy[y][x]*(1-fr)*CS; }
       if(v===R) c.drawImage(sp.rock,px,py);
@@ -676,17 +688,20 @@ const GAME=window.GAME={
     blasts.forEach(b=>{ c.fillStyle=b.c; c.globalAlpha=Math.min(1,b.t*2)*.8; c.fillRect(oX+b.x*CS+2,oY+b.y*CS+2,CS-4,CS-4); c.globalAlpha=1; });
     ens.forEach(e=>{ if(e.dead) return; const f=e.mt>0?Math.max(0,1-((tickN-e.mt)+fr)/espd):0; drawEnemy(c,e,oX+(e.x+e.ox*f)*CS+CS/2,oY+(e.y+e.oy*f)*CS+CS/2); });
     const mf=pl.mt===tickN?1-fr:0, ppx=oX+(pl.x+(pl.ox||0)*mf)*CS+CS/2, ppy=oY+(pl.y+(pl.oy||0)*mf)*CS+CS/2;
-    // lamp light
-    const lg=c.createRadialGradient(ppx,ppy,140,ppx,ppy,560); lg.addColorStop(0,'rgba(0,0,0,0)'); lg.addColorStop(1,'rgba(0,0,0,.55)'); c.fillStyle=lg; c.fillRect(0,0,W,H);
+    c.restore(); // lamp light (screen space)
+    const lg=c.createRadialGradient(ppx*Z,ppy*Z,170,ppx*Z,ppy*Z,720); lg.addColorStop(0,'rgba(0,0,0,0)'); lg.addColorStop(1,'rgba(0,0,0,.55)'); c.fillStyle=lg; c.fillRect(0,0,W,H);
+    c.save(); c.scale(Z,Z);
+    if(bsh>0&&!lost){ c.strokeStyle=`rgba(93,255,138,${.35+.15*Math.sin(t*4)})`; c.lineWidth=2; c.beginPath(); c.arc(ppx,ppy,22,0,7); c.stroke(); }
     if(!lost){ drawMiner(c,ppx,ppy+1,pl.f||1,api.cos('Miner').colors[0],mf>0,pl.dig||0);
       if(eff.helmet>0){ c.strokeStyle=`rgba(125,249,255,${eff.helmet<1.5?.4+.4*Math.sin(t*20):.8})`; c.lineWidth=3; c.beginPath(); c.arc(ppx,ppy,24,0,7); c.stroke(); }
       if(grab){ c.strokeStyle='#ffd23f'; c.setLineDash([5,5]); c.lineWidth=2; c.strokeRect(ppx-CS*1.5,ppy-CS*1.5,CS*3,CS*3); c.setLineDash([]); } }
-    if(exitOpen&&!done){ const s=scr(ex,ey); if(s.x<0||s.x>W||s.y<TOP||s.y>H){ const ax=Math.max(40,Math.min(W-40,s.x)), ay=Math.max(TOP+40,Math.min(H-40,s.y)), an=Math.atan2(s.y-ay,s.x-ax)||Math.atan2(s.y-ppy,s.x-ppx);
+    c.restore();
+    if(exitOpen&&!done){ const s=scr(ex,ey); if(hid(s.x,s.y)){ const ax=Math.max(130,Math.min(W-40,s.x)), ay=Math.max(110,Math.min(490,s.y)), an=Math.atan2(s.y-ay,s.x-ax)||Math.atan2(s.y-ppy*Z,s.x-ppx*Z);
       c.save(); c.translate(ax,ay); c.rotate(an); c.shadowColor=GC[gi]; c.shadowBlur=16; c.fillStyle=GC[gi]; c.beginPath(); c.moveTo(18+Math.sin(t*8)*3,0); c.lineTo(-10,-12); c.lineTo(-4,0); c.lineTo(-10,12); c.closePath(); c.fill(); c.restore(); } }
     if(grab){ c.fillStyle='rgba(0,0,0,.6)'; c.beginPath(); c.roundRect(W/2-130,H-60,260,40,20); c.fill(); c.fillStyle='#ffd23f'; c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillText('✋ GRAB MODE — tap to stop',W/2,H-34); }
     if(eff.freeze>0){ c.fillStyle='rgba(120,220,255,.07)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ const sp=sprites(); c.fillStyle='#0a0610'; c.fillRect(0,0,W,H); for(let y=0;y<23;y++) for(let x=0;x<15;x++){ const h=(x*7+y*13)%17; c.drawImage(h<9?sp.dirt[h%3]:h<11?sp.rock:sp.dirt[0],x*CS,y*CS); }
-    c.fillStyle='#120c1a'; c.fillRect(0,400,W,CS); const fy=Math.min(400,((tt*300)%900)-200); c.drawImage(sp.rock,280,fy); c.drawImage(sp.gem[Math.floor(tt)%4],(tt*90)%W-10,390+Math.sin(tt*3)*3);
+  attract(c,tt){ const sp=sprites(); c.fillStyle='#0a0610'; c.fillRect(0,0,W,H); for(let y=0;y<18;y++) for(let x=0;x<32;x++){ const h=(x*7+y*13)%17; c.drawImage(h<9?sp.dirt[h%3]:h<11?sp.rock:sp.dirt[0],x*CS,y*CS); }
+    c.fillStyle='#120c1a'; c.fillRect(0,400,W,CS); const fy=Math.min(400,((tt*300)%900)-200); c.drawImage(sp.rock,640,fy); c.drawImage(sp.gem[Math.floor(tt)%4],(tt*90)%W-10,390+Math.sin(tt*3)*3);
     const sv=t; t=tt; drawMiner(c,(tt*120)%W,420,1,'#ff8a2a',true,0); t=sv; }
 };
 })();
