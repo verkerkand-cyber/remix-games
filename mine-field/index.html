@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-MF-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-MF-1.1 · 2026-10-26">
 <title>Mine Field</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-MF-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-MF-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,13 +489,19 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* MINE FIELD — minesweeper remix. 100 stages. Scan the alien minefield square by square: reveal every safe cell. */
+/* MINE FIELD — minesweeper remix. 100 stages. Scan the alien minefield square by square: reveal every safe cell.
+   1.1 (26 Oct): LANDSCAPE 1280x720 — wide field on the left (x115-975, y84-640), info panel on the right (x995-1265, y84-500),
+   all clear of the HUD strip, ability column (left edge) and the 🚩 FLAG button (bottom-right). RACE: the whole board is built
+   at stage start from one seed taken from Math.random (the shell seeds it in a race) -> both racers get the identical field.
+   A glowing START square is a guaranteed opening; the very first tap is always safe (a mine there is defused for free).
+   Beginner stages 1-10: small fields, few mines, always solvable without guessing. */
 (function(){
-const W=600,H=900;
-let TOP=124;
+const W=1280,H=720,BX0=115,BX1=975,BY1=640,PX=995,PW=270;
+let BY0=84,seed=1,rs=1,startI=0,first=true,barT=0;
 const NC=['','#3dd8ff','#3bff7a','#ff3b8a','#c06bff','#ff9a3b','#3dffd8','#ffd23f','#ffffff'];
 let tok=0,api,t,cols,rows,cell,ox,oy,NB,mine,open,flag,boom,num,anim,made,nMines,safeLeft,done,lost,eff,flagMode,press,rb=false,tLim,tLeft,cur,scans,winT,tickS;
-function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function rnd(){ rs|=0; rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function mkNB(){ NB=[]; for(let i=0;i<cols*rows;i++){ const x=i%cols,y=(i/cols)|0,o=[]; for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ if(!dx&&!dy) continue; const X=x+dx,Y=y+dy; if(X>=0&&Y>=0&&X<cols&&Y<rows) o.push(Y*cols+X); } NB.push(o); } }
 function counts(m){ return m.map((_,i)=>NB[i].reduce((s,k)=>s+(m[k]?1:0),0)); }
 /* logic solver: how much of the board can be cleared without guessing (0..1) */
@@ -515,18 +521,21 @@ function solveMS(m,f){ const n=m.length,cnt=counts(m),st=new Int8Array(n); let o
     if(ch) continue; let unk=0; for(let i=0;i<n;i++) if(!st[i]) unk++;
     if(nMines-marked===0&&unk){ for(let i=0;i<n;i++) if(!st[i]) op(i); ch=true; } }
   return opened/safe; }
-function makeBoard(f){ const n=cols*rows, ex=new Set([f,...NB[f]]), tries=api.diff===0?70:30; let best=null,bs=-1;
+function makeBoard(f){ const n=cols*rows, ex=new Set([f,...NB[f]]), tries=api.diff===0?160:30; let best=null,bs=-1;
   for(let at=0;at<tries;at++){ const m=new Array(n).fill(false), cand=[]; for(let i=0;i<n;i++) if(!ex.has(i)) cand.push(i); shuffle(cand); for(let k=0;k<nMines;k++) m[cand[k]]=true;
     const sc=solveMS(m,f); if(sc>bs){ bs=sc; best=m; } if(sc>=1) break; }
-  mine=best; num=counts(mine); made=true; }
-function newBoard(){ const n=cols*rows; mkNB(); mine=new Array(n).fill(false); open=new Array(n).fill(false); flag=new Array(n).fill(false); boom=new Array(n).fill(0); anim=new Array(n).fill(0); num=new Array(n).fill(0); made=false;
-  cell=Math.min(64,Math.floor((W-24)/cols),Math.floor((H-TOP-16)/rows)); ox=Math.round((W-cols*cell)/2); oy=TOP+Math.round(Math.max(0,(H-TOP-16-rows*cell)*0.4)); safeLeft=n-nMines; counter(); }
+  mine=best; num=counts(mine); }
+function newBoard(){ const n=cols*rows; mkNB(); mine=new Array(n).fill(false); open=new Array(n).fill(false); flag=new Array(n).fill(false); boom=new Array(n).fill(0); anim=new Array(n).fill(0); num=new Array(n).fill(0); made=false; first=true;
+  cell=Math.min(66,Math.floor((BX1-BX0)/cols),Math.floor((BY1-BY0)/rows)); ox=BX0+Math.round((BX1-BX0-cols*cell)/2); oy=BY0+Math.round(Math.max(0,(BY1-BY0-rows*cell)*0.35)); safeLeft=n-nMines;
+  /* seeded START square near the middle (same on every racer's phone), then the board is built right away */
+  const sx=Math.floor(cols*0.3+rnd()*cols*0.4), sy=Math.floor(rows*0.3+rnd()*rows*0.4); startI=Math.min(rows-2,Math.max(1,sy))*cols+Math.min(cols-2,Math.max(1,sx)); makeBoard(startI); counter(); }
 function counter(){ api.counter('🟩 SAFE LEFT',safeLeft); }
 function at(x,y){ const X=Math.floor((x-ox)/cell),Y=Math.floor((y-oy)/cell); return X>=0&&Y>=0&&X<cols&&Y<rows?Y*cols+X:-1; }
 function cxy(i){ return {x:ox+(i%cols)*cell,y:oy+((i/cols)|0)*cell}; }
 function reveal(i,quiet){ if(i<0||open[i]||flag[i]||boom[i]||done||lost) return;
-  if(!made){ makeBoard(i); api.sfx.power(); }
-  if(mine[i]){ hitMine(i); return; }
+  if(!made){ made=true; api.sfx.power(); }
+  if(mine[i]){ if(first){ first=false; boom[i]=2; const p=cxy(i); api.toast('FIRST TAP IS SAFE — MINE DEFUSED'); api.fx.burst(p.x+cell/2,p.y+cell/2,'#3bff7a',24,220,.6,3); api.event('reveal'); check(); return; } hitMine(i); return; }
+  first=false;
   const q=[[i,0]]; let n=0; open[i]=true;
   while(q.length){ const [j,d]=q.shift(); anim[j]=d*0.035+0.001; n++; if(num[j]===0) for(const k of NB[j]) if(!open[k]&&!flag[k]&&!mine[k]&&!boom[k]){ open[k]=true; q.push([k,d+1]); } }
   safeLeft-=n; counter(); const p=cxy(i); api.addScore(n*5,p.x+cell/2,p.y+cell/2,n<4); if(!quiet){ n>6?api.sfx.coin():api.sfx.blip(); } if(n>6) api.fx.burst(p.x+cell/2,p.y+cell/2,'#3dd8ff',Math.min(40,n),260,.6,3);
@@ -541,54 +550,58 @@ function chord(i){ if(!open[i]||!num[i]) return false; let f=0; for(const k of N
 function act(i,flagIt){ if(i<0) return; cur=i; if(open[i]){ chord(i); return; } if(flagIt) toggleFlag(i); else if(flag[i]){ api.sfx.bump(); } else reveal(i); }
 /* ---------- drawing ---------- */
 function rr(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+function placeBars(){ const el=document.getElementById('mpBars'); if(!el||el.style.display==='none'||!el.innerHTML) return; const cv=document.getElementById('game')||document.querySelector('canvas'); if(!cv) return;
+  const b=cv.getBoundingClientRect(), k=b.width/W, S=(p,v)=>el.style.setProperty(p,v,'important'); S('left',(b.left+(PX+10)*k)+'px'); S('top',(b.top+404*k)+'px'); S('bottom','auto'); S('transform','none'); S('flex-direction','column'); S('max-width',((PW-20)*k)+'px'); }
 function bg(c,tt){ c.fillStyle='#040816'; c.fillRect(0,0,W,H); c.strokeStyle='rgba(61,216,255,.06)'; c.lineWidth=1; c.beginPath(); for(let x=0;x<=W;x+=30){ c.moveTo(x,0); c.lineTo(x,H); } for(let y=(tt*20)%30;y<=H;y+=30){ c.moveTo(0,y); c.lineTo(W,y); } c.stroke();
-  const g=c.createRadialGradient(W/2,H/2,50,W/2,H/2,600); g.addColorStop(0,'rgba(30,60,120,.25)'); g.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=g; c.fillRect(0,0,W,H); }
+  const g=c.createRadialGradient(545,H/2,50,545,H/2,700); g.addColorStop(0,'rgba(30,60,120,.25)'); g.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=g; c.fillRect(0,0,W,H); }
 function mineIco(c,x,y,r,col,glow){ c.save(); c.shadowColor=col; c.shadowBlur=glow; c.strokeStyle=col; c.lineWidth=Math.max(2,r*.22); c.beginPath(); for(let a=0;a<8;a++){ const A=a*Math.PI/4+t*0.5; c.moveTo(x+Math.cos(A)*r*.5,y+Math.sin(A)*r*.5); c.lineTo(x+Math.cos(A)*r,y+Math.sin(A)*r); } c.stroke();
   const g=c.createRadialGradient(x-r*.2,y-r*.2,1,x,y,r*.65); g.addColorStop(0,'#fff'); g.addColorStop(.35,col); g.addColorStop(1,'#200'); c.fillStyle=g; c.beginPath(); c.arc(x,y,r*.62,0,7); c.fill(); c.restore(); }
 function flagIco(c,x,y,s){ c.fillStyle='#cfd8ff'; c.fillRect(x-s*.06,y-s*.36,s*.08,s*.7); c.fillRect(x-s*.24,y+s*.3,s*.44,s*.08); c.save(); c.shadowColor='#ff6a2b'; c.shadowBlur=12; c.fillStyle='#ff6a2b'; c.beginPath(); c.moveTo(x+s*.02,y-s*.36); c.lineTo(x+s*.34,y-s*.2); c.lineTo(x+s*.02,y-s*.04); c.closePath(); c.fill();
   c.fillStyle=Math.sin(t*6)>0?'#ffe14a':'#ff3b3b'; c.beginPath(); c.arc(x-s*.02,y-s*.4,s*.06,0,7); c.fill(); c.restore(); }
 const GAME=window.GAME={
   id:'mine-field',title:'Mine Field',titleHTML:'MINE<br>FIELD',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-MF-1.0 · 2026-10-17',theme:{a:'#3dd8ff',b:'#ff9a3b',bg:'#040816'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🛡️',joystick:false,coinPts:40,
+  build:'BUILD-MF-1.1 · 2026-10-26',theme:{a:'#3dd8ff',b:'#ff9a3b',bg:'#040816'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🛡️',joystick:false,coinPts:40,
   abilities:[
-    {id:'flag',icon:'🚩',name:'FLAG MODE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — switch taps between SCAN and FLAG. (Long-press or right-click also flags.)'},
+    {id:'flag',icon:'🚩',name:'FLAG MODE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — the bottom-right button: switch taps between SCAN and FLAG. (Long-press or right-click also flags.)'},
     {id:'scan',icon:'📡',name:'SCANNER',cd:15,key:'Digit1',keyLabel:'1',desc:'Clears a safe 3×3 area next to your progress and flags its mines.'},
     {id:'defuse',icon:'🧯',name:'DEFUSE',cd:18,key:'Digit2',keyLabel:'2',desc:'For 10 seconds, the next mine you hit is defused for free.'},
     {id:'xray',icon:'🩻',name:'X-RAY',cd:22,key:'Digit3',keyLabel:'3',desc:'Shows every mine for 2 seconds.'}],
   shop:[{id:'mf_c',cat:'Tiles',name:'Cyber Cyan',cost:0,colors:['#3dd8ff'],desc:'Standard issue.'},{id:'mf_g',cat:'Tiles',name:'Toxic Green',cost:150,colors:['#3bff7a'],desc:'Glows in the dark.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3dd8ff,#ff9a3b)'}],
   story:`<h3>MINE FIELD</h3><p>An alien fleet seeded the colony fields with hidden mines. Your scanner shows how many mines touch each square. Clear the fields, one safe step at a time.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap a square</b> to scan it (PC: click). Your first tap is always safe.</li><li>A number tells how many mines touch that square (also diagonally).</li><li><b>Flag</b> a mine: long-press it, turn on 🚩 FLAG MODE (SPACE), or right-click on PC.</li><li>Tap a number whose mines are all flagged to open all its other neighbours.</li><li>Reveal every safe square to clear the stage. Hitting a mine costs a life (it's defused and play goes on).</li><li>PC keys: arrows move the cursor, ENTER scans, F flags.</li><li>Every 10th stage the field is ticking — clear it before the clock runs out!</li></ul>`,
-  tutorial:[{text:'Tap any square to scan it. Your first tap is always safe!',ev:'reveal'},{text:'Long-press a square you know is a mine (or use 🚩 FLAG MODE) to flag it.',ev:'flag'},{text:'Reveal every safe square!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Hold your phone sideways.</b> Right thumb taps the field; the big 🚩 button bottom-right switches FLAG MODE; left thumb uses the power-ups on the left edge.</li><li><b>Tap a square</b> to scan it (PC: click). Start on the glowing <b>START</b> square — it always opens a safe area. Your first tap is always safe.</li><li>A number tells how many mines touch that square (also diagonally).</li><li><b>Flag</b> a mine: long-press it, turn on 🚩 FLAG MODE (SPACE), or right-click on PC.</li><li>Tap a number whose mines are all flagged to open all its other neighbours.</li><li>Reveal every safe square to clear the stage. Hitting a mine costs a life (it's defused and play goes on).</li><li>PC keys: arrows move the cursor, ENTER scans, F flags, SPACE = flag mode, 1/2/3 = power-ups.</li><li>Multiplayer race: everyone gets the same field — first to clear it wins.</li><li>Every 10th stage the field is ticking — clear it before the clock runs out!</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. Tap the glowing START square to scan it!',ev:'reveal'},{text:'Long-press a square you know is a mine — or tap the 🚩 button (bottom-right, PC: SPACE) and tap it.',ev:'flag'},{text:'Reveal every safe square!',time:5}],
   stageIntro:{1:'CLEAR THE MINE FIELD'},bossName:'THE TICKING FIELD!',ending:{"0":["#CLEARED","The colony is safe."],"1":["#SAPPER","Nerves of steel."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='defuse') return eff.defuse>0?{left:eff.defuse,total:10}:null; if(id==='xray') return eff.xray>0?{left:eff.xray,total:2}:null; return null; },
-  _dbg(){ return {get mine(){return mine;}, get open(){return open;}, get flag(){return flag;}, get boom(){return boom;}, get num(){return num;}, get cols(){return cols;}, get rows(){return rows;}, get safeLeft(){return safeLeft;}, get nMines(){return nMines;}, get done(){return done;}, get lost(){return lost;}, get tLeft(){return tLeft;}, get flagMode(){return flagMode;},
+  _dbg(){ return {get mine(){return mine;}, get open(){return open;}, get flag(){return flag;}, get boom(){return boom;}, get num(){return num;}, get cols(){return cols;}, get rows(){return rows;}, get safeLeft(){return safeLeft;}, get nMines(){return nMines;}, get done(){return done;}, get lost(){return lost;}, get tLeft(){return tLeft;}, get flagMode(){return flagMode;}, get startI(){return startI;}, get seed(){return seed;}, get cell(){return cell;},
     reveal:(i)=>reveal(i), flagAt:(i)=>toggleFlag(i), chord:(i)=>chord(i), cellXY:(i)=>{ const p=cxy(i); return {x:p.x+cell/2,y:p.y+cell/2}; }, solve:(f)=>solveMS(mine,f)}; },
   init(a){ api=a; if(typeof window!=='undefined'&&window.addEventListener) window.addEventListener('pointerdown',e=>{ rb=e.button===2; },true); },
-  startStage(n,a){ api=a; t=0; tok++; done=false; lost=false; eff={defuse:-9,xray:-9}; flagMode=false; press=null; scans=[]; winT=0; tickS=0; a.badge(0,'SCAN'); a.setActive(0,false);
-    const L=a.level; TOP=a.content===0?370:124; if(a.content===0){ cols=6; rows=7; nMines=4; }
-    else { cols=Math.min(12,7+Math.floor(L/9)); rows=Math.min(16,cols+2+Math.floor(L/20)); let d=a.dv([0.12,0.165,0.2],0.21,0.235)+(a.content===2?0.012:0); if(a.boss) d*=0.92; nMines=Math.round(cols*rows*d); }
-    nMines=Math.min(nMines,cols*rows-10); newBoard(); cur=Math.floor(rows/2)*cols+Math.floor(cols/2);
-    tLim=a.boss?Math.round(15+safeLeft*a.dv([1.3,0.9,0.7],0.6,0.45)):0; tLeft=tLim; },
+  startStage(n,a){ api=a; seed=(Math.random()*1e9)|0; rs=seed; t=0; tok++; done=false; lost=false; eff={defuse:-9,xray:-9}; flagMode=false; press=null; scans=[]; winT=0; tickS=0; a.badge(0,'SCAN'); a.setActive(0,false);
+    const L=a.level, easy=a.diff===0&&L<=10; BY0=a.content===0?262:84; /* tutorial: the help box covers the top-left, so the field sits below it */
+    if(a.content===0){ cols=7; rows=5; nMines=4; }
+    else if(easy){ cols=8+Math.floor(L/4); rows=5+Math.floor(L/5); nMines=Math.round(cols*rows*(0.09+L*0.003)); }
+    else { cols=Math.min(16,9+Math.floor(L/7)); rows=Math.min(10,6+Math.floor(L/14)); let d=a.dv([0.12,0.165,0.2],0.21,0.235)+(a.content===2?0.012:0); if(a.boss) d*=0.92; nMines=Math.round(cols*rows*d); }
+    nMines=Math.min(nMines,cols*rows-10); newBoard(); cur=startI;
+    tLim=a.boss?Math.round(15+safeLeft*(easy?1.8:a.dv([1.3,0.9,0.7],0.6,0.45))):0; tLeft=tLim; },
   respawn(){ lost=false; if(tLim&&tLeft<=0) tLeft=tLim; },
   stageBonus(){ return nMines*15+(tLim?Math.round(tLeft)*5:0); },
   useAbility(id){ if(done||lost) return false;
     if(id==='flag'){ flagMode=!flagMode; api.badge(0,flagMode?'FLAG':'SCAN'); api.setActive(0,flagMode); api.sfx.click(); api.toast(flagMode?'🚩 FLAG MODE ON':'SCAN MODE'); api.event('mode'); return true; }
     if(id==='xray'){ if(!made){ api.toast('SCAN A SQUARE FIRST'); return false; } eff.xray=2; api.sfx.power(); api.fx.flash('#ff3b3b',.15); return true; }
     if(id==='defuse'){ eff.defuse=10; api.sfx.power(); return true; }
-    if(id==='scan'){ if(!made){ reveal(cur); scans.push({i:cur,t:0}); return true; }
+    if(id==='scan'){ if(!made){ reveal(startI); scans.push({i:startI,t:0}); return true; }
       let best=-1,bs=0; for(let c=0;c<cols*rows;c++){ const ar=[c,...NB[c]]; let s=0,fr=0; for(const k of ar){ if(!open[k]&&!mine[k]&&!boom[k]){ s++; if(NB[k].some(j=>open[j])) fr=1; } } const sc=s?s+fr*20:0; if(sc>bs){ bs=sc; best=c; } }
       if(best<0) return false; for(const k of [best,...NB[best]]){ if(mine[k]){ if(!boom[k]) flag[k]=true; } else { flag[k]=false; reveal(k,true); } } scans.push({i:best,t:0}); api.sfx.power(); return true; } },
   onKey(code,down){ if(!down||done||lost) return; const x=cur%cols,y=(cur/cols)|0;
     if(code==='ArrowLeft'&&x>0) cur--; if(code==='ArrowRight'&&x<cols-1) cur++; if(code==='ArrowUp'&&y>0) cur-=cols; if(code==='ArrowDown'&&y<rows-1) cur+=cols;
     if(code==='Enter') act(cur,flagMode); if(code==='KeyF') act(cur,true); },
   onPointer(type,x,y){ if(done||lost) return; const i=at(x,y);
-    if(type==='down'){ if(i<0){ press=null; return; } if(rb){ rb=false; act(i,true); press=null; return; } press={i,x,y,t:0,long:false,moved:false}; return; }
+    if(type==='down'){ if(i<0){ press=null; if(x>=PX&&x<=PX+PW&&y>=92&&y<=172) GAME.useAbility('flag'); return; } if(rb){ rb=false; act(i,true); press=null; return; } press={i,x,y,t:0,long:false,moved:false}; return; }
     if(!press) return;
     if(type==='move'){ if(Math.hypot(x-press.x,y-press.y)>16) press.moved=true; return; }
     if(type==='up'){ const p=press; press=null; if(p.long||p.moved) return; act(p.i,flagMode); } },
-  update(dt){ t+=dt; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; for(let i=0;i<anim.length;i++) if(anim[i]>-0.3) anim[i]-=dt; scans.forEach(s=>s.t+=dt); scans=scans.filter(s=>s.t<0.8);
+  update(dt){ t+=dt; if((barT-=dt)<=0){ barT=.5; try{ placeBars(); }catch(e){} } for(const k in eff) if(eff[k]>-2) eff[k]-=dt; for(let i=0;i<anim.length;i++) if(anim[i]>-0.3) anim[i]-=dt; scans.forEach(s=>s.t+=dt); scans=scans.filter(s=>s.t<0.8);
     if(done){ winT+=dt; return; } if(lost) return;
     if(press&&!press.long&&!press.moved){ press.t+=dt; if(press.t>0.38){ press.long=true; if(open[press.i]) chord(press.i); else toggleFlag(press.i); if(navigator.vibrate) try{ navigator.vibrate(25); }catch(e){} } }
     if(tLim&&made){ const s0=Math.ceil(tLeft); tLeft-=dt; const s1=Math.ceil(tLeft); if(s1<s0){ tickS=0.25; if(tLeft<10) api.sfx.blip(); else if(s1%2===0) api.sfx.click(); }
@@ -598,11 +611,16 @@ const GAME=window.GAME={
     // frame
     c.save(); c.strokeStyle=fm?'#ff9a3b':tc; c.lineWidth=3; c.shadowColor=c.strokeStyle; c.shadowBlur=18; rr(c,ox-8,oy-8,cols*cell+16,rows*cell+16,12); c.stroke(); c.restore();
     c.fillStyle='rgba(6,12,30,.9)'; rr(c,ox-6,oy-6,cols*cell+12,rows*cell+12,10); c.fill();
-    // status line
-    const SY=TOP-16; c.font='bold 22px Orbitron,sans-serif'; c.textAlign='left'; c.fillStyle=fm?'#ff9a3b':tc; c.fillText(fm?'🚩 FLAG':'📡 SCAN',14,SY);
-    c.textAlign='right'; let fl=0; for(let i=0;i<flag.length;i++) if(flag[i]||boom[i]) fl++; c.fillStyle='#ff9a3b'; c.fillText('💣 '+Math.max(0,nMines-fl),W-14,SY);
-    if(tLim){ const s=Math.max(0,Math.ceil(tLeft)), w=230, p=tLeft/tLim, by=SY-20; c.fillStyle='rgba(255,255,255,.12)'; rr(c,W/2-w/2,by,w,26,13); c.fill(); c.fillStyle=p<0.25?(Math.floor(t*4)%2?'#ff3b3b':'#ffd23f'):'#ffd23f'; rr(c,W/2-w/2,by,Math.max(14,w*p),26,13); c.fill();
-      c.fillStyle='#fff'; c.shadowColor='#000'; c.shadowBlur=6; c.font='bold 19px Orbitron,sans-serif'; c.textAlign='center'; c.fillText('⏱ '+s+'s',W/2,by+20); c.shadowBlur=0; }
+    // right info panel (x995-1265, y84-400): mode (tap to switch), mines left, safe left, ticking clock
+    c.fillStyle='rgba(6,12,30,.78)'; rr(c,PX,84,PW,tLim?316:268,14); c.fill(); c.strokeStyle='rgba(61,216,255,.25)'; c.lineWidth=2; c.stroke();
+    c.save(); c.fillStyle=fm?'rgba(255,154,59,.22)':'rgba(61,216,255,.14)'; rr(c,PX+12,96,PW-24,72,12); c.fill(); c.strokeStyle=fm?'#ff9a3b':tc; c.shadowColor=c.strokeStyle; c.shadowBlur=12; c.lineWidth=3; c.stroke(); c.restore();
+    c.textAlign='center'; c.font='bold 26px Orbitron,sans-serif'; c.fillStyle=fm?'#ff9a3b':tc; c.fillText(fm?'🚩 FLAG MODE':'📡 SCAN MODE',PX+PW/2,138); c.font='bold 13px Orbitron,sans-serif'; c.fillStyle='rgba(255,255,255,.6)'; c.fillText(fm?'TAPS PLANT FLAGS':'TAPS SCAN SQUARES',PX+PW/2,159);
+    let fl=0; for(let i=0;i<flag.length;i++) if(flag[i]||boom[i]) fl++; c.textAlign='left'; c.font='bold 28px Orbitron,sans-serif';
+    c.fillStyle='#ff9a3b'; c.fillText('💣 '+Math.max(0,nMines-fl),PX+22,212); c.fillStyle='#3bff7a'; c.fillText('🟩 '+safeLeft,PX+22,256); c.font='bold 15px Orbitron,sans-serif'; c.fillStyle='rgba(255,255,255,.6)'; c.fillText('MINES LEFT',PX+140,206); c.fillText('SAFE LEFT',PX+140,250);
+    c.fillText(api.input.touch?'LONG-PRESS = FLAG':'RIGHT-CLICK / F = FLAG',PX+22,290); c.fillText('TAP A NUMBER = OPEN AROUND',PX+22,312);
+    if(!made&&!done){ c.fillStyle='rgba(59,255,122,'+(0.55+0.35*Math.sin(t*4))+')'; c.font='bold 14px Orbitron,sans-serif'; c.fillText('▶ TAP THE GLOWING START',PX+22,340); }
+    if(tLim){ const s=Math.max(0,Math.ceil(tLeft)), w=PW-44, p=tLeft/tLim, by=356; c.fillStyle='rgba(255,255,255,.12)'; rr(c,PX+22,by,w,30,15); c.fill(); c.fillStyle=p<0.25?(Math.floor(t*4)%2?'#ff3b3b':'#ffd23f'):'#ffd23f'; rr(c,PX+22,by,Math.max(16,w*p),30,15); c.fill();
+      c.fillStyle='#fff'; c.shadowColor='#000'; c.shadowBlur=6; c.font='bold 20px Orbitron,sans-serif'; c.textAlign='center'; c.fillText('⏱ '+s+'s',PX+PW/2,by+23); c.shadowBlur=0; }
     const xr=eff.xray>0||done, pad=Math.max(2,cell*0.06), fs=Math.round(cell*0.58);
     for(let i=0;i<cols*rows;i++){ const p=cxy(i),x=p.x,y=p.y,cx=x+cell/2,cy=y+cell/2, shown=open[i]&&anim[i]<=0;
       if(shown||boom[i]){ const pop=Math.min(1,(-anim[i])/0.15+0.4), s=boom[i]?1:pop; c.fillStyle=boom[i]===1?'rgba(90,10,20,.9)':boom[i]===2?'rgba(10,60,30,.9)':'rgba(14,24,48,.95)'; c.fillRect(x+1,y+1,cell-2,cell-2);
@@ -613,6 +631,7 @@ const GAME=window.GAME={
       // closed tile
       const g=c.createLinearGradient(x,y,x,y+cell); g.addColorStop(0,'#24365e'); g.addColorStop(1,'#101a36'); c.fillStyle=g; rr(c,x+pad/2,y+pad/2,cell-pad,cell-pad,cell*0.14); c.fill();
       c.strokeStyle=tc; c.globalAlpha=.45; c.lineWidth=1.2; c.stroke(); c.globalAlpha=1; c.fillStyle='rgba(255,255,255,.12)'; c.fillRect(x+pad+3,y+pad+2,cell-pad*2-6,2);
+      if(i===startI&&!made){ const k=0.5+0.5*Math.sin(t*5); c.save(); c.strokeStyle='#3bff7a'; c.shadowColor='#3bff7a'; c.shadowBlur=10+12*k; c.lineWidth=3+2*k; rr(c,x+pad/2,y+pad/2,cell-pad,cell-pad,cell*0.14); c.stroke(); c.fillStyle='#3bff7a'; c.font='900 '+Math.round(cell*0.22)+'px Orbitron,Arial,sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('START',cx,cy); c.restore(); }
       if(flag[i]) flagIco(c,cx,cy+2,cell);
       if(xr&&mine[i]&&!flag[i]){ c.globalAlpha=done?Math.min(1,winT*2):0.85; mineIco(c,cx,cy,cell*0.34,done?'#3bff7a':'#ff3b3b',16); c.globalAlpha=1; } }
     // cursor + long-press ring
@@ -621,8 +640,8 @@ const GAME=window.GAME={
     scans.forEach(s=>{ const p=cxy(s.i); c.strokeStyle='rgba(61,216,255,'+(1-s.t/0.8)+')'; c.lineWidth=3; c.beginPath(); c.arc(p.x+cell/2,p.y+cell/2,cell*(0.5+s.t*3),0,7); c.stroke(); });
     if(eff.defuse>0){ c.strokeStyle='rgba(59,255,122,'+(0.4+0.3*Math.sin(t*6))+')'; c.lineWidth=4; rr(c,ox-12,oy-12,cols*cell+24,rows*cell+24,14); c.stroke(); }
     if(tLim&&tickS>0){ c.fillStyle='rgba(255,59,59,'+tickS*0.25+')'; c.fillRect(0,0,W,H); }
-    if(!made&&!done){ c.fillStyle='rgba(255,255,255,'+(0.5+0.3*Math.sin(t*4))+')'; c.font='bold 18px Orbitron,sans-serif'; c.textAlign='center'; const yy=Math.min(H-8,oy+rows*cell+26); if(yy<H-4) c.fillText('TAP ANY SQUARE TO START',W/2,yy); } },
-  attract(c,tt){ bg(c,tt); const n=8,s=56,x0=W/2-n*s/2,y0=H/2-n*s/2; for(let i=0;i<n*n;i++){ const x=x0+(i%n)*s,y=y0+((i/n)|0)*s,o=Math.sin(tt*2+i*0.7)>0.3; c.fillStyle=o?'rgba(14,24,48,.95)':'#1b2a4a'; c.fillRect(x+2,y+2,s-4,s-4); if(o&&i%5===1){ c.fillStyle=NC[1+i%4]; c.font='900 30px Arial'; c.textAlign='center'; c.fillText(1+i%4,x+s/2,y+s/2+11); } } }
+  },
+  attract(c,tt){ bg(c,tt); const n=14,m=8,s=60,x0=W/2-n*s/2,y0=H/2-m*s/2; for(let i=0;i<n*m;i++){ const x=x0+(i%n)*s,y=y0+((i/n)|0)*s,o=Math.sin(tt*2+i*0.7)>0.3; c.fillStyle=o?'rgba(14,24,48,.95)':'#1b2a4a'; c.fillRect(x+2,y+2,s-4,s-4); if(o&&i%5===1){ c.fillStyle=NC[1+i%4]; c.font='900 30px Arial'; c.textAlign='center'; c.fillText(1+i%4,x+s/2,y+s/2+11); } } }
 };
 })();
 
