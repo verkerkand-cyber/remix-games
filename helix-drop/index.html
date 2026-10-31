@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-HX-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-HX-1.1 · 2026-10-26">
 <title>Helix Drop</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-HX-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-HX-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,17 +489,23 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* HELIX DROP — spiral-tower drop remix. 100 stages. Spin the tower, drop the ball through the gaps, never land on red. */
+/* HELIX DROP — spiral-tower drop remix. 100 stages. Spin the tower, drop the ball through the gaps, never land on red.
+   1.1 (26 Oct): LANDSCAPE 1280x720 — tower centred, DEPTH panel (left, x110-390) + NEXT FLOOR radar (right, x900-1260, above
+   the action button). RACE mode: towers come from a stage RNG seeded once from Math.random (the shell seeds it) so both racers
+   get the same tower. Drop timer: no floor dropped in time = life lost (idle never wins). Beginner 1-10: wide gaps, few reds,
+   a BUBBLE that eats one red hit (refills after 3 drops), slow half-closing jaws, spin hint arrow on the radar. */
 (function(){
-const W=600,H=900,CX=300,RO=212,RI=64,PR=50,K=0.36,TH=22,SP=190,N=12,SA=Math.PI*2/N,BR=17,GRAV=2400,BOUNCE=820,RM=(RO+RI)/2,FRONT=Math.PI/2;
+const W=1280,H=720,CX=640,RO=212,RI=64,PR=50,K=0.36,TH=22,SP=190,N=12,SA=Math.PI*2/N,BR=17,GRAV=2400,BOUNCE=820,RM=(RO+RI)/2,FRONT=Math.PI/2;
 const PAL=[['#3dd8ff','#1a6a9a'],['#ff4dd2','#8a1a7a'],['#7aff3d','#2e7a1a'],['#ffb33d','#8a5a10'],['#b48aff','#4a2a9a']];
-let api,t,floors,ball,rot,cam,camT,passed,nF,done,lost,eff,grace,combo,smashCD,drag,trail,splash,stars,core,pal,kb;
+let api,rs=1,stall,stall0,bub,bubN,easy,warned,t,floors,ball,rot,cam,camT,passed,nF,done,lost,eff,grace,combo,smashCD,drag,trail,splash,stars,core,pal,kb;
 function R(a,b){ return a+Math.random()*(b-a); }
+function rnd(){ rs|=0; rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }  // stage RNG (same seed = same tower)
+function RR(a,b){ return a+rnd()*(b-a); }
 function md(a){ a%=Math.PI*2; return a<0?a+Math.PI*2:a; }
 const GAME=window.GAME={
   id:'helix-drop',title:'Helix Drop',titleHTML:'HELIX<br>DROP',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-HX-1.0 · 2026-10-17',theme:{a:'#3dd8ff',b:'#ff4dd2',bg:'#0a0620'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🔵',joystick:false,coinPts:40,
+  build:'BUILD-HX-1.1 · 2026-10-26',theme:{a:'#3dd8ff',b:'#ff4dd2',bg:'#0a0620'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🔵',joystick:false,coinPts:40,
   abilities:[
     {id:'smash',icon:'⚡',name:'SMASH',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — dive down fast and break through the next normal floor. Or just tap the game. Recharges in about a second. Red still hurts!'},
     {id:'fire',icon:'🔥',name:'FIREBALL',cd:18,key:'Digit1',keyLabel:'1',desc:'For 5 seconds your ball burns through EVERY floor, even red ones.'},
@@ -508,16 +514,19 @@ const GAME=window.GAME={
   shop:[{id:'hx_w',cat:'Ball',name:'Pearl Ball',cost:0,colors:['#ffffff'],desc:'Classic glow.'},{id:'hx_y',cat:'Ball',name:'Sun Ball',cost:150,colors:['#ffd23f'],desc:'Bright gold.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3dd8ff,#ff4dd2)'}],
   story:`<h3>HELIX DROP</h3><p>A bouncy little ball is stuck at the top of the endless neon spiral towers. The only way out is down — floor by floor, through the gaps.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag left / right</b> to spin the tower (PC: ← → or A D).</li><li>The ball bounces by itself. Line a <b>gap</b> up under it to drop through.</li><li>Landing on a <b>red</b> part costs a life.</li><li>Drop through 3+ floors in a row and the ball catches fire — it smashes the next floor, even red!</li><li><b>Tap</b> (PC: SPACE) to SMASH: a fast dive that breaks a normal floor. It recharges in about a second.</li><li>Reach the bottom to clear the stage. Every 10th stage: the Jaw Tower — red jaws snap the gaps shut, and a core waits at the bottom.</li></ul>`,
-  tutorial:[{text:'Drag left / right (or ← →) to spin the tower. Drop through the gap!',touch:'Drag left / right to spin the tower. Drop through the gap!',ev:'drop'},{text:'Tap the game (or SPACE) to SMASH through a floor!',ev:'smash'},{text:'Avoid red! Reach the bottom.',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li>Hold your phone <b>sideways</b>.</li><li><b>Phone:</b> drag left / right anywhere on the game with either thumb to spin the tower. Right thumb: tap ⚡ (or tap the game) to SMASH.</li><li><b>PC:</b> ← → or A D spin, SPACE smashes, 1 2 3 power-ups.</li><li>The ball bounces by itself. Line a <b>gap</b> up under it to drop through.</li><li>Landing on a <b>red</b> part costs a life.</li><li>Drop through 3+ floors in a row and the ball catches fire — it smashes the next floor, even red!</li><li><b>Tap</b> (PC: SPACE) to SMASH: a fast dive that breaks a normal floor. It recharges in about a second.</li><li>The <b>NEXT FLOOR</b> radar (right) shows the floor below from above — the white dot is your ball. The <b>DROP TIMER</b> (left) runs out if you don't drop a floor in time: that costs a life.</li><li>Reach the bottom to clear the stage. Every 10th stage: the Jaw Tower — red jaws snap the gaps shut, and a core waits at the bottom.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. Press ← → (or A D) to spin the tower. Drop through the gap!',touch:'Hold your phone sideways. Drag left / right with your thumb to spin the tower. Drop through the gap!',ev:'drop'},{text:'Tap ⚡ or the game (PC: SPACE) to SMASH through a floor!',ev:'smash'},{text:'Avoid red! Reach the bottom.',time:5}],
   stageIntro:{1:'DROP TO THE BOTTOM'},bossName:'THE JAW TOWER!',ending:{"0":["#FREE","The ball bounced home."],"1":["#DROPPER","No tower too tall."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const tot={fire:5,shield:6,slow:7}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get ball(){return ball;}, get floors(){return floors;}, get rot(){return rot;}, set rot(v){rot=v;}, get passed(){return passed;}, get nF(){return nF;}, get lost(){return lost;}, get done(){return done;}, get core(){return core;}, segAt:f=>segAt(f), nextF:()=>nextF(), SA, N}; },
+  _dbg(){ return {get ball(){return ball;}, get floors(){return floors;}, get rot(){return rot;}, set rot(v){rot=v;}, get passed(){return passed;}, get nF(){return nF;}, get lost(){return lost;}, get done(){return done;}, get core(){return core;}, get stall(){return stall;}, get bub(){return bub;}, segAt:f=>segAt(f), nextF:()=>nextF(), SA, N}; },
   init(a){ api=a; mkStars(); },
   startStage(n,a){ api=a; t=0; done=false; lost=false; eff={fire:-9,shield:-9,slow:-9}; grace=0; combo=0; smashCD=0; drag=null; trail=[]; splash=[]; rot=0; passed=0; kb={};
+    rs=(Math.random()*1e9)|0;   // RACE: the shell seeds Math.random, so both phones build this same tower
+    easy=!a.tutorial&&a.diff===0&&a.stage<=10; bub=easy?1:0; bubN=0; warned=false;
+    stall0=a.tutorial?999:easy?40:a.diff===0?api.dv([34,24,18],16):api.dv([30,22,16],14,9); stall=stall0;
     pal=PAL[(a.stage+(a.tutorial?0:a.diff))%PAL.length]; if(!stars) mkStars(); build();
-    ball={y:floors[0].y-140,vy:0,sq:0,smash:false}; cam=camT=floors[0].y-OFF(); },
-  respawn(){ lost=false; grace=1.6; combo=0; const f=floors[nextF()]||floors[floors.length-1]; ball.y=f.y-150; ball.vy=-300; ball.smash=false; },
+    ball={y:floors[0].y-140,vy:0,sq:0,smash:false}; cam=camT=floors[0].y-OFF(); api.counter('⬇️ TO GO',toGo()); },
+  respawn(){ lost=false; grace=easy?2.6:1.6; stall=stall0; warned=false; combo=0; const f=floors[nextF()]||floors[floors.length-1]; ball.y=f.y-150; ball.vy=-300; ball.smash=false; },
   stageBonus(){ return passed*15; },
   useAbility(id){ if(done||lost) return false; if(id==='smash') return smash();
     eff[id]={fire:5,shield:6,slow:7}[id]; api.sfx.power(); return true; },
@@ -532,6 +541,8 @@ const GAME=window.GAME={
     if(core) core.hurt-=dt;
     camT=Math.max(camT,ball.y-OFF()); cam+=(camT-cam)*Math.min(1,dt*8);
     if(done||lost) return;
+    stall-=dt*(eff.slow>0?0.5:1); if(stall<6&&!warned&&stall0<99){ warned=true; api.toast('HURRY — DROP A FLOOR!'); }
+    if(stall<=0){ lost=true; api.toast('TOO SLOW!'); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>api.loseLife(),900); return; }
     const KY=api.input.keys; if(KY.ArrowLeft||KY.KeyA) rot+=3.4*dt; if(KY.ArrowRight||KY.KeyD) rot-=3.4*dt;
     ball.sq=Math.max(0,ball.sq-dt*5);
     const fiery=eff.fire>0||combo>=3;
@@ -541,7 +552,7 @@ const GAME=window.GAME={
     const fi=nextF(), f=floors[fi];
     if(f&&ball.vy>0&&prev<=f.y&&ball.y>=f.y) land(f,fi,fiery);
     trail.push(ball.y); if(trail.length>8) trail.shift();
-    api.counter(passed>=nF&&core?'💢 CORE':'⬇️ FLOORS',passed>=nF&&core?Math.max(0,core.hp):nF-passed); },
+    api.counter('⬇️ TO GO',toGo()); },
   render(c){ const bc=api.cos('Ball').colors[0];
     const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0a0620'); g.addColorStop(.6,'#1a0c40'); g.addColorStop(1,'#2a0a3a'); c.fillStyle=g; c.fillRect(0,0,W,H);
     stars.forEach(s=>{ const y=md((s.y-cam*s.p)/H*6.283)/6.283*H; c.globalAlpha=.3+.5*Math.abs(Math.sin(t*s.tw+s.x)); c.fillStyle=s.c; c.fillRect(s.x,y,s.s,s.s*(1+s.p*6)); }); c.globalAlpha=1;
@@ -558,9 +569,11 @@ const GAME=window.GAME={
       trail.forEach((ty,i)=>{ c.globalAlpha=i/trail.length*.35; c.fillStyle=fiery?'#ff5a1f':pal[0]; c.beginPath(); c.arc(CX,ty-cam+RM*K-BR,BR*(0.4+i/trail.length*.5),0,7); c.fill(); }); c.globalAlpha=1;
       const s=ball.sq; c.save(); c.translate(CX,by+BR*s*.4); c.scale(1+s*.35,1-s*.35); c.shadowColor=fiery?'#ff5a1f':col; c.shadowBlur=26;
       const bg=c.createRadialGradient(-5,-6,2,0,0,BR); bg.addColorStop(0,'#fff'); bg.addColorStop(.5,col); bg.addColorStop(1,fiery?'#c02000':pal[1]); c.fillStyle=bg; c.beginPath(); c.arc(0,0,BR,0,7); c.fill(); c.shadowBlur=0; c.strokeStyle='rgba(10,0,30,.7)'; c.lineWidth=2.5; c.stroke(); c.restore();
+      if(bub>0){ c.strokeStyle='rgba(160,240,255,.75)'; c.lineWidth=2; c.beginPath(); c.arc(CX,by,BR+14+Math.sin(t*4)*2,0,7); c.stroke(); }
       if(eff.shield>0||grace>0){ c.strokeStyle='#3dffd8'; c.lineWidth=3; c.shadowColor='#3dffd8'; c.shadowBlur=16; c.globalAlpha=eff.shield>0?0.9:0.4+0.4*Math.sin(t*25); c.beginPath(); c.arc(CX,by,BR+9,0,7); c.stroke(); c.globalAlpha=1; c.shadowBlur=0; }
       if(ball.smash){ c.strokeStyle='#fff'; c.lineWidth=3; c.globalAlpha=.6; for(let i=-1;i<=1;i++){ c.beginPath(); c.moveTo(CX+i*9,by-BR-6); c.lineTo(CX+i*9,by-BR-46); c.stroke(); } c.globalAlpha=1; } }
     if(combo>=2&&!lost){ c.fillStyle=combo>=3?'#ffb33d':'#fff'; c.font='bold 22px sans-serif'; c.textAlign='center'; c.shadowColor='#ff5a1f'; c.shadowBlur=combo>=3?14:0; c.fillText(combo>=3?'🔥 ON FIRE x'+combo:'x'+combo,CX,ball.y-cam+RM*K-BR-40); c.shadowBlur=0; }
+    panels(c);
     if(lost){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(0,0,W,H); } },
   attract(c,tt){ if(!stars) mkStars(); if(!floors){ api=api||GAME.api; pal=PAL[0]; floors=[]; for(let i=0;i<5;i++){ const s=Array(N).fill(1); s[(i*5)%N]=0; s[(i*5+1)%N]=0; s[(i*7+4)%N]=2; floors.push({y:200+i*SP,segs:s,off:0,splat:[]}); } }
     const sv=[rot,cam,t]; rot=tt*0.6; cam=0; t=tt; c.fillStyle='#0a0620'; c.fillRect(0,0,W,H); pole(c,-10,H+10); floors.slice(0,5).forEach(f=>{ drawFloor(c,f,f.y,-1,1,1); pole(c,f.y-RO*K-TH,f.y+2); drawFloor(c,f,f.y,1,1,1); });
@@ -568,43 +581,45 @@ const GAME=window.GAME={
 };
 /* ---------- level ---------- */
 function build(){ const L=api.level,ct=api.content,boss=api.boss; floors=[]; core=null;
-  nF=ct===0?6:Math.round(api.dv([12,22,32],40,56)*(boss?1.15:1));
+  nF=ct===0?6:easy?Math.round(9+L*0.4):Math.round(api.dv([12,22,32],40,56)*(boss?1.15:1));
   let pg=-1,pg2=0;
-  for(let i=0;i<nF;i++){ const s=Array(N).fill(1), gl=ct===0?4:L<20?3:2, g0=Math.floor(Math.random()*N);
+  for(let i=0;i<nF;i++){ const s=Array(N).fill(1), gl=ct===0||easy?4:L<20?3:2, g0=Math.floor(rnd()*N);
     for(let k=0;k<gl;k++) s[(g0+k)%N]=0;
     const prot=new Set(); if(i===0) [2,3,4].forEach(k=>prot.add(k)); if(pg>=0){ const ex=L>150?0:1; for(let k=-ex;k<pg2+ex;k++) prot.add(md2(pg+k)); }
-    let nd=ct===0?(i===3?2:0):Math.round(api.dv([0.5,2.2,3.4],4.4,6)*R(0.6,1.3)+(boss?1:0)+(ct===2?0.5:0));
-    nd=Math.min(nd,N-gl-(boss?4:3)); let tries=0; while(nd>0&&tries++<60){ const k=Math.floor(Math.random()*N); if(s[k]===1&&!prot.has(k)){ s[k]=2; nd--; } }
+    let nd=ct===0?(i===3?2:0):easy?(L>=3&&i>0&&rnd()<0.25+L*0.03?1:0):Math.round(api.dv([0.5,2.2,3.4],4.4,6)*RR(0.6,1.3)+(boss?1:0)+(ct===2?0.5:0));
+    nd=Math.min(nd,N-gl-(boss?4:3)); let tries=0; while(nd>0&&tries++<60){ const k=Math.floor(rnd()*N); if(s[k]===1&&!prot.has(k)){ s[k]=2; nd--; } }
     const f={y:200+i*SP,segs:s,off:0,splat:[],broken:false,bt:0,g0,gl};
-    if(ct!==0&&!boss&&pg>=0&&L>=12&&i>1&&Math.random()<api.dv([0.1,0.32,0.5],0.6)) f.spin=(Math.random()<.5?-1:1)*api.dv([0.4,0.8,1.2],1.4,1.8);
-    if(ct!==0&&L>=25&&i>1&&Math.random()<api.dv([0,0.3,0.5],0.6,0.75)) f.mov={a:Math.random()*6.28,sp:(Math.random()<.5?-1:1)*api.dv([0.7,1.2,1.7],2,2.4)};
-    if(boss&&i%2===1) f.jaw={ph:Math.random()*6,sp:api.dv([1.5,2.1,2.7],3,3.4)};
+    if(ct!==0&&!boss&&pg>=0&&L>=12&&i>1&&rnd()<api.dv([0.1,0.32,0.5],0.6)) f.spin=(rnd()<.5?-1:1)*api.dv([0.4,0.8,1.2],1.4,1.8);
+    if(ct!==0&&L>=25&&i>1&&rnd()<api.dv([0,0.3,0.5],0.6,0.75)) f.mov={a:rnd()*6.28,sp:(rnd()<.5?-1:1)*api.dv([0.7,1.2,1.7],2,2.4)};
+    if(boss&&i%2===1) f.jaw={ph:rnd()*6,sp:easy?1.1:api.dv([1.5,2.1,2.7],3,3.4)};
     floors.push(f); pg=f.spin?-1:g0; pg2=gl; }
   floors.push({y:200+nF*SP,segs:Array(N).fill(3),off:0,splat:[],goal:true});
-  if(boss){ const hp=api.diff===2?4:3; core={hp,max:hp,hurt:0}; } }
-function OFF(){ return api.content===0?500:410; }
+  if(boss){ const hp=api.diff===2?4:easy?2:3; core={hp,max:hp,hurt:0}; } }
+function OFF(){ return api.content===0?320:280; }
+function toGo(){ return Math.max(0,nF-passed)+(core?Math.max(0,core.hp):0); }
 function md2(k){ return ((k%N)+N)%N; }
 function nextF(){ for(let i=0;i<floors.length;i++) if(!floors[i].passed) return i; return floors.length-1; }
 function angAt(f){ return md(FRONT-rot-f.off); }
 function jawCover(f,a){ if(!f.jaw) return false; const p=jawP(f), s=f.g0*SA, e=s+f.gl*SA, d=md(a-s); if(d>f.gl*SA) return false; return d<p*f.gl*SA/2||d>f.gl*SA-p*f.gl*SA/2; }
-function jawP(f){ const v=Math.sin(f.jaw.ph); return Math.max(0,Math.min(1,v*0.75+0.55)); }
+function jawP(f){ const v=Math.sin(f.jaw.ph); return Math.max(0,Math.min(easy?0.6:1,v*0.75+0.55)); }
 function movCover(f,a){ return f.mov&&md(a-f.mov.a)<SA*1.1; }
 function segAt(f){ const a=angAt(f); if(f.goal) return 3; if(movCover(f,a)||jawCover(f,a)) return 2; return f.segs[Math.floor(a/SA)%N]; }
-function pass(f,brk){ if(brk) ball.vy=-260; f.passed=true; f.broken=true; f.bt=0; passed++; api.addScore(20+combo*10,CX,f.y-cam+40,!brk); api.event('drop');
+function pass(f,brk){ if(brk) ball.vy=-260; f.passed=true; stall=stall0; warned=false; if(easy&&bub<1&&++bubN>=3){ bub=1; bubN=0; api.toast('BUBBLE BACK!'); } f.broken=true; f.bt=0; passed++; api.addScore(20+combo*10,CX,f.y-cam+40,!brk); api.event('drop');
   api.fx.burst(CX,f.y-cam+RM*K,pal[0],brk?30:12,brk?380:220,.6,4); if(brk){ api.fx.shake(6); api.sfx.boom(); } else api.sfx.blip(); }
 function land(f,fi,fiery){ const s=segAt(f); ball.y=f.y;
-  if(s===3){ if(core&&core.hp>0){ core.hp-=ball.smash?2:1; core.hurt=0.3; api.fx.burst(CX,f.y-cam+40,'#ff2e4d',40,420,.8,5); api.fx.shake(10); api.sfx.boom(); bounce(f,'#ff2e4d'); if(core.hp<=0) win(); return; } return win(); }
+  if(s===3){ if(core&&core.hp>0){ core.hp-=ball.smash?2:1; core.hurt=0.3; stall=stall0; api.fx.burst(CX,f.y-cam+40,'#ff2e4d',40,420,.8,5); api.fx.shake(10); api.sfx.boom(); bounce(f,'#ff2e4d'); if(core.hp<=0) win(); return; } return win(); }
   if(s===0){ combo++; pass(f,false); if(combo===3){ api.toast('ON FIRE!'); api.sfx.power(); } return; }
   if(fiery){ const c=combo; combo=0; ball.smash=false; pass(f,true); api.fx.burst(CX,f.y-cam+RM*K,'#ffb33d',40,420,.8,5); if(c>=3) api.toast('FIRE SMASH!'); return; }
   if(s===1&&ball.smash){ ball.smash=false; combo=0; pass(f,true); api.event('smash'); return; }
-  if(s===2){ if(eff.shield>0||grace>0){ ball.smash=false; api.fx.burst(CX,f.y-cam+RM*K,'#3dffd8',14,240,.4,3); bounce(f,'#3dffd8'); return; } return die(f); }
+  if(s===2){ if(bub>0&&!(eff.shield>0||grace>0)){ bub=0; bubN=0; grace=1; api.toast('BUBBLE POPPED — NEXT RED HURTS!'); }
+    if(eff.shield>0||grace>0){ ball.smash=false; api.fx.burst(CX,f.y-cam+RM*K,'#3dffd8',14,240,.4,3); bounce(f,'#3dffd8'); return; } return die(f); }
   ball.smash=false; bounce(f,pal[0]); }
 function bounce(f,col){ ball.vy=-BOUNCE; ball.sq=1; combo=0; api.sfx.bump(); f.splat.push({a:md(angAt(f)+R(-.08,.08)),r:R(9,14),c:col}); if(f.splat.length>6) f.splat.shift(); }
 function smash(){ if(done||lost||smashCD>0||ball.smash) return false; smashCD=1.1; ball.smash=true; ball.vy=Math.max(ball.vy,1500); api.sfx.shoot(); return true; }
 function die(f){ lost=true; api.toast('YOU HIT RED!'); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(CX,f.y-cam+RM*K-BR,'#ff2e4d',40,380,.8,4); api.fx.burst(CX,f.y-cam+RM*K-BR,api.cos('Ball').colors[0],20,250,.6,3); setTimeout(()=>api.loseLife(),900); }
 function win(){ if(done) return; done=true; api.toast(core?'THE JAW TOWER FALLS!':'BOTTOM REACHED!'); api.sfx.clear(); api.fx.flash('#fff',.3); api.fx.burst(CX,ball.y-cam+RM*K,'#ffd23f',70,480,1,5); setTimeout(()=>api.stageClear(),1000); }
 /* ---------- drawing ---------- */
-function mkStars(){ stars=[]; for(let i=0;i<70;i++) stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*2+0.6,p:Math.random()*0.5+0.1,tw:R(1,4),c:Math.random()<.3?'#ff4dd2':Math.random()<.5?'#3dd8ff':'#fff'}); }
+function mkStars(){ stars=[]; for(let i=0;i<130;i++) stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*2+0.6,p:Math.random()*0.5+0.1,tw:R(1,4),c:Math.random()<.3?'#ff4dd2':Math.random()<.5?'#3dd8ff':'#fff'}); }
 function pole(c,y0,y1){ const g=c.createLinearGradient(CX-PR,0,CX+PR,0); g.addColorStop(0,'#120a2a'); g.addColorStop(.35,pal[1]); g.addColorStop(.55,shade(pal[1],1.7)); g.addColorStop(.7,pal[1]); g.addColorStop(1,'#0a0618'); c.fillStyle=g; c.fillRect(CX-PR,y0,PR*2,y1-y0);
   c.strokeStyle='rgba(255,255,255,.18)'; c.lineWidth=2; for(let k=0;k<8;k++){ const a=md(k*Math.PI/4+rot); if(Math.sin(a)<=0) continue; const x=CX+PR*Math.cos(a); c.beginPath(); c.moveTo(x,y0); c.lineTo(x,y1); c.stroke(); } }
 function arc(c,yc,r,a0,a1,dy,rev){ const n=5; for(let i=0;i<=n;i++){ const a=rev?a1-(a1-a0)*i/n:a0+(a1-a0)*i/n; c.lineTo(CX+r*Math.cos(a),yc+r*K*Math.sin(a)+dy); } }
@@ -623,6 +638,29 @@ function drawFloor(c,f,yc,half,sc,al){ c.globalAlpha=al; const ro=RO*sc,ri=RI*sc
   if(f.mov&&!f.broken){ const a0=base+f.mov.a, a1=a0+SA*1.1, s=Math.sin(a0+SA*.55); if(!half||(half<0?s<0:s>=0)){ const pu=0.8+0.2*Math.sin(t*10); seg(c,yc-8,a0,a1,ro*.97,ri*1.1,shade('#ff2e4d',pu),'#7a0a1a','#ff5a1f'); } }
   f.splat.forEach(sp=>{ const a=base+sp.a; if(half&&(half<0?Math.sin(a)>=0:Math.sin(a)<0)) return; c.fillStyle=sp.c; c.globalAlpha=al*.7; c.beginPath(); c.ellipse(CX+RM*Math.cos(a),yc+RM*K*Math.sin(a),sp.r,sp.r*K*1.4,0,0,7); c.fill(); c.globalAlpha=al; });
   c.globalAlpha=1; }
+/* ---------- side panels (landscape) ---------- */
+function box(c,x,y,w,h,ti){ c.fillStyle='rgba(10,6,32,.72)'; c.strokeStyle=pal[0]+'88'; c.lineWidth=2; c.beginPath(); c.roundRect?c.roundRect(x,y,w,h,14):c.rect(x,y,w,h); c.fill(); c.stroke();
+  c.fillStyle=pal[0]; c.font='bold 20px sans-serif'; c.textAlign='center'; c.fillText(ti,x+w/2,y+30); }
+function typeAt(f,la){ if(f.goal) return 3; if(movCover(f,la)||jawCover(f,la)) return 2; return f.segs[Math.floor(md(la)/SA)%N]; }
+function ring(c,f,x,y,r1,r2){ const n=48, base=rot+f.off; for(let k=0;k<n;k++){ const la=(k+.5)*6.2832/n, v=typeAt(f,la); if(v===0) continue;
+    c.fillStyle=v===2?'#ff2e4d':v===3?'#ffd23f':pal[0]; const a0=base+k*6.2832/n, a1=a0+6.2832/n+.01; c.beginPath(); c.arc(x,y,r1,a0,a1); c.arc(x,y,r2,a1,a0,true); c.closePath(); c.fill(); }
+  c.fillStyle='#fff'; c.shadowColor='#fff'; c.shadowBlur=10; c.beginPath(); c.arc(x,y+(r1+r2)/2,7,0,7); c.fill(); c.shadowBlur=0; }
+function hintDir(f){ if(!f||f.goal) return 0; const a=angAt(f); for(let d=0;d<3.2;d+=0.05){ if(typeAt(f,a+d)===0) return 1; if(typeAt(f,a-d)===0) return -1; } return 0; }
+function panels(c){ if(!floors) return; c.save();
+  // LEFT: depth gauge, drop timer, combo (x110-390, clear of the ability column)
+  const Y=api.content===0?232:96, PH=api.content===0?380:430; box(c,110,Y,270,PH,'DEPTH'); const gx=150,gy=Y+44,gh=PH-70; c.fillStyle='rgba(255,255,255,.08)'; c.fillRect(gx,gy,26,gh);
+  const pr=Math.min(1,passed/Math.max(1,nF)); for(let i=0;i<nF;i++){ const fy=gy+gh*i/nF, fl=floors[i]; c.fillStyle=fl.passed?pal[1]:fl.segs.some(v=>v===2)||fl.mov||fl.jaw?'#ff2e4d':pal[0]; c.fillRect(gx+2,fy+2,22,Math.max(2,gh/nF-4)); }
+  c.fillStyle='#ffd23f'; c.fillRect(gx-4,gy+gh-6,34,8); c.fillStyle='#fff'; c.shadowColor='#fff'; c.shadowBlur=12; c.beginPath(); c.arc(gx+13,gy+gh*pr,9,0,7); c.fill(); c.shadowBlur=0;
+  c.textAlign='left'; c.fillStyle='#fff'; c.font='bold 46px sans-serif'; c.fillText(toGo(),200,Y+94); c.font='bold 16px sans-serif'; c.fillStyle='#bfb8ff'; c.fillText(core&&passed>=nF?'CORE HITS LEFT':'FLOORS TO GO',200,Y+118);
+  if(stall0<99){ const k=Math.max(0,stall/stall0), hot=stall<6; c.fillStyle='#bfb8ff'; c.fillText('DROP TIMER',200,Y+166); c.fillStyle='rgba(255,255,255,.12)'; c.fillRect(200,Y+176,160,18);
+    c.fillStyle=hot?(Math.sin(t*16)>0?'#ff2e4d':'#ffb33d'):'#3dffd8'; c.fillRect(200,Y+176,160*k,18); c.fillStyle='#fff'; c.fillText(Math.ceil(Math.max(0,stall))+'s',200,Y+216); }
+  if(easy){ c.fillStyle=bub?'#a0f0ff':'#888'; c.font='bold 16px sans-serif'; c.fillText(bub?'🫧 BUBBLE READY':'🫧 '+bubN+'/3 DROPS',200,Y+262); c.fillStyle='#bfb8ff'; c.font='14px sans-serif'; c.fillText('eats one red hit',200,Y+282); }
+  if(combo>=1){ c.fillStyle=combo>=3?'#ffb33d':'#fff'; c.font='bold 22px sans-serif'; c.fillText((combo>=3?'🔥 ':'')+'COMBO x'+combo,200,Y+PH-30); }
+  // RIGHT: next floor radar (x900-1260, y84-490 — above the action buttons)
+  const fi=nextF(), f=floors[fi], f2=floors[fi+1]; box(c,905,84,350,400,'NEXT FLOOR');
+  if(f){ ring(c,f,1080,250,118,52); if(api.diff===0&&!lost){ const d=hintDir(f); if(d&&typeAt(f,angAt(f))!==0){ c.fillStyle='#fff'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.fillText(d>0?'SPIN ▶':'◀ SPIN',1080,258); } } }
+  if(f2){ c.globalAlpha=.75; ring(c,f2,1080,430,44,20); c.globalAlpha=1; c.fillStyle='#bfb8ff'; c.font='14px sans-serif'; c.textAlign='left'; c.fillText('AFTER',935,420); c.fillText('THAT',935,438); }
+  c.restore(); }
 function shade(hex,k){ const n=parseInt(hex.slice(1),16); const r=Math.min(255,(n>>16)*k)|0,g=Math.min(255,((n>>8)&255)*k)|0,b=Math.min(255,(n&255)*k)|0; return `rgb(${r},${g},${b})`; }
 })();
 
