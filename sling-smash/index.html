@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SL-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-SL-1.1 · 2026-10-26">
 <title>Sling Smash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SL-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SL-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,18 +489,24 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* SLING SMASH — slingshot-physics remix. 100 stages. Fling angry fruit at robot gremlins hiding in wood, glass and stone towers. */
+/* SLING SMASH — slingshot-physics remix. 100 stages. Fling angry fruit at robot gremlins hiding in wood, glass and stone towers.
+   1.1 (26 Oct): LANDSCAPE 1280x720 (sling far left, towers x560-980, bottom-right kept clear for the button), RACE mode:
+   every stage layout comes from its OWN seeded RNG (stage number + difficulty), so both racers get identical towers.
+   Beginner: full aim guide always on (stages 1-10, shorter after), softer wood/stone, extra fruit. Shot clock: an idle
+   fruit rolls off the sling, so doing nothing costs fruit, then a life. */
 (function(){
-const W=600,H=900,GY=800,SX=112,SY=640,PULL=120,VMAX=1060,GP=900,GB=1500;
-let api,t,blocks,grem,proj,phase,phaseT,shots,shots0,done,lost,eff,drag,kAng,kPow,armed,splitUsed,trail,fruitN,stars,hills,king,popN,debris,kb;
+const W=1280,H=720,GY=640,SX=210,SY=470,PULL=140,VMAX=1120,GP=900,GB=1500;
+let api,rs=1,aimT=0,aim0=20,t,blocks,grem,proj,phase,phaseT,shots,shots0,done,lost,eff,drag,kAng,kPow,armed,splitUsed,trail,fruitN,stars,hills,king,popN,debris,kb;
 const MAT={w:{hp:2,c:'#c9853f',d:'#7a4a1c',e:'#ffb35c',m:1},g:{hp:1,c:'rgba(120,230,255,.35)',d:'#3dd8ff',e:'#bff4ff',m:.5},s:{hp:4,c:'#7d8496',d:'#454b5c',e:'#cfd6e6',m:2.2}};
 const FR=[['#ff4d4d','#3dff7a'],['#ff9f1c','#3dff7a'],['#b14bff','#7aff3d']];
-function R(a,b){ return a+Math.random()*(b-a); }
+function rnd(){ rs|=0; rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; } // level RNG (seeded per stage)
+function R(a,b){ return a+rnd()*(b-a); }
+function Rm(a,b){ return a+Math.random()*(b-a); }
 function cl(v,a,b){ return v<a?a:v>b?b:v; }
 const GAME=window.GAME={
   id:'sling-smash',title:'Sling Smash',titleHTML:'SLING<br>SMASH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-SL-1.0 · 2026-10-17',theme:{a:'#ff4d6d',b:'#ffd23f',bg:'#140a2a'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🍅',joystick:false,coinPts:60,
+  build:'BUILD-SL-1.1 · 2026-10-26',theme:{a:'#ff4d6d',b:'#ffd23f',bg:'#140a2a'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🍅',joystick:false,coinPts:60,
   abilities:[
     {id:'launch',icon:'🍅',name:'LAUNCH',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — drag back anywhere and let go to fling a fruit. While it flies, tap (or SPACE) to split it into 3! PC: arrows aim, SPACE fires.'},
     {id:'bomb',icon:'💣',name:'BOMB SHOT',cd:15,key:'Digit1',keyLabel:'1',desc:'Your next fruit explodes on impact, smashing everything nearby.'},
@@ -509,16 +515,17 @@ const GAME=window.GAME={
   shop:[{id:'sl_w',cat:'Sling',name:'Oak Sling',cost:0,colors:['#ff4dd2'],desc:'Classic pink bands.'},{id:'sl_n',cat:'Sling',name:'Neon Sling',cost:150,colors:['#3dffd8'],desc:'Glowing cyan bands.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff4d6d,#ffd23f)'}],
   story:`<h3>SLING SMASH</h3><p>The robot gremlins stole the orchard's golden seeds and hid in wobbly towers of wood, glass and stone. The fruit are FURIOUS. Load the sling.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag back</b> anywhere on the screen and <b>let go</b> to fling a fruit. Pull further for more power. The dotted line shows the start of the flight.</li><li>While a fruit is flying, <b>tap</b> to split it into 3 (PC: SPACE).</li><li>PC: ↑ ↓ aim, ← → power, SPACE fires.</li><li>Pop every robot gremlin to clear the stage. Knock towers down on them, or hit them directly!</li><li>Run out of fruit and you lose a life (you get a fresh bag of fruit).</li><li>Every 10th stage: the Gremlin King in his stone fortress. Hit him until his HP is gone.</li></ul>`,
-  tutorial:[{text:'Drag back from anywhere and let go to fling a fruit!',touch:'Drag your finger back and let go to fling a fruit!',ev:'launch'},{text:'Pop a robot gremlin!',ev:'pop'},{text:'Pop them all! Tap while flying to split your fruit.',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li>📱 <b>Hold your phone sideways.</b> Sling on the left, towers on the right.</li><li><b>Right thumb (or any finger): drag back</b> anywhere on the screen and <b>let go</b> to fling a fruit. Pull further for more power. The dotted line shows the start of the flight.</li><li>While a fruit is flying, <b>tap</b> (or the 🍅 button) to split it into 3.</li><li><b>Left thumb:</b> power-ups on the left edge (💣 bomb, 🪨 heavy, 🎯 aim guide).</li><li>PC: ↑ ↓ aim, ← → power, SPACE fires / splits, 1 2 3 power-ups.</li><li>Don't wait too long: a fruit left on the sling rolls off when its timer ring runs out.</li><li>Pop every robot gremlin to clear the stage. Knock towers down on them, or hit them directly!</li><li>Run out of fruit and you lose a life (you get a fresh bag of fruit).</li><li>Every 10th stage: the Gremlin King in his stone fortress. Hit him until his HP is gone.</li></ul>`,
+  tutorial:[{text:'Drag back with the mouse and let go to fling a fruit! (or ↑↓←→ + SPACE)',touch:'Hold your phone sideways. Drag your finger back and let go to fling!',ev:'launch'},{text:'Pop a robot gremlin!',ev:'pop'},{text:'Pop them all! Tap while flying to split your fruit.',time:5}],
   stageIntro:{1:'POP ALL THE GREMLINS'},bossName:'THE GREMLIN KING!',ending:{"0":["#JUICY","The orchard is free."],"1":["#SMASHER","No tower can stand."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='guide') return eff.guide>0?{left:eff.guide,total:25}:null; if(armed===id) return {left:1,total:1,label:'ON'}; return null; },
-  _dbg(){ return {get grem(){return grem;}, get blocks(){return blocks;}, get phase(){return phase;}, get shots(){return shots;}, get lost(){return lost;}, get done(){return done;}, get king(){return king;}, get proj(){return proj;},
-    fire:(vx,vy)=>fire(vx,vy), sling:{x:SX,y:SY}, VMAX, GP}; },
+  _dbg(){ return {setAim:(a,p)=>{ kAng=a; kPow=p; }, get aimT(){return aimT;}, get grem(){return grem;}, get blocks(){return blocks;}, get phase(){return phase;}, get shots(){return shots;}, get lost(){return lost;}, get done(){return done;}, get king(){return king;}, get proj(){return proj;},
+    fire:(vx,vy)=>fire(vx,vy), sling:{x:SX,y:SY}, VMAX, GP, GY}; },
   init(a){ api=a; mkBg(); },
   startStage(n,a){ api=a; t=0; done=false; lost=false; eff={guide:-9}; armed=null; drag=null; kAng=-0.62; kPow=0.78; trail=[]; debris=[]; fruitN=0; popN=0; kb={};
-    if(!stars) mkBg(); build(); shots=shots0; phase='aim'; phaseT=0; proj=[]; },
-  respawn(){ lost=false; shots=shots0; phase='aim'; phaseT=0; proj=[]; drag=null; api.toast('FRESH FRUIT! x'+shots); },
+    if(!stars) mkBg(); rs=(n*7919+api.diff*104729+api.content*613+(api.tutorial?55:0)+12345)|0; build(); shots=shots0; phase='aim'; phaseT=0; proj=[];
+    aim0=api.content===0?60:api.diff===0?26:api.diff===1?16:10; aimT=aim0; },
+  respawn(){ lost=false; shots=shots0; phase='aim'; phaseT=0; proj=[]; drag=null; aimT=aim0; api.toast('FRESH FRUIT! x'+shots); },
   stageBonus(){ return shots*400+popN*50; },
   useAbility(id){ if(done||lost) return false;
     if(id==='launch'){ if(phase==='aim'){ const v=VMAX*kPow; return fire(Math.cos(kAng)*v,Math.sin(kAng)*v); } return split(); }
@@ -531,13 +538,15 @@ const GAME=window.GAME={
   update(dt){ t+=dt; if(eff.guide>-2) eff.guide-=dt; if(done){ stepWorld(dt); return; }
     const K=api.input.keys;
     if(phase==='aim'&&!drag&&!lost){ if(K.ArrowUp||K.KeyW) kAng-=1.1*dt; if(K.ArrowDown||K.KeyS) kAng+=1.1*dt; if(K.ArrowRight||K.KeyD) kPow+=0.5*dt; if(K.ArrowLeft||K.KeyA) kPow-=0.5*dt; kAng=cl(kAng,-1.5,0.4); kPow=cl(kPow,0.2,1); }
+    if(phase==='aim'&&!drag&&!lost&&shots>0){ aimT-=dt; if(aimT<=0){ shots--; fruitN++; aimT=aim0; api.toast('TOO SLOW! THE FRUIT ROLLED AWAY'); api.sfx.bump(); api.fx.burst(SX,SY,FR[fruitN%3][0],12,160,.5,3);
+      if(shots<=0){ lost=true; api.sfx.hurt(); setTimeout(()=>api.loseLife(),900); } } }
     stepWorld(dt); phaseT+=dt;
     if(phase==='fly'&&!proj.some(p=>p.alive)){ phase='settle'; phaseT=0; }
     const alive=grem.filter(g=>!g.dead), left=king?Math.max(0,king.hp):alive.length;
     api.counter(king?'👑 KING HP':'🤖 GREMLINS',left); api.badge(0,shots);
     if(!done&&left<=0){ done=true; if(king) api.fx.burst(king.x,king.y,'#ffd23f',90,520,1.3,5); api.toast(king?'THE KING IS DOWN!':'ALL GREMLINS POPPED!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1300); return; }
     if(phase==='settle'&&!lost&&(phaseT>3.2||(phaseT>0.7&&calm()))){
-      if(shots>0){ phase='aim'; phaseT=0; } else { lost=true; api.toast('OUT OF FRUIT!'); api.sfx.hurt(); setTimeout(()=>api.loseLife(),900); } } },
+      if(shots>0){ phase='aim'; phaseT=0; aimT=aim0; } else { lost=true; api.toast('OUT OF FRUIT!'); api.sfx.hurt(); setTimeout(()=>api.loseLife(),900); } } },
   render(c){ const sc=api.cos('Sling').colors[0]; bg(c);
     // sling back post + band
     const fp=slingFruit();
@@ -549,43 +558,46 @@ const GAME=window.GAME={
     debris.forEach(d=>{ c.globalAlpha=Math.max(0,d.l); c.fillStyle=d.c; c.save(); c.translate(d.x,d.y); c.rotate(d.a); c.fillRect(-d.s/2,-d.s/4,d.s,d.s/2); c.restore(); }); c.globalAlpha=1;
     grem.forEach(g=>{ if(!g.dead) drawGrem(c,g); });
     // aim arc
-    if(phase==='aim'&&!lost&&!done){ const v=VMAX*kPow, vx=Math.cos(kAng)*v, vy=Math.sin(kAng)*v, T=eff.guide>0?2.6:0.42; c.fillStyle=drag?'#fff':'rgba(255,255,255,.55)';
-      for(let s=0.04;s<T;s+=0.04){ const x=SX+vx*s, y=SY+vy*s+GP*s*s/2; if(y>GY||x>W) break; c.globalAlpha=eff.guide>0?0.9:Math.max(0.15,1-s/T); c.beginPath(); c.arc(x,y,eff.guide>0?3:4,0,7); c.fill(); } c.globalAlpha=1;
-      c.fillStyle='rgba(255,255,255,.75)'; c.font='bold 14px sans-serif'; c.textAlign='left'; c.fillText(Math.round(kPow*100)+'%',SX-30,SY+110); }
+    if(phase==='aim'&&!lost&&!done){ const v=VMAX*kPow, vx=Math.cos(kAng)*v, vy=Math.sin(kAng)*v, G2=eff.guide>0||(api.diff===0&&api.level<=10), T=G2?2.6:api.diff===0?1.1:0.42; c.fillStyle=drag?'#fff':'rgba(255,255,255,.55)';
+      for(let s=0.04;s<T;s+=0.04){ const x=SX+vx*s, y=SY+vy*s+GP*s*s/2; if(y>GY||x>W) break; c.globalAlpha=G2?0.9:Math.max(0.15,1-s/T); c.beginPath(); c.arc(x,y,G2?3:4,0,7); c.fill(); } c.globalAlpha=1;
+      c.fillStyle='rgba(255,255,255,.75)'; c.font='bold 14px sans-serif'; c.textAlign='left'; c.fillText(Math.round(kPow*100)+'%',SX-30,SY+110);
+      if(!drag&&aimT<aim0-0.5){ const f=Math.max(0,aimT/aim0), hot=aimT<5; c.strokeStyle=hot?'#ff3b5c':'rgba(255,255,255,.6)'; c.lineWidth=4; c.beginPath(); c.arc(SX,SY,30,-Math.PI/2,-Math.PI/2+f*6.283); c.stroke();
+        if(hot){ c.fillStyle='#ff3b5c'; c.font='bold 16px sans-serif'; c.textAlign='center'; c.fillText(Math.ceil(aimT)+'s',SX,SY-40); } } }
     if(fp) drawFruit(c,fp.x,fp.y,17,fruitN,armed,0);
     proj.forEach(p=>{ if(p.alive) drawFruit(c,p.x,p.y,p.r,p.k,p.heavy?'heavy':p.bomb?'bomb':null,p.a); });
     // front post + band
     c.strokeStyle='#7a4220'; c.lineWidth=12; c.beginPath(); c.moveTo(SX,SY+60); c.lineTo(SX-18,SY-18); c.stroke();
     if(fp){ c.strokeStyle=sc; c.lineWidth=6; c.shadowColor=sc; c.shadowBlur=12; c.beginPath(); c.moveTo(SX-18,SY-16); c.lineTo(fp.x,fp.y); c.stroke(); c.shadowBlur=0; }
     // fruit queue
-    for(let i=0;i<Math.min(8,shots-(phase==='aim'?1:0));i++){ drawFruit(c,40+i*26-(i>3?104:0),GY+34+(i>3?32:0),11,fruitN+1+i,null,0); }
-    c.fillStyle='#fff'; c.font='bold 18px sans-serif'; c.textAlign='left'; c.shadowColor='#000'; c.shadowBlur=6; c.fillText('🍅 x'+shots,150,GY+56); c.shadowBlur=0;
-    if(king&&!king.dead){ const bw=220,x=W-bw-20,y=100; c.fillStyle='rgba(0,0,0,.5)'; c.fillRect(x,y,bw,14); c.fillStyle='#ff3b5c'; c.shadowColor='#ff3b5c'; c.shadowBlur=10; c.fillRect(x,y,bw*Math.max(0,king.hp)/king.max,14); c.shadowBlur=0; c.strokeStyle='#ffd23f'; c.strokeRect(x,y,bw,14); c.fillStyle='#ffd23f'; c.font='bold 13px sans-serif'; c.textAlign='right'; c.fillText('GREMLIN KING',x+bw,y+30); }
+    for(let i=0;i<Math.min(8,shots-(phase==='aim'?1:0));i++){ drawFruit(c,130+i*28,GY+42,11,fruitN+1+i,null,0); }
+    c.fillStyle='#fff'; c.font='bold 18px sans-serif'; c.textAlign='left'; c.shadowColor='#000'; c.shadowBlur=6; c.fillText('🍅 x'+shots,130+Math.min(8,Math.max(0,shots-1))*28+8,GY+48); c.shadowBlur=0;
+    if(king&&!king.dead){ const bw=240,x=W-bw-30,y=92; c.fillStyle='rgba(0,0,0,.5)'; c.fillRect(x,y,bw,14); c.fillStyle='#ff3b5c'; c.shadowColor='#ff3b5c'; c.shadowBlur=10; c.fillRect(x,y,bw*Math.max(0,king.hp)/king.max,14); c.shadowBlur=0; c.strokeStyle='#ffd23f'; c.strokeRect(x,y,bw,14); c.fillStyle='#ffd23f'; c.font='bold 13px sans-serif'; c.textAlign='right'; c.fillText('GREMLIN KING',x+bw,y+30); }
     if(lost){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ if(!stars) mkBg(); const sv=t; t=tt; bg(c); t=sv; const s=(tt%2.2)/2.2, x=SX+s*520, y=SY-560*s+520*s*s*1.6;
-    [[380,700],[380,610],[480,700]].forEach(([bx,by])=>drawBlock(c,{x:bx,y:by,w:90,h:90,m:'w',hp:2,max:2}));
-    drawGrem(c,{x:425,y:590,r:22,t:0}); drawFruit(c,x,y,17,Math.floor(tt/2.2),null,tt*6); }
+  attract(c,tt){ if(!stars) mkBg(); const sv=t; t=tt; bg(c); t=sv; const s=(tt%2.2)/2.2, x=SX+s*560, y=SY-560*s+520*s*s*1.6;
+    [[720,550],[720,460],[810,550]].forEach(([bx,by])=>drawBlock(c,{x:bx,y:by,w:90,h:90,m:'w',hp:2,max:2}));
+    drawGrem(c,{x:765,y:438,r:22,t:0}); drawFruit(c,x,y,17,Math.floor(tt/2.2),null,tt*6); }
 };
 /* ---------- level ---------- */
-function blk(x,y,w,h,m){ const b={x,y,w,h,m,hp:MAT[m].hp,max:MAT[m].hp,vx:0,vy:0,awake:false,still:0,tip:null,dead:false}; blocks.push(b); return b; }
+function mhp(m){ const h=MAT[m].hp; return api.diff===0&&api.level<=20&&m!=='g'?Math.max(1,h-(api.level<=10?2:1)):h; }
+function blk(x,y,w,h,m){ const hp=mhp(m), b={x,y,w,h,m,hp,max:hp,vx:0,vy:0,awake:false,still:0,tip:null,dead:false}; blocks.push(b); return b; }
 function gre(x,yb,r){ const g={x,y:yb-(r||21),r:r||21,vy:0,dead:false,t:Math.random()*6,hurt:0}; grem.push(g); return g; }
-function pickM(){ const L=api.level,ps=api.dv([0.04,0.35,0.6],0.7,0.88),pg=api.content===2?0.3:0.22,r=Math.random(); return r<ps?'s':r<ps+pg?'g':'w'; }
+function pickM(){ const L=api.level,ps=api.dv([0.04,0.35,0.6],0.7,0.88),pg=api.content===2?0.3:0.22,r=rnd(); return r<ps?'s':r<ps+pg?'g':'w'; }
 function tower(cx,w,n,inside){ let y=GY; const top=[]; for(let i=0;i<n;i++){ const m=pickM(), ch=i===0&&w>110?96:86; blk(cx-w/2,y-ch,18,ch,m); blk(cx+w/2-18,y-ch,18,ch,m);
-    if(inside&&Math.random()<inside&&w>=90) gre(cx,y,18); y-=ch; blk(cx-w/2-6,y-18,w+12,18,pickM()); y-=18; top.push(y); }
+    if(inside&&rnd()<inside&&w>=90) gre(cx,y,18); y-=ch; blk(cx-w/2-6,y-18,w+12,18,pickM()); y-=18; top.push(y); }
   return y; }
 function build(){ blocks=[]; grem=[]; king=null; const L=api.level,ct=api.content;
-  if(ct===0){ tower(360,110,1,0); gre(360,GY-104); tower(500,100,1,0); gre(500,GY-104); gre(430,GY); shots0=6; return; }
+  if(ct===0){ tower(640,110,1,0); gre(640,GY-104); tower(820,100,1,0); gre(820,GY-104); gre(730,GY); shots0=6; return; }
   if(ct===3){ // the king's fortress
-    const hp=Math.round(api.dv([5,8,12],16,24)); king=gre(440,GY,44); king.king=true; king.hp=hp; king.max=hp; king.sh=0;
-    blk(358,GY-130,22,130,'s'); blk(500,GY-130,22,130,'s'); blk(346,GY-152,188,22,'s'); blk(378,GY-232,18,80,'w'); blk(484,GY-232,18,80,'w'); blk(368,GY-252,144,20,pickM()); gre(440,GY-252,18);
-    const ft=api.level>=40?2:1; const ty=tower(295,80,1+ft,0); gre(295,ty); if(api.level>=25){ const ty2=tower(565,60,ft,0); gre(565,ty2,17); }
-    shots0=Math.ceil(hp*0.8)+5+(api.diff===2?0:2); return; }
-  const nT=L<4?2:Math.random()<api.dv([0.25,0.6,0.85])?3:2, x0=272,x1=592,slot=(x1-x0)/nT, w=Math.min(128,slot-38);
-  const maxS=Math.max(1,Math.min(6,Math.round(api.dv([1.6,3.6,5],5.4,6))));
+    const hp=Math.round(api.dv([5,8,12],16,24)); const K=790; king=gre(K,GY,44); king.king=true; king.hp=hp; king.max=hp; king.sh=0;
+    blk(K-82,GY-130,22,130,'s'); blk(K+60,GY-130,22,130,'s'); blk(K-94,GY-152,188,22,'s'); blk(K-62,GY-232,18,80,'w'); blk(K+44,GY-232,18,80,'w'); blk(K-72,GY-252,144,20,pickM()); gre(K,GY-252,18);
+    const ft=api.level>=40?2:1; const ty=tower(620,80,1+ft,0); gre(620,ty); if(api.level>=25){ const ty2=tower(945,60,ft,0); gre(945,ty2,17); }
+    shots0=Math.ceil(hp*0.8)+5+(api.diff===2?0:api.diff===0?4:2); return; }
+  const nT=L<4?2:rnd()<api.dv([0.25,0.6,0.85])?3:2, x0=560,x1=980,slot=(x1-x0)/nT, w=Math.min(128,slot-38);
+  const maxS=Math.max(1,Math.min(5,Math.round(api.dv([1.6,3.6,5],4.6,5))));
   for(let i=0;i<nT;i++){ const cx=x0+slot*(i+.5), n=Math.max(1,Math.min(maxS,Math.round(maxS*R(0.55,1.05)))); const ty=tower(cx,w,n,api.dv([0.2,0.55,0.8],0.85));
-    if(ct===2&&Math.random()<0.6){ blk(cx-38,ty-36,36,36,pickM()); gre(cx+24,ty,19); } else gre(cx,ty);
-    if(i<nT-1&&Math.random()<api.dv([0.4,0.6,0.8])) gre(cx+slot/2,GY,16); }
-  shots0=Math.ceil(grem.length*1.25)+(L<30?3:2)+(api.diff===2?0:1); }
+    if(ct===2&&rnd()<0.6){ blk(cx-38,ty-36,36,36,pickM()); gre(cx+24,ty,19); } else gre(cx,ty);
+    if(i<nT-1&&rnd()<api.dv([0.4,0.6,0.8])) gre(cx+slot/2,GY,16); }
+  shots0=Math.ceil(grem.length*1.25)+(L<30?3:2)+(api.diff===2?0:api.diff===0?3:1); }
 /* ---------- physics ---------- */
 function solid(o){ return !o.dead&&!o.tip; }
 function support(b){ if(b.y+b.h>=GY-0.5) return 1; let lo=1e9,hi=-1e9; for(const o of blocks){ if(o===b||!solid(o)) continue; if(Math.abs(b.y+b.h-o.y)<=2.5){ const l=Math.max(b.x,o.x),r=Math.min(b.x+b.w,o.x+o.w); if(r-l>1){ lo=Math.min(lo,l); hi=Math.max(hi,r); } } }
@@ -596,7 +608,7 @@ function push(o,vx){ if(o.dead||o.tip) return; if(isCol(o)&&Math.abs(vx)>110&&su
 function tipStart(b,dir){ b.tip={dir,a:0,av:1.2,px:dir>0?b.x+b.w:b.x,py:b.y+b.h,H:b.h,W:b.w}; b.awake=false; }
 function hurt(b,n){ if(b.dead||n<=0) return; b.hp-=n; if(b.hp<=0) breakB(b); else api.sfx.bump(); }
 function breakB(b){ b.dead=true; const M=MAT[b.m], cx=b.tip?b.tip.px:b.x+b.w/2, cy=b.tip?b.tip.py-b.tip.H/2:b.y+b.h/2;
-  for(let i=0;i<8;i++) debris.push({x:cx+R(-b.w/2,b.w/2),y:cy+R(-b.h/2,b.h/2),vx:R(-160,160),vy:R(-300,-40),a:R(0,6),va:R(-9,9),s:R(8,16),l:1.2,c:b.m==='g'?'#bff4ff':M.c});
+  for(let i=0;i<8;i++) debris.push({x:cx+Rm(-b.w/2,b.w/2),y:cy+Rm(-b.h/2,b.h/2),vx:Rm(-160,160),vy:Rm(-300,-40),a:Rm(0,6),va:Rm(-9,9),s:Rm(8,16),l:1.2,c:b.m==='g'?'#bff4ff':M.c});
   api.fx.burst(cx,cy,M.e,10,220,.5,3); api.addScore(b.m==='s'?80:40,cx,cy,true); b.m==='g'?api.sfx.blip():api.sfx.small(); }
 function pop(g,src){ if(g.dead) return; if(g.king){ if(g.sh>0||g.hurt>0) return; g.hp-=src||1; g.hurt=0.4; api.fx.text(g.x,g.y-70,'-'+(src||1),'#ff3b5c',22); api.fx.shake(6); api.sfx.boom(); if(g.hp<=0){ g.dead=true; api.addScore(3000,g.x,g.y); api.addCoins(8); } return; }
   g.dead=true; popN++; api.addScore(500,g.x,g.y-20); api.fx.burst(g.x,g.y,'#7aff3d',26,300,.7,4); api.fx.burst(g.x,g.y,'#ff3b5c',8,200,.5,3); api.sfx.pickup(); api.event('pop'); }
@@ -653,10 +665,10 @@ function split(){ const p=proj.find(q=>q.alive&&q.main); if(phase!=='fly'||split
   [-0.2,0.2].forEach(da=>{ const c=Math.cos(da),s=Math.sin(da); proj.push({x:p.x,y:p.y,vx:p.vx*c-p.vy*s,vy:p.vx*s+p.vy*c,r:13,k:p.k+1,heavy:p.heavy,bomb:p.bomb,alive:true,t:p.t,rest:0,a:0}); }); p.r=14;
   api.fx.burst(p.x,p.y,'#fff',16,240,.4,3); api.sfx.blip(); api.event('split'); return true; }
 /* ---------- drawing ---------- */
-function mkBg(){ stars=[]; for(let i=0;i<70;i++) stars.push({x:Math.random()*W,y:Math.random()*560,s:Math.random()*2+0.5,tw:Math.random()*3+1}); hills=[]; for(let i=0;i<3;i++) hills.push({a:R(20,50),f:R(0.008,0.02),p:R(0,6),y:[690,730,770][i]}); }
+function mkBg(){ stars=[]; for(let i=0;i<120;i++) stars.push({x:Math.random()*W,y:Math.random()*430,s:Math.random()*2+0.5,tw:Math.random()*3+1}); hills=[]; for(let i=0;i<3;i++) hills.push({a:Rm(20,50),f:Rm(0.006,0.015),p:Rm(0,6),y:[530,570,610][i]}); }
 function bg(c){ const g=c.createLinearGradient(0,0,0,GY); g.addColorStop(0,'#120a2e'); g.addColorStop(.55,'#3a1660'); g.addColorStop(1,'#ff6a5a'); c.fillStyle=g; c.fillRect(0,0,W,H);
   stars.forEach(s=>{ c.globalAlpha=.3+.6*Math.abs(Math.sin(t*s.tw+s.x)); c.fillStyle='#fff'; c.fillRect(s.x,s.y,s.s,s.s); }); c.globalAlpha=1;
-  c.fillStyle='#ffd27a'; c.shadowColor='#ffb35c'; c.shadowBlur=60; c.beginPath(); c.arc(420,560,70,0,7); c.fill(); c.shadowBlur=0;
+  c.fillStyle='#ffd27a'; c.shadowColor='#ffb35c'; c.shadowBlur=60; c.beginPath(); c.arc(1010,400,80,0,7); c.fill(); c.shadowBlur=0;
   ['#2a1248','#1d0d38','#140a2a'].forEach((col,i)=>{ const hl=hills[i]; c.fillStyle=col; c.beginPath(); c.moveTo(0,GY); for(let x=0;x<=W;x+=20) c.lineTo(x,hl.y-hl.a*(1+Math.sin(x*hl.f+hl.p))); c.lineTo(W,GY); c.fill(); });
   c.fillStyle='#14321c'; c.fillRect(0,GY,W,H-GY); c.fillStyle='#1d4a26'; for(let x=0;x<W;x+=30) c.fillRect(x+((x/30)%2)*8,GY+14,14,4);
   c.fillStyle='#3dff7a'; c.shadowColor='#3dff7a'; c.shadowBlur=14; c.fillRect(0,GY,W,4); c.shadowBlur=0; }
