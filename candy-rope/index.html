@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-CY-1.1 · 2026-10-18">
+<meta name="build" content="BUILD-CY-1.2 · 2026-10-26">
 <title>Candy Rope</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-CY-1.1 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-CY-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,22 +489,33 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* CANDY ROPE — rope-cutting physics remix. 100 stages. Swipe the ropes, swing the candy, feed Nibbs the hungry neon monster. */
+/* CANDY ROPE — rope-cutting physics remix. 100 stages. Swipe the ropes, swing the candy, feed Nibbs the hungry neon monster.
+   LANDSCAPE (SHELL-LANDSCAPE-1, 1280x720) + RACE: every stage is built from a seeded rng (stage/diff/level), so racers get the
+   same room, and every generated room is checked by the built-in solver (a robust cut plan exists) before it is used.
+   Keep-clear: top HUD strip + race bars (rope pins y>=125), ability column (x<120), action button zone bottom-right (x>960,y>500).
+   No hands = no win: the candy never moves to the mouth by itself and Nibbs's HUNGER CLOCK costs a life when it runs out. */
 (function(){
-const W=600,H=900,G=820,DT=1/60,CR=18,MR=54,TMAX=8;
-let api,t,LV,S,queue,feeds,done,lost,eff,armed,chains,bits,swipe,starsP,got,acc,chomp,eatT,pFx,bgStars,lastPt,keyCut;
+const W=1280,H=720,G=820,DT=1/60,CR=18,MR=54,TMAX=8;
+let api,t,LV,S,queue,feeds,done,lost,eff,armed,chains,bits,swipe,starsP,got,acc,chomp,eatT,pFx,bgStars,lastPt,keyCut,hunger=0,hungerMax=0;
+const inBR=(x,y,m)=>x>960-(m||0)&&y>500-(m||0);   // bottom-right action-button zone
+/* RACE: only exact IEEE maths (+ - * / sqrt) in physics + generator, so every browser builds the SAME rooms from a seed
+   (Math.hypot / Math.sin / Math.cos differ in the last bits between engines, and the solver is chaotic). */
+const TAU=2*Math.PI; function hyp(a,b){ return Math.sqrt(a*a+b*b); }
+function SIN(x){ x-=Math.round(x/TAU)*TAU; if(x>Math.PI/2) x=Math.PI-x; else if(x<-Math.PI/2) x=-Math.PI-x; const x2=x*x;
+  return x*(1+x2*(-1/6+x2*(1/120+x2*(-1/5040+x2*(1/362880+x2*(-1/39916800+x2/6227020800)))))); }
+function COS(x){ return SIN(x+Math.PI/2); }
 function rng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let q=Math.imul(s^s>>>15,1|s); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }; }
-function dist(a,b,c,d){ return Math.hypot(a-c,b-d); }
-function segD(px,py,x1,y1,x2,y2){ const dx=x2-x1,dy=y2-y1,l=dx*dx+dy*dy||1; let u=((px-x1)*dx+(py-y1)*dy)/l; u=u<0?0:u>1?1:u; return Math.hypot(px-x1-u*dx,py-y1-u*dy); }
+function dist(a,b,c,d){ return hyp(a-c,b-d); }
+function segD(px,py,x1,y1,x2,y2){ const dx=x2-x1,dy=y2-y1,l=dx*dx+dy*dy||1; let u=((px-x1)*dx+(py-y1)*dy)/l; u=u<0?0:u>1?1:u; return hyp(px-x1-u*dx,py-y1-u*dy); }
 function segX(a,b,c,d,e,f,g,h){ const s1x=c-a,s1y=d-b,s2x=g-e,s2y=h-f,den=-s2x*s1y+s1x*s2y; if(!den) return false; const s=(-s1y*(a-e)+s1x*(b-f))/den, u=(s2x*(b-f)-s2y*(a-e))/den; return s>=0&&s<=1&&u>=0&&u<=1; }
-function anc(r,tt){ const m=r.mv; if(!m) return r.a; const k=0.5-0.5*Math.cos(m.ph+tt*m.sp); return [m.x0+(m.x1-m.x0)*k,m.y0+(m.y1-m.y0)*k]; }
-function sawP(s,tt){ return [s.cx+Math.cos(s.ph+tt*s.sp)*s.R, s.cy+Math.sin(s.ph+tt*s.sp)*s.R]; }
+function anc(r,tt){ const m=r.mv; if(!m) return r.a; const k=0.5-0.5*COS(m.ph+tt*m.sp); return [m.x0+(m.x1-m.x0)*k,m.y0+(m.y1-m.y0)*k]; }
+function sawP(s,tt){ return [s.cx+COS(s.ph+tt*s.sp)*s.R, s.cy+SIN(s.ph+tt*s.sp)*s.R]; }
 /* ---------- pure physics (shared by the game and the solver bot) ---------- */
 function newS(L){ return {t:0,x:L.c[0],y:L.c[1],px:L.c[0],py:L.c[1],ropes:L.ropes.map((r,i)=>({id:i,src:r,L:r.L,on:true})),hk:L.hooks.map(()=>false),bb:L.bubbles.map(()=>true),bub:false,dead:null,won:false}; }
 function step(S,L,dt){
-  const gb=S.bub, g=gb?-G*0.32:G, dm=gb?0.97:0.9996; let vx=(S.x-S.px)*dm, vy=(S.y-S.py)*dm; const vm=1100*dt, v=Math.hypot(vx,vy); if(v>vm){ vx*=vm/v; vy*=vm/v; }
+  const gb=S.bub, g=gb?-G*0.32:G, dm=gb?0.97:0.9996; let vx=(S.x-S.px)*dm, vy=(S.y-S.py)*dm; const vm=1100*dt, v=hyp(vx,vy); if(v>vm){ vx*=vm/v; vy*=vm/v; }
   S.px=S.x; S.py=S.y; S.x+=vx; S.y+=vy+g*dt*dt; S.t+=dt;
-  for(let it=0;it<3;it++) for(const r of S.ropes){ if(!r.on) continue; const A=r.src.h?r.src.a:anc(r.src,S.t), dx=S.x-A[0], dy=S.y-A[1], d=Math.hypot(dx,dy); if(d>r.L){ S.x=A[0]+dx/d*r.L; S.y=A[1]+dy/d*r.L; } }
+  for(let it=0;it<3;it++) for(const r of S.ropes){ if(!r.on) continue; const A=r.src.h?r.src.a:anc(r.src,S.t), dx=S.x-A[0], dy=S.y-A[1], d=hyp(dx,dy); if(d>r.L){ S.x=A[0]+dx/d*r.L; S.y=A[1]+dy/d*r.L; } }
   L.hooks.forEach((h,i)=>{ if(!S.hk[i]&&dist(S.x,S.y,h.x,h.y)<h.r){ S.hk[i]=true; S.ropes.push({id:L.ropes.length+i,src:{a:[h.x,h.y],h:1},L:h.r,on:true,nw:1}); } });
   if(!S.bub) L.bubbles.forEach((b,i)=>{ if(S.bb[i]&&dist(S.x,S.y,b.x,b.y)<CR+30){ S.bb[i]=false; S.bub=true; S.nb=1; S.px=S.x-(S.x-S.px)*0.25; S.py=S.y-(S.y-S.py)*0.25; } });
   for(const s of L.spikes) if(segD(S.x,S.y,s[0],s[1],s[2],s[3])<CR+7){ S.dead='SPIKES!'; return; }
@@ -515,10 +526,11 @@ function act(S,L,a){
   if(a.a==='cut'){ const r=S.ropes.find(r=>r.id===a.id&&r.on); if(r){ r.on=false; return r; } return null; }
   if(a.a==='pop'){ if(S.bub){ S.bub=false; return true; } return null; }
   if(a.a==='puff'){ let any=false; L.blowers.forEach(b=>{ any=puff(S,b)||any; }); return any; } }
-function puff(S,b){ const dx=S.x-b.x, dy=S.y-b.y, d=Math.hypot(dx,dy); if(d>330) return false; const ca=Math.cos(b.a), sa=Math.sin(b.a); if((dx*ca+dy*sa)/(d||1)<0.75) return false;
+function puff(S,b){ const dx=S.x-b.x, dy=S.y-b.y, d=hyp(dx,dy); if(d>330) return false; const ca=COS(b.a), sa=SIN(b.a); if((dx*ca+dy*sa)/(d||1)<0.75) return false;
   const imp=(S.bub?520:700)*(1-d/420)*DT; S.px-=ca*imp; S.py-=sa*imp; return true; }
 function run(L,plan,path){ const S=newS(L); let k=0; while(S.t<TMAX){ while(k<plan.length&&plan[k].t<=S.t) act(S,L,plan[k++]); step(S,L,DT); if(path&&((S.t*60|0)%3===0)) path.push([S.x,S.y]); if(S.dead) return false; if(S.won) return true; } return false; }
-function mkPlan(L,r){ const nR=L.ropes.length, P=[]; let tt=0.3+r()*2; const ids=[...Array(nR).keys()].sort(()=>r()-.5);
+function idleBad(L){ const S=newS(L); while(S.t<TMAX){ step(S,L,DT); if(S.won) return true; if(S.dead) return S.t<3; } return false; }
+function mkPlan(L,r){ const nR=L.ropes.length, P=[]; let tt=0.3+r()*2; const ids=[...Array(nR).keys()]; for(let i=nR-1;i>0;i--){ const j=r()*(i+1)|0; [ids[i],ids[j]]=[ids[j],ids[i]]; }   // engine-independent shuffle (race: same room on every phone)
   ids.forEach((id,i)=>{ if(i===0||r()<0.85){ P.push({t:tt,a:'cut',id}); if(r()<0.6) tt+=r()*1.5; } });
   L.hooks.forEach((h,i)=>{ if(r()<0.65) P.push({t:0.5+r()*6,a:'cut',id:nR+i}); });
   if(L.bubbles.length&&r()<0.75) P.push({t:0.6+r()*6,a:'pop'});
@@ -530,55 +542,58 @@ function shift(P,tol,s){ let g=0,lt=-1; return P.map(p=>{ if(p.t!==lt){ g++; lt=
 function solve(L,seed,n,tol){ const r=rng(seed); let ok=0,best=null; for(let i=0;i<n;i++){ if(i>=60&&!ok) break; const P=mkPlan(L,r); if(!run(L,P)) continue; ok++;
     if(!best&&robust(L,P,tol)){ const path=[]; run(L,P,path); best={plan:P,path}; } if(best&&i>=40&&ok>3) { n=i+1; break; } }
   return best?{rate:ok/n,plan:best.plan,path:best.path}:null; }
-function placeStars(L,path){ const m=L.mouth, c=L.c; const pts=path.filter(p=>dist(p[0],p[1],m[0],m[1])>70&&dist(p[0],p[1],c[0],c[1])>55&&p[1]>100); L.stars=[];
+function placeStars(L,path){ const m=L.mouth, c=L.c; const pts=path.filter(p=>dist(p[0],p[1],m[0],m[1])>70&&dist(p[0],p[1],c[0],c[1])>55&&p[1]>110&&p[0]>130&&p[0]<1170&&p[1]<690&&!inBR(p[0],p[1],20)); L.stars=[];
   if(pts.length<3){ L.stars=[[c[0]-60,c[1]+60],[c[0]+60,c[1]+60],[c[0],c[1]-70]]; L.starsOnPath=false; return; }
   [0.12,0.5,0.88].forEach(f=>L.stars.push(pts[Math.min(pts.length-1,Math.floor(f*pts.length))].slice())); L.starsOnPath=true; }
 function mkL(o){ const L={ropes:[],hooks:[],bubbles:[],blowers:[],spikes:[],saws:[],...o}; L.ropes=L.ropes.map(r=>r.a?r:{a:[r[0],r[1]],L:r[2]||dist(r[0],r[1],L.c[0],L.c[1])*(r[3]||1),mv:r[4]}); L.hooks=L.hooks.map(h=>({x:h[0],y:h[1],r:h[2]})); L.bubbles=L.bubbles.map(b=>({x:b[0],y:b[1]})); L.blowers=L.blowers.map(b=>({x:b[0],y:b[1],a:b[2]})); return L; }
 function mv(x0,y0,x1,y1,sp,ph){ return {x0,y0,x1,y1,sp,ph:ph||0}; }
 /* ---------- hand-made stages (geometry; stars are placed on a verified solution path) ---------- */
 const HAND=[
-  {c:[300,300],ropes:[[300,140]],mouth:[300,700]},
-  {c:[300,320],ropes:[[160,150],[440,150]],mouth:[330,730]},
-  {c:[130,300],ropes:[[300,140]],mouth:[470,620]},
-  {c:[120,260],ropes:[[300,130]],hooks:[[440,430,130]],mouth:[320,770]},
-  {c:[300,560],ropes:[[300,420]],bubbles:[[300,680]],mouth:[310,240]},
-  {c:[150,300],ropes:[[150,140]],blowers:[[40,560,0]],mouth:[330,760]},
-  {c:[300,300],ropes:[[150,150],[450,150]],spikes:[[200,560,400,560]],mouth:[500,630]},
-  {c:[150,330],ropes:[[150,150,0,1,mv(110,150,490,150,1.3)]],mouth:[350,680]},
-  {c:[110,250],ropes:[[260,130]],hooks:[[300,420,120],[480,560,110]],spikes:[[60,700,330,760]],mouth:[440,800]},
+  {c:[640,260],ropes:[[640,125]],mouth:[640,540]},
+  {c:[640,280],ropes:[[480,125],[800,125]],mouth:[680,550]},
+  {c:[380,260],ropes:[[600,125]],mouth:[820,520]},
+  {c:[300,230],ropes:[[520,125]],hooks:[[760,380,140]],mouth:[700,560]},
+  {c:[640,470],ropes:[[640,340]],bubbles:[[640,600]],mouth:[660,180]},
+  {c:[380,250],ropes:[[380,125]],blowers:[[180,470,-0.2]],mouth:[540,580]},
+  {c:[640,260],ropes:[[480,125],[800,125]],spikes:[[560,460,720,460]],mouth:[860,520]},
+  {c:[420,300],ropes:[[420,125,0,1,mv(380,125,820,125,1.3)]],mouth:[640,580]},
+  {c:[260,220],ropes:[[400,125]],hooks:[[520,330,130]],spikes:[[200,660,420,680]],mouth:[760,570]},
   null,
-  {c:[150,560],ropes:[[150,430]],bubbles:[[150,680]],blowers:[[40,300,-0.15]],mouth:[330,240]},
-  {c:[300,280],ropes:[[180,140],[420,140],[300,100]],spikes:[[200,540,400,540]],mouth:[100,640]},
-  {c:[300,300],ropes:[[300,140,0,1,mv(130,140,470,140,1.6)]],hooks:[[440,520,120]],spikes:[[60,820,360,820]],mouth:[520,800]},
-  {c:[450,560],ropes:[[450,420]],bubbles:[[450,690]],blowers:[[560,330,Math.PI]],spikes:[[330,150,580,150]],mouth:[250,290]},
-  {c:[130,240],ropes:[[300,120],[60,120]],hooks:[[330,450,120]],blowers:[[560,640,Math.PI]],spikes:[[380,780,580,780]],mouth:[180,790]}];
-const TUT=[{c:[300,480],ropes:[[300,380]],mouth:[300,770]},{c:[300,490],ropes:[[190,390],[410,390]],mouth:[300,780]},{c:[200,480],ropes:[[300,380]],mouth:[380,770]}];
+  {c:[380,470],ropes:[[380,350]],bubbles:[[380,600]],blowers:[[240,320,-0.15]],mouth:[560,200]},
+  {c:[640,250],ropes:[[520,125],[760,125],[640,125]],spikes:[[540,440,740,440]],mouth:[360,540]},
+  {c:[500,260],ropes:[[500,125,0,1,mv(300,125,800,125,1.6)]],hooks:[[760,380,120]],spikes:[[300,660,640,660]],mouth:[900,540]},
+  {c:[800,470],ropes:[[800,340]],bubbles:[[800,600]],blowers:[[980,330,Math.PI]],spikes:[[650,140,950,140]],mouth:[640,210]},
+  {c:[300,220],ropes:[[480,125],[180,125]],hooks:[[560,370,120]],blowers:[[1100,440,Math.PI]],spikes:[[700,600,940,600]],mouth:[380,560]}];
+const TUT=[{c:[820,400],ropes:[[820,290]],mouth:[820,590]},{c:[820,410],ropes:[[710,300],[930,300]],mouth:[820,590]},{c:[720,380],ropes:[[820,280]],mouth:[900,580]}];
 function prep(L,seed,tol){ for(let k=0;k<10;k++){ const s=solve(L,seed+k*977,200,tol); if(s){ placeStars(L,s.path); L.sol=s.plan; L.rate=s.rate; return L; } } L.sol=null; if(!L.stars) L.stars=[[L.c[0]-60,L.c[1]+80],[L.c[0]+60,L.c[1]+80],[L.c[0],L.c[1]+160]]; return L; }
 /* ---------- procedural stages from tested blocks ---------- */
-function gen(lv,seed,boss){ const D=Math.min(1,(lv-1)/130), tol=0.07-D*0.03, hi=Math.max(0.1,0.6-D*0.5);
-  for(let tr=0;tr<40;tr++){ const r=rng(seed+tr*7777), RR=(a,b)=>a+r()*(b-a); const up=!boss&&lv>6&&r()<0.22;
-    const o={c:[RR(140,460),up?RR(540,640):RR(200,290)],ropes:[],hooks:[],bubbles:[],blowers:[],spikes:[],saws:[]}; const c=o.c;
-    const nr=boss?3:1+(r()<0.3+D*0.4?1:0)+(r()<D*0.5?1:0);
-    for(let i=0;i<nr;i++){ const a=-Math.PI/2+RR(-1.2,1.2), l=RR(100,230); const ax=Math.max(30,Math.min(570,c[0]+Math.cos(a)*l)), ay=Math.max(105,c[1]+Math.sin(a)*l); o.ropes.push([ax,ay,0,RR(1,1.12)]); }
-    if(lv>=15&&r()<0.15+D*0.4){ const R0=o.ropes[0], w=RR(80,170); R0[4]=mv(Math.max(30,R0[0]-w),R0[1],Math.min(570,R0[0]+w),R0[1],RR(0.8,1.7),r()*6); }
-    o.mouth=up?[RR(90,510),RR(170,300)]:[RR(80,520),RR(boss?720:600,800)];
-    if(dist(c[0],c[1],o.mouth[0],o.mouth[1])<220) continue;
-    if(up) o.bubbles.push([c[0]+RR(-20,20),c[1]+RR(100,150)]); else if(lv>8&&r()<0.1+D*0.2) o.bubbles.push([RR(120,480),RR(380,560)]);
-    const nh=boss?2+(r()<D?1:0):(lv>3&&r()<0.25+D*0.45?1+(r()<D*0.5?1:0):0);
-    for(let i=0;i<nh;i++){ const f=RR(0.25,0.75); o.hooks.push([Math.max(80,Math.min(520,c[0]+(o.mouth[0]-c[0])*f+RR(-160,160))),c[1]+(o.mouth[1]-c[1])*f+RR(-60,60),RR(90,135)]); }
-    if((up&&r()<0.5)||(lv>5&&r()<0.12+D*0.3)){ const L=r()<0.5; o.blowers.push([L?40:560,RR(280,760),(L?0:Math.PI)+RR(-0.3,0.3)]); }
-    const ns=lv<6?0:Math.floor(RR(0,1+D*3.5)); for(let i=0;i<ns;i++){ const x=RR(60,540),y=up?RR(110,420):RR(360,830),l=RR(80,190),a=RR(-0.5,0.5); const s=[x-Math.cos(a)*l/2,y-Math.sin(a)*l/2,x+Math.cos(a)*l/2,y+Math.sin(a)*l/2];
+function gen(lv,seed,boss,ez){ const D=Math.min(1,(lv-1)/130), tol=ez?0.1:0.07-D*0.03, hi=ez&&lv<=25?1:Math.max(0.1,0.6-D*0.5), cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+  for(let tr=0;tr<50;tr++){ const r=rng(seed+tr*7777), RR=(a,b)=>a+r()*(b-a); const up=!boss&&lv>6&&r()<0.22;
+    const o={c:[up?RR(200,880):RR(180,1100),up?RR(470,540):RR(190,270)],ropes:[],hooks:[],bubbles:[],blowers:[],spikes:[],saws:[]}; const c=o.c;
+    const nr=boss?(ez&&lv<=30?2:3):1+(r()<0.3+D*0.4?1:0)+(r()<D*0.5?1:0);
+    for(let i=0;i<nr;i++){ const a=-Math.PI/2+RR(-1.2,1.2), l=RR(100,230); o.ropes.push([cl(c[0]+COS(a)*l,130,1150),Math.max(125,c[1]+SIN(a)*l),0,RR(1,1.12)]); }
+    if(lv>=(ez?20:15)&&r()<0.15+D*0.4){ const R0=o.ropes[0], w=RR(100,220); R0[4]=mv(Math.max(130,R0[0]-w),R0[1],Math.min(1150,R0[0]+w),R0[1],RR(0.8,1.7)*(ez?0.8:1),r()*6); }
+    o.mouth=up?[RR(200,1080),RR(170,250)]:[RR(160,1080),RR(boss?480:430,560)];
+    if(o.mouth[0]+58>960&&o.mouth[1]+96>500) continue;           // Nibbs's box never under the action buttons
+    if(dist(c[0],c[1],o.mouth[0],o.mouth[1])<240) continue;
+    if(up) o.bubbles.push([c[0]+RR(-20,20),c[1]+RR(95,130)]); else if(lv>8&&r()<0.1+D*0.2) o.bubbles.push([RR(180,1060),RR(320,450)]);
+    const nh=boss?(ez&&lv<=30?1:2+(r()<D?1:0)):(lv>3&&r()<0.25+D*0.45?1+(r()<D*0.5?1:0):0);
+    for(let i=0;i<nh;i++){ const f=RR(0.25,0.75), hx=cl(c[0]+(o.mouth[0]-c[0])*f+RR(-200,200),150,1120), hy=c[1]+(o.mouth[1]-c[1])*f+RR(-60,60); if(!inBR(hx,hy,30)) o.hooks.push([hx,hy,RR(90,135)]); }
+    if((up&&r()<0.5)||(lv>5&&r()<0.12+D*0.3)){ const L=r()<0.5; o.blowers.push(L?[150,RR(240,560),RR(-0.3,0.3)]:[1150,RR(200,430),Math.PI+RR(-0.3,0.3)]); }
+    const ns=lv<(ez?14:6)?0:Math.floor(RR(0,1+D*3.5)*(ez?0.6:1)); for(let i=0;i<ns;i++){ const x=RR(170,1110),y=up?RR(115,380):RR(330,680),l=RR(80,190),a=RR(-0.5,0.5); const s=[x-COS(a)*l/2,y-SIN(a)*l/2,x+COS(a)*l/2,y+SIN(a)*l/2];
+      if(inBR(Math.max(s[0],s[2]),Math.max(s[1],s[3]),20)) continue;
       if(segD(o.mouth[0],o.mouth[1],...s)>85&&segD(c[0],c[1],...s)>110) o.spikes.push(s); }
-    const nw=boss?2+Math.floor(D*3):(lv>55&&r()<D*0.35?1:0);
-    for(let i=0;i<nw;i++){ const f=nw===1?0.5:0.2+0.6*i/(nw-1); o.saws.push({cx:RR(110,490),cy:c[1]+(o.mouth[1]-c[1])*f,R:RR(10,80),sp:RR(1,2.2)*(r()<.5?-1:1)*(1+D*0.4),ph:r()*6,r:30}); }
-    const L=mkL(o); const s=solve(L,seed+tr,boss?160:110,tol); if(!s) continue; if(s.rate>hi&&tr<30) continue;
+    const nw=boss?(ez&&lv<=40?1:2+Math.floor(D*3)):(lv>55&&r()<D*0.35?1:0);
+    for(let i=0;i<nw;i++){ const f=nw===1?0.5:0.2+0.6*i/(nw-1), cy=c[1]+(o.mouth[1]-c[1])*f; o.saws.push({cx:RR(200,cy>420?860:1080),cy,R:RR(10,80),sp:RR(1,2.2)*(r()<.5?-1:1)*(1+D*0.4)*(ez?0.6:1),ph:r()*6,r:30}); }
+    const L=mkL(o); if(idleBad(L)) continue;                       // never a room that wins with no hands, or kills before you can act
+    const s=solve(L,seed+tr,boss?160:110,tol); if(!s) continue; if(s.rate>hi&&tr<30) continue;
     placeStars(L,s.path); L.sol=s.plan; L.rate=s.rate; return L; }
   const F=prep(mkL(HAND[1]),seed,0.1); F.fb=1; return F; }
 /* ---------- game ---------- */
 const GAME=window.GAME={
   id:'candy-rope',title:'Candy Rope',titleHTML:'CANDY<br>ROPE',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-CY-1.1 · 2026-10-18',theme:{a:'#ff4fa3',b:'#7dff5a',bg:'#160a26'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🍬',joystick:false,coinPts:60,
+  build:'BUILD-CY-1.2 · 2026-10-26',theme:{a:'#ff4fa3',b:'#7dff5a',bg:'#160a26'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🍬',joystick:false,coinPts:60,
   abilities:[
     {id:'puff',icon:'💨',name:'PUFF',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — puff every air blower, or pop the bubble the candy is in. Nothing to puff? It cuts the next rope.'},
     {id:'slow',icon:'🐌',name:'SLOW-MO',cd:15,key:'Digit1',keyLabel:'1',desc:'Everything moves in slow motion for 5 seconds — perfect for tricky timing.'},
@@ -587,20 +602,21 @@ const GAME=window.GAME={
   shop:[{id:'cy_p',cat:'Candy',name:'Berry Swirl',cost:0,colors:['#ff4fa3','#fff'],desc:'Classic pink swirl.'},{id:'cy_m',cat:'Candy',name:'Mint Swirl',cost:150,colors:['#3dffd8','#fff'],desc:'Cool mint.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff4fa3,#7dff5a)'}],
   story:`<h3>CANDY ROPE</h3><p>Nibbs is a tiny neon monster who lives in a box and eats nothing but candy. Somebody keeps hanging his sweets from ropes all over the room. Cut, swing, puff and pop — get that candy into his mouth!</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Swipe</b> across a rope to cut it (PC: click and drag with the mouse).</li><li>The candy swings and falls — get it into Nibbs's mouth to clear the stage.</li><li>Grab up to 3 ⭐ stars on the way for bonus points.</li><li><b>Hooks</b> (dashed circles) grab the candy with a new rope when it comes close.</li><li><b>Bubbles</b> float the candy up — tap the candy to pop it. <b>Air blowers</b>: tap them (or SPACE) to puff.</li><li>Spikes and saws destroy the candy. If it falls off the screen you lose a life and the level restarts.</li><li>PC: SPACE = puff / pop (cuts the next rope if there's nothing to puff), 1-3 = abilities.</li><li>Every 10th stage: the Saw Gauntlet.</li></ul>`,
-  tutorial:[{text:'Swipe across the rope to cut it!',ev:'cut'},{text:'Feed Nibbs the candy!',ev:'feed'},{text:'Feed him 3 times! Grab stars on the way.',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Phone:</b> <b>swipe</b> across a rope with your finger to cut it (either thumb). Tap the candy to pop its bubble, tap an air blower to puff. Abilities are the buttons on the <b>left</b>; the 💨 button (bottom-right, <b>right thumb</b>) puffs / pops.</li><li><b>PC:</b> click and drag the mouse across a rope to cut it. SPACE = puff / pop (cuts the next rope if there's nothing to puff), 1-3 = abilities.</li><li>The candy swings and falls — get it into Nibbs's mouth to clear the stage. Nothing happens until <b>you</b> cut.</li><li>Nibbs gets hungry: if the ⏰ clock (top-right) runs out you lose a life. Beginner gets lots of time.</li><li>Grab up to 3 ⭐ stars on the way for bonus points.</li><li><b>Hooks</b> (dashed circles) grab the candy with a new rope when it comes close. <b>Bubbles</b> float the candy up.</li><li>Spikes and saws destroy the candy. If it falls off the screen you lose a life and the level restarts.</li><li>Every 10th stage: the Saw Gauntlet. In a RACE everyone gets the same rooms — first to finish wins.</li></ul>`,
+  tutorial:[{text:'Click and drag across the rope to cut it!',touch:'Phone sideways! <b>Swipe</b> across the rope with your finger to cut it!',ev:'cut'},{text:'Feed Nibbs the candy!',ev:'feed'},{text:'Feed him 3 times! Grab stars on the way.',time:5}],
   stageIntro:{1:'FEED NIBBS THE CANDY'},bossName:'THE SAW GAUNTLET!',ending:{"0":["#YUMMY","Nibbs is full. For now."],"1":["#ROPE MASTER","No rope can stop you."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='slow') return eff.slow>0?{left:eff.slow,total:5}:null; if(id==='magnet') return eff.mag>0?{left:eff.mag,total:8}:null; if(id==='hand'&&armed) return {left:1,total:1,label:'TAP'}; return null; },
   _dbg(){ return {get L(){return LV;}, get S(){return S;}, get lost(){return lost;}, get done(){return done;}, get got(){return got;}, get feeds(){return feeds;},
     newS,step,act,mkPlan,rng, cut:id=>doAct({a:"cut",id}), pop:()=>doAct({a:'pop'}), puff:()=>doAct({a:'puff'}), gen, solve, run, HAND, mkL, prep, TUT, chains:()=>chains}; },
   init(a){ api=a; mkBg(); },
   startStage(n,a){ api=a; t=0; done=false; lost=false; eff={slow:-9,mag:-9}; armed=false; swipe=[]; pFx=[]; chomp=0; eatT=0; got=0;
-    if(!bgStars) mkBg();
+    if(!bgStars) mkBg(); const ez=a.diff===0;
     if(a.content===0) queue=TUT.map(o=>prep(mkL(o),11,0.1));
-    else { const seed=n*7919+a.diff*104729+a.level*31; const h=a.diff===0&&!a.boss&&HAND[n-1];
-      queue=[h?prep(mkL(h),seed,0.05):gen(a.level,seed,a.boss)]; }
+    else { const seed=n*7919+a.diff*104729+a.level*31; const h=ez&&!a.boss&&HAND[n-1];
+      queue=[h?prep(mkL(h),seed,0.08):gen(a.level,seed,a.boss,ez)]; }
+    hungerMax=a.content===0?0:Math.round((ez&&a.level<=10?120:a.dv([90,50,35],30,20))*(a.boss?1.3:1)); hunger=hungerMax;
     feeds=queue.length; load(queue.shift()); },
-  respawn(){ lost=false; load(LV); },
+  respawn(){ lost=false; hunger=hungerMax; load(LV); },
   stageBonus(){ return got*300; },
   useAbility(id){ if(done||lost) return false;
     if(id==='puff'){ if(S.bub) return doAct({a:'pop'}),true; if(LV.blowers.length) return doAct({a:'puff'}),true; const r=S.ropes.filter(r=>r.on).sort((a,b)=>a.id-b.id)[0]; if(r) doAct({a:'cut',id:r.id}); return true; }
@@ -628,6 +644,7 @@ const GAME=window.GAME={
     api.counter('⭐ STARS',got+'/'+(LV.stars.length*(feeds)));
     const near=dist(S.x,S.y,LV.mouth[0],LV.mouth[1]); chomp=Math.max(chomp,near<170?1-near/170:0);
     if(S.won){ eat(); return; }
+    if(hungerMax&&!S.dead){ hunger-=dt; if(hunger<=0){ hunger=0; S.dead='NIBBS GOT TOO HUNGRY!'; } }
     if(S.dead){ lost=true; api.toast(S.dead); api.sfx.hurt(); api.fx.burst(S.x,S.y,'#ff4fa3',30,260,.7,4); api.fx.shake(6); chains.forEach(c=>{ if(c.pinB) c.pinB=null; }); setTimeout(()=>api.loseLife(),1000); } },
   render(c){ bg(c); const L=LV, tt=S.t;
     // moving rails
@@ -644,11 +661,12 @@ const GAME=window.GAME={
     if(!S.won&&!S.dead){ drawCandy(c,S.x,S.y,(S.x-S.px)*3); if(S.bub) drawBubble(c,S.x,S.y,32); }
     pFx.forEach(p=>{ c.globalAlpha=Math.max(0,p.l/0.6)*0.6; c.fillStyle='#bff4ff'; c.beginPath(); c.arc(p.x,p.y,p.r*(1.6-p.l),0,7); c.fill(); }); c.globalAlpha=1;
     if(swipe.length>1){ c.strokeStyle='#fff'; c.shadowColor='#ff4fa3'; c.shadowBlur=14; c.lineCap='round'; for(let i=1;i<swipe.length;i++){ c.lineWidth=Math.max(1,swipe[i].l*24); c.beginPath(); c.moveTo(swipe[i-1].x,swipe[i-1].y); c.lineTo(swipe[i].x,swipe[i].y); c.stroke(); } c.shadowBlur=0; }
-    if(armed&&!lost){ c.strokeStyle='rgba(255,225,77,.7)'; c.setLineDash([6,8]); c.lineWidth=2; c.beginPath(); c.arc(S.x,S.y,200,0,7); c.stroke(); c.setLineDash([]); txt(c,'✋ TAP A SPOT',W/2,110,'#ffe14d',20); }
+    if(armed&&!lost){ c.strokeStyle='rgba(255,225,77,.7)'; c.setLineDash([6,8]); c.lineWidth=2; c.beginPath(); c.arc(S.x,S.y,200,0,7); c.stroke(); c.setLineDash([]); txt(c,'✋ TAP A SPOT',W/2,125,'#ffe14d',20); }
+    if(hungerMax&&!done){ const lw=hunger<10; c.font='bold 22px sans-serif'; c.textAlign='right'; c.fillStyle=lw?(t%0.5<0.25?'#ff3b5c':'#fff'):'#ffe14d'; c.shadowColor=c.fillStyle; c.shadowBlur=8; c.fillText('⏰ '+Math.ceil(hunger),1180,112); c.shadowBlur=0; }
     if(eff.slow>0){ c.fillStyle='rgba(80,140,255,.09)'; c.fillRect(0,0,W,H); }
     if(lost){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ if(!bgStars) mkBg(); const sv=t; t=tt; bg(c); const a=Math.sin(tt*1.6)*0.9, x=300+Math.sin(a)*240, y=170+Math.cos(a)*240; drawPin(c,[300,170],'#ffb3e0');
-    c.strokeStyle='#e8c79a'; c.lineWidth=4; c.beginPath(); c.moveTo(300,170); c.lineTo(x,y); c.stroke(); drawCandy(c,x,y,a*20); chomp=0.5+0.5*Math.sin(tt*3); drawNibbs(c,300,700); t=sv; }
+  attract(c,tt){ if(!bgStars) mkBg(); const sv=t; t=tt; bg(c); const a=Math.sin(tt*1.6)*1.1, x=440+Math.sin(a)*260, y=130+Math.cos(a)*260; drawPin(c,[440,130],'#ffb3e0');
+    c.strokeStyle='#e8c79a'; c.lineWidth=4; c.beginPath(); c.moveTo(440,130); c.lineTo(x,y); c.stroke(); drawCandy(c,x,y,a*20); chomp=0.5+0.5*Math.sin(tt*3); drawNibbs(c,860,540); t=sv; }
 };
 /* ---------- helpers ---------- */
 function load(L){ LV=L; S=newS(L); acc=0; chains=[]; S.ropes.forEach(r=>addChain(r)); starsP=L.stars.map(s=>({x:s[0],y:s[1],got:false})); armed=false; lastPt=null; }
@@ -681,7 +699,7 @@ function eat(){ if(done) return; api.fx.burst(LV.mouth[0],LV.mouth[1],'#7dff5a',
   if(queue.length){ feeds--; const n=queue.shift(); lost=true; setTimeout(()=>{ lost=false; load(n); },700); return; }
   done=true; eatT=0; api.toast(got>=3?'⭐⭐⭐ PERFECT!':'YUM!'); api.sfx.clear(); setTimeout(()=>api.stageClear(),1200); }
 /* ---------- drawing ---------- */
-function mkBg(){ bgStars=[]; for(let i=0;i<60;i++) bgStars.push([Math.random()*W,Math.random()*H,Math.random()*2+0.5,Math.random()*6]); }
+function mkBg(){ bgStars=[]; for(let i=0;i<110;i++) bgStars.push([Math.random()*W,Math.random()*H,Math.random()*2+0.5,Math.random()*6]); }
 function bg(c){ const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#24103e'); g.addColorStop(1,'#0e0618'); c.fillStyle=g; c.fillRect(0,0,W,H);
   c.save(); c.globalAlpha=0.06; c.fillStyle='#ff4fa3'; for(let i=-H;i<W;i+=70){ c.beginPath(); c.moveTo(i,0); c.lineTo(i+30,0); c.lineTo(i+30+H,H); c.lineTo(i+H,H); c.fill(); } c.restore();
   bgStars.forEach(s=>{ c.globalAlpha=0.3+0.3*Math.sin(t*2+s[3]); c.fillStyle='#fff'; c.fillRect(s[0],s[1],s[2],s[2]); }); c.globalAlpha=1; }
