@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BK-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-BK-1.2 · 2026-10-26">
 <title>Block Blast</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BK-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-BK-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,71 +489,170 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* BLOCK BLAST — block-fit puzzle remix (#29) — PROTOTYPE: 3 test stages */
+/* BLOCK BLAST — block-fit puzzle remix. 100 stages. LANDSCAPE 1280x720 + RACE.
+   Layout (game px): HUD strip y<80, ability column x<140 (left-middle), action button x>980&&y>520 (bottom-right).
+   Board centred-left, piece tray + info on the right ABOVE the button corner. In a race the shell's progress bars float
+   top-centre, so the board/tray move down under them (raceFit).
+   RACE: pieces + starting blocks come from a generator seeded ONLY by the stage number + difficulty, so both racers get
+   the identical board and the identical piece sequence. Beginner stages 1-10: small pieces, few blocks, no instant
+   deaths (a jammed board gets fresh pieces instead of costing a life), big clock. Idle = the clock runs out = life lost. */
 (function(){
-const W=600, H=900, N=8, CS=64, OX=(W-N*CS)/2, OY=110, TY=700;
-const SH=[[[0,0]],[[0,0],[1,0]],[[0,0],[0,1]],[[0,0],[1,0],[2,0]],[[0,0],[0,1],[0,2]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[2,0],[3,0]],[[0,0],[0,1],[0,2],[0,3]],[[0,0],[0,1],[1,1]],[[1,0],[0,1],[1,1]],[[0,0],[1,0],[1,1]],[[0,0],[0,1],[0,2],[1,2]],[[0,0],[1,0],[2,0],[1,1]],[[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]],[[0,0],[1,0],[2,0],[3,0],[4,0]]];
+const W=1280,H=720,N=8,BL=150,BR=770,BOT=692,TX=800,TW=450;
+/* shapes, easiest first; every piece gets a random (seeded) rotation */
+const SH=[[[0,0]],[[0,0],[1,0]],[[0,0],[1,0],[2,0]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[0,1],[1,1]],[[0,0],[1,0],[2,0],[1,1]],
+ [[0,0],[1,0],[2,0],[3,0]],[[0,0],[0,1],[0,2],[1,2]],[[1,0],[1,1],[1,2],[0,2]],[[1,0],[2,0],[0,1],[1,1]],[[0,0],[1,0],[1,1],[2,1]],
+ [[0,0],[1,0],[0,1],[1,1],[0,2],[1,2]],[[0,0],[1,0],[2,0],[3,0],[4,0]],[[0,0],[0,1],[0,2],[1,2],[2,2]],
+ [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]]];
 const COL=['#ff3b5c','#2ec4ff','#ffe14a','#3bff7a','#c45cff','#ff9a2e'];
-let api,t,g,tray,drag,done,lost,lines,target,undoS,rot,clearT;
+let api,t,g,tray,seqN,drag,sel,done,lost,lines,target,undoS,clock,limit,timed,pool,pool0,jam,TOP=96,CS=66,GX,GY,TY,fl,pops,wave,bg,combo,kbd,kx,ky,raceT=0,tut,easy,startG;
+let rs=1; function rnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+const ri=n=>Math.floor(rnd()*n);
+function norm(cells){ const mx=Math.min(...cells.map(c=>c[0])),my=Math.min(...cells.map(c=>c[1])); return cells.map(([x,y])=>[x-mx,y-my]); }
+function rotC(cells){ return norm(cells.map(([x,y])=>[-y,x])); }
+function pw(p){ return Math.max(...p.cells.map(c=>c[0]))+1; } function ph(p){ return Math.max(...p.cells.map(c=>c[1]))+1; }
+const TUTQ=[1,2,3,4,1,2,0,3];
+function nextPiece(){ let k; if(tut) k=TUTQ[seqN%TUTQ.length]; else k=pool0+ri(pool-pool0); seqN++;
+  let cells=SH[k].map(c=>c.slice()); const r=tut?0:ri(4); for(let i=0;i<r;i++) cells=rotC(cells); return {cells,col:tut?seqN%6:ri(6)}; }
+function newTray(){ tray=[nextPiece(),nextPiece(),nextPiece()]; if(sel<0||!tray[sel]) sel=0; }
 function fits(p,x,y){ return p.cells.every(([dx,dy])=>{ const a=x+dx,b=y+dy; return a>=0&&b>=0&&a<N&&b<N&&g[b][a]<0; }); }
-function anyFit(){ return tray.some(p=>p&&fitsAny(p)); }
 function fitsAny(p){ for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(fits(p,x,y)) return true; return false; }
-function newTray(){ const big=api.content===0?6:Math.round(api.dv([10,13,15],15,15)); tray=[0,1,2].map(()=>({cells:SH[Math.floor(Math.random()*big)].map(c=>c.slice()),col:Math.floor(Math.random()*COL.length)})); }
-function rotate(p){ p.cells=p.cells.map(([x,y])=>[-y,x]); const mx=Math.min(...p.cells.map(c=>c[0])), my=Math.min(...p.cells.map(c=>c[1])); p.cells=p.cells.map(([x,y])=>[x-mx,y-my]); }
-function slotX(i){ return 40+i*180; }
-const GAME = window.GAME = {
-  id:'block-blast', title:'Block Blast', titleHTML:'BLOCK<br>BLAST', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-BK-1.1 · 2026-10-17', theme:{a:'#2ec4ff', b:'#ffe14a', bg:'#0a1020'},
-  w:W, h:H, stages:100,  lives:3, livesIcon:'🟦', joystick:false, coinPts:40,
+function anyFit(){ return tray.some(p=>p&&fitsAny(p)); }
+/* rows/cols that WOULD clear if p is put at x,y (for the glow) */
+function wouldClear(p,x,y){ const set=new Set(p.cells.map(([dx,dy])=>(y+dy)*N+x+dx)), on=(a,b)=>g[b][a]>=0||set.has(b*N+a), rows=[],cols=[];
+  for(let k=0;k<N;k++){ let r=true,c=true; for(let j=0;j<N;j++){ if(!on(j,k)) r=false; if(!on(k,j)) c=false; } if(r) rows.push(k); if(c) cols.push(k); } return {rows,cols}; }
+function layout(){ CS=Math.floor(Math.min(70,(BOT-TOP)/N)); GX=BL+Math.floor((BR-BL-N*CS)/2); GY=TOP+Math.floor((BOT-TOP-N*CS)/2); TY=TOP+6; }
+function raceFit(){ try{ const el=document.getElementById('mpBars'), cv=document.querySelector('canvas'); let top=tut?236:96;
+  if(el&&cv&&el.style.display!=='none'&&el.offsetHeight){ const r=el.getBoundingClientRect(), q=cv.getBoundingClientRect(); if(q.height>0) top=Math.max(top,Math.ceil((r.bottom-q.top)/q.height*H)+10); }
+  top=Math.min(top,236); if(top!==TOP){ TOP=top; layout(); } }catch(e){} }
+function slot(i){ const sw=(TW-16)/3; return {x:TX+i*(sw+8),y:TY,w:sw,h:Math.min(190,520-60-TY-90)}; }
+function trayCell(p,s){ return Math.min(30,Math.floor((s.w-20)/Math.max(pw(p),ph(p)))); }
+function hitTray(x,y){ for(let i=0;i<3;i++){ const s=slot(i); if(x>=s.x&&x<s.x+s.w&&y>=s.y&&y<s.y+s.h) return i; } return -1; }
+const GAME=window.GAME={
+  id:'block-blast',title:'Block Blast',titleHTML:'BLOCK<br>BLAST',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-BK-1.2 · 2026-10-26',theme:{a:'#2ec4ff',b:'#ffe14a',bg:'#0a1020'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🟦',joystick:false,coinPts:40,
   abilities:[
-    {id:'rotate', icon:'🔄', name:'ROTATE', cd:8, key:'Digit1', keyLabel:'1', desc:'Next tap on a tray piece rotates it.'},
-    {id:'undo', icon:'↩️', name:'UNDO', cd:10, key:'Digit2', keyLabel:'2', desc:'Takes back your last piece.'},
-    {id:'row', icon:'💥', name:'CLEAR ROW', cd:20, key:'Digit3', keyLabel:'3', desc:'Clears the fullest row.'},
-    {id:'swap', icon:'🎲', name:'NEW PIECES', cd:15, key:'Digit4', keyLabel:'4', desc:'Swaps all 3 tray pieces.'}],
+    {id:'rotate',icon:'🔄',name:'ROTATE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — turns the selected tray piece (the one with the glowing frame). Works while dragging too.'},
+    {id:'undo',icon:'↩️',name:'UNDO',cd:10,key:'Digit1',keyLabel:'1',desc:'Takes back your last piece.'},
+    {id:'row',icon:'💥',name:'CLEAR ROW',cd:20,key:'Digit2',keyLabel:'2',desc:'Wipes the fullest row (does not count as a line).'},
+    {id:'swap',icon:'🎲',name:'NEW PIECES',cd:15,key:'Digit3',keyLabel:'3',desc:'Swaps all 3 tray pieces for the next ones.'}],
   shop:[{id:'k_n',cat:'Blocks',name:'Neon',cost:0,colors:[0],desc:'Neon blocks.'},{id:'b_n',cat:'Board',name:'Midnight',cost:0,colors:['#0a1020','#141e3a'],desc:'Dark blue.'},{id:'b_w',cat:'Board',name:'Wood',cost:180,colors:['#2a1a0e','#4a2e1a'],desc:'Wooden table.'}],
-  premium:[{name:'Ultimate Pack', price:'$3', desc:'Everything in the shop.', swatch:'linear-gradient(90deg,#2ec4ff,#ffe14a)'}],
+  premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#2ec4ff,#ffe14a)'}],
   story:`<h3>BLOCK BLAST</h3><p>Fit the blocks, fill rows and columns, and blast them away before the board jams.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>Drag a piece from the tray onto the board.</li><li>Fill a whole <b>row or column</b> to blast it.</li><li>Clear the target number of lines. If no piece fits, you lose a life.</li></ul>`,
-  tutorial:[{text:'Drag a piece onto the board.', ev:'place'},{text:'Fill a whole row or column!', ev:'line'},{text:'Clear the target lines to win!', time:6}],
-  stageIntro:{1:'BLAST THE LINES'}, bossName:'BLOCK STORM!', ending:{"0":["#CLEAR","The board is clear."],"1":["#MASTER","Master builder."],"2":["#LEGEND","Impossible. You did it."]},
-  _dbg(){ return {get g(){return g;}, get tray(){return tray;}, place:(i,x,y)=>place(i,x,y), fits:(i,x,y)=>tray[i]&&fits(tray[i],x,y), get lost(){return lost;}}; },
-  abTime(id){ return id==='rotate'&&rot? {left:1,total:1,label:'TAP'} : null; },
-  init(a){ api=a; },
-  startStage(n,a){ api=a; this._n=n; t=0; done=false; lost=false; lines=0; drag=null; undoS=null; rot=false; clearT=0;
+  howto:`<h3>HOW TO PLAY</h3><ul><li>Hold your phone <b>sideways</b>.</li><li><b>Phone:</b> drag a piece from the tray (right thumb) onto the board (left). Tap a tray piece to select it, then tap 🔄 ROTATE (bottom-right) to turn it. Extra powers sit on the left edge (left thumb).</li><li><b>PC:</b> drag with the mouse — or Q / W / E pick a piece, ARROWS move it, ENTER drops it, SPACE rotates. 1 = undo, 2 = clear row, 3 = new pieces.</li><li>Fill a whole <b>row or column</b> to blast it — lines about to blast <b>glow gold</b> while you aim.</li><li>Blast the target number of lines before the ⏱ clock runs out. If no piece fits, you lose a life (Beginner stages 1-10: you get fresh pieces instead).</li><li><b>👥 RACE A FRIEND:</b> you both get the same board and the same pieces — first to the target wins.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. DRAG a piece from the tray on the right onto the board.',ev:'place'},{text:'Tap a tray piece, then tap 🔄 ROTATE (or SPACE) to turn it.',ev:'rotate'},{text:'Fill a whole row or column — it glows gold, then BLASTS!',ev:'line'},{text:'Blast the target lines before the clock runs out!',time:5}],
+  stageIntro:{1:'BLAST THE LINES'},bossName:'BLOCK STORM!',ending:{"0":["#CLEAR","The board is clear."],"1":["#MASTER","Master builder."],"2":["#LEGEND","Impossible. You did it."]},
+  _dbg(){ return {get g(){return g;}, get tray(){return tray;}, place:(i,x,y)=>place(i,x,y), fits:(i,x,y)=>!!tray[i]&&fits(tray[i],x,y), rot:i=>{ sel=i; return GAME.useAbility('rotate'); },
+    get lost(){return lost;}, get done(){return done;}, get lines(){return lines;}, get target(){return target;}, get clock(){return clock;}, get limit(){return limit;}, get N(){return N;}, get jam(){return jam;},
+    sig:()=>JSON.stringify([startG,tray.map(p=>p&&p.cells)]), geo:()=>({GX,GY,CS,TOP})}; },
+  abTime(){ return null; },
+  init(a){ api=a; bg=[]; for(let i=0;i<26;i++) bg.push({x:Math.random()*W,y:Math.random()*H,s:20+Math.random()*50,v:6+Math.random()*16,c:i%6,r:Math.random()*6}); g=[...Array(N)].map(()=>Array(N).fill(-1)); tray=[null,null,null]; fl=[]; pops=[]; t=0; layout(); },
+  startStage(n,a){ api=a; t=0; done=false; lost=false; lines=0; drag=null; sel=0; undoS=null; fl=[]; pops=[]; wave=-1; combo=0; jam=0; kbd=false; kx=3; ky=3; seqN=0;
+    const L=a.level, beg=a.diff===0; tut=a.content===0; easy=beg&&L<=10&&!tut;
+    rs=(L*7919+a.diff*104729+(a.boss?55:0)+12345)|0; rnd(); rnd();
+    TOP=tut?236:96; layout(); raceT=0;
     g=[...Array(N)].map(()=>Array(N).fill(-1));
-    const pre=n===0?0:Math.round(a.dv([4,12,18],22,30)); for(let i=0;i<pre;i++){ g[Math.floor(N/2+Math.random()*N/2)][Math.floor(Math.random()*N)]=6; }
-    for(let y=0;y<N;y++) if(g[y].every(v=>v>=0)) g[y][0]=-1;
-    target=n===0?2:Math.round(a.dv([8,14,20],26,60)); newTray(); },
-  respawn(){ this.startStage(this._n, api); },
-  stageBonus(){ return 0; },
+    let pre;
+    if(tut){ pre=0; target=2; pool0=0; pool=4; for(let x=0;x<6;x++) g[7][x]=6; for(let x=0;x<5;x++) g[6][x+3]=6; }
+    else if(easy){ pre=L<=2?0:Math.min(6,L-2); target=3+Math.floor(L*0.5); pool0=0; pool=L<=4?5:7; }
+    else { pre=Math.round(a.dv([4,12,18],22,30)); target=Math.round(a.dv([8,16,22],28,45)); pool0=a.diff===2?1:0; pool=Math.round(a.dv([9,14,15],15,15));
+      if(beg){ pre=Math.round(pre*0.7); target=Math.round(target*0.85); } }
+    if(a.boss){ target+=2; pre+=4; }
+    for(let i=0,tries=0;i<pre&&tries<400;tries++){ const y=N-1-ri(Math.ceil(N*0.6)), x=ri(N); if(g[y][x]>=0) continue; g[y][x]=6;
+      if(g[y].every(v=>v>=0)||g.every(r=>r[x]>=0)){ g[y][x]=-1; continue; } i++; }
+    startG=g.map(r=>r.slice());
+    timed=!tut; const spl=easy?28:a.dv([24,13,9],7,4.5)*(beg?1.4:1); limit=timed?Math.round(target*spl+(easy?150:25)):0; clock=limit;
+    newTray(); },
+  respawn(){ lost=false; drag=null; g=startG.map(r=>r.slice()); undoS=null; jam=0; if(timed&&clock<=0) clock=limit; newTray(); },
+  stageBonus(){ return Math.round(timed?Math.max(0,clock)*4:0); },
   useAbility(id){ if(done||lost) return false;
-    if(id==='rotate'){ rot=true; api.toast('TAP A TRAY PIECE TO ROTATE'); return true; }
-    if(id==='undo'){ if(!undoS) return false; g=undoS.g; tray=undoS.tray; lines=undoS.lines; undoS=null; return true; }
-    if(id==='row'){ let best=-1,bc=-1; g.forEach((r,y)=>{ const c=r.filter(v=>v>=0).length; if(c>bc){bc=c;best=y;} }); g[best].fill(-1); api.sfx.boom(); return true; }
-    if(id==='swap'){ newTray(); api.sfx.power(); return true; } },
-  onPointer(type,x,y){ if(done||lost) return;
-    if(type==='down'){ if(y<TY-20) return; const i=Math.floor((x-20)/180); if(i<0||i>2||!tray[i]) return; if(rot){ rot=false; rotate(tray[i]); api.sfx.blip(); return; } drag={i,x,y}; }
-    else if(type==='move'&&drag){ drag.x=x; drag.y=y; }
-    else if(type==='up'&&drag){ const p=tray[drag.i]; const gx=Math.round((drag.x-OX)/CS - 0.5 - (Math.max(...p.cells.map(c=>c[0])))/2), gy=Math.round((drag.y-110-OY)/CS - 0.5 - (Math.max(...p.cells.map(c=>c[1])))/2); place(drag.i,gx,gy); drag=null; } },
-  update(dt){ t+=dt; if(clearT>0) clearT-=dt; if(done||lost) return;
-    api.counter('💥 LINES', lines+'/'+target, '');
-    if(lines>=target){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); return; }
-    if(!anyFit()){ lost=true; api.toast('NO ROOM!'); api.sfx.hurt(); setTimeout(()=>{ lost=false; api.loseLife(); },900); } },
-  render(c){ const bg=api.cos('Board').colors; const gr=c.createLinearGradient(0,0,0,H); gr.addColorStop(0,bg[0]); gr.addColorStop(1,bg[1]); c.fillStyle=gr; c.fillRect(0,0,W,H);
-    c.fillStyle='#fff'; c.font='bold 18px Orbitron, sans-serif'; c.textAlign='center'; c.fillText(`LINES ${lines}/${target}`,W/2,80);
-    for(let y=0;y<N;y++) for(let x=0;x<N;x++){ c.fillStyle='rgba(255,255,255,0.06)'; c.fillRect(OX+x*CS+2,OY+y*CS+2,CS-4,CS-4); if(g[y][x]>=0) blk(c,OX+x*CS,OY+y*CS,CS,g[y][x]); }
-    tray.forEach((p,i)=>{ if(!p||(drag&&drag.i===i)) return; const s=30; p.cells.forEach(([dx,dy])=>blk(c,slotX(i)+20+dx*s,TY+dy*s,s,p.col)); });
-    if(drag){ const p=tray[drag.i]; p.cells.forEach(([dx,dy])=>{ c.globalAlpha=0.85; blk(c,drag.x-CS/2+dx*CS-(Math.max(...p.cells.map(q=>q[0])))*CS/2,drag.y-110-CS/2+dy*CS-(Math.max(...p.cells.map(q=>q[1])))*CS/2,CS,p.col); c.globalAlpha=1; }); } },
-  attract(c,tt){ c.fillStyle='#0a1020'; c.fillRect(0,0,W,H); for(let i=0;i<30;i++) blk(c,(i*83)%W,(i*137+tt*60)%H,40,i%6); }
+    if(id==='rotate'){ const i=drag?drag.i:sel; const p=tray[i]; if(!p) return false; p.cells=rotC(p.cells); api.sfx.blip(); api.event('rotate'); return true; }
+    if(id==='undo'){ if(!undoS) return false; g=undoS.g; tray=undoS.tray; lines=undoS.lines; seqN=undoS.seqN; rs=undoS.rs; undoS=null; drag=null; api.sfx.power(); return true; }
+    if(id==='row'){ let best=-1,bc=0; g.forEach((r,y)=>{ const c=r.filter(v=>v>=0).length; if(c>bc){bc=c;best=y;} }); if(best<0) return false;
+      for(let x=0;x<N;x++) if(g[best][x]>=0){ fl.push({x,y:best,c:g[best][x],t:.5}); g[best][x]=-1; } api.fx.burst(GX+N*CS/2,GY+best*CS+CS/2,'#ff9a2e',30,400,.6,4); api.sfx.boom(); api.fx.shake(6); return true; }
+    if(id==='swap'){ undoS=null; drag=null; newTray(); api.sfx.power(); return true; }
+    return false; },
+  onKey(code,down){ if(!down||done||lost) return; const p=tray[sel];
+    const pick={KeyQ:0,KeyW:1,KeyE:2}[code]; if(pick!==undefined){ if(tray[pick]){ sel=pick; kbd=true; api.sfx.blip(); } return; }
+    if(code==='Tab'){ for(let k=1;k<=3;k++){ const j=(sel+k)%3; if(tray[j]){ sel=j; break; } } kbd=true; return; }
+    const mv={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1],KeyA:[-1,0],KeyD:[1,0],KeyS:[0,1]}[code];
+    if(mv&&p){ kbd=true; kx=Math.max(0,Math.min(N-pw(p),kx+mv[0])); ky=Math.max(0,Math.min(N-ph(p),ky+mv[1])); api.sfx.blip(); return; }
+    if((code==='Enter'||code==='NumpadEnter')&&p){ kbd=true; kx=Math.min(kx,N-pw(p)); ky=Math.min(ky,N-ph(p)); place(sel,kx,ky); } },
+  onPointer(type,x,y,id,pt){ if(done||lost) return;
+    if(type==='down'){ const i=hitTray(x,y); if(i<0||!tray[i]) return; kbd=false; sel=i; drag={i,x,y,sx:x,sy:y,off:pt==='touch'?Math.max(90,CS*1.6):CS*0.3,mv:false}; api.sfx.blip(); }
+    else if(type==='move'&&drag){ drag.x=x; drag.y=y; if(Math.abs(x-drag.sx)+Math.abs(y-drag.sy)>14) drag.mv=true; }
+    else if(type==='up'&&drag){ drag.x=x; drag.y=y; const q=ghost(); const i=drag.i; drag=null; if(q){ place(i,q.x,q.y); } else if(hitTray(x,y)<0) api.sfx.bump(); } },
+  update(dt){ t+=dt; fl.forEach(f=>f.t-=dt); fl=fl.filter(f=>f.t>0); pops.forEach(p=>p.t+=dt); pops=pops.filter(p=>p.t<.5); if(wave>=0) wave+=dt*16;
+    raceT-=dt; if(raceT<=0){ raceT=0.5; raceFit(); }
+    if(done||lost) return;
+    if(timed){ clock-=dt; if(clock<=0){ clock=0; fail('⏰ TIME UP!'); return; } }
+    api.counter('💥 LINES',lines+'/'+target,timed&&clock<15?'low':'');
+    if(!anyFit()){
+      if(easy||tut){ jam++; if(jam>=3){ clearFullest(2); jam=0; api.toast('BOARD SHAKE — 2 ROWS CLEARED'); } else api.toast('NO ROOM — FRESH PIECES!'); api.sfx.power(); newTray(); }
+      else fail('NO ROOM!'); } },
+  render(c){ const bgc=api.cos('Board').colors; const gr=c.createLinearGradient(0,0,0,H); gr.addColorStop(0,bgc[0]); gr.addColorStop(1,api.boss?'#2a0a22':bgc[1]); c.fillStyle=gr; c.fillRect(0,0,W,H);
+    bg.forEach(b=>{ const y=((b.y-t*b.v)%(H+80)+H+80)%(H+80)-40; c.save(); c.globalAlpha=.07; c.translate(b.x,y); c.rotate(b.r+t*.1); blk(c,-b.s/2,-b.s/2,b.s,b.c,1); c.restore(); });
+    // board panel
+    c.fillStyle='rgba(6,10,28,.92)'; c.shadowColor=api.boss?'#ff3bd4':'#2ec4ff'; c.shadowBlur=28; rr(c,GX-12,GY-12,N*CS+24,N*CS+24,16); c.fill(); c.shadowBlur=0;
+    c.strokeStyle=api.boss?'rgba(255,59,212,.6)':'rgba(46,196,255,.55)'; c.lineWidth=2; c.stroke();
+    const q=ghost(), wc=q&&q.ok?wouldClear(tray[q.i],q.x,q.y):null, hot=new Set(); if(wc){ wc.rows.forEach(y=>{ for(let x=0;x<N;x++) hot.add(y*N+x); }); wc.cols.forEach(x=>{ for(let y=0;y<N;y++) hot.add(y*N+x); }); }
+    const gs=q?new Set(tray[q.i].cells.map(([dx,dy])=>(q.y+dy)*N+q.x+dx)):null;
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){ const X=GX+x*CS,Y=GY+y*CS,v=g[y][x],k=y*N+x;
+      c.fillStyle=(x+y)%2?'rgba(255,255,255,.045)':'rgba(255,255,255,.075)'; c.fillRect(X+2,Y+2,CS-4,CS-4);
+      if(wave>=0){ const d=Math.abs(wave-(x+y)); if(d<2){ c.fillStyle=`rgba(255,225,74,${.5*(1-d/2)})`; c.fillRect(X+1,Y+1,CS-2,CS-2); } }
+      if(v>=0){ const p=pops.find(p=>p.k===k), s=p?1+Math.sin(p.t/.5*Math.PI)*.12:1; blk(c,X+CS*(1-s)/2,Y+CS*(1-s)/2,CS*s,v); }
+      if(hot.has(k)){ const a=.35+.3*Math.sin(t*10); c.fillStyle=`rgba(255,225,74,${a})`; c.fillRect(X+1,Y+1,CS-2,CS-2); c.strokeStyle='#ffe14a'; c.lineWidth=2; c.strokeRect(X+3,Y+3,CS-6,CS-6); } }
+    if(q){ const p=tray[q.i]; p.cells.forEach(([dx,dy])=>{ const x=q.x+dx,y=q.y+dy; if(x<0||y<0||x>=N||y>=N) return; const X=GX+x*CS,Y=GY+y*CS;
+        if(q.ok){ c.globalAlpha=.55; blk(c,X,Y,CS,p.col); c.globalAlpha=1; } else { c.fillStyle='rgba(255,40,70,.35)'; c.fillRect(X+3,Y+3,CS-6,CS-6); } }); }
+    fl.forEach(f=>{ const X=GX+f.x*CS,Y=GY+f.y*CS,s=CS*(1+(.5-f.t)*1.2); c.globalAlpha=Math.max(0,f.t*2); c.fillStyle='#fff'; c.fillRect(X+CS/2-s/2,Y+CS/2-s/2,s,s); c.globalAlpha=1; });
+    // tray
+    for(let i=0;i<3;i++){ const s=slot(i),p=tray[i],on=i===sel&&p; c.fillStyle=on?'rgba(46,196,255,.16)':'rgba(10,16,40,.85)'; rr(c,s.x,s.y,s.w,s.h,14); c.fill();
+      c.strokeStyle=on?'#2ec4ff':'rgba(255,255,255,.15)'; c.lineWidth=on?3:1.5; if(on){ c.shadowColor='#2ec4ff'; c.shadowBlur=16; } c.stroke(); c.shadowBlur=0;
+      c.fillStyle='rgba(255,255,255,.35)'; c.font='bold 14px sans-serif'; c.textAlign='left'; c.fillText('QWE'[i],s.x+8,s.y+18);
+      if(!p||(drag&&drag.i===i&&drag.mv)) continue; const ts=trayCell(p,s), ox=s.x+(s.w-pw(p)*ts)/2, oy=s.y+(s.h-ph(p)*ts)/2, can=fitsAny(p);
+      c.globalAlpha=can?1:.3; p.cells.forEach(([dx,dy])=>blk(c,ox+dx*ts,oy+dy*ts,ts,p.col)); c.globalAlpha=1;
+      if(!can){ c.fillStyle='#ff6a80'; c.font='bold 13px sans-serif'; c.textAlign='center'; c.fillText('NO ROOM',s.x+s.w/2,s.y+s.h-10); } }
+    // info panel (left of the button corner)
+    const iy=slot(0).y+slot(0).h+14, ih=Math.max(80,505-iy); c.fillStyle='rgba(10,16,40,.8)'; rr(c,TX,iy,TW,ih,14); c.fill();
+    c.textAlign='left'; c.fillStyle='#fff'; c.font='bold 30px sans-serif'; c.fillText(`💥 ${Math.min(lines,target)} / ${target} LINES`,TX+16,iy+40);
+    c.fillStyle='rgba(255,255,255,.12)'; c.fillRect(TX+16,iy+52,TW-32,10); c.fillStyle='#ffe14a'; c.fillRect(TX+16,iy+52,(TW-32)*Math.min(1,lines/target),10);
+    if(timed&&ih>=110){ const low=clock<15, m=Math.floor(clock/60), s=Math.floor(clock%60); c.fillStyle=low&&Math.floor(t*4)%2?'#ff3b5a':low?'#ffd23f':'#cfe8ff'; c.font='bold 28px sans-serif';
+      c.fillText('⏱ '+m+':'+String(s).padStart(2,'0'),TX+16,iy+100); c.fillStyle='rgba(255,255,255,.1)'; c.fillRect(TX+150,iy+88,TW-166,8); c.fillStyle=low?'#ff3b5a':'#2ec4ff'; c.fillRect(TX+150,iy+88,(TW-166)*clock/limit,8); }
+    else if(timed){ c.fillStyle='#cfe8ff'; c.font='bold 18px sans-serif'; c.textAlign='right'; c.fillText('⏱ '+Math.ceil(clock)+'s',TX+TW-16,iy+30); c.textAlign='left'; }
+    if(ih>=150){ c.fillStyle='rgba(255,255,255,.45)'; c.font='bold 15px sans-serif'; c.fillText(combo>1?`🔥 COMBO x${combo}`:'Drag a piece · 🔄 turns the glowing one',TX+16,iy+ih-16); }
+    // dragged piece (follows the finger, lifted above it so the thumb doesn't hide it)
+    if(drag&&drag.mv){ const p=tray[drag.i]; if(p){ const o=dragOrigin(p); c.globalAlpha=.9; p.cells.forEach(([dx,dy])=>blk(c,o.x+dx*CS,o.y+dy*CS,CS,p.col)); c.globalAlpha=1; } }
+    if(lost){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(0,0,W,H); } },
+  attract(c,tt){ c.fillStyle='#0a1020'; c.fillRect(0,0,W,H); for(let i=0;i<40;i++) blk(c,(i*163)%W,(i*137+tt*60)%H,48,i%6); }
 };
-function blk(c,x,y,s,v){ const col=v===6?'#56606e':COL[v]; const g2=c.createLinearGradient(0,y,0,y+s); g2.addColorStop(0,'#fff'); g2.addColorStop(0.2,col); g2.addColorStop(1,'#111'); c.fillStyle=g2; c.fillRect(x+2,y+2,s-4,s-4); }
-function place(i,gx,gy){ const p=tray[i]; if(!p||!fits(p,gx,gy)){ api.sfx.bump(); return false; }
-  undoS={g:g.map(r=>r.slice()),tray:tray.map(q=>q&&{cells:q.cells.map(c=>c.slice()),col:q.col}),lines};
-  p.cells.forEach(([dx,dy])=>g[gy+dy][gx+dx]=p.col); tray[i]=null; api.sfx.click(); api.event('place'); api.addScore(p.cells.length*2,OX+gx*CS,OY+gy*CS,true);
+function dragOrigin(p){ return {x:drag.x-pw(p)*CS/2, y:drag.y-drag.off-ph(p)*CS/2}; }
+function ghost(){ if(done||lost) return null;
+  if(drag&&drag.mv){ const p=tray[drag.i]; if(!p) return null; const o=dragOrigin(p), x=Math.round((o.x-GX)/CS), y=Math.round((o.y-GY)/CS);
+    if(x+pw(p)<=0||y+ph(p)<=0||x>=N||y>=N) return null; return {i:drag.i,x,y,ok:fits(p,x,y)}; }
+  if(kbd&&tray[sel]){ const p=tray[sel]; kx=Math.min(kx,N-pw(p)); ky=Math.min(ky,N-ph(p)); return {i:sel,x:kx,y:ky,ok:fits(p,kx,ky)}; }
+  return null; }
+function blk(c,x,y,s,v,flat){ const col=v===6?'#5a6474':COL[v%6], m=Math.max(1.5,s*.05);
+  if(flat){ c.fillStyle=col; c.fillRect(x,y,s,s); return; }
+  const g2=c.createLinearGradient(x,y,x,y+s); g2.addColorStop(0,lit(col)); g2.addColorStop(.45,col); g2.addColorStop(1,'#15182a'); c.fillStyle=g2; rr(c,x+m,y+m,s-2*m,s-2*m,s*.14); c.fill();
+  c.fillStyle='rgba(255,255,255,.35)'; c.fillRect(x+s*.2,y+s*.16,s*.6,s*.09); c.strokeStyle='rgba(0,0,0,.35)'; c.lineWidth=1; c.stroke(); }
+function lit(h){ const n=parseInt(h.slice(1),16), f=v=>Math.min(255,v+90); return `rgb(${f(n>>16)},${f(n>>8&255)},${f(n&255)})`; }
+function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function clearFullest(n){ for(let k=0;k<n;k++){ let best=-1,bc=0; g.forEach((r,y)=>{ const c=r.filter(v=>v>=0).length; if(c>bc){bc=c;best=y;} }); if(best<0) return; for(let x=0;x<N;x++) if(g[best][x]>=0){ fl.push({x,y:best,c:0,t:.5}); g[best][x]=-1; } } }
+function fail(msg){ if(lost||done) return; lost=true; drag=null; api.toast(msg); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>{ if(lost) api.loseLife(); },900); }
+function place(i,gx,gy){ const p=tray[i]; if(done||lost||!p||!fits(p,gx,gy)){ api.sfx.bump(); return false; }
+  undoS={g:g.map(r=>r.slice()),tray:tray.map(q=>q&&{cells:q.cells.map(c=>c.slice()),col:q.col}),lines,seqN,rs};
+  p.cells.forEach(([dx,dy])=>{ g[gy+dy][gx+dx]=p.col; pops.push({k:(gy+dy)*N+gx+dx,t:0}); }); tray[i]=null; jam=0;
+  api.sfx.click(); api.event('place'); api.addScore(p.cells.length*2,GX+gx*CS,GY+gy*CS,true);
   const rows=[],cols=[]; for(let k=0;k<N;k++){ if(g[k].every(v=>v>=0)) rows.push(k); if(g.every(r=>r[k]>=0)) cols.push(k); }
-  rows.forEach(y=>g[y].fill(-1)); cols.forEach(x=>g.forEach(r=>r[x]=-1)); const n=rows.length+cols.length;
-  if(n){ lines+=n; api.addScore(100*n*n*(1+api.dk*0.5),W/2,OY+N*CS/2); api.sfx.clear(); api.fx.flash('#fff',.15); api.event('line'); }
-  if(tray.every(q=>!q)) newTray(); return true; }
+  const hit=new Set(); rows.forEach(y=>{ for(let x=0;x<N;x++) hit.add(y*N+x); }); cols.forEach(x=>{ for(let y=0;y<N;y++) hit.add(y*N+x); });
+  hit.forEach(k=>{ const x=k%N,y=k/N|0; fl.push({x,y,c:g[y][x],t:.5}); if(Math.random()<.35) api.fx.burst(GX+x*CS+CS/2,GY+y*CS+CS/2,COL[(g[y][x]+6)%6]||'#fff',5,220,.5,3); g[y][x]=-1; });
+  const n=rows.length+cols.length;
+  if(n){ lines+=n; combo++; const pts=100*n*n*(1+api.dk*.5)*(1+(combo-1)*.25); api.addScore(pts,GX+(gx+pw(p)/2)*CS,GY+gy*CS); api.sfx.clear(); api.fx.flash('#fff',.12); api.fx.shake(3+n*2); api.event('line');
+    if(n>1) api.toast(n+' LINES! 💥'); else if(combo>2) api.toast('COMBO x'+combo+'!'); }
+  else combo=0;
+  if(tray.every(q=>!q)) newTray(); else if(!tray[sel]) sel=tray.findIndex(q=>q);
+  if(lines>=target&&!done){ done=true; wave=0; api.toast(api.boss?'STORM CLEARED!':'STAGE CLEAR!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1300); }
+  return true; }
 })();
 
 </script>
