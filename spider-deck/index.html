@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SP-1.1 · 2026-10-18">
+<meta name="build" content="BUILD-SP-1.2 · 2026-10-26">
 <title>Spider Deck</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SP-1.1 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SP-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,13 +489,18 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* SPIDER DECK — spider solitaire remix. 100 stages. Build same-suit runs from the top card down to A and they spin away into the web. */
+/* SPIDER DECK — spider solitaire remix. 100 stages. Build same-suit runs from the top card down to A and they spin away into the web.
+   1.2 (26 Oct): LANDSCAPE 1280x720 — up to 10 columns across the table (x 100..968, below the HUD), a right-hand panel
+   (deck, finished runs, moves/clock, race bars) that ends above the action button. RACE: deals come from this file's own
+   seeded RNG, seeded by the shell's (race-seeded) Math.random at stage start -> both racers get the identical deal.
+   Beginner: always 1 suit, short runs, few hidden cards, no move limits/clocks until stage 30, softer boss clock. */
 (function(){
-const W=600,H=900,RL=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'],SC=['#3dd8ff','#ff3b6b','#3dff8a','#ffd23f'];
+const W=1280,H=720,TX0=100,TX1=968,SB0=992,SB1=1268,DY=84,RL=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'],SC=['#3dd8ff','#ff3b6b','#3dff8a','#ffd23f'];
 const rk=c=>c%13+1, su=c=>((c%52)/13)|0;
-let api,plan,pathL,MIX=2,t=0,tok=0,NC=10,CW=54,CH=76,GX=6,FS=22,OU=30,OD=10,TOPY=96,TABY=190,R=13,nR=2,nS=1,SR=1,HID=1,mOn,tOn,mLim,tLim,tLeft,moves,hist,done,lost,stuck,S,P,vis,press,drag,hint,jok,faces,back,fSize,outMsg,dealT,solved,flyT;
-function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
-const cx=i=>8+i*(CW+GX), SX=()=>W-8-CW;
+let rs=1,RBY=400,X0=100,api,plan,pathL,MIX=2,t=0,tok=0,NC=10,CW=54,CH=76,GX=6,FS=22,OU=30,OD=10,TABY=190,R=13,nR=2,nS=1,SR=1,HID=1,mOn,tOn,mLim,tLim,tLeft,moves,hist,done,lost,stuck,S,P,vis,press,drag,hint,jok,faces,back,fSize,outMsg,dealT,solved,flyT;
+function rnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+const cx=i=>X0+i*(CW+GX), SX=()=>SB1-CW, DONEY=()=>DY+CH+34;
 function clone(s){ return {t:s.t.map(c=>c.slice()),d:s.d.slice(),s:s.s.slice(),done:s.done.slice()}; }
 /* ---------- rules ---------- */
 function fix(s){ s.t.forEach((col,i)=>{ const k=col.length-R; if(k>=0&&k>=s.d[i]&&rk(col[k])===R){ let ok=true; for(let j=1;j<R&&ok;j++) ok=su(col[k+j])===su(col[k])&&rk(col[k+j])===R-j; if(ok) s.done.push(col.splice(k)); }
@@ -528,22 +533,22 @@ function scramble(){ const s={t:[],d:[],s:[],done:[]}, fw=[]; for(let i=0;i<NC;i
   const topRun=b=>{ const col=s.t[b],k=col.length-R; if(k<0||k<s.d[b]||rk(col[k])!==R) return false; for(let j=1;j<R;j++) if(su(col[k+j])!==su(col[k])||rk(col[k+j])!==R-j) return false; return true; };
   let fixing=false; const blocks=a=>!s.t[a].length||(s.t[a].length>1&&s.d[a]>s.t[a].length-2);
   const pickA=b=>{ const e=[],u=[]; for(let a=0;a<NC;a++){ if(a===b) continue; const L=s.t[a].length; if(fixing?blocks(a):!L) e.push(a); else if(L&&s.d[a]===L-1&&s.d[a]<HID) u.push(a); }
-    if(e.length&&(fixing||Math.random()<0.6)) return e[Math.random()*e.length|0]; if(u.length&&Math.random()<0.6) return u[Math.random()*u.length|0];
-    let a1=Math.random()*NC|0,a2=Math.random()*NC|0; if(a1===b) a1=(a1+1)%NC; if(a2===b) a2=(a2+1)%NC; return s.t[a1].length<=s.t[a2].length?a1:a2; };
-  function put(cards,a){ const col=s.t[a], d0=s.d[a]; if(!fixing&&col.length&&s.d[a]===col.length-1&&s.d[a]<HID&&Math.random()<0.75) s.d[a]=col.length; const at=col.length; col.push(...cards);
+    if(e.length&&(fixing||rnd()<0.6)) return e[rnd()*e.length|0]; if(u.length&&rnd()<0.6) return u[rnd()*u.length|0];
+    let a1=rnd()*NC|0,a2=rnd()*NC|0; if(a1===b) a1=(a1+1)%NC; if(a2===b) a2=(a2+1)%NC; return s.t[a1].length<=s.t[a2].length?a1:a2; };
+  function put(cards,a){ const col=s.t[a], d0=s.d[a]; if(!fixing&&col.length&&s.d[a]===col.length-1&&s.d[a]<HID&&rnd()<0.75) s.d[a]=col.length; const at=col.length; col.push(...cards);
     if(topRun(a)){ col.splice(at); s.d[a]=d0; return -1; } return at; }
   function rev(){ const opts=[]; for(let b=0;b<NC;b++){ const col=s.t[b]; for(let i=col.length-1;i>=s.d[b];i--){ if(i<col.length-1&&!(su(col[i])===su(col[i+1])&&rk(col[i])===rk(col[i+1])+1)) break;
         if(i===0||(i-1>=s.d[b]&&rk(col[i-1])===rk(col[i])+1)) opts.push([b,i,1/Math.pow(col.length-i,1.5)]); } }
-    for(let k=0;k<8&&opts.length;k++){ let q=Math.random()*opts.reduce((x,o)=>x+o[2],0),o=opts[0]; for(const z of opts){ q-=z[2]; if(q<=0){ o=z; break; } } const [b,i]=o, a=pickA(b), cards=s.t[b].splice(i), at=put(cards,a); if(at<0){ s.t[b].push(...cards); continue; } fw.push({k:'tt',a,i:at,to:b}); return true; } return false; }
-  function unc(){ const run=s.done.pop(), a=Math.random()*NC|0, col=s.t[a], d0=s.d[a]; if(col.length&&s.d[a]===col.length-1&&s.d[a]<HID&&Math.random()<0.75) s.d[a]=col.length; const at=col.length; col.push(...run);
-    for(let k=0;k<8;k++){ const j=1+(Math.random()*(R-1)|0), c=pickA(a), cards=s.t[a].splice(at+j), at2=put(cards,c); if(at2<0){ s.t[a].push(...cards); continue; } fw.push({k:'tt',a:c,i:at2,to:a}); return true; }
+    for(let k=0;k<8&&opts.length;k++){ let q=rnd()*opts.reduce((x,o)=>x+o[2],0),o=opts[0]; for(const z of opts){ q-=z[2]; if(q<=0){ o=z; break; } } const [b,i]=o, a=pickA(b), cards=s.t[b].splice(i), at=put(cards,a); if(at<0){ s.t[b].push(...cards); continue; } fw.push({k:'tt',a,i:at,to:b}); return true; } return false; }
+  function unc(){ const run=s.done.pop(), a=rnd()*NC|0, col=s.t[a], d0=s.d[a]; if(col.length&&s.d[a]===col.length-1&&s.d[a]<HID&&rnd()<0.75) s.d[a]=col.length; const at=col.length; col.push(...run);
+    for(let k=0;k<8;k++){ const j=1+(rnd()*(R-1)|0), c=pickA(a), cards=s.t[a].splice(at+j), at2=put(cards,c); if(at2<0){ s.t[a].push(...cards); continue; } fw.push({k:'tt',a:c,i:at2,to:a}); return true; }
     s.t[a].splice(at); s.d[a]=d0; s.done.push(run); return false; }
   function undeal(){ for(let b=0;b<NC;b++){ const col=s.t[b]; if(!col.length||(col.length>1&&s.d[b]>col.length-2)) return false; }
     const tops=s.t.map(col=>col.pop()); if(s.t.some((c,b)=>topRun(b))){ s.t.forEach((col,b)=>col.push(tops[b])); return false; } for(let b=NC-1;b>=0;b--) s.s.push(tops[b]); fw.push({k:'deal'}); return true; }
   const N=nR*R, per=Math.round(N*MIX/(SR+1)); let g=0;
   for(let ph=0;ph<=SR;ph++){ let n=0;
     while((n<per||(ph===SR&&(s.done.length||s.t.some(c=>!c.length))))&&g++<8000){ const onT=s.t.reduce((x,c)=>x+c.length,0);
-      if(s.done.length&&(onT<NC*2||Math.random()<0.3||ph===SR)) { if(unc()) n++; else if(rev()) n++; } else if(rev()) n++; else if(s.done.length&&unc()) n++; }
+      if(s.done.length&&(onT<NC*2||rnd()<0.3||ph===SR)) { if(unc()) n++; else if(rev()) n++; } else if(rev()) n++; else if(s.done.length&&unc()) n++; }
     if(ph<SR){ let k=0; fixing=true; while(!undeal()&&k++<300) rev(); fixing=false; if(k>=300) return null; } }
   if(s.done.length) return null; fw.reverse();
   const c=clone(s); for(const m of fw){ if(m.k==='tt'&&(m.i<seqStart(c,m.a)||!canPut(c,c.t[m.a][m.i],m.to))) return null; apply(c,m); } if(c.done.length!==nR) return null;
@@ -553,23 +558,23 @@ function deal(){ for(let k=0;k<30;k++){ const r=scramble(); if(r) return r; }
 function newDeal(){ const r=deal(); S=r.s; solved=!!r.p; plan=new Map(); if(r.p){ const c=clone(S); r.p.forEach(m=>{ plan.set(key(c),m); apply(c,m); }); }
   const L=r.p?r.p.length:S.t.reduce((a,c)=>a+c.length,0)+nR*R; hist=[]; moves=0; stuck=false; hint=null; jok=0; drag=null; press=null; outMsg=null; done=false; lost=false; flyT=0; pathL=L;
   mLim=mOn&&solved?Math.ceil(L*api.dv([1.6,1.35,1.2],1.15,1.05))+8:0; tLim=tOn?Math.round(25+L*api.dv([3.2,2.5,2],1.6,1.2)*(api.boss?0.85:1)):0; tLeft=tLim; if(api.setActive) api.setActive(3,false);
-  vis={}; layout(); let n=0; for(const c in P){ const p=P[c]; vis[c]={x:SX(),y:TOPY,f:0,dl:p.up||S.t.some(col=>col.includes(+c))?0.1+(n++)*0.018:0,sh:0}; } dealT=0; api.sfx.power(); counter(); }
+  vis={}; layout(); let n=0; for(const c in P){ const p=P[c]; vis[c]={x:SX(),y:DY,f:0,dl:p.up||S.t.some(col=>col.includes(+c))?0.1+(n++)*0.018:0,sh:0}; } dealT=0; api.sfx.power(); counter(); }
 function counter(){ api.counter('🕸️ RUNS LEFT',nR-S.done.length); }
 /* ---------- layout ---------- */
-function sizes(){ CW=Math.min(80,Math.floor((W-16-(NC-1)*6)/NC)); GX=NC>1?(W-16-NC*CW)/(NC-1):0; CH=Math.round(CW*1.42); FS=Math.round(Math.min(CW*0.45,30)); OU=FS+9; OD=Math.max(7,Math.round(CW*0.16)); }
-function layout(){ P={}; const sx=SX(); S.s.forEach((c,i)=>P[c]={x:sx-Math.floor(i/NC)*9,y:TOPY,up:0,z:i});
-  S.done.forEach((run,k)=>run.forEach((c,j)=>P[c]={x:8+k*Math.min(26,(W*0.42-CW)/Math.max(1,nR-1)),y:TOPY,up:1,z:200+k*20+(R-j)}));
+function sizes(){ const TW=TX1-TX0; CW=Math.min(84,Math.floor((TW-(NC-1)*8)/NC)); GX=NC>1?Math.min(CW*0.4,(TW-NC*CW)/(NC-1)):0; X0=TX0+(TW-NC*CW-(NC-1)*GX)/2; CH=Math.round(CW*1.42); FS=Math.round(Math.min(CW*0.45,30)); OU=FS+9; OD=Math.max(7,Math.round(CW*0.16)); }
+function layout(){ P={}; const sx=SX(); S.s.forEach((c,i)=>P[c]={x:sx-Math.floor(i/NC)*9,y:DY,up:0,z:i});
+  S.done.forEach((run,k)=>run.forEach((c,j)=>P[c]={x:SB0+k*Math.min(30,(SB1-SB0-CW)/Math.max(1,nR-1)),y:DONEY(),up:1,z:200+k*20+(R-j)}));
   S.t.forEach((col,i)=>{ const dn=S.d[i],up=col.length-dn,max=H-12-TABY-CH; let od=OD,ou=OU; const need=dn*od+Math.max(0,up-1)*ou;
     if(need>max){ ou=Math.max(FS*0.8,(max-dn*od)/Math.max(1,up-1)); if(dn*od+(up-1)*ou>max) od=Math.max(3,(max-(up-1)*ou)/Math.max(1,dn)); }
     let y=TABY; col.forEach((c,j)=>{ P[c]={x:cx(i),y,up:j>=dn?1:0,z:400+i*120+j}; y+=j<dn?od:ou; }); }); }
 function colTop(b){ const col=S.t[b]; if(!col.length) return {x:cx(b),y:TABY}; const p=P[col[col.length-1]]; return {x:p.x,y:p.y+OU}; }
 function hit(x,y){ const inR=(px,py)=>x>=px&&x<=px+CW&&y>=py&&y<=py+CH;
-  if(S.s.length&&x>=SX()-Math.ceil(S.s.length/NC)*9-4&&x<=W&&y>=TOPY&&y<=TOPY+CH) return {z:'s'};
+  if(S.s.length&&x>=SX()-Math.ceil(S.s.length/NC)*9-4&&x<=SB1+8&&y>=DY&&y<=DY+CH) return {z:'s'};
   for(let i=0;i<NC;i++){ const col=S.t[i]; for(let j=col.length-1;j>=0;j--){ const p=P[col[j]]; if(inR(p.x,p.y)) return j>=S.d[i]?{z:'t',a:i,i:j,c:col[j]}:{z:'td',a:i}; }
     if(x>=cx(i)&&x<=cx(i)+CW&&y>=TABY) return {z:'te',a:i}; }
   return null; }
 const runOK=(a,i)=>i>=seqStart(S,a)&&i<S.t[a].length;
-function colAt(x){ return Math.max(0,Math.min(NC-1,Math.round((x-8-CW/2)/(CW+GX)))); }
+function colAt(x){ return Math.max(0,Math.min(NC-1,Math.round((x-X0-CW/2)/(CW+GX)))); }
 function bestMove(h){ if(h.z!=='t'||!runOK(h.a,h.i)) return null; const c=h.c; let best=null,bs=-9;
   for(let b=0;b<NC;b++){ if(b===h.a||!canPut(S,c,b)) continue; const cb=S.t[b]; let sc;
     if(!cb.length){ if(h.i===0) continue; sc=0; } else { sc=su(cb[cb.length-1])===su(c)?3:1; } if(sc>bs){ bs=sc; best={k:'tt',a:h.a,i:h.i,to:b}; } }
@@ -581,11 +586,11 @@ function doMove(m,noHist){ if(!noHist){ hist.push({s:clone(S),moves}); if(hist.l
   else api.sfx.click();
   if(m.k==='tt'){ api.event('move'); if(vis[S.t[m.to][0]]) {} }
   if(S.done.length>r0){ for(let k=r0;k<S.done.length;k++){ const run=S.done[k], x=su(run[0]); run.forEach((c,j)=>vis[c].dl=(R-1-j)*0.035); const p=P[run[0]];
-      api.addScore(150+R*10,p.x+CW/2,TOPY+CH/2); api.fx.burst(p.x+CW/2,TOPY+CH/2,SC[x],40,320,.9,3); api.fx.flash(SC[x],.18); } api.sfx.clear(); api.event('run'); flyT=1; }
+      api.addScore(150+R*10,p.x+CW/2,p.y+CH/2); api.fx.burst(p.x+CW/2,p.y+CH/2,SC[x],40,320,.9,3); api.fx.flash(SC[x],.18); } api.sfx.clear(); api.event('run'); flyT=1; }
   S.d.forEach((d,i)=>{ if(d<d0[i]&&S.t[i].length){ const c=S.t[i][d]; api.addScore(10,cx(i)+CW/2,P[c].y+20,true); api.fx.burst(cx(i)+CW/2,P[c].y+CH/2,'#c06bff',10,150,.4,2); } });
   after(); }
 function after(){ counter(); stuck=false; if(done||lost) return;
-  if(S.done.length>=nR){ done=true; api.toast('WEB CLEARED!'); api.fx.flash('#fff',.3); for(let k=0;k<6;k++) api.fx.burst(60+k*96,TABY+120,SC[k%4],26,320,.9,3); const k=tok; setTimeout(()=>{ if(k===tok) api.stageClear(); },1400); return; }
+  if(S.done.length>=nR){ done=true; api.toast('WEB CLEARED!'); api.fx.flash('#fff',.3); for(let k=0;k<6;k++) api.fx.burst(X0+80+k*140,TABY+160,SC[k%4],26,320,.9,3); const k=tok; setTimeout(()=>{ if(k===tok) api.stageClear(); },1400); return; }
   if(mLim&&moves>=mLim){ fail('OUT OF MOVES!'); return; }
   if(isStuck(S)){ stuck=true; api.sfx.bump(); api.toast('NO MOVES LEFT!'); } }
 function fail(msg){ if(lost||done) return; lost=true; outMsg=msg; api.toast(msg); api.sfx.hurt(); api.fx.shake(6); const k=tok; setTimeout(()=>{ if(k===tok) api.loseLife(); },1200); }
@@ -621,16 +626,16 @@ function slot(c,x,y,col,lab){ c.strokeStyle=col; c.lineWidth=2; c.setLineDash([5
 function web(c,x,y,rad,a){ c.strokeStyle=`rgba(190,120,255,${a})`; c.lineWidth=1.2; for(let k=0;k<12;k++){ const an=k*Math.PI/6; c.beginPath(); c.moveTo(x,y); c.lineTo(x+Math.cos(an)*rad,y+Math.sin(an)*rad); c.stroke(); }
   for(let r=rad/8;r<rad;r+=rad/8){ c.beginPath(); for(let k=0;k<=12;k++){ const an=k*Math.PI/6, rr2=r*(k%2?0.94:1); c[k?'lineTo':'moveTo'](x+Math.cos(an)*rr2,y+Math.sin(an)*rr2); } c.stroke(); } }
 function bg(c,tt){ const g=c.createRadialGradient(W/2,H*.5,60,W/2,H*.5,720); g.addColorStop(0,api&&api.boss?'#2a0830':'#140a34'); g.addColorStop(1,'#04030c'); c.fillStyle=g; c.fillRect(0,0,W,H);
-  web(c,W/2,H*0.58,560,api&&api.boss?0.16:0.08); c.strokeStyle='rgba(192,107,255,.5)'; c.lineWidth=2; c.shadowColor='#c06bff'; c.shadowBlur=12; rr(c,3,76,W-6,H-80,14); c.stroke(); c.shadowBlur=0; }
-function spider(c,x,y,s,col){ c.strokeStyle='rgba(220,220,255,.6)'; c.lineWidth=1; c.beginPath(); c.moveTo(x,76); c.lineTo(x,y-s); c.stroke(); c.strokeStyle=col; c.lineWidth=2.5; c.shadowColor=col; c.shadowBlur=12;
+  web(c,(TX0+TX1)/2,H*0.62,620,api&&api.boss?0.16:0.08); c.strokeStyle='rgba(192,107,255,.5)'; c.lineWidth=2; c.shadowColor='#c06bff'; c.shadowBlur=12; rr(c,TX0-8,76,TX1-TX0+16,H-80,14); c.stroke(); c.strokeStyle='rgba(61,216,255,.35)'; rr(c,SB0-8,76,SB1-SB0+16,RBY-84,14); c.stroke(); c.shadowBlur=0; }
+function spider(c,x,y,s,col,y0){ c.strokeStyle='rgba(220,220,255,.6)'; c.lineWidth=1; c.beginPath(); c.moveTo(x,y0||76); c.lineTo(x,y-s); c.stroke(); c.strokeStyle=col; c.lineWidth=2.5; c.shadowColor=col; c.shadowBlur=12;
   for(let k=0;k<4;k++) for(const d of [-1,1]){ const w=Math.sin(t*6+k)*2; c.beginPath(); c.moveTo(x,y); c.quadraticCurveTo(x+d*s*1.1,y-s*0.6+k*s*0.35+w,x+d*s*1.7,y-s*0.2+k*s*0.5); c.stroke(); }
   c.fillStyle='#14061e'; c.beginPath(); c.ellipse(x,y+s*0.3,s*0.62,s*0.75,0,0,7); c.fill(); c.stroke(); c.beginPath(); c.arc(x,y-s*0.5,s*0.38,0,7); c.fill(); c.stroke(); c.shadowBlur=0;
   c.fillStyle=col; c.beginPath(); c.moveTo(x,y+s*0.05); c.lineTo(x+s*0.22,y+s*0.3); c.lineTo(x,y+s*0.55); c.lineTo(x-s*0.22,y+s*0.3); c.fill(); c.fillStyle='#ff3b6b'; c.fillRect(x-s*0.2,y-s*0.6,s*0.12,s*0.12); c.fillRect(x+s*0.08,y-s*0.6,s*0.12,s*0.12);
   c.fillStyle='#ffd23f'; c.beginPath(); c.moveTo(x-s*0.3,y-s*0.85); c.lineTo(x-s*0.3,y-s*1.1); c.lineTo(x-s*0.12,y-s*0.95); c.lineTo(x,y-s*1.2); c.lineTo(x+s*0.12,y-s*0.95); c.lineTo(x+s*0.3,y-s*1.1); c.lineTo(x+s*0.3,y-s*0.85); c.fill(); }
 const GAME=window.GAME={
   id:'spider-deck',title:'Spider Deck',titleHTML:'SPIDER<br>DECK',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-SP-1.1 · 2026-10-18',theme:{a:'#c06bff',b:'#3dd8ff',bg:'#0c0620'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🕷️',joystick:false,coinPts:40,
+  build:'BUILD-SP-1.2 · 2026-10-26',theme:{a:'#c06bff',b:'#3dd8ff',bg:'#0c0620'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🕷️',joystick:false,coinPts:40,
   abilities:[
     {id:'hint',icon:'💡',name:'HINT',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — glows a good next move for 3 seconds.'},
     {id:'undo',icon:'↩️',name:'UNDO',cd:12,key:'Digit1',keyLabel:'1',desc:'Take back your last move.'},
@@ -639,30 +644,33 @@ const GAME=window.GAME={
   shop:[{id:'sd_v',cat:'Web',name:'Violet Web',cost:0,colors:['#c06bff'],desc:'Classic neon violet.'},{id:'sd_c',cat:'Web',name:'Ice Web',cost:150,colors:['#3dd8ff'],desc:'Frosty blue silk.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#c06bff,#3dd8ff)'}],
   story:`<h3>SPIDER DECK</h3><p>Deep in the neon arcade a card-spinning spider has wrapped every deck in silk. Sort the cards into perfect runs and each one spins free — until you face the Web Queen herself.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap a card</b> and it jumps to the best spot. You can also <b>drag</b> it (PC: click or drag with the mouse).</li><li>Put a card on any card <b>one higher</b> (5 on a 6). Only cards of the <b>same suit</b> in order move together.</li><li>Build a full run in <b>one suit</b> from the top card down to <b>A</b> and it flies away. Clear every run to win.</li><li>Tap the <b>deck</b> (top right) to deal one card on every column (PC: D or ENTER).</li><li>Early tables use 1 suit and short runs. Later: 2 suits, then 4, move limits and clocks.</li><li>💡 HINT is free (SPACE). Stuck? UNDO (1), REVEAL (2), WILD (3) — or redeal for a life.</li></ul>`,
-  tutorial:[{text:'Tap a card! It jumps onto a card one higher.',ev:'move'},{text:'Tap the deck (top right) to deal a new row.',ev:'deal'},{text:'Build 5 4 3 2 A in one suit to clear a run!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li>📱 <b>Hold your phone sideways.</b> Right thumb: tap or drag cards, 💡 HINT button bottom-right. Left thumb: UNDO / REVEAL / WILD on the left edge.</li><li>💻 PC: click or drag cards with the mouse · SPACE hint · 1 undo · 2 reveal · 3 wild · D or ENTER deal.</li><li><b>Tap a card</b> and it jumps to the best spot, or <b>drag</b> it where you want.</li><li>Put a card on any card <b>one higher</b> (5 on a 6). Only cards of the <b>same suit</b> in order move together.</li><li>Build a full run in <b>one suit</b> from the top card down to <b>A</b> and it flies away. Clear every run to win.</li><li>Tap the <b>deck</b> (top right panel) to deal one card on every column (PC: D or ENTER).</li><li>Early tables use 1 suit and short runs. Later: 2 suits, then 4, move limits and clocks.</li><li>💡 HINT is free (SPACE). Stuck? UNDO (1), REVEAL (2), WILD (3) — or redeal for a life.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. Tap a card (right thumb) — it jumps onto a card one higher.',ev:'move'},{text:'Tap the deck (top right) to deal a new row. PC: D key.',ev:'deal'},{text:'Build 5 4 3 2 A in one suit to clear a run! Stuck? 💡 HINT bottom-right (SPACE).',time:6}],
   stageIntro:{1:'BUILD RUNS DOWN TO A'},bossName:'THE WEB QUEEN!',ending:{"0":["#UNTANGLED","Every deck is free."],"1":["#WEB MASTER","The Web Queen bows to you."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ return null; },
-  _dbg(){ return {get S(){return S;}, get nR(){return nR;}, get R(){return R;}, get nS(){return nS;}, get NC(){return NC;}, get stuck(){return stuck;}, get moves(){return moves;}, get mLim(){return mLim;}, get tLeft(){return tLeft;}, get tLim(){return tLim;}, get done(){return done;}, get lost(){return lost;}, get solved(){return solved;}, get pathL(){return pathL;}, plan:()=>plan, key:()=>key(S), apply:(m)=>doMove(m), get CW(){return CW;},
-    solve:(b)=>solve(clone(S),b||20000), step(){ let m=plan&&plan.get(key(S)); if(!m){ const p=solve(clone(S),20000); m=p&&p[0]; } if(!m) return false; doMove(m); return true; }, tapAt:(x,y)=>tap(hit(x,y)), hit:(x,y)=>hit(x,y), P:()=>P, setT:(v)=>tLeft=v, gen:()=>gen(S)}; },
+  _dbg(){ return {get S(){return S;}, get nR(){return nR;}, get R(){return R;}, get nS(){return nS;}, get NC(){return NC;}, get stuck(){return stuck;}, get moves(){return moves;}, get mLim(){return mLim;}, get tLeft(){return tLeft;}, get tLim(){return tLim;}, get done(){return done;}, get lost(){return lost;}, get solved(){return solved;}, get pathL(){return pathL;}, plan:()=>plan, key:()=>key(S), apply:(m)=>doMove(m), get CW(){return CW;}, get geo(){return {X0,GX,CW,CH,TABY,DY,RBY};}, get seed(){return rs;},
+    solve:(b)=>solve(clone(S),b||20000), step(){ const m=nextMove(20000); if(!m) return false; doMove(m); return true; }, tapAt:(x,y)=>tap(hit(x,y)), hit:(x,y)=>hit(x,y), P:()=>P, setT:(v)=>tLeft=v, gen:()=>gen(S)}; },
   init(a){ api=a; },
-  startStage(n,a){ api=a; t=0; tok++; const L=a.level, tut=a.content===0;
+  startStage(n,a){ api=a; t=0; tok++; rs=(Math.random()*4294967296)|0; const L=a.level, tut=a.content===0, beg=a.diff===0;   // RACE: shell seeds Math.random -> same rs -> same deal
     if(tut){ R=5; nR=2; nS=1; NC=5; SR=1; HID=0; }
+    else if(beg){ R=Math.min(13,6+Math.floor(L/3)); nR=Math.min(8,2+Math.floor(L/6)); nS=1; NC=Math.min(10,4+nR);
+      SR=Math.max(1,Math.min(4,1+Math.floor(nR/2),Math.floor(nR*R/NC)-2)); HID=Math.min(4,Math.floor((L-1)/5)); }
     else { R=Math.min(13,6+Math.floor(L/2)); nR=Math.min(8,2+Math.floor(L/4)); nS=L<30?1:L<70?2:4; if(a.boss&&nS<4&&L>=20) nS*=2; if(nS===4) nR=Math.max(4,Math.min(nR,Math.floor(4+(L-70)/10)));
       NC=Math.min(10,4+nR); SR=Math.max(1,Math.min(5,1+Math.floor(nR/2),Math.floor(nR*R/NC)-2)); HID=Math.min(5,1+Math.floor(L/6)); if(nS===4) HID=Math.min(HID,3); }
-    sizes(); TOPY=tut?320:96; TABY=TOPY+CH+16; ensureFaces();
-    mOn=!tut&&!a.boss&&a.content===1&&L>=12; tOn=a.boss||(!tut&&a.content===2&&L>=16); newDeal(); },
+    sizes(); TABY=tut?262:DY; RBY=DONEY()+CH+82; ensureFaces();
+    mOn=!tut&&!a.boss&&a.content===1&&L>=(beg?30:12); tOn=a.boss||(!tut&&a.content===2&&L>=(beg?30:16)); newDeal();
+    if(beg&&tLim&&L<=30){ tLim=tLeft=Math.round(tLim*1.6); } },
   respawn(){ newDeal(); },
   stageBonus(){ return tLim?Math.round(tLeft)*5:mLim?Math.max(0,mLim-moves)*10:150; },
   useAbility(id){ if(done||lost) return false;
-    if(id==='hint'){ let m=plan&&plan.get(key(S)); if(!m){ const p=solve(clone(S),5000); m=p&&p[0]; } if(!m) m=gen(S)[0]; if(!m){ api.toast('NO MOVES — USE UNDO OR REDEAL'); return true; } hint={m,t:3}; api.sfx.blip(); return true; }
+    if(id==='hint'){ let m=nextMove(5000); if(!m) m=gen(S)[0]; if(!m){ api.toast('NO MOVES — USE UNDO OR REDEAL'); return true; } hint={m,t:3}; api.sfx.blip(); return true; }
     if(id==='undo'){ if(!hist.length){ api.toast('NOTHING TO UNDO'); return false; } const h=hist.pop(); S=h.s; moves=h.moves; hint=null; jok=0; api.setActive(3,false); layout(); api.sfx.power(); after(); return true; }
     if(id==='reveal'){ let b=-1; for(let i=0;i<NC;i++) if(S.d[i]>0&&(b<0||S.d[i]>S.d[b])) b=i; if(b<0){ api.toast('NO FACE-DOWN CARDS'); return false; }
       hist.push({s:clone(S),moves}); apply(S,{k:'rv',a:b}); layout(); const c=S.t[b][S.d[b]]; api.fx.burst(cx(b)+CW/2,P[c].y+CH/2,'#3dd8ff',24,240,.6,3); api.sfx.power(); after(); return true; }
     if(id==='wild'){ if(jok){ jok=0; api.setActive(3,false); api.toast('WILD PUT AWAY'); return false; } jok=1; api.setActive(3,true); api.sfx.power(); api.toast('WILD: TAP ANY FACE-UP CARD'); stuck=false; return true; } },
   onKey(code,down){ if(down&&(code==='KeyD'||code==='Enter')&&!done&&!lost&&S.s.length) doMove({k:'deal'}); },
   onPointer(type,x,y){ if(done||lost) return;
-    if(type==='down'){ if(stuck&&y>470&&y<540){ if(x<210) api.useAb(1); else if(x<390) api.useAb(2); else { stuck=false; fail('REDEAL!'); } return; }
+    if(type==='down'){ const PX=(TX0+TX1)/2; if(stuck&&y>376&&y<448&&Math.abs(x-PX)<270){ if(x<PX-88) api.useAb(1); else if(x<PX+88) api.useAb(2); else { stuck=false; fail('REDEAL!'); } return; }
       press={h:hit(x,y),x,y}; drag=null; return; }
     if(!press) return;
     if(type==='move'){ const h=press.h; if(!drag&&h&&h.z==='t'&&Math.hypot(x-press.x,y-press.y)>12&&(jok||runOK(h.a,h.i))) drag={h,cards:S.t[h.a].slice(h.i),dx:press.x-P[h.c].x,dy:press.y-P[h.c].y,x,y};
@@ -670,21 +678,21 @@ const GAME=window.GAME={
     if(type==='up'){ const p=press; press=null; if(!drag){ tap(p.h); return; } const d=drag; drag=null; const b=colAt(x-d.dx+CW/2), h=d.h; let m=null;
       if(b!==h.a){ if(jok){ m={k:'tt',a:h.a,i:h.i,to:b}; jok=0; api.setActive(3,false); api.toast('WILD!'); } else if(canPut(S,h.c,b)) m={k:'tt',a:h.a,i:h.i,to:b}; }
       if(m) doMove(m); else if(b!==h.a) nope(h.a,h.i); } },
-  update(dt){ t+=dt; dealT+=dt; if(flyT>0) flyT-=dt; if(hint){ hint.t-=dt; if(hint.t<=0) hint=null; }
+  update(dt){ t+=dt; placeBars(); dealT+=dt; if(flyT>0) flyT-=dt; if(hint){ hint.t-=dt; if(hint.t<=0) hint=null; }
     for(const c in vis){ const v=vis[c], p=P[c]; if(v.sh>0) v.sh-=dt; if(!p) continue; if(v.dl>0){ v.dl-=dt; continue; } const k=Math.min(1,dt*14); v.x+=(p.x-v.x)*k; v.y+=(p.y-v.y)*k; v.f+=((p.up?1:0)-v.f)*Math.min(1,dt*10); }
     if(done||lost) return;
     if(tLim&&!stuck&&dealT>1.2){ const s0=Math.ceil(tLeft); tLeft-=dt; if(tLeft<=10&&Math.ceil(tLeft)<s0) api.sfx.blip(); if(tLeft<=0){ tLeft=0; fail("TIME'S UP!"); } } },
   render(c){ bg(c,t); const wc=api.cos('Web').colors[0];
-    const ix=8+Math.max(CW,(nR-1)*Math.min(26,(W*0.42-CW)/Math.max(1,nR-1))+CW)+10, iw=SX()-Math.ceil(Math.max(1,S.s.length)/NC)*9-12-ix, mx=ix+iw/2;
-    for(let k=0;k<nR;k++) if(k>=S.done.length&&k<1) slot(c,8,TOPY,'rgba(192,107,255,.45)','🕸️');
-    if(!S.s.length) slot(c,SX(),TOPY,'rgba(61,216,255,.35)','');
-    c.textAlign='center'; c.font='bold 17px Orbitron,sans-serif';
-    if(api.boss&&tLim){ const fr=tLeft/tLim, col=tLeft<20?'#ff3b6b':wc; spider(c,mx,TOPY+18+(1-fr)*14,14,col); }
-    const y1=TOPY+CH*0.5+(api.boss?14:0), y2=y1+24;
-    c.fillStyle='#e8dcff'; c.fillText((nS===1?'1 SUIT':nS+' SUITS')+' · '+RL[R]+'→A',mx,y1-26+(api.boss?16:0)*0);
-    if(tLim){ const s=Math.max(0,Math.ceil(tLeft)); c.font='bold 22px Orbitron,sans-serif'; c.fillStyle=tLeft<20?(Math.floor(t*4)%2?'#ff3b6b':'#fff'):'#ffd23f'; c.fillText('⏱ '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0'),mx,y1+4); }
-    else if(mLim){ c.font='bold 20px Orbitron,sans-serif'; c.fillStyle=mLim-moves<=5?'#ff3b6b':'#ffd23f'; c.fillText('MOVES '+moves+'/'+mLim,mx,y1+4); } else { c.font='bold 18px Orbitron,sans-serif'; c.fillStyle='rgba(255,210,63,.65)'; c.fillText('MOVES '+moves,mx,y1+4); }
-    if(S.s.length){ c.font='bold 13px sans-serif'; c.fillStyle='#3dd8ff'; c.fillText('DEAL ×'+Math.ceil(S.s.length/NC),SX()+CW/2-((Math.ceil(S.s.length/NC)-1)*4.5),TOPY+CH+13); }
+    const ds=Math.ceil(Math.max(1,S.s.length)/NC)*9, ix=SB0, iw=SX()-ds-6-ix, mx=ix+iw/2, fit=(txt,sz,f)=>{ c.font='bold '+sz+'px '+(f||'Orbitron,sans-serif'); while(sz>10&&c.measureText(txt).width>iw){ sz--; c.font='bold '+sz+'px '+(f||'Orbitron,sans-serif'); } };
+    if(S.done.length<1) slot(c,SB0,DONEY(),'rgba(192,107,255,.45)','🕸️');
+    c.textAlign='center'; c.fillStyle='rgba(232,220,255,.55)'; c.font='bold 16px sans-serif'; c.fillText('RUNS DONE '+S.done.length+'/'+nR,SB0+(SB1-SB0)/2,DONEY()+CH+15);
+    if(!S.s.length) slot(c,SX(),DY,'rgba(61,216,255,.35)','');
+    const bossY=api.boss&&tLim?22:0; if(bossY){ const fr=tLeft/tLim, col=tLeft<20?'#ff3b6b':wc; spider(c,mx,DY+16+(1-fr)*10,12,col,DY); }
+    const y1=DY+CH*0.38+bossY, y2=y1+Math.min(36,CH*0.3), lab=(nS===1?'1 SUIT':nS+' SUITS')+' · '+RL[R]+'→A';
+    fit(lab,21); c.fillStyle='#e8dcff'; c.fillText(lab,mx,y1);
+    if(tLim){ const s=Math.max(0,Math.ceil(tLeft)), tx='⏱ '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); fit(tx,28); c.fillStyle=tLeft<20?(Math.floor(t*4)%2?'#ff3b6b':'#fff'):'#ffd23f'; c.fillText(tx,mx,y2); }
+    else if(mLim){ const tx='MOVES '+moves+'/'+mLim; fit(tx,24); c.fillStyle=mLim-moves<=5?'#ff3b6b':'#ffd23f'; c.fillText(tx,mx,y2); } else { const tx='MOVES '+moves; fit(tx,24); c.fillStyle='rgba(255,210,63,.65)'; c.fillText(tx,mx,y2); }
+    if(S.s.length){ c.font='bold 13px sans-serif'; c.fillStyle='#3dd8ff'; c.font='bold 15px sans-serif'; c.fillText('DEAL ×'+Math.ceil(S.s.length/NC),SX()+CW/2-((Math.ceil(S.s.length/NC)-1)*4.5),DY+CH+17); }
     for(let i=0;i<NC;i++) if(!S.t[i].length) slot(c,cx(i),TABY,wc+'88','');
     const dragSet=drag?new Set(drag.cards):null, list=Object.keys(P).map(Number);
     const zz=k=>{ const v=vis[k],p=P[k]; return p.z+(Math.abs(v.x-p.x)+Math.abs(v.y-p.y)>3?2000:0)+(dragSet&&dragSet.has(k)?4000:0); }; list.sort((a,b)=>zz(a)-zz(b));
@@ -693,15 +701,22 @@ const GAME=window.GAME={
       if(v.sh>0) x+=Math.sin(v.sh*60)*5; if(dg){ c.shadowColor='#000'; c.shadowBlur=18; c.shadowOffsetY=8; } drawCard(c,k,x,y,v.f); c.shadowBlur=0; c.shadowOffsetY=0;
       if((js&&js.includes(k))||(hs&&hs.includes(k))){ const col=js?'#ff3bd4':'#ffd23f'; c.strokeStyle=col; c.lineWidth=3; c.shadowColor=col; c.shadowBlur=16+Math.sin(t*8)*6; rr(c,x,y,CW,CH,7); c.stroke(); c.shadowBlur=0; } }
     if(hint){ const d=hintDest(hint.m); if(d){ c.strokeStyle='#ffd23f'; c.lineWidth=3; c.setLineDash([7,5]); c.shadowColor='#ffd23f'; c.shadowBlur=14; rr(c,d.x,d.y,CW,CH,7); c.stroke(); c.setLineDash([]); c.shadowBlur=0; } }
-    if(jok){ c.fillStyle='rgba(5,0,20,.8)'; rr(c,W/2-190,TABY-34,380,30,10); c.fill(); c.fillStyle='#ff3bd4'; c.font='bold 17px Orbitron,sans-serif'; c.textAlign='center'; c.fillText(jok===1?'🃏 WILD: TAP ANY FACE-UP CARD':'🃏 NOW TAP ANY COLUMN',W/2,TABY-13); }
-    if(stuck&&!lost&&!done){ c.fillStyle='rgba(5,0,20,.9)'; rr(c,30,400,W-60,150,16); c.fill(); c.strokeStyle='#ff3bd4'; c.lineWidth=2; c.stroke(); c.fillStyle='#fff'; c.font='bold 22px Orbitron,sans-serif'; c.textAlign='center'; c.fillText('NO MOVES LEFT',W/2,440);
-      [['↩️ UNDO',120,'#3dd8ff'],['👁️ REVEAL',300,'#3dd8ff'],['🔄 REDEAL −1🕷️',480,'#ff3b6b']].forEach(([s,x,col])=>{ c.strokeStyle=col; c.lineWidth=2; rr(c,x-84,470,168,64,12); c.stroke(); c.fillStyle='rgba(255,255,255,.07)'; c.fill(); c.fillStyle=col; c.font='bold 20px sans-serif'; c.fillText(s,x,510); }); }
+    if(jok){ const by=RBY-60; c.fillStyle='rgba(5,0,20,.85)'; rr(c,SB0-4,by,SB1-SB0+8,52,10); c.fill(); c.strokeStyle='#ff3bd4'; c.lineWidth=2; c.stroke(); c.fillStyle='#ff3bd4'; c.font='bold 16px Orbitron,sans-serif'; c.textAlign='center';
+      c.fillText('🃏 WILD',SB0+(SB1-SB0)/2,by+21); c.font='bold 14px sans-serif'; c.fillText(jok===1?'TAP ANY FACE-UP CARD':'NOW TAP ANY COLUMN',SB0+(SB1-SB0)/2,by+42); }
+    if(stuck&&!lost&&!done){ const PX=(TX0+TX1)/2; c.fillStyle='rgba(5,0,20,.92)'; rr(c,PX-280,300,560,166,16); c.fill(); c.strokeStyle='#ff3bd4'; c.lineWidth=2; c.stroke(); c.fillStyle='#fff'; c.font='bold 24px Orbitron,sans-serif'; c.textAlign='center'; c.fillText('NO MOVES LEFT',PX,346);
+      [['↩️ UNDO',PX-176,'#3dd8ff'],['👁️ REVEAL',PX,'#3dd8ff'],['🔄 REDEAL −1🕷️',PX+176,'#ff3b6b']].forEach(([s,x,col])=>{ c.strokeStyle=col; c.lineWidth=2; rr(c,x-84,380,168,64,12); c.stroke(); c.fillStyle='rgba(255,255,255,.07)'; c.fill(); c.fillStyle=col; c.font='bold 19px sans-serif'; c.fillText(s,x,420); }); }
     if(outMsg&&lost){ c.fillStyle='rgba(0,0,0,.5)'; c.fillRect(0,0,W,H); c.fillStyle='#ff3b6b'; c.font='bold 34px Orbitron,sans-serif'; c.textAlign='center'; c.shadowColor='#ff3b6b'; c.shadowBlur=20; c.fillText(outMsg,W/2,H/2); c.shadowBlur=0; } },
-  attract(c,tt){ t=tt; bg(c,tt); if(!faces){ NC=10; sizes(); CW=70; CH=100; FS=30; fSize=0; ensureFaces(); } spider(c,W/2,200+Math.sin(tt)*30,30,'#c06bff');
-    for(let i=0;i<13;i++){ const a=tt*0.7+i*0.48; c.drawImage(faces[(i%4)*13+12-i],W/2-CW/2+Math.cos(a)*200,H/2+40-CH/2+Math.sin(a*1.3)*220,CW,CH); } }
+  attract(c,tt){ t=tt; bg(c,tt); if(!faces){ NC=10; sizes(); CW=70; CH=100; FS=30; fSize=0; ensureFaces(); } spider(c,W/2,190+Math.sin(tt)*30,30,'#c06bff');
+    for(let i=0;i<13;i++){ const a=tt*0.7+i*0.48; c.drawImage(faces[(i%4)*13+12-i],W/2-CW/2+Math.cos(a)*440,H/2+40-CH/2+Math.sin(a*1.3)*200,CW,CH); } }
 };
+/* RACE: the shell's progress bars float bottom-centre (over the columns) — park them in the right panel, above the action button */
+function placeBars(){ if(typeof document==='undefined') return; const el=document.getElementById('mpBars'); if(!el||el.style.display==='none'||!el.innerHTML) return;
+  const cv=document.getElementById('game')||document.querySelector('canvas'); if(!cv) return; const b=cv.getBoundingClientRect(), k=b.width/W; const S2=(p,v)=>el.style.setProperty(p,v,'important');
+  S2('left',(b.left+SB0*k)+'px'); S2('top',(b.top+RBY*k)+'px'); S2('bottom','auto'); S2('transform','none'); S2('flex-direction','column'); S2('max-width',((SB1-SB0)*k)+'px'); }
+// off the planned route: solve from here and store the WHOLE path, so following hints never loops back and forth
+function nextMove(budget){ let m=plan&&plan.get(key(S)); if(m) return m; const p=solve(clone(S),budget); if(!p||!p.length) return null; const c=clone(S); p.forEach(q=>{ plan.set(key(c),q); apply(c,q); }); return p[0]; }
 function hintCards(m){ if(m.k==='tt') return S.t[m.a].slice(m.i); if(m.k==='deal') return S.s.slice(-1); return []; }
-function hintDest(m){ if(m.k==='deal') return {x:SX(),y:TOPY}; if(m.to!==undefined){ const p=colTop(m.to); return S.t[m.to].length?{x:p.x,y:p.y}:{x:cx(m.to),y:TABY}; } return null; }
+function hintDest(m){ if(m.k==='deal') return {x:SX(),y:DY}; if(m.to!==undefined){ const p=colTop(m.to); return S.t[m.to].length?{x:p.x,y:p.y}:{x:cx(m.to),y:TABY}; } return null; }
 })();
 
 </script>
