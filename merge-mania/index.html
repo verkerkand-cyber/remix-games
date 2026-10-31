@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-MM-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-MM-1.1 · 2026-10-26">
 <title>Merge Mania</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-MM-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-MM-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,9 +489,16 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* MERGE MANIA — sliding-merge number remix. 100 stages. Slide the neon tiles, merge equal numbers, build the target tile. */
+/* MERGE MANIA — sliding-merge number remix. 100 stages. Slide the neon tiles, merge equal numbers, build the target tile.
+   1.1 (26 Oct): LANDSCAPE 1280x720 — board centre-left, goal/moves/ladder panel on the right (clear of HUD, ability column,
+   action button). RACE: rocks, seeds, every new tile and virus spread come from a private RNG seeded at stage start, so both
+   racers get the same board and the same spawns for the same moves. Beginner 1-10: roomy 5x5 board, small targets, lots of moves. */
 (function(){
-const W=600,H=900,AN=0.12; let BX=30,BY=200,BS=540;
+const W=1280,H=720,AN=0.12,PX=800,PW=440; let BX=160,BY=96,BS=600,PY=96,rs=1;
+/* keep-clear (game px): top 0-80 HUD, left 0-140 ability column, x>980&&y>520 action button. */
+function rnd(){ rs|=0; rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+function shf(a){ for(let i=a.length-1;i>0;i--){ const j=rnd()*(i+1)|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+const easy=()=>api&&api.diff===0&&api.level<=10;
 const PAL=['#2ee8ff','#3dffb0','#b6ff3d','#ffd23f','#ff9a2e','#ff4d4d','#ff2e88','#d43dff','#8a5cff','#3d8bff','#00ffd0','#ffffff'];
 let api,t,vStr,N,cells,ghosts,anim,T,base,movesLeft,limit,moves,undo,hint,hintT,armed,spreadEvery,spreadIn,vMax,done,lost,lostWhy,lockT,isBoss,swipe,keyHeld,bgl;
 function R(a,b){ return a+Math.random()*(b-a); }
@@ -521,8 +528,8 @@ function best(){ const g=vals(); let bd=null,bs=-1e18;
     if(s>bs){ bs=s; bd=d; } } return bd; }
 const GAME=window.GAME={
   id:'merge-mania',title:'Merge Mania',titleHTML:'MERGE<br>MANIA',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-MM-1.0 · 2026-10-17',theme:{a:'#d43dff',b:'#2ee8ff',bg:'#0a0418'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'💠',joystick:false,coinPts:60,
+  build:'BUILD-MM-1.1 · 2026-10-26',theme:{a:'#d43dff',b:'#2ee8ff',bg:'#0a0418'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'💠',joystick:false,coinPts:60,
   abilities:[
     {id:'hint',icon:'💡',name:'HINT',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — a glowing arrow shows the best way to slide right now.'},
     {id:'undo',icon:'↩️',name:'UNDO',cd:12,key:'Digit1',keyLabel:'1',desc:'Take back your last move (you get the move back too).'},
@@ -531,24 +538,25 @@ const GAME=window.GAME={
   shop:[{id:'mm_n',cat:'Tiles',name:'Neon Glass',cost:0,colors:['#2ee8ff'],desc:'Bright neon tiles.'},{id:'mm_s',cat:'Tiles',name:'Sunset Candy',cost:150,colors:['#ff9a2e'],desc:'Warm sweet colours.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#d43dff,#2ee8ff)'}],
   story:`<h3>MERGE MANIA</h3><p>The Number Core is offline. Only one big glowing tile can power it back up — and you build it by smashing smaller numbers together.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Swipe</b> up, down, left or right (PC: arrow keys or WASD). ALL tiles slide that way.</li><li>Two equal tiles that bump together <b>merge</b> into one: 2+2=4, 4+4=8 …</li><li>Make the <b>target tile</b> shown at the top before your moves run out.</li><li>Grey rocks never move. If the board jams with no moves left you lose a life (you get a few seconds to use an ability first).</li><li>Stuck? Tap 💡 HINT (SPACE) — it's free. Every 10th stage: beat the VIRUS — every merge right next to a virus knocks its number down. Hit one at least every few moves or it spreads!</li></ul>`,
-  tutorial:[{text:'Swipe (or press an arrow key) to slide ALL the tiles!',ev:'slide'},{text:'Slide two equal numbers into each other to MERGE them!',ev:'merge'},{text:'Make the target tile shown at the top! 💡 HINT is free.',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li>Hold your phone <b>sideways</b>.</li><li><b>Phone:</b> swipe anywhere with either thumb — up, down, left or right. ALL tiles slide that way. Right thumb: 💡 HINT button. Left thumb: ↩️ 🔨 🔀 on the left edge.</li><li><b>PC:</b> arrow keys or WASD slide, SPACE = hint, 1 = undo, 2 = smash, 3 = shuffle.</li><li>Two equal tiles that bump together <b>merge</b> into one: 2+2=4, 4+4=8 …</li><li>Make the <b>target tile</b> shown at the top before your moves run out.</li><li>Grey rocks never move. If the board jams with no moves left you lose a life (you get a few seconds to use an ability first).</li><li>Stuck? Tap 💡 HINT (SPACE) — it's free. Every 10th stage: beat the VIRUS — every merge right next to a virus knocks its number down. Hit one at least every few moves or it spreads!</li><li><b>👥 RACE A FRIEND:</b> you both get the same board and the same new tiles — first to build the target wins.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. Swipe on the board (PC: arrow keys) to slide ALL the tiles!',ev:'slide'},{text:'Slide two equal numbers into each other to MERGE them!',ev:'merge'},{text:'Make the target tile shown on the right! 💡 HINT (right thumb / SPACE) is free.',time:5}],
   stageIntro:{1:'BUILD THE TARGET TILE'},bossName:'THE VIRUS!',ending:{"0":["#POWERED","The Number Core is back online."],"1":["#GENIUS","Every merge was perfect."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ return id==='smash'&&armed?{left:1,total:1,label:'TAP'}:null; },
-  _dbg(){ return {get N(){return N;}, vals:()=>vals(), get T(){return T;}, get base(){return base;}, get movesLeft(){return movesLeft;}, get limit(){return limit;}, get moves(){return moves;}, get done(){return done;}, get lost(){return lost;}, get lockT(){return lockT;}, get armed(){return armed;}, move:d=>move(d), best:()=>best(), slide}; },
+  _dbg(){ return {get N(){return N;}, vals:()=>vals(), get T(){return T;}, get base(){return base;}, get movesLeft(){return movesLeft;}, get limit(){return limit;}, get moves(){return moves;}, get done(){return done;}, get lost(){return lost;}, get lockT(){return lockT;}, get armed(){return armed;}, get rs(){return rs;}, get box(){return {BX,BY,BS};}, sig:()=>vals().join(','), move:d=>move(d), best:()=>best(), slide}; },
   init(a){api=a; mkBg();},
   startStage(n,a){ api=a; t=0; done=false; lost=false; lockT=0; armed=false; hint=null; hintT=0; ghosts=[]; anim=1; moves=0; undo=null; swipe=null; isBoss=a.boss; if(!bgl) mkBg();
-    const L=a.level, tut=a.content===0; if(tut){ BX=70; BY=350; BS=460; } else { BX=30; BY=200; BS=540; }
-    N=tut?4:isBoss?(L>=30?5:4):(a.content===2&&L>=20?5:4); cells=Array(N*N).fill(null);
-    T=tut?16:Math.pow(2,6+Math.floor(a.dv([0,3,5],6,7))); base=Math.max(2,T/64);
-    let rocks=tut||L<12?0:L<40?1:2; if(N===5) rocks++; if(a.content===1) rocks=Math.max(0,rocks-1); if(isBoss) rocks=Math.min(rocks,1);
+    const L=a.level, tut=a.content===0, ez=easy(); rs=((Math.random()*1e9)|0)^Math.imul(L+7,0x9E3779B1); /* RACE: shell seeds Math.random -> same rs on both phones */
+    if(tut){ BX=200; BY=232; BS=456; PY=232; } else { BX=160; BY=96; BS=600; PY=96; }
+    N=tut?4:ez?5:isBoss?(L>=30?5:4):(a.content===2&&L>=20?5:4); cells=Array(N*N).fill(null);
+    T=tut?16:ez?(L<=5?32:64):Math.pow(2,6+Math.floor(a.dv([0,3,5],6,7))); base=Math.max(2,T/64);
+    let rocks=tut||ez||L<12?0:L<40?1:2; if(N===5&&!ez) rocks++; if(a.content===1) rocks=Math.max(0,rocks-1); if(isBoss) rocks=Math.min(rocks,1);
     const free=()=>{ const e=[]; cells.forEach((c,i)=>{ if(!c) e.push(i); }); return e; }, corner=i=>[0,N-1,N*N-N,N*N-1].includes(i);
-    for(let k=0;k<rocks;k++){ const e=free().filter(i=>!corner(i)); put(e[Math.floor(Math.random()*e.length)],{k:'rock',v:0}); }
-    if(isBoss){ base=2; vStr=base*Math.pow(2,Math.round(a.dv([3,4,5],5,6))); const nv=Math.round(a.dv([2,3,3],4,5))+(N===5?1:0); vMax=nv+1; spreadEvery=Math.round(a.dv([7,6,5],4,3)); spreadIn=spreadEvery;
-      for(let k=0;k<nv;k++){ const e=free().filter(i=>!corner(i)&&!nb(i).some(j=>cells[j]&&cells[j].k==='virus')); const pool=e.length?e:free(); put(pool[Math.floor(Math.random()*pool.length)],{k:'virus',v:0,hp:vStr}); }
-      for(let k=0;k<4;k++) spawn(true); limit=Math.round((a.dv([40,36,32],30,28)+nv*12)*(1+Math.log2(vStr/16)*.4)*.85); }
-    else { const seeds=tut?[4,2,2]:[T/4,T/8,base]; seeds.forEach(v=>{ const e=free(); put(e[Math.floor(Math.random()*e.length)],{k:'n',v}); }); spawn(true);
-      const U=T/base, est=(1.35*U-(seeds.reduce((s,v)=>s+v,0)+base)/base)/1.1; limit=tut?999:Math.ceil(est*a.dv([1.7,1.4,1.25],1.15,1.08))+4; }
+    for(let k=0;k<rocks;k++){ const e=free().filter(i=>!corner(i)); put(e[Math.floor(rnd()*e.length)],{k:'rock',v:0}); }
+    if(isBoss){ base=2; vStr=ez?8:base*Math.pow(2,Math.round(a.dv([3,4,5],5,6))); const nv=ez?2:Math.round(a.dv([2,3,3],4,5))+(N===5?1:0); vMax=nv+1; spreadEvery=ez?10:Math.round(a.dv([7,6,5],4,3)); spreadIn=spreadEvery;
+      for(let k=0;k<nv;k++){ const e=free().filter(i=>!corner(i)&&!nb(i).some(j=>cells[j]&&cells[j].k==='virus')); const pool=e.length?e:free(); put(pool[Math.floor(rnd()*pool.length)],{k:'virus',v:0,hp:vStr}); }
+      for(let k=0;k<4;k++) spawn(true); limit=Math.round((a.dv([40,36,32],30,28)+nv*12)*(1+Math.log2(vStr/16)*.4)*.85*(ez?1.6:1)); }
+    else { const seeds=tut?[4,2,2]:[T/4,T/8,base]; seeds.forEach(v=>{ const e=free(); put(e[Math.floor(rnd()*e.length)],{k:'n',v}); }); spawn(true);
+      const U=T/base, est=(1.35*U-(seeds.reduce((s,v)=>s+v,0)+base)/base)/1.1; limit=tut?999:Math.ceil(est*(ez?2.3:a.dv([1.7,1.4,1.25],1.15,1.08)))+(ez?8:4); }
     movesLeft=limit; if(!canMove(vals())) fairReset(); },
   respawn(){ lost=false; lockT=0; if(lostWhy==='lock') fairReset(); else { movesLeft+=Math.ceil(limit*.35); api.toast('+'+Math.ceil(limit*.35)+' MOVES'); } },
   stageBonus(){ return movesLeft*25; },
@@ -573,31 +581,42 @@ const GAME=window.GAME={
     if(isBoss){ const v=cells.filter(c=>c&&c.k==='virus').length; api.counter('🦠 VIRUS',v); } else api.counter('🎯 TARGET',T); },
   render(c){ const sk=c.createLinearGradient(0,0,0,H); sk.addColorStop(0,'#0a0418'); sk.addColorStop(1,'#1a0634'); c.fillStyle=sk; c.fillRect(0,0,W,H);
     // moving neon grid floor
-    c.strokeStyle='rgba(212,61,255,.18)'; c.lineWidth=1.5; for(let i=0;i<10;i++){ const y=760+Math.pow((i+(t*.6)%1)/10,2)*160; c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); } for(let i=-8;i<=8;i++){ c.beginPath(); c.moveTo(W/2+i*20,760); c.lineTo(W/2+i*90,H); c.stroke(); }
+    c.strokeStyle='rgba(212,61,255,.16)'; c.lineWidth=1.5; for(let i=0;i<10;i++){ const y=560+Math.pow((i+(t*.6)%1)/10,2)*160; c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); } for(let i=-14;i<=14;i++){ c.beginPath(); c.moveTo(W/2+i*24,560); c.lineTo(W/2+i*110,H); c.stroke(); }
     bgl.forEach(p=>{ const y=((p.y-t*p.s)%H+H)%H; c.globalAlpha=p.a; c.fillStyle=p.c; c.font='bold '+p.z+'px sans-serif'; c.textAlign='center'; c.fillText(p.v,p.x,y); }); c.globalAlpha=1;
-    // header: target / moves
-    const gl=(x,y,w,h,col)=>{ c.fillStyle='rgba(10,4,24,.75)'; rr(c,x,y,w,h,14); c.fill(); c.strokeStyle=col; c.lineWidth=2; c.shadowColor=col; c.shadowBlur=12; c.stroke(); c.shadowBlur=0; };
-    gl(30,100,260,80,'#d43dff'); gl(310,100,260,80,'#2ee8ff'); c.textAlign='center';
-    c.fillStyle='#e0c8ff'; c.font='bold 15px sans-serif'; c.fillText(isBoss?'MERGE NEXT TO EACH VIRUS':'MAKE THIS TILE',160,124);
-    if(isBoss){ const v=cells.filter(x=>x&&x.k==='virus').length; c.font='bold 30px sans-serif'; c.fillStyle='#7dff3d'; c.shadowColor='#7dff3d'; c.shadowBlur=14; c.fillText('🦠 × '+v,160,164); c.shadowBlur=0; }
-    else { const col=tc(T); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=16+Math.sin(t*4)*6; rr(c,110,132,100,40,10); c.fill(); c.shadowBlur=0; c.fillStyle='#0a0418'; c.font='bold 28px sans-serif'; c.fillText(T,160,162); }
-    c.fillStyle='#bff6ff'; c.font='bold 15px sans-serif'; c.fillText(isBoss?'SPREADS IN · MOVES LEFT':'MOVES LEFT',440,124);
-    const low=movesLeft<=5&&limit<999; c.font='bold 32px sans-serif'; c.fillStyle=low?'#ff4d4d':'#fff'; c.fillText(limit>=999?'∞':(isBoss?spreadIn+'  ·  ':'')+movesLeft,440,164);
-    // board
-    c.fillStyle='rgba(20,8,44,.9)'; rr(c,BX-10,BY-10,BS+20,BS+20,22); c.fill(); c.strokeStyle='#d43dff'; c.lineWidth=3; c.shadowColor='#d43dff'; c.shadowBlur=24; c.stroke(); c.shadowBlur=0;
+    const gl=(x,y,w,h,col)=>{ c.fillStyle='rgba(10,4,24,.8)'; rr(c,x,y,w,h,14); c.fill(); c.strokeStyle=col; c.lineWidth=2; c.shadowColor=col; c.shadowBlur=12; c.stroke(); c.shadowBlur=0; };
+    const tut=api.content===0, cx=PX+PW/2; c.textAlign='center';
+    // ---- right panel: goal card ----
+    gl(PX,PY,PW,124,'#d43dff'); c.fillStyle='#e0c8ff'; c.font='bold 18px sans-serif'; c.fillText(isBoss?'CURE EVERY VIRUS':'MAKE THIS TILE',cx,PY+28);
+    if(isBoss){ const v=cells.filter(x=>x&&x.k==='virus').length; c.font='bold 44px sans-serif'; c.fillStyle='#7dff3d'; c.shadowColor='#7dff3d'; c.shadowBlur=14; c.fillText('🦠 × '+v,cx,PY+92); c.shadowBlur=0; }
+    else { const col=tc(T); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=16+Math.sin(t*4)*6; rr(c,cx-80,PY+42,160,66,14); c.fill(); c.shadowBlur=0; c.fillStyle='#0a0418'; c.font='bold 44px sans-serif'; c.fillText(T,cx,PY+91); }
+    // ---- moves card ----
+    const my=PY+138, low=movesLeft<=5&&limit<999; gl(PX,my,PW,100,low?'#ff4d4d':'#2ee8ff');
+    if(isBoss){ c.fillStyle='#bff6ff'; c.font='bold 17px sans-serif'; c.fillText('MOVES LEFT',PX+PW*.27,my+28); c.fillText('VIRUS SPREADS IN',PX+PW*.73,my+28);
+      c.font='bold 42px sans-serif'; c.fillStyle=low?'#ff4d4d':'#fff'; c.fillText(movesLeft,PX+PW*.27,my+80); c.fillStyle=spreadIn<=1?'#d6ff3d':'#7dff3d'; c.fillText(spreadIn,PX+PW*.73,my+80); }
+    else { c.fillStyle='#bff6ff'; c.font='bold 17px sans-serif'; c.fillText('MOVES LEFT',cx,my+28); c.font='bold 44px sans-serif'; c.fillStyle=low?'#ff4d4d':'#fff'; c.fillText(limit>=999?'∞':movesLeft,cx,my+80);
+      if(limit<999){ c.fillStyle='rgba(255,255,255,.1)'; c.fillRect(PX+20,my+88,PW-40,5); c.fillStyle=low?'#ff4d4d':'#2ee8ff'; c.fillRect(PX+20,my+88,(PW-40)*Math.max(0,movesLeft)/limit,5); } }
+    // ---- merge ladder (how close you are) ----
+    let fy=my+150;
+    if(!tut&&!isBoss){ const ly=my+114; let mx=0; cells.forEach(o=>{ if(o&&o.k==='n'&&o.v>mx) mx=o.v; }); const steps=[]; for(let v=base;v<=T;v*=2) steps.push(v);
+      const n=steps.length, gp=8, cw2=Math.min(64,(PW-(n-1)*gp)/n), x0=cx-(n*cw2+(n-1)*gp)/2;
+      steps.forEach((v,k)=>{ const x=x0+k*(cw2+gp), got=mx>=v, col=tc(v); c.globalAlpha=got?1:.3; c.fillStyle=got?col:'rgba(255,255,255,.08)'; rr(c,x,ly,cw2,44,9); c.fill(); c.strokeStyle=col; c.lineWidth=2; c.stroke();
+        c.fillStyle=got?'#0a0418':col; c.font='bold '+(String(v).length>3?14:18)+'px sans-serif'; c.fillText(v,x+cw2/2,ly+29); c.globalAlpha=1; });
+      fy=ly+82; }
+    // ---- status line (inside the panel, above the action-button corner) ----
+    c.font='bold 19px sans-serif';
+    if(armed){ c.fillStyle='#ff9a2e'; c.globalAlpha=.6+.4*Math.sin(t*8); c.fillText('🔨 TAP A TILE TO SMASH IT',cx,fy); c.globalAlpha=1; }
+    else if(lockT>0){ c.fillStyle='#ff4d4d'; c.fillText('NO MOVES! USE ↩️ 🔨 🔀 NOW ('+Math.ceil(lockT)+')',cx,fy); }
+    else { c.fillStyle='rgba(255,255,255,.5)'; c.fillText(api.input.touch?'SWIPE TO SLIDE · 💡 HINT IS FREE':'ARROWS / WASD SLIDE · SPACE = HINT',cx,fy); }
+    // ---- board ----
+    c.fillStyle='rgba(20,8,44,.9)'; rr(c,BX-10,BY-10,BS+20,BS+20,22); c.fill(); c.strokeStyle=isBoss?'#5aff3d':'#d43dff'; c.lineWidth=3; c.shadowColor=c.strokeStyle; c.shadowBlur=24; c.stroke(); c.shadowBlur=0;
     const cs=BS/N, pad=cs*.07; for(let i=0;i<N*N;i++){ const [x,y]=pos(i); c.fillStyle='rgba(255,255,255,.05)'; rr(c,x+pad,y+pad,cs-pad*2,cs-pad*2,cs*.14); c.fill(); }
     const e=1-Math.pow(1-anim,3);
     ghosts.forEach(g=>tile(c,g,e,cs,pad));
     cells.forEach(cl=>{ if(cl) tile(c,cl,e,cs,pad); });
-    if(hint&&hintT>0){ const a={L:Math.PI,R:0,U:-Math.PI/2,D:Math.PI/2}[hint]; c.save(); c.translate(W/2,BY+BS/2); c.rotate(a); c.globalAlpha=Math.min(1,hintT)*(.6+.3*Math.sin(t*10)); c.fillStyle='#fff'; c.shadowColor='#ffd23f'; c.shadowBlur=30; const o=Math.sin(t*8)*10;
+    if(hint&&hintT>0){ const a={L:Math.PI,R:0,U:-Math.PI/2,D:Math.PI/2}[hint]; c.save(); c.translate(BX+BS/2,BY+BS/2); c.rotate(a); c.scale(BS/540,BS/540); c.globalAlpha=Math.min(1,hintT)*(.6+.3*Math.sin(t*10)); c.fillStyle='#fff'; c.shadowColor='#ffd23f'; c.shadowBlur=30; const o=Math.sin(t*8)*10;
       c.beginPath(); c.moveTo(110+o,0); c.lineTo(20+o,-70); c.lineTo(20+o,-28); c.lineTo(-100+o,-28); c.lineTo(-100+o,28); c.lineTo(20+o,28); c.lineTo(20+o,70); c.closePath(); c.fill(); c.restore(); c.globalAlpha=1; c.shadowBlur=0; }
-    // footer
-    c.textAlign='center'; c.font='bold 20px sans-serif'; const fy=Math.min(H-14,BY+BS+60);
-    if(armed){ c.fillStyle='#ff9a2e'; c.globalAlpha=.6+.4*Math.sin(t*8); c.fillText('🔨 TAP A TILE TO SMASH IT',W/2,fy); c.globalAlpha=1; }
-    else if(lockT>0){ c.fillStyle='#ff4d4d'; c.fillText('NO MOVES! USE ↩️ 🔨 🔀 NOW ('+Math.ceil(lockT)+')',W/2,fy); }
-    else { c.fillStyle='rgba(255,255,255,.45)'; c.fillText(api.input.touch?'SWIPE TO SLIDE · 💡 HINT IS FREE':'ARROWS / WASD TO SLIDE · SPACE = HINT',W/2,fy); }
     if(lost){ c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#0a0418'; c.fillRect(0,0,W,H); const v=[2,4,8,16,32,64,128,256,512]; for(let i=0;i<9;i++){ const x=150+(i%3)*150, y=300+Math.floor(i/3)*150+Math.sin(tt*2+i)*8, col=PAL[i]; c.fillStyle=col; c.shadowColor=col; c.shadowBlur=20; rr(c,x-60,y-60,120,120,18); c.fill(); c.shadowBlur=0; c.fillStyle='#0a0418'; c.font='bold 40px sans-serif'; c.textAlign='center'; c.fillText(v[i],x,y+14); } }
+  attract(c,tt){ c.fillStyle='#0a0418'; c.fillRect(0,0,W,H); const v=[2,4,8,16,32,64,128,256,512]; for(let i=0;i<9;i++){ const x=W/2-170+(i%3)*170, y=H/2-150+Math.floor(i/3)*150+Math.sin(tt*2+i)*8, col=PAL[i]; c.fillStyle=col; c.shadowColor=col; c.shadowBlur=20; rr(c,x-62,y-62,124,124,18); c.fill(); c.shadowBlur=0; c.fillStyle='#0a0418'; c.font='bold 40px sans-serif'; c.textAlign='center'; c.fillText(v[i],x,y+14); } }
 };
 function mkBg(){ bgl=[]; for(let i=0;i<18;i++) bgl.push({x:R(20,W-20),y:R(0,H),s:R(8,25),a:R(.04,.1),z:Math.round(R(16,40)),v:Math.pow(2,1+Math.floor(R(0,11))),c:PAL[i%PAL.length]}); }
 function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
@@ -615,14 +634,14 @@ function tile(c,o,e,cs,pad){ let [x,y]=pos(o.idx); if(o.pidx!==undefined&&e<1){ 
     const str=String(v), fz=Math.min(s*.48,s*1.5/Math.max(2,str.length)); c.font='bold '+Math.round(fz)+'px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillStyle=col; c.shadowColor=col; c.shadowBlur=12; c.fillText(str,0,2); c.shadowBlur=0; c.textBaseline='alphabetic'; }
   c.restore(); }
 function put(i,o){ o.idx=i; o.pidx=undefined; o.born=1; o.pop=1; cells[i]=o; }
-function spawn(quiet){ const e=[]; cells.forEach((c,i)=>{ if(!c) e.push(i); }); if(!e.length) return; const i=e[Math.floor(Math.random()*e.length)];
-  put(i,{k:'n',v:Math.random()<(api.content===0?.05:api.dv([.08,.12,.15],.18))?base*2:base}); if(!quiet) cells[i].born=0; }
+function spawn(quiet){ const e=[]; cells.forEach((c,i)=>{ if(!c) e.push(i); }); if(!e.length) return; const i=e[Math.floor(rnd()*e.length)];
+  put(i,{k:'n',v:rnd()<(api.content===0?.05:easy()?.15:api.dv([.08,.12,.15],.18))?base*2:base}); if(!quiet) cells[i].born=0; }
 function finish(){ anim=1; ghosts=[]; cells.forEach(c=>{ if(c){ c.pidx=undefined; if(c.ov){ c.ov=0; c.pop=0; } } }); }
 function snapshot(){ return {c:cells.map(x=>x?{k:x.k,v:x.v,hp:x.hp}:null),m:movesLeft,s:spreadIn}; }
 function restore(s){ cells=s.c.map((x,i)=>{ if(!x) return null; const o={k:x.k,v:x.v,hp:x.hp}; put(i,o); return o; }); movesLeft=s.m; spreadIn=s.s; ghosts=[]; anim=1; }
 function unlock(){ if(lockT>0&&canMove(vals())){ lockT=0; api.toast('SAVED!'); } }
 function fairReset(){ const keep=cells.filter(c=>c&&c.k==='n').map(c=>c.v).sort((a,b)=>b-a).slice(0,3);
-  for(let tries=0;tries<40;tries++){ cells=cells.map(c=>c&&c.k!=='n'?c:null); const e=[]; cells.forEach((c,i)=>{ if(!c) e.push(i); }); e.sort(()=>Math.random()-.5);
+  for(let tries=0;tries<40;tries++){ cells=cells.map(c=>c&&c.k!=='n'?c:null); const e=[]; cells.forEach((c,i)=>{ if(!c) e.push(i); }); shf(e);
     keep.forEach((v,j)=>{ if(e[j]!==undefined) put(e[j],{k:'n',v}); }); spawn(); spawn(); if(canMove(vals())) break; }
   undo=null; anim=1; ghosts=[]; api.toast('FRESH BOARD'); }
 function smashAt(x,y){ const cs=BS/N, c=Math.floor((x-BX)/cs), r=Math.floor((y-BY)/cs); if(c<0||r<0||c>=N||r>=N) return; const i=r*N+c, o=cells[i]; if(!o) return;
@@ -640,12 +659,12 @@ function move(d){ if(done||lost||lockT>0) return false; finish(); const g=vals()
   spawn();
   if(isBoss){ if(hit){ spreadIn=spreadEvery; api.event('hitv'); } else { spreadIn--; if(spreadIn<=0){ spreadIn=spreadEvery; spread(); } } }
   if(checkWin()) return true;
-  if(!canMove(vals())){ lockT=2.5; api.sfx.hurt(); api.toast('NO MOVES LEFT!'); return true; }
+  if(!canMove(vals())){ lockT=easy()?6:2.5; api.sfx.hurt(); api.toast('NO MOVES LEFT!'); return true; }
   if(movesLeft<=0&&limit<999){ lost=true; lostWhy='moves'; api.toast('OUT OF MOVES!'); api.sfx.hurt(); setTimeout(()=>api.loseLife(),900); }
   return true; }
 function spread(){ const vs=[]; cells.forEach((c,i)=>{ if(c&&c.k==='virus') vs.push(i); }); if(!vs.length||vs.length>=vMax) return;
-  vs.sort(()=>Math.random()-.5); for(const i of vs){ const e=nb(i).filter(j=>!cells[j]); const s=e.length?e:nb(i).filter(j=>cells[j]&&cells[j].k==='n'&&cells[j].v<=base*2);
-    if(s.length){ const j=s[Math.floor(Math.random()*s.length)]; put(j,{k:'virus',v:0,hp:vStr}); cells[j].born=0; const cs=BS/N,[px,py]=pos(j); api.fx.burst(px+cs/2,py+cs/2,'#5aff3d',20,200,.5,3); api.toast('THE VIRUS SPREAD!'); api.sfx.small(); return; } } }
+  shf(vs); for(const i of vs){ const e=nb(i).filter(j=>!cells[j]); const s=e.length?e:nb(i).filter(j=>cells[j]&&cells[j].k==='n'&&cells[j].v<=base*2);
+    if(s.length){ const j=s[Math.floor(rnd()*s.length)]; put(j,{k:'virus',v:0,hp:vStr}); cells[j].born=0; const cs=BS/N,[px,py]=pos(j); api.fx.burst(px+cs/2,py+cs/2,'#5aff3d',20,200,.5,3); api.toast('THE VIRUS SPREAD!'); api.sfx.small(); return; } } }
 function checkWin(){ if(done) return true; const win=isBoss?!cells.some(c=>c&&c.k==='virus'):cells.some(c=>c&&c.k==='n'&&c.v>=T); if(!win) return false;
   done=true; lockT=0; api.toast(isBoss?'ALL VIRUSES CURED!':'TARGET MADE!'); api.sfx.clear(); api.fx.flash('#fff',.3); const cs=BS/N; cells.forEach((c,i)=>{ if(c&&(isBoss||c.v>=T)){ const [px,py]=pos(i); api.fx.burst(px+cs/2,py+cs/2,isBoss?'#5aff3d':tc(c.v),60,450,1,4); } });
   setTimeout(()=>api.stageClear(),1000); return true; }
