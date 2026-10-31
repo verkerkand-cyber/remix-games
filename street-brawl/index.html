@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SB-1.2 · 2026-10-19">
+<meta name="build" content="BUILD-SB-1.3 · 2026-10-26">
 <title>Street Brawl</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SB-1.2 · 2026-10-19 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SB-1.3 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -490,12 +490,17 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </div>
 <script>
 /* STREET BRAWL — Double Dragon remix (#40). Fight your way down the street.
-   1.2: real online 2-player CO-OP (NET-1). Host runs the fight for both fighters; guest draws snapshots. */
+   1.2: real online 2-player CO-OP (NET-1). Host runs the fight for both fighters; guest draws snapshots.
+   1.3 (SB-LAND): LANDSCAPE 1280x720 — wide street, fighters walk a band (y 390-505) above the joystick/buttons corners,
+   x kept clear of the ability column. PUNCH (Space, hold = repeat) / KICK (K) / JUMP (L) are player buttons, nothing automatic.
+   Jump dodges hits; kick in the air = flying kick. Beginner 1-10 much easier (ez blend fades out by stage 20).
+   If you stand still the gang comes to you (wave timer), so an idle player loses lives and never clears.
+   Note: 'grace' (not race) = seconds of blink/no-damage after (re)spawn. */
 (function(){
-const W=600,H=900,WL=2400,Y0=560,Y1=840;
+const W=1280,H=720,Y0=390,Y1=505,XL=120,XR=110;
 const KB={thug:{hp:3,sp:90,col:'#ff3b5c',sz:1},knife:{hp:2,sp:130,col:'#b14bff',sz:0.95},big:{hp:7,sp:60,col:'#3bff7a',sz:1.3},boss:{hp:22,sp:85,col:'#ff9f1c',sz:1.45}};
 const KINDS=['thug','knife','big','boss'], ST=['idle','walk','punch','kick','spin','hurt','down','wind','atk'], TAGC=['#00e5ff','#ff3bd4'];
-let stg=0,api,t,pl,pls,ens,cam,wave,waves,done,lost,locked,goT;
+let stg=0,api,t,pl,pls,ens,cam,wave,waves,done,lost,locked,goT,WL=3800,ez=0,waveT=0;
 let nid=0,evq=[],evSeq=0,evSeen=0,snapN=0,snapSeen=0,camT=0,goF=false,lastHp=null;
 function net(){ return api&&api.net; }
 function isHost(){ const n=net(); return !!(n&&n.role==='host'); }
@@ -504,64 +509,71 @@ function me(){ return (isGuest()&&pls&&pls[1])||pl; }
 function ev(k,...a){ if(!isHost()) return; evq.push([++evSeq,t,k,...a]); if(evq.length>30) evq.shift(); }
 function T(msg){ api.toast(msg); ev('toast',msg); }
 function nm(i){ const n=net(); return String((n&&n.names[i])||('P'+(i+1))).slice(0,12); }
-function mkPl(i,x,y){ return {i,x,y,hp:100,face:1,st:'idle',stT:0,combo:0,grace:1,rage:-9,dead:false,respT:0,s:false}; }
+function mkPl(i,x,y){ return {i,x,y,z:0,vz:0,hp:100,face:1,st:'idle',stT:0,combo:0,grace:1,rage:-9,dead:false,respT:0,s:false}; }
 // nearest standing fighter (single player: always the fighter)
 function near(o){ if(!pls||pls.length<2) return pl; let best=null,bd=1e9; for(const p of pls){ if(p.dead) continue; const d=Math.hypot(p.x-o.x,(p.y-o.y)*2); if(d<bd){ bd=d; best=p; } } return best||pl; }
-function fighter(x,y,k){ const B=KB[k];
-  return {id:++nid,x,y,k,hp:B.hp,max:B.hp,sp:B.sp*api.dv([1,1.25,1.5],1.7,2.4),col:B.col,sz:B.sz,face:-1,st:'walk',stT:0,atkT:1+Math.random(),hitT:0,vx:0,tg:0}; }
+function fighter(x,y,k){ const B=KB[k], hp=Math.max(1,Math.round(B.hp*(1-0.3*ez)));
+  return {id:++nid,x,y,k,hp,max:hp,sp:B.sp*api.dv([1,1.25,1.5],1.7,2.4)*(1-0.3*ez),col:B.col,sz:B.sz,face:-1,st:'walk',stT:0,atkT:1+Math.random(),hitT:0,vx:0,tg:0}; }
 const GAME=window.GAME={
   id:'street-brawl',title:'Street Brawl',titleHTML:'STREET<br>BRAWL',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-SB-1.2 · 2026-10-19',theme:{a:'#ff3b5c',b:'#ffd23f',bg:'#0e0610'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'👊',joystick:true,coinPts:40,
+  build:'BUILD-SB-1.3 · 2026-10-26',theme:{a:'#ff3b5c',b:'#ffd23f',bg:'#0e0610'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'👊',joystick:true,coinPts:40,
   net:{mode:'coop'},
   abilities:[
-    {id:'punch',icon:'👊',name:'PUNCH',cd:0,key:'KeyJ',keyLabel:'J',desc:'FREE — fast punch.'},
-    {id:'kick',icon:'🦵',name:'KICK',cd:0,key:'KeyK',keyLabel:'K',desc:'FREE — slower, longer, knocks them back.'},
+    {id:'punch',icon:'👊',name:'PUNCH',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — fast punch. Hold it to keep punching.'},
+    {id:'kick',icon:'🦵',name:'KICK',cd:0,key:'KeyK',keyLabel:'K',desc:'FREE — slower, longer, knocks them down. In the air = flying kick.'},
+    {id:'jump',icon:'⤴️',name:'JUMP',cd:0,key:'KeyL',keyLabel:'L',desc:'FREE — jump over a punch. Kick while in the air for a flying kick.'},
     {id:'spin',icon:'🌪️',name:'SPIN KICK',cd:10,key:'Digit1',keyLabel:'1',desc:'Hits everyone around you.'},
     {id:'rage',icon:'🔥',name:'RAGE',cd:20,key:'Digit2',keyLabel:'2',desc:'Double damage and no knock-down for 8 seconds.'},
     {id:'heal',icon:'🥤',name:'ENERGY DRINK',cd:25,key:'Digit3',keyLabel:'3',desc:'Refills half your health.'}],
   shop:[{id:'f_r',cat:'Fighter',name:'Blue Jacket',cost:0,colors:['#2e7bff'],desc:'Classic.'},{id:'f_w',cat:'Fighter',name:'White Gi',cost:150,colors:['#f4f4f0'],desc:'Karate.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff3b5c,#ffd23f)'}],
   story:`<h3>STREET BRAWL</h3><p>A gang has taken over the block. One fighter, one street, no turning back.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to walk (WASD/arrows on PC). Up and down move along the street.</li><li><b>👊 PUNCH</b> (J) and <b>🦵 KICK</b> (K) in the side bar.</li><li>When an enemy flashes, they're about to hit — step away or hit first!</li><li>Beat every gang wave, then walk right to the end of the street.</li><li><b>Play together:</b> two fighters share lives and score. The gang goes for whoever is closer. A knocked-out fighter gets back up after 2 seconds — but the team loses a life. Stay close: the street only scrolls as far as the fighter at the back.</li></ul>`,
-  tutorial:[{text:'Walk up to the thug and tap 👊 PUNCH or 🦵 KICK!',ev:'ko'},{text:'Walk right → to the end of the street!',ev:'end'}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick walks — left/right along the street, up/down to step nearer or further. PC: arrow keys or WASD.</li><li><b>Right thumb:</b> <b>👊 PUNCH</b> (hold to keep punching), <b>🦵 KICK</b> and <b>⤴️ JUMP</b>. PC: SPACE punch, K kick, L jump. Nothing hits by itself — you press every punch.</li><li>Jump to dodge a hit. Kick in the air for a flying kick that knocks them down.</li><li>When an enemy flashes, they're about to hit — step away or hit first!</li><li>Beat every gang wave, then walk right to the end of the street.</li><li><b>Play together:</b> two fighters share lives and score. The gang goes for whoever is closer. A knocked-out fighter gets back up after 2 seconds — but the team loses a life. Stay close: the street only scrolls as far as the fighter at the back.</li></ul>`,
+  tutorial:[{text:'Arrows walk. Walk up to the thug and press <b>SPACE</b> to punch (K kick, L jump)!',touch:'Left thumb walks. Walk up to the thug and tap <b>👊 PUNCH</b> (or 🦵 KICK) with your right thumb!',ev:'ko'},{text:'Walk right → to the end of the street!',ev:'end'}],
   stageIntro:{1:'CLEAN UP THE STREET'},bossName:'THE GANG BOSS!',ending:{"0":["#STREETS","The block is free."],"1":["#CHAMP","Street champion."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const p=me(); if(id==='rage'&&p) return {left:Math.max(0,p.rage),total:8}; return null; },
   // single-player has no tap controls (joystick + buttons), so P2 has none either: the guest's sidebar buttons arrive via useAbility2
   onPointer2(type,x,y){ },
   _dbg(){ return {get pl(){return pl;}, get pls(){return pls;}, get ens(){return ens;}, get lost(){return lost;}, get done(){return done;}, get cam(){return cam;}, hit:(k)=>attack(pl,k),
-    toEnd:()=>{ wave=waves.length; locked=false; ens=[]; cam=WL-W; pls.forEach(p=>{ p.x=WL-60-p.i*40; }); },
+    get ez(){return ez;}, get WL(){return WL;}, get waves(){return waves;}, get wave(){return wave;}, get locked(){return locked;}, toEnd:()=>{ wave=waves.length; locked=false; ens=[]; cam=WL-W; pls.forEach(p=>{ p.x=WL-60-p.i*40; }); },
     get net2(){ return {role:net()&&net().role, p:(pls||[]).map(p=>[Math.round(p.x),Math.round(p.y),p.dead?1:0,Math.ceil(p.hp),p.st]), ens:(ens||[]).length, eh:(ens||[]).reduce((s,e)=>s+e.hp,0), cam:Math.round(cam), done, lives:api.lives}; }}; },
   init(a){api=a;},
   startStage(n,a){ api=a; stg=n; t=0; done=false; lost=false; ens=[]; cam=0; camT=0; wave=0; locked=false; goT=0; goF=false; nid=0; evq=[]; lastHp=null;
-    const N2=!!net(); pl=mkPl(0,N2?150:120,N2?650:700); pls=[pl]; if(N2) pls.push(mkPl(1,90,760));
-    const tut=a.content===0, m=Math.round(a.dv([3,4,5],6,8)*(N2?1.3:1));
-    waves=tut?[{x:350,list:['thug']}]:[{x:300,list:Array(m).fill('thug')},{x:1100,list:[...Array(m-1).fill('thug'),'knife','big']},{x:1800,list:a.boss?['boss','thug','knife']:[...Array(m).fill('knife'),'big']}]; },
+    // ez: 1 = Beginner stages 1-10 (very forgiving), fades to 0 by Beginner stage 20; always 0 on Hard/Expert
+    ez=a.diff===0?Math.max(0,Math.min(1,(20-a.level)/10)):0; waveT=0;
+    const N2=!!net(); pl=mkPl(0,N2?260:220,N2?430:450); pls=[pl]; if(N2) pls.push(mkPl(1,180,485));
+    const tut=a.content===0; WL=tut?2000:3800;
+    const m=ez>=1?(a.level<=4?2:3):Math.round(a.dv([3,4,5],6,8)*(N2?1.3:1)), m2=Math.max(1,m-(ez>=1?1:0)), soft=ez>=1&&a.level<=5;
+    waves=tut?[{x:520,list:['thug']}]:[{x:520,list:Array(m).fill('thug')},{x:1700,list:soft?Array(m2).fill('thug').concat('knife'):[...Array(m-1).fill('thug'),'knife','big']},{x:2800,list:a.boss?(ez>=1?['boss','thug']:['boss','thug','knife']):soft?[...Array(m2).fill('knife'),'thug']:[...Array(m).fill('knife'),'big']}]; },
   respawn(){ if(net()) return; // co-op: the KO'd fighter gets up on its own timer; the street stays as it is
-    lost=false; pl.hp=100; pl.st='idle'; pl.grace=2.5; ens.forEach(e=>{ e.x+= (e.x<pl.x?-160:160); e.st='walk'; }); },
+    lost=false; pl.hp=100; pl.z=0; pl.vz=0; pl.st='idle'; pl.grace=2.5; ens.forEach(e=>{ e.x+= (e.x<pl.x?-160:160); e.st='walk'; }); },
   netRevive(){ if(!pls) return; pls.forEach(p=>{ if(p.dead) getUp(p); p.hp=100; p.grace=Math.max(p.grace,3); }); },
   useAbility(id){ return useAb(pl,id); },
   useAbility2(id){ if(!pls||!pls[1]) return false; return useAb(pls[1],id); },
   update(dt){ t+=dt; if(done) return; const N2=pls.length>1; pls.forEach(p=>{ if(p.rage>-2) p.rage-=dt; p.grace-=dt; });
+    if(!locked&&!lost) waveT+=dt;
     ctl(pl,api.input.dir(),api.input.keys,dt);
     if(pls[1]) ctl(pls[1],api.input2.dir(),api.input2.keys,dt);
     const up=pls.filter(p=>!p.dead), lead=up.length?Math.max(...up.map(p=>p.x)):-1e9;
-    if(!locked&&wave<waves.length&&lead>waves[wave].x){ locked=true; const w=waves[wave]; w.list.forEach((k,i)=>{ const side=i%2?-1:1; const e=fighter(cam+(side>0?W+60+i*40:-60-i*40),Y0+40+Math.random()*(Y1-Y0-60),k); if(N2&&k==='boss'){ e.hp=e.max=Math.round(e.hp*1.3); } ens.push(e); }); T(wave===waves.length-1&&api.boss?'BOSS!':'FIGHT!'); }
-    if(!locked){ let tg; if(N2){ const avg=(pls[0].x+pls[1].x)/2; tg=Math.min(avg-W*0.45,Math.min(pls[0].x,pls[1].x)-40); } else tg=pl.x-W*0.4;
+    // the next gang wave comes when you walk up to it — or after a while anyway (standing still never clears a stage)
+    if(!locked&&wave<waves.length&&(lead>waves[wave].x||waveT>(ez>0?9:6))){ locked=true; waveT=0; const w=waves[wave]; w.list.forEach((k,i)=>{ const side=i%2?-1:1; const e=fighter(cam+(side>0?W+60+i*40:-60-i*40),Y0+15+Math.random()*(Y1-Y0-30),k); if(N2&&k==='boss'){ e.hp=e.max=Math.round(e.hp*1.3); } ens.push(e); }); T(wave===waves.length-1&&api.boss?'BOSS!':'FIGHT!'); }
+    if(!locked){ let tg; if(N2){ const avg=(pls[0].x+pls[1].x)/2; tg=Math.min(avg-W*0.42,Math.min(pls[0].x,pls[1].x)-XL-10); } else tg=pl.x-W*0.32;
       cam+=(Math.max(0,Math.min(WL-W,tg))-cam)*Math.min(1,dt*4); }
-    const atkW=api.dv([0.55,0.42,0.32],0.26,0.16), dmg=api.dv([8,12,16],20,30);
-    ens.forEach(e=>{ e.stT-=dt; e.hitT-=dt;
+    const L=(v,b)=>v+(b-v)*ez, atkW=L(api.dv([0.55,0.42,0.32],0.26,0.16),0.85), dmg=L(api.dv([8,12,16],20,30),5);
+    let busy=ens.filter(e=>e.st==='wind'||e.st==='atk').length; const maxBusy=ez>=1?1:ez>0?2:99;
+    ens.forEach(e=>{ e.stT-=dt; e.hitT-=dt; if(e.x>cam+XL-30&&e.x<cam+W-60) e.in=1; if(e.in) e.x=Math.max(cam+XL-30,Math.min(cam+W-60,e.x));   // once in view, stay clear of the left ability column
       if(e.st==='down'){ if(e.stT<=0){ if(e.hp<=0) e.gone=true; else e.st='walk'; } e.x+=e.vx*dt; e.vx*=Math.pow(0.05,dt); return; }
       if(e.st==='hurt'){ e.x+=e.vx*dt; e.vx*=Math.pow(0.05,dt); if(e.stT<=0) e.st='walk'; return; }
       const tg=(e.st==='wind'||e.st==='atk')?(pls[e.tg]||pl):near(e);
       const dx=tg.x-e.x, dy=tg.y-e.y; e.face=Math.sign(dx)||1; const reach=e.k==='knife'?80:e.k==='big'||e.k==='boss'?95:70;
-      if(e.st==='wind'){ if(e.stT<=0){ e.st='atk'; e.stT=0.25; if(!lost&&!tg.dead&&tg.grace<=0&&Math.abs(dx)<reach+12&&Math.abs(dy)<40){ const dd=dmg*(e.k==='boss'?1.6:e.k==='big'?1.3:1); tg.hp-=dd; api.sfx.hurt(); api.fx.shake(5); api.fx.burst(tg.x-cam,tg.y-90,'#ffd23f',8,160,.3,2); ev('ow',Math.round(tg.x-cam),Math.round(tg.y-90)); if(tg.rage<=0){ tg.st='hurt'; tg.stT=0.35; tg.x-=e.face*-30; } if(tg.hp<=0) die(tg); } } return; }
+      if(e.st==='wind'){ if(e.stT<=0){ e.st='atk'; e.stT=0.25; if(!lost&&!tg.dead&&tg.grace<=0&&tg.z<45&&Math.abs(dx)<reach+12&&Math.abs(dy)<40){ const dd=dmg*(e.k==='boss'?1.6:e.k==='big'?1.3:1); tg.hp-=dd; api.sfx.hurt(); api.fx.shake(5); api.fx.burst(tg.x-cam,tg.y-90,'#ffd23f',8,160,.3,2); ev('ow',Math.round(tg.x-cam),Math.round(tg.y-90)); if(tg.rage<=0){ tg.st='hurt'; tg.stT=0.35; tg.x-=e.face*-30; } if(tg.hp<=0) die(tg); } } return; }
       if(e.st==='atk'){ if(e.stT<=0) e.st='walk'; return; }
       if(Math.abs(dx)>reach-10||Math.abs(dy)>14){ e.x+=Math.sign(dx)*e.sp*dt*(Math.abs(dx)>reach-10?1:0); e.y+=Math.sign(dy)*e.sp*0.6*dt*(Math.abs(dy)>14?1:0); }
-      e.atkT-=dt; if(Math.abs(dx)<reach&&Math.abs(dy)<30&&e.atkT<=0&&!lost&&!tg.dead){ e.st='wind'; e.stT=atkW; e.tg=tg.i; e.atkT=api.dv([1.6,1.1,0.8],0.6,0.35)+Math.random()*0.6; } });
+      e.atkT-=dt; if(Math.abs(dx)<reach&&Math.abs(dy)<30&&e.atkT<=0&&!lost&&!tg.dead&&busy<maxBusy){ busy++; e.st='wind'; e.stT=atkW; e.tg=tg.i; e.atkT=L(api.dv([1.6,1.1,0.8],0.6,0.35),2.6)+Math.random()*0.6; } });
     ens.filter(e=>e.gone).forEach(e=>{ api.addScore({thug:100,knife:150,big:300,boss:2000}[e.k]*(1+api.dk*.5),e.x-cam,e.y-100); api.event('ko'); });
     ens=ens.filter(e=>!e.gone);
-    if(locked&&!ens.length){ locked=false; wave++; api.sfx.clear(); ev('sfx','clear'); T('GO →'); goT=2; }
+    if(locked&&!ens.length){ locked=false; wave++; waveT=0; api.sfx.clear(); ev('sfx','clear'); T('GO →'); goT=2; }
     goT-=dt;
     if(wave>=waves.length&&lead>WL-120&&!done&&!lost){ done=true; api.event('end'); api.sfx.clear(); api.fx.flash('#fff',.3); ev('clear'); setTimeout(()=>api.stageClear(),900); }
     api.counter('❤️ HEALTH',Math.max(0,Math.ceil(pl.hp)),pl.hp<25?'empty':pl.hp<50?'low':''); },
@@ -569,11 +581,11 @@ const GAME=window.GAME={
   netState(){ const R=Math.round, e=[];
     ens.forEach(o=>e.push(o.id,R(o.x),R(o.y),KINDS.indexOf(o.k),R(o.hp*10),R(o.max),o.face,ST.indexOf(o.st)));
     return {n:++snapN, c:R(cam),
-      p:pls.map(p=>[R(p.x),R(p.y),Math.max(0,R(p.hp)),p.face,ST.indexOf(p.st),p.dead?Math.max(1,R(p.respT*10)):0,Math.max(0,R(p.grace*10)),Math.max(0,R(p.rage*10))]),
+      p:pls.map(p=>[R(p.x),R(p.y),Math.max(0,R(p.hp)),p.face,ST.indexOf(p.st),p.dead?Math.max(1,R(p.respT*10)):0,Math.max(0,R(p.grace*10)),Math.max(0,R(p.rage*10)),R(p.z)]),
       e, g:(wave>=waves.length||(!locked&&goT>0))?1:0, d:done?1:0,
       v:evq.filter(x=>t-x[1]<1.2).slice(-20).map(x=>[x[0],...x.slice(2)])}; },
   netApply(s){ if(!s||!s.p||!pls) return; if(s.n&&s.n<=snapSeen) return; snapSeen=s.n||snapSeen;
-    s.p.forEach((a,i)=>{ let p=pls[i]; if(!p) p=pls[i]=mkPl(i,a[0],a[1]); setT(p,a[0],a[1]); p.hp=a[2]; p.face=a[3]; p.st=ST[a[4]]||'idle'; p.dead=a[5]>0; p.respT=a[5]/10; p.grace=a[6]/10; p.rage=a[7]>0?a[7]/10:-9; });
+    s.p.forEach((a,i)=>{ let p=pls[i]; if(!p) p=pls[i]=mkPl(i,a[0],a[1]); setT(p,a[0],a[1]); p.hp=a[2]; p.face=a[3]; p.st=ST[a[4]]||'idle'; p.dead=a[5]>0; p.respT=a[5]/10; p.grace=a[6]/10; p.rage=a[7]>0?a[7]/10:-9; p.z=a[8]||0; });
     pl=pls[0]; if(Math.abs(s.c-cam)>300) cam=s.c; camT=s.c; goF=!!s.g; done=!!s.d;
     const em={}; ens.forEach(o=>em[o.id]=o); const ne=[];
     for(let i=0;i<s.e.length;i+=8){ const id=s.e[i], k=KINDS[s.e[i+3]]||'thug', B=KB[k]; const o=em[id]||{id,x:s.e[i+1],y:s.e[i+2],col:B.col,sz:B.sz};
@@ -586,25 +598,28 @@ const GAME=window.GAME={
     pls.forEach(p=>{ L(p); p.grace-=dt; if(p.rage>0) p.rage-=dt; if(p.dead) p.respT-=dt; });
     ens.forEach(L); cam+=(camT-cam)*k; },
   render(c){ const g=c.createLinearGradient(0,0,0,Y0); g.addColorStop(0,'#1a0630'); g.addColorStop(1,'#ff3b5c'); c.fillStyle=g; c.fillRect(0,0,W,Y0);
-    c.fillStyle='#ffd23f'; c.beginPath(); c.arc(420-cam*0.05,260,60,0,7); c.fill();
-    for(let i=-1;i<12;i++){ const bx=i*260-((cam*0.4)%260), h=180+((i*97+Math.floor(cam*0.4/260)*53)%140+140)%140; c.fillStyle='#120818'; c.fillRect(bx,Y0-h-120,200,h+120); c.fillStyle='rgba(255,210,63,.6)'; for(let wy=Y0-h-100;wy<Y0-20;wy+=30) for(let wx=bx+15;wx<bx+190;wx+=36) if(((wx*7+wy*3)|0)%5) c.fillRect(wx,wy,14,14); }
-    for(let i=-1;i<6;i++){ const bx=i*200-(cam%200); c.fillStyle='#2a1a2a'; c.fillRect(bx,Y0-160,180,160); c.fillStyle=['#ff3bd4','#00e5ff','#3bff7a'][((i+Math.floor(cam/200))%3+3)%3]; c.shadowColor=c.fillStyle; c.shadowBlur=14; c.fillRect(bx+20,Y0-140,140,24); c.shadowBlur=0; c.fillStyle='#000'; c.fillRect(bx+60,Y0-90,60,90); }
-    c.fillStyle='#3a3440'; c.fillRect(0,Y0,W,H-Y0); c.fillStyle='#4a4450'; for(let i=-1;i<8;i++){ const x=i*100-(cam%100); c.fillRect(x,Y0,4,H-Y0); } c.fillStyle='#ffd23f'; for(let i=-1;i<8;i++){ c.fillRect(i*120-(cam%120),Y1+30,60,6); }
+    c.fillStyle='#ffd23f'; c.beginPath(); c.arc(900-cam*0.05,170,54,0,7); c.fill();
+    const b0=Math.floor(cam*0.4/260); for(let i=-1;i<7;i++){ const bx=i*260-((cam*0.4)%260), h=90+(((i+b0)*97)%120+120)%120; c.fillStyle='#120818'; c.fillRect(bx,Y0-h-90,200,h+90); c.fillStyle='rgba(255,210,63,.6)'; for(let wy=Y0-h-74;wy<Y0-150;wy+=28) for(let wx=bx+15;wx<bx+190;wx+=36) if(((wx*7+wy*3+(i+b0)*11)|0)%5) c.fillRect(wx,wy,14,13); }
+    for(let i=-1;i<8;i++){ const bx=i*200-(cam%200); c.fillStyle='#2a1a2a'; c.fillRect(bx,Y0-140,180,140); c.fillStyle=['#ff3bd4','#00e5ff','#3bff7a'][((i+Math.floor(cam/200))%3+3)%3]; c.shadowColor=c.fillStyle; c.shadowBlur=14; c.fillRect(bx+20,Y0-124,140,22); c.shadowBlur=0; c.fillStyle='#000'; c.fillRect(bx+62,Y0-80,56,80); c.fillStyle='rgba(255,230,160,.25)'; c.fillRect(bx+12,Y0-80,40,46); c.fillRect(bx+128,Y0-80,40,46); }
+    c.fillStyle='#3a3440'; c.fillRect(0,Y0,W,Y1+22-Y0); c.fillStyle='#4a4450'; for(let i=-1;i<15;i++){ const x=i*100-(cam%100); c.fillRect(x,Y0,4,Y1+22-Y0); }
+    c.fillStyle='#8a8090'; c.fillRect(0,Y1+22,W,8); c.fillStyle='#1c1620'; c.fillRect(0,Y1+30,W,H-Y1-30);
+    c.fillStyle='#ffd23f'; for(let i=-1;i<13;i++){ c.fillRect(i*120-(cam*1.2%120),Y1+110,60,6); }
+    c.fillStyle='rgba(255,59,92,.12)'; for(let i=-1;i<5;i++){ const x=i*340-(cam*1.2%340); c.beginPath(); c.ellipse(x+150,Y1+70,70,10,0,0,7); c.fill(); }
     const showGo=isGuest()?goF:(wave>=waves.length||(!locked&&goT>0));
-    if(showGo){ if((t*3|0)%2){ c.fillStyle='#ffd23f'; c.font='bold 44px sans-serif'; c.textAlign='right'; c.fillText('GO →',W-30,Y0-20); } }
+    if(showGo){ if((t*3|0)%2){ c.fillStyle='#ffd23f'; c.font='bold 44px sans-serif'; c.textAlign='right'; c.fillText('GO →',W-70,Y0-160); } }
     const N=net();
     const all=[...ens.map(e=>({o:e,e:true})),...pls.map(p=>({o:p,e:false}))].sort((a,b)=>a.o.y-b.o.y);
     all.forEach(({o,e})=>{ if(!e&&lost) return; if(!e&&!o.dead&&o.grace>0&&(t*10|0)%2) return;
-      drawMan(c,o.x-cam,o.y,e?o.col:(N?TAGC[o.i]:api.cos('Fighter').colors[0]),o.face,o.dead?'down':o.st,e?o.sz:1,e&&o.st==='wind',o);
+      drawMan(c,o.x-cam,o.y,e?o.col:(N?TAGC[o.i]:api.cos('Fighter').colors[0]),o.face,o.dead?'down':o.st,e?o.sz:1,e&&o.st==='wind',o,e?0:(o.z||0));
       if(e&&o.st!=='down'){ c.fillStyle='#000'; c.fillRect(o.x-cam-25,o.y-150*o.sz,50,6); c.fillStyle='#ff3b3b'; c.fillRect(o.x-cam-25,o.y-150*o.sz,50*Math.max(0,o.hp)/o.max,6); } });
-    pls.forEach(p=>{ if(lost||p.dead) return; if(p.rage>0){ c.strokeStyle='#ff9f1c'; c.lineWidth=3; c.beginPath(); c.ellipse(p.x-cam,p.y-60,40,75,0,0,7); c.stroke(); } });
-    if(N) pls.forEach(p=>{ const x=Math.max(50,Math.min(W-50,p.x-cam)), col=TAGC[p.i], s=nm(p.i);
+    pls.forEach(p=>{ if(lost||p.dead) return; if(p.rage>0){ c.strokeStyle='#ff9f1c'; c.lineWidth=3; c.beginPath(); c.ellipse(p.x-cam,p.y-60-(p.z||0),40,75,0,0,7); c.stroke(); } });
+    if(N) pls.forEach(p=>{ const x=Math.max(50,Math.min(W-50,p.x-cam)), col=TAGC[p.i], s=nm(p.i), y=p.y-(p.z||0);
       c.font='bold 16px sans-serif'; c.textAlign='center'; c.lineWidth=4; c.strokeStyle='rgba(0,0,0,.75)';
       if(p.dead){ c.globalAlpha=0.6+0.3*Math.sin(t*8); const m='↻ '+s.toUpperCase()+' '+Math.max(0,p.respT).toFixed(1); c.strokeText(m,x,p.y-40); c.fillStyle=col; c.fillText(m,x,p.y-40); c.globalAlpha=1; return; }
-      c.strokeText(s,x,p.y-150); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=8; c.fillText(s,x,p.y-150); c.shadowBlur=0;
-      c.fillStyle='#000'; c.fillRect(x-25,p.y-144,50,5); c.fillStyle=p.hp<25?'#ff3b3b':p.hp<50?'#ffd23f':col; c.fillRect(x-25,p.y-144,50*Math.max(0,p.hp)/100,5); });
+      c.strokeText(s,x,y-150); c.fillStyle=col; c.shadowColor=col; c.shadowBlur=8; c.fillText(s,x,y-150); c.shadowBlur=0;
+      c.fillStyle='#000'; c.fillRect(x-25,y-144,50,5); c.fillStyle=p.hp<25?'#ff3b3b':p.hp<50?'#ffd23f':col; c.fillRect(x-25,y-144,50*Math.max(0,p.hp)/100,5); });
     if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#0e0610'; c.fillRect(0,0,W,H); drawMan(c,250,600,'#2e7bff',1,(tt*2|0)%2?'punch':'idle',1.5,false,{}); drawMan(c,400,600,'#ff3b5c',-1,'idle',1.5,false,{}); }
+  attract(c,tt){ c.fillStyle='#0e0610'; c.fillRect(0,0,W,H); drawMan(c,560,520,'#2e7bff',1,(tt*2|0)%2?'punch':'idle',1.6,false,{}); drawMan(c,720,520,'#ff3b5c',-1,'idle',1.6,false,{}); }
 };
 function setT(o,x,y){ if(o.tx===undefined||Math.hypot(x-o.x,y-o.y)>200){ o.x=x; o.y=y; } o.tx=x; o.ty=y; }
 // move one fighter from its own controls. Nobody punches unless that player presses.
@@ -612,19 +627,23 @@ function ctl(p,d,K,dt){
   if(p.dead){ p.respT-=dt; if(p.respT<=0) getUp(p); return; }
   if(lost) return;
   p.stT-=dt; if(p.stT<=0&&p.st!=='idle') p.st='idle';
-  const sp=p.st==='idle'?220:60; if(p.st!=='hurt'){ p.x+=d.x*sp*dt; p.y+=d.y*sp*0.7*dt; if(Math.abs(d.x)>0.2&&p.st==='idle') p.face=Math.sign(d.x); }
-  const maxX=pls.length>1?Math.min(WL-40,cam+W-30):(locked?cam+W-30:WL-40); p.x=Math.max(cam+30,Math.min(maxX,p.x)); p.y=Math.max(Y0,Math.min(Y1,p.y));
-  if(K.Space&&!p.s){ attack(p,'punch'); } p.s=!!K.Space; }
-function getUp(p){ p.dead=false; p.respT=0; p.hp=100; p.st='idle'; p.stT=0; p.grace=2.5;
+  if(p.z>0||p.vz>0){ p.z+=p.vz*dt; p.vz-=1500*dt; if(p.z<=0){ p.z=0; p.vz=0; p.air=false; p.jcd=0.1+0.5*(1-ez)*Math.min(1,api.dk/2+0.4); } }
+  if(p.jcd>0) p.jcd-=dt;   // short wait after landing: jumping is a dodge, not a way to never touch the ground
+  const sp=(p.st==='idle'||p.z>0)?220:60; if(p.st!=='hurt'){ p.x+=d.x*sp*dt; if(p.z<=0) p.y+=d.y*sp*0.6*dt; if(Math.abs(d.x)>0.2&&p.st==='idle') p.face=Math.sign(d.x); }
+  // keep fighters off the ability column (left) and inside the screen; the street band keeps them above the thumb corners
+  const maxX=pls.length>1?Math.min(WL-40,cam+W-XR):(locked?cam+W-XR:WL-40); p.x=Math.max(cam+XL,Math.min(maxX,p.x)); p.y=Math.max(Y0,Math.min(Y1,p.y));
+  if(K.Space&&(!p.s||p.st==='idle')) attack(p,'punch'); p.s=!!K.Space; }   // hold PUNCH = keep punching (only while held)
+function getUp(p){ p.dead=false; p.respT=0; p.z=0; p.vz=0; p.hp=100; p.st='idle'; p.stT=0; p.grace=2.5;
   ens.forEach(e=>{ if(e.st!=='down'&&Math.abs(e.x-p.x)<200){ e.x+=(e.x<p.x?-160:160); if(e.st==='wind'||e.st==='atk') e.st='walk'; } });
   ev('up',Math.round(p.x-cam),Math.round(p.y-60),p.i); }
 function useAb(p,id){ if(done||lost||!p||p.dead) return false;
   if(id==='punch'||id==='kick'){ return attack(p,id); }
+  if(id==='jump'){ if(p.z>0||p.jcd>0||p.st==='hurt') return false; p.vz=560; p.z=0.01; api.sfx.small(); ev('sfx','small'); return true; }
   if(id==='spin'){ p.st='spin'; p.stT=0.45; ens.forEach(e=>{ if(Math.abs(e.x-p.x)<130&&Math.abs(e.y-p.y)<60) hit(e,2,Math.sign(e.x-p.x)||1,p); }); api.sfx.boom(); ev('sfx','boom'); return true; }
   if(id==='heal'){ p.hp=Math.min(100,p.hp+50); api.sfx.pickup(); ev('sfx','pickup'); return true; }
   p.rage=8; api.sfx.power(); ev('sfx','power'); return true; }
-function drawMan(c,x,y,col,f,st,s,warn,o){ c.save(); c.translate(x,y); c.scale(f*s,s);
-  c.fillStyle='rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(0,0,26,7,0,0,7); c.fill();
+function drawMan(c,x,y,col,f,st,s,warn,o,z){ c.save(); c.translate(x,y); c.scale(f*s,s);
+  c.fillStyle='rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(0,0,26*(1-Math.min(.5,(z||0)/200)),7,0,0,7); c.fill(); if(z) c.translate(0,-z/s);
   if(st==='down'){ c.fillStyle=col; c.fillRect(-40,-14,70,14); c.fillStyle='#f0c090'; c.beginPath(); c.arc(38,-8,10,0,7); c.fill(); c.restore(); return; }
   const walk=Math.sin(t*12+(o.x||0))*8, lean=st==='hurt'?-0.25:0; c.rotate(lean);
   c.strokeStyle='#222'; c.lineWidth=9; c.lineCap='round'; c.beginPath(); c.moveTo(-6,-50); c.lineTo(-10-walk*0.5,0); c.moveTo(6,-50);
@@ -636,9 +655,11 @@ function drawMan(c,x,y,col,f,st,s,warn,o){ c.save(); c.translate(x,y); c.scale(f
   c.restore(); }
 // p = the fighter who threw the hit (rage doubles damage). Fighters never hit each other — only the gang.
 function hit(e,dmg,dir,p){ if(e.st==='down') return; const d=dmg*(p&&p.rage>0?2:1); e.hp-=d; api.fx.burst(e.x-cam,e.y-90,'#fff',8,200,.25,3); api.sfx.bump(); ev('hit',Math.round(e.x-cam),Math.round(e.y-90));
-  if(e.hp<=0){ e.st='down'; e.stT=0.9; e.vx=dir*240; api.sfx.boom(); ev('sfx','boom'); } else if(dmg>=2||e.k!=='boss'){ e.st=dmg>=2?'down':'hurt'; e.stT=dmg>=2?0.8:0.3; e.vx=dir*(dmg>=2?260:90); } }
-function attack(p,k){ if(done||lost||p.dead||p.st==='hurt'||(p.st!=='idle'&&p.stT>0.08)) return false; p.st=k; p.stT=k==='kick'?0.32:0.18; api.sfx.click(); ev('sfx','click');
-  const reach=k==='kick'?100:78; ens.forEach(e=>{ const dx=(e.x-p.x)*p.face; if(dx>-10&&dx<reach&&Math.abs(e.y-p.y)<34&&e.st!=='down'){ hit(e,k==='kick'?2:1,p.face,p); } }); return true; }
+  if(e.hp<=0){ e.st='down'; e.stT=0.9; e.vx=dir*240; api.sfx.boom(); ev('sfx','boom'); } else if(dmg<2&&(e.hc=(e.hitT>0?(e.hc||0)+1:1),e.hitT=0.8,e.hc>(ez>0?99:api.diff===2?2:4))){ /* Hard/Expert: after a few jabs in a row they shrug it off (no endless stun-lock) */ } else if(dmg>=2||e.k!=='boss'){ e.st=dmg>=2?'down':'hurt'; e.stT=dmg>=2?0.8:0.3; e.vx=dir*(dmg>=2?260:90); } }
+function attack(p,k){ if(done||lost||p.dead||p.st==='hurt'||(p.st!=='idle'&&p.stT>0.08)) return false;
+  const fly=p.z>0; if(fly){ if(p.air) return false; p.air=true; k='kick'; }   // one flying kick per jump
+  p.st=k; p.stT=k==='kick'?0.32:0.18; api.sfx.click(); ev('sfx','click');
+  const reach=fly?115:k==='kick'?100:78; ens.forEach(e=>{ const dx=(e.x-p.x)*p.face; if(dx>-10&&dx<reach&&Math.abs(e.y-p.y)<(fly?40:34)&&e.st!=='down'){ hit(e,k==='kick'?2:1,p.face,p); } }); return true; }
 function die(p){ if(!net()){ if(lost||done) return; lost=true; pl.st='down'; api.toast('K.O.!'); api.sfx.hurt(); api.fx.shake(10); setTimeout(()=>api.loseLife(),1100); return; }
   // co-op: this fighter is down for 2 s, the team loses one life, the other keeps fighting
   if(p.dead||done) return; p.dead=true; p.hp=0; p.st='down'; p.respT=2;
