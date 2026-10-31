@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-FS-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-FS-1.1 · 2026-10-26">
 <title>Fruit Slash</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-FS-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-FS-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,76 +489,84 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* FRUIT SLASH — fruit-slicer remix (#60). 100 stages. Swipe through the flying fruit, never touch the bombs. */
+/* FRUIT SLASH — fruit-slicer remix (#60). 100 stages. Swipe through the flying fruit, never touch the bombs.
+   1.1 (26 Oct): LANDSCAPE 1280x720 — fruit is thrown across the wide screen and peaks in the middle band (clear of the
+   HUD strip, the ability column and the action button). RACE mode: every throw (timing, fruit, arc, bombs) comes from a
+   seeded stage RNG, so both racers face the same throws. Slicing is by YOUR swipe only (old auto "quick slash" removed);
+   Space / action button = BIG BLADE (hold: wider cut, limited energy; PC: hold Space and just move the mouse).
+   Beginner 1-10: slower fruit, 1-2 at a time, no bombs on 1-3, bombs only cost a miss (no instant death), 5 misses allowed. */
 (function(){
-const W=600,H=900;
-const FR=[{n:'apple',r:34,o:'#e8242c',i:'#fff6d0',s:'#ff5a5a'},{n:'orange',r:36,o:'#ff8a1f',i:'#ffc070',s:'#ffa040'},{n:'melon',r:50,o:'#2e9a3a',i:'#ff4a5a',s:'#ff3b5a',stripe:'#1a6a22'},
-  {n:'lemon',r:30,o:'#ffe23f',i:'#fff6a8',s:'#fff07a'},{n:'grape',r:26,o:'#8a3bd8',i:'#d8b0ff',s:'#b070ff'},{n:'kiwi',r:30,o:'#7a5a2a',i:'#7ad83b',s:'#9aff5a'},{n:'peach',r:34,o:'#ff9a8a',i:'#ffd27a',s:'#ffb08a'}];
-let api,t,fruits,halves,bombs,splats,trail,blade,done,lost,eff,grace,sliced,goal,strikes,spawnT,boss,combo,comboT,swipeId,lastHitT;
-function R(a,b){ return a+Math.random()*(b-a); }
+const W=1280,H=720,X0=150,X1=1000,BIGR=26;
+const FR=[{n:'apple',r:36,o:'#e8242c',i:'#fff6d0',s:'#ff5a5a'},{n:'orange',r:38,o:'#ff8a1f',i:'#ffc070',s:'#ffa040'},{n:'melon',r:52,o:'#2e9a3a',i:'#ff4a5a',s:'#ff3b5a',stripe:'#1a6a22'},
+  {n:'lemon',r:32,o:'#ffe23f',i:'#fff6a8',s:'#fff07a'},{n:'grape',r:28,o:'#8a3bd8',i:'#d8b0ff',s:'#b070ff'},{n:'kiwi',r:32,o:'#7a5a2a',i:'#7ad83b',s:'#9aff5a'},{n:'peach',r:36,o:'#ff9a8a',i:'#ffd27a',s:'#ffb08a'}];
+let api,t=0,fruits=[],halves=[],bombs=[],splats=[],trail=[],blades={},done,lost,eff={},grace,sliced,goal,strikes,maxS,spawnT,boss,combo,comboT,en=1,big=false,easy,seed,bgC=null;
+let rs=1; function rnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+const S=(a,b)=>a+rnd()*(b-a);                // seeded: gameplay (same for both racers)
+function R(a,b){ return a+Math.random()*(b-a); }  // cosmetic only
+const grav=()=>api.dv([700,820,940],1000,1150)*(easy?0.72:1);
 const GAME=window.GAME={
   id:'fruit-slash',title:'Fruit Slash',titleHTML:'FRUIT<br>SLASH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-FS-1.0 · 2026-10-17',theme:{a:'#ff3b5a',b:'#7aff3b',bg:'#140a06'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🍉',joystick:false,coinPts:40,
+  build:'BUILD-FS-1.1 · 2026-10-26',theme:{a:'#ff3b5a',b:'#7aff3b',bg:'#140a06'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🍉',joystick:false,coinPts:40,
   abilities:[
-    {id:'slash',icon:'🔪',name:'QUICK SLASH',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — your blade flicks out and slices the lowest fruit on screen (never a bomb).'},
+    {id:'blade',icon:'🔪',name:'BIG BLADE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — HOLD it while you swipe: your blade cuts a much wider path (bombs too!). Uses blade energy, refills when you let go.'},
     {id:'frost',icon:'❄️',name:'FROST',cd:18,key:'Digit1',keyLabel:'1',desc:'Everything flies in slow motion for 6 seconds.'},
     {id:'frenzy',icon:'🌈',name:'FRENZY',cd:20,key:'Digit2',keyLabel:'2',desc:'A shower of fruit and NO bombs for 6 seconds.'},
     {id:'defuse',icon:'🧯',name:'DEFUSER',cd:18,key:'Digit3',keyLabel:'3',desc:'Bombs you slice just fizzle out for 6 seconds.'}],
   shop:[{id:'k_s',cat:'Blade',name:'Steel Blade',cost:0,colors:['#bfefff'],desc:'Classic.'},{id:'k_f',cat:'Blade',name:'Fire Blade',cost:150,colors:['#ff7a1f'],desc:'Burns bright.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff3b5a,#7aff3b)'}],
   story:`<h3>FRUIT SLASH</h3><p>The great harvest festival is on, and the orchard spirits are throwing fruit at you. Slice it all — but watch out, somebody packed bombs in the crates.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Swipe</b> across the fruit to slice it (PC: hold the mouse button and drag).</li><li>Slice several with one swipe for a <b>COMBO</b>.</li><li>Never slice a 💣 bomb — it costs a life.</li><li>Let 3 fruit fall without slicing them and you lose a life too.</li><li>Slice the number of fruit shown at the top to clear the stage. Every 10th stage: the GIANT PINEAPPLE — slash it again and again!</li></ul>`,
-  tutorial:[{text:'Swipe across the fruit to slice it!',ev:'slice'},{text:'Slice 2 or more in one swipe for a COMBO!',ev:'combo'},{text:'Keep slicing — never touch a bomb!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Hold your phone sideways.</b></li><li><b>Phone:</b> swipe across the fruit with any finger to slice it. Hold the big 🔪 button (right thumb) while you swipe for a <b>BIG BLADE</b> that cuts a wider path.</li><li><b>PC:</b> hold the mouse button and drag to slice — or hold <b>SPACE</b> and just move the mouse (BIG BLADE). Keys <b>1 2 3</b> = abilities.</li><li>Slice several with one swipe for a <b>COMBO</b>.</li><li>Never slice a 💣 bomb — it costs a life. (Beginner stages 1-10: a bomb only counts as a miss.)</li><li>Too many fruit falling unsliced (the ✕ marks at the bottom) costs a life.</li><li>Slice the number of fruit shown at the top to clear the stage. Every 10th stage: the GIANT PINEAPPLE — slash it again and again!</li><li><b>RACE:</b> in multiplayer everyone gets the exact same throws — first to clear the stage wins.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. SWIPE across the fruit to slice it! (PC: hold the mouse button and drag)',ev:'slice'},{text:'Slice 2 or more in one swipe for a COMBO!',ev:'combo'},{text:'Hold 🔪 BIG BLADE (PC: SPACE) while swiping for a wider cut. Never touch a bomb!',time:6}],
   stageIntro:{1:'SLICE THE FRUIT · DODGE THE BOMBS'},bossName:'GIANT PINEAPPLE!',ending:{"0":["#HARVEST","The festival is saved."],"1":["#BLADEMASTER","Fastest blade in the orchard."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const tot={frost:6,frenzy:6,defuse:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get fruits(){return fruits;}, get bombs(){return bombs;}, get boss(){return boss;}, get lost(){return lost;}, get sliced(){return sliced;}, get strikes(){return strikes;}, swipe:(x0,y0,x1,y1)=>swipeSeg(x0,y0,x1,y1)}; },
+  _dbg(){ return {get fruits(){return fruits;}, get bombs(){return bombs;}, get boss(){return boss;}, get lost(){return lost;}, get done(){return done;}, get sliced(){return sliced;}, get goal(){return goal;}, get strikes(){return strikes;}, get maxS(){return maxS;}, get seed(){return seed;}, get easy(){return easy;}, get en(){return en;}, get big(){return big;}, swipe:(x0,y0,x1,y1)=>swipeSeg(x0,y0,x1,y1), end:()=>endSwipe()}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=1; eff={frost:-9,frenzy:-9,defuse:-9}; fruits=[]; halves=[]; bombs=[]; splats=[]; trail=[]; blade=null; sliced=0; strikes=0; spawnT=1; combo=0; comboT=0; lastHitT=0;
-    goal=a.content===0?6:Math.round(a.dv([20,30,40],55,75)); boss=null;
-    if(a.boss){ const hp=Math.round(a.dv([25,35,45],60,90)); boss={x:W/2,y:H+120,vx:R(-60,60),vy:-700,hp,max:hp,rot:0,hurt:0,hitT:0,inside:false,t:0}; } },
-  respawn(){ lost=false; grace=1.5; bombs=[]; fruits=fruits.filter(f=>f.vy<0&&f.y<H-100); strikes=0; blade=null; trail=[]; },
+  startStage(n,a){ api=a; seed=(Math.random()*1e9)|0; rs=seed;   // RACE: the shell seeds Math.random -> same seed on every phone
+    t=0; done=false; lost=false; grace=1; eff={frost:-9,frenzy:-9,defuse:-9}; fruits=[]; halves=[]; bombs=[]; splats=[]; trail=[]; blades={}; sliced=0; strikes=0; spawnT=1.2; combo=0; comboT=0; en=1;
+    easy=a.diff===0&&a.level<=10; maxS=easy||a.content===0?5:3;
+    goal=a.content===0?6:Math.round(a.dv([14,30,40],55,75)); boss=null;
+    if(a.boss){ const hp=Math.round(a.dv([22,35,45],60,90)); boss={x:W/2,y:H+120,vx:S(-80,80),vy:-640,hp,max:hp,rot:0,hurt:0,hitT:0,inside:false,t:0}; } },
+  respawn(){ lost=false; grace=1.5; bombs=[]; fruits=fruits.filter(f=>f.vy<0&&f.y<H-100); strikes=0; blades={}; trail=[]; },
   stageBonus(){ return sliced*10; },
   useAbility(id){ if(done||lost) return false;
-    if(id==='slash'){ const f=fruits.filter(f=>f.y<H+10).sort((A,B)=>B.y-A.y)[0]; if(!f){ if(boss&&boss.y<H){ hitBoss(); trail.push({x:boss.x-80,y:boss.y-40,l:.25},{x:boss.x+80,y:boss.y+40,l:.25}); return true; } return false; }
-      trail.push({x:f.x-70,y:f.y+40,l:.25,sep:true},{x:f.x+70,y:f.y-40,l:.25}); cut(f,Math.atan2(-80,140)); api.sfx.shoot(); return true; }
+    if(id==='blade'){ if(en<=0.05){ api.toast('BLADE RECHARGING'); return false; } return true; }   // hold-to-use: wider cut while Space/button is held
     eff[id]=6; api.sfx.power(); if(id==='frenzy') spawnT=0; return true; },
-  onPointer(type,x,y,id,pt,buttons){ if(done) return;
-    if(type==='down'){ blade={x,y}; swipeId=Math.random(); combo=0; trail.push({x,y,l:.22,sep:true}); }
-    else if(type==='move'){ if(!blade&&pt==='mouse'&&buttons&1){ blade={x,y}; swipeId=Math.random(); combo=0; trail.push({x,y,l:.22,sep:true}); return; } if(!blade) return; swipeSeg(blade.x,blade.y,x,y); blade.x=x; blade.y=y; trail.push({x,y,l:.22}); if(trail.length>40) trail.shift(); }
-    else if(type==='up'){ endSwipe(); blade=null; } },
+  onPointer(type,x,y,id,pt,buttons){ if(done) return; id=id===undefined?0:id;
+    if(type==='down'){ startBlade(id,x,y,false); }
+    else if(type==='move'){ let b=blades[id];
+      if(!b&&pt==='mouse'&&((buttons&1)||api.input.keys.Space)){ startBlade(id,x,y,!(buttons&1)); return; }
+      if(!b) return; if(b.sp&&pt==='mouse'&&!(buttons&1)&&!api.input.keys.Space){ delete blades[id]; endSwipe(); return; }
+      swipeSeg(b.x,b.y,x,y); b.x=x; b.y=y; trail.push({x,y,l:.22,id,big}); if(trail.length>60) trail.shift(); }
+    else if(type==='up'){ delete blades[id]; endSwipe(); } },
   update(dt0){ t+=dt0; if(done) return; for(const k in eff) if(eff[k]>-2) eff[k]-=dt0; grace-=dt0;
+    const sp=!!api.input.keys.Space; big=sp&&en>0; en=sp?Math.max(0,en-dt0*0.4):Math.min(1,en+dt0*0.25);
     trail.forEach(p=>p.l-=dt0); trail=trail.filter(p=>p.l>0);
     splats.forEach(s=>s.l-=dt0*0.25); splats=splats.filter(s=>s.l>0);
-    const dt=dt0*(eff.frost>0?0.45:1), grav=api.dv([700,820,940],1000,1150);
-    halves.forEach(h=>{ h.vy+=grav*dt; h.x+=h.vx*dt; h.y+=h.vy*dt; h.rot+=h.vr*dt; }); halves=halves.filter(h=>h.y<H+80);
-    comboT-=dt0; if(comboT<=0&&combo>0&&!blade) endSwipe();
+    const dt=dt0*(eff.frost>0?0.45:1), g=grav();
+    halves.forEach(h=>{ h.vy+=g*dt; h.x+=h.vx*dt; h.y+=h.vy*dt; h.rot+=h.vr*dt; }); halves=halves.filter(h=>h.y<H+80);
+    comboT-=dt0; if(comboT<=0&&combo>0&&!Object.keys(blades).length) endSwipe();
     if(lost) return;
-    // spawning
-    spawnT-=dt; if(spawnT<=0&&(!boss||boss.hp>0)){ const fz=eff.frenzy>0; spawnT=fz?0.35:api.dv([1.6,1.25,1.0],0.8,0.55)*(api.content===0?1.4:1)*(boss?1.4:1);
-      const n=fz?2:1+Math.floor(Math.random()*api.dv([2,3,4],5,6)*(api.content===0?0.4:1)); const bombP=fz||api.content===0&&t<6?0:api.dv([0.08,0.15,0.22],0.3,0.42)*(boss?1.5:1);
-      for(let i=0;i<n;i++) toss(Math.random()<bombP); }
-    const air=f=>{ f.vy+=grav*dt; f.x+=f.vx*dt; f.y+=f.vy*dt; f.rot+=f.vr*dt; if(f.x<f.r&&f.vx<0||f.x>W-f.r&&f.vx>0) f.vx*=-0.6; };
-    fruits.forEach(f=>{ air(f); if(f.vy>0&&f.y>H+f.r+10){ f.gone=true; { strikes++; api.toast(strikes>=3?'3 MISSED!':'MISSED ONE!'); api.sfx.bump(); if(strikes>=3){ strikes=0; die('TOO MANY FRUIT GOT AWAY!'); } } } });
+    // spawning — all seeded (rnd), so a race gives every phone the same throws
+    spawnT-=dt; if(spawnT<=0&&(!boss||boss.hp>0)){ const fz=eff.frenzy>0, c0=api.content===0;
+      spawnT=fz?0.35:api.dv([1.6,1.25,1.0],0.8,0.55)*(c0?1.4:easy?1.35:1)*(boss?1.4:1);
+      const mx=c0?1.2:easy?1.6:api.dv([2,3,4],5,6); const n=fz?2+Math.floor(rnd()*2):1+Math.floor(rnd()*mx);
+      const bombP=fz||c0||(easy&&api.level<=3)?0:easy?0.06:api.dv([0.08,0.15,0.22],0.3,0.42)*(boss?1.5:1);
+      // a volley uses the wide screen: throws spread out from left to right
+      const base=S(X0,X1); for(let i=0;i<n;i++){ const isB=rnd()<bombP; toss(isB, n>1?X0+((base-X0+i*(X1-X0)/n)%(X1-X0)):base); } }
+    const air=f=>{ f.vy+=g*dt; f.x+=f.vx*dt; f.y+=f.vy*dt; f.rot+=f.vr*dt; if(f.x<110+f.r&&f.vx<0||f.x>W-20-f.r&&f.vx>0) f.vx*=-0.6; };
+    fruits.forEach(f=>{ air(f); if(f.vy>0&&f.y>H+f.r+10){ f.gone=true; miss(); } });
     bombs.forEach(f=>{ air(f); f.fuse+=dt; if(f.vy>0&&f.y>H+60) f.gone=true; });
     fruits=fruits.filter(f=>!f.gone); bombs=bombs.filter(f=>!f.gone);
     if(boss){ boss.t+=dt; boss.hurt-=dt0; boss.hitT-=dt0; boss.rot+=dt*0.8;
-      if(boss.hp>0){ boss.vy+=api.dv([300,380,460],520,620)*dt; boss.x+=boss.vx*dt; boss.y+=boss.vy*dt; if(boss.x<110||boss.x>W-110) boss.vx*=-1; if(boss.y>H*0.62&&boss.vy>0){ boss.vy=-R(520,640); boss.vx=R(-90,90); } }
+      if(boss.hp>0){ boss.vy+=api.dv([300,380,460],520,620)*(easy?0.8:1)*dt; boss.x+=boss.vx*dt; boss.y+=boss.vy*dt; if(boss.x<230&&boss.vx<0||boss.x>950&&boss.vx>0) boss.vx*=-1; if(boss.y>H*0.6&&boss.vy>0){ boss.vy=-S(480,600); boss.vx=S(-140,140); } }
       else { boss.vy+=600*dt; boss.y+=boss.vy*dt; } }
     api.counter(boss?'🍍 PINEAPPLE':'🍉 TO SLICE', boss?Math.max(0,boss.hp):Math.max(0,goal-sliced));
     if((boss?boss.hp<=0:sliced>=goal)&&!done){ done=true; api.toast(boss?'PINEAPPLE SLICED!':'STAGE SLICED!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1100); } },
   render(c){ const bc=api.cos('Blade').colors[0];
-    const bg=c.createRadialGradient(W/2,H*0.45,60,W/2,H/2,H*0.75); bg.addColorStop(0,'#4a2a16'); bg.addColorStop(1,'#140a06'); c.fillStyle=bg; c.fillRect(0,0,W,H);
-    c.strokeStyle='rgba(0,0,0,.35)'; c.lineWidth=3; for(let x=0;x<W;x+=100){ c.beginPath(); c.moveTo(x,0); c.lineTo(x,H); c.stroke(); }
-    c.strokeStyle='rgba(255,200,140,.06)'; c.lineWidth=2; for(let i=0;i<30;i++){ const x=(i*97)%W, y=(i*233)%H; c.beginPath(); c.moveTo(x,y); c.quadraticCurveTo(x+20,y+30,x+5,y+70); c.stroke(); }
+    drawBg(c);
     splats.forEach(s=>{ c.globalAlpha=Math.min(.55,s.l*0.6); c.fillStyle=s.c; c.beginPath(); c.arc(s.x,s.y,s.r,0,7); c.fill(); s.d.forEach(d=>{ c.beginPath(); c.arc(s.x+d[0],s.y+d[1],d[2],0,7); c.fill(); }); }); c.globalAlpha=1;
-    if(boss){ const b=boss; c.save(); c.translate(b.x,b.y); c.rotate(Math.sin(b.rot)*0.25); if(b.hurt>0) c.translate(R(-5,5),R(-5,5)); if(b.hp<=0) c.globalAlpha=.6;
-      c.fillStyle='#2e9a3a'; for(let i=-3;i<=3;i++){ c.save(); c.rotate(i*0.25); c.beginPath(); c.moveTo(-14,-80); c.quadraticCurveTo(0,-170-Math.abs(i)*-8,14,-80); c.fill(); c.restore(); }
-      const g=c.createRadialGradient(-25,-25,10,0,0,95); g.addColorStop(0,'#ffe86a'); g.addColorStop(1,'#c8860a'); c.fillStyle=g; c.shadowColor='#ffd23f'; c.shadowBlur=b.hurt>0?40:20; c.beginPath(); c.ellipse(0,0,78,96,0,0,7); c.fill(); c.shadowBlur=0;
-      c.strokeStyle='rgba(120,70,0,.55)'; c.lineWidth=3; for(let k=-4;k<=4;k++){ c.beginPath(); c.moveTo(k*22-60,-90); c.lineTo(k*22+60,90); c.stroke(); c.beginPath(); c.moveTo(k*22+60,-90); c.lineTo(k*22-60,90); c.stroke(); }
-      c.fillStyle='#fff'; c.beginPath(); c.arc(-24,-6,13,0,7); c.arc(24,-6,13,0,7); c.fill(); c.fillStyle='#200'; c.beginPath(); c.arc(-22,-4,6,0,7); c.arc(26,-4,6,0,7); c.fill();
-      c.strokeStyle='#200'; c.lineWidth=4; c.beginPath(); c.moveTo(-38,-26); c.lineTo(-12,-18); c.moveTo(38,-26); c.lineTo(12,-18); c.stroke(); c.beginPath(); c.arc(0,34,18,Math.PI*1.1,Math.PI*1.9); c.stroke();
-      c.restore(); c.globalAlpha=1; if(b.hp>0&&b.y<H){ c.fillStyle='#000a'; c.fillRect(b.x-60,b.y+108,120,10); c.fillStyle='#ffd23f'; c.fillRect(b.x-60,b.y+108,120*b.hp/b.max,10); } }
+    if(boss) drawBoss(c);
     fruits.forEach(f=>drawFruit(c,f));
     halves.forEach(h=>{ const F=h.f; c.save(); c.translate(h.x,h.y); c.rotate(h.rot); c.beginPath(); c.arc(0,0,F.r,h.side?0:Math.PI,h.side?Math.PI:Math.PI*2); c.closePath(); c.fillStyle=F.o; c.fill();
       c.beginPath(); c.arc(0,0,F.r*0.82,h.side?0:Math.PI,h.side?Math.PI:Math.PI*2); c.closePath(); c.fillStyle=F.i; c.fill();
@@ -568,35 +576,63 @@ const GAME=window.GAME={
     bombs.forEach(f=>{ c.save(); c.translate(f.x,f.y); c.rotate(f.rot); const g=c.createRadialGradient(-10,-10,4,0,0,32); g.addColorStop(0,'#5a5a6a'); g.addColorStop(1,'#111'); c.fillStyle=g; c.shadowColor='#ff3b3b'; c.shadowBlur=18+Math.sin(t*20)*8; c.beginPath(); c.arc(0,0,30,0,7); c.fill(); c.shadowBlur=0;
       c.fillStyle='#ff3b3b'; c.font='bold 22px sans-serif'; c.textAlign='center'; c.fillText('✕',0,8); c.fillStyle='#333'; c.fillRect(-7,-38,14,10); c.strokeStyle='#c8a060'; c.lineWidth=3; c.beginPath(); c.moveTo(0,-38); c.quadraticCurveTo(10,-50,4,-58); c.stroke();
       c.fillStyle=Math.floor(t*20)%2?'#ffd23f':'#ff7a1f'; c.beginPath(); c.arc(4,-60,5+Math.random()*3,0,7); c.fill(); c.restore();
-      if(eff.defuse>0){ c.strokeStyle='rgba(120,220,255,.8)'; c.lineWidth=3; c.beginPath(); c.arc(f.x,f.y,38,0,7); c.stroke(); } });
-    // blade trail
+      if(eff.defuse>0||easy){ c.strokeStyle=eff.defuse>0?'rgba(120,220,255,.8)':'rgba(255,80,80,.45)'; c.lineWidth=3; c.beginPath(); c.arc(f.x,f.y,40,0,7); c.stroke(); } });
+    // blade trail (one line per finger)
     if(trail.length>1){ c.lineCap='round'; c.lineJoin='round'; for(let pass=0;pass<2;pass++){ c.strokeStyle=pass?'#fff':bc; c.shadowColor=bc; c.shadowBlur=pass?0:24;
-        for(let i=1;i<trail.length;i++){ const a=trail[i-1],p=trail[i]; if(p.sep) continue; c.lineWidth=(pass?3:10)*Math.min(1,p.l/0.22)*(i/trail.length+0.3); c.beginPath(); c.moveTo(a.x,a.y); c.lineTo(p.x,p.y); c.stroke(); } } c.shadowBlur=0; }
-    // strikes
-    c.font='bold 34px sans-serif'; c.textAlign='right'; for(let i=0;i<3;i++){ c.fillStyle=i<strikes?'#ff3b3b':'rgba(255,255,255,.18)'; c.fillText('✕',W-20-i*40,H-30); }
+        for(let i=1;i<trail.length;i++){ const a=trail[i-1],p=trail[i]; if(p.sep||a.id!==p.id) continue; c.lineWidth=(pass?3:10)*(p.big?3.2:1)*Math.min(1,p.l/0.22)*(i/trail.length+0.3); c.beginPath(); c.moveTo(a.x,a.y); c.lineTo(p.x,p.y); c.stroke(); } } c.shadowBlur=0; }
+    // bottom-centre panel: misses + blade energy (clear of the action button bottom-right and the ability column left)
+    const px=W/2; c.fillStyle='rgba(0,0,0,.35)'; rr(c,px-170,H-62,340,52,14); c.fill();
+    c.font='bold 30px sans-serif'; c.textAlign='center'; const sw=Math.min(40,150/maxS); for(let i=0;i<maxS;i++){ c.fillStyle=i<strikes?'#ff3b3b':'rgba(255,255,255,.2)'; c.fillText('✕',px-150+sw/2+i*sw,H-25); }
+    c.fillStyle='rgba(255,255,255,.15)'; rr(c,px+10,H-44,150,16,8); c.fill(); c.fillStyle=big?'#fff':en>0.05?bc:'#ff3b3b'; rr(c,px+10,H-44,Math.max(8,150*en),16,8); c.fill();
+    c.font='bold 13px sans-serif'; c.fillStyle='#fff9'; c.fillText('🔪 BIG BLADE',px+85,H-52);
     if(eff.frost>0){ c.fillStyle='rgba(120,200,255,.12)'; c.fillRect(0,0,W,H); }
     if(eff.frenzy>0){ c.strokeStyle=`hsla(${(t*300)%360},100%,60%,.5)`; c.lineWidth=10; c.strokeRect(5,5,W-10,H-10); }
     if(lost){ c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#140a06'; c.fillRect(0,0,W,H); for(let i=0;i<5;i++){ const F=FR[i], x=100+i*100, y=500-Math.abs(Math.sin(tt*1.5+i))*300; drawFruit(c,{f:F,x,y,rot:tt+i,r:F.r}); } }
+  attract(c,tt){ c.fillStyle='#140a06'; c.fillRect(0,0,W,H); for(let i=0;i<7;i++){ const F=FR[i], x=220+i*140, y=560-Math.abs(Math.sin(tt*1.5+i))*330; drawFruit(c,{f:F,x,y,rot:tt+i,r:F.r}); } }
 };
+function startBlade(id,x,y,sp){ blades[id]={x,y,sp}; if(Object.keys(blades).length===1) combo=0; trail.push({x,y,l:.22,sep:true,id,big}); }
+function miss(){ strikes++; api.toast(strikes>=maxS?maxS+' MISSED!':'MISSED ONE! ('+strikes+'/'+maxS+')'); api.sfx.bump(); if(strikes>=maxS){ strikes=0; die('TOO MANY FRUIT GOT AWAY!'); } }
+function rr(c,x,y,w,h,r){ r=Math.min(r,w/2,h/2); c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function drawBg(c){ if(!bgC){ bgC=document.createElement('canvas'); bgC.width=W; bgC.height=H; const b=bgC.getContext('2d');
+    const g=b.createRadialGradient(W/2,H*0.5,80,W/2,H/2,W*0.65); g.addColorStop(0,'#5a3218'); g.addColorStop(1,'#140a06'); b.fillStyle=g; b.fillRect(0,0,W,H);
+    for(let x=0;x<W;x+=110){ b.fillStyle='rgba(0,0,0,.28)'; b.fillRect(x,0,4,H); b.fillStyle='rgba(255,210,150,.05)'; b.fillRect(x+4,0,2,H); }
+    b.strokeStyle='rgba(255,200,140,.06)'; b.lineWidth=2; for(let i=0;i<60;i++){ const x=(i*197)%W, y=(i*233)%H; b.beginPath(); b.moveTo(x,y); b.quadraticCurveTo(x+20,y+30,x+5,y+70); b.stroke(); }
+    // festival lanterns along the top (under the HUD, decoration only) and warm glow
+    b.strokeStyle='rgba(0,0,0,.5)'; b.lineWidth=2; b.beginPath(); b.moveTo(0,64); for(let x=0;x<=W;x+=160) b.quadraticCurveTo(x+80,96,x+160,64); b.stroke();
+    for(let x=80;x<W;x+=160){ const lg=b.createRadialGradient(x,96,4,x,96,60); lg.addColorStop(0,'rgba(255,170,60,.35)'); lg.addColorStop(1,'rgba(255,170,60,0)'); b.fillStyle=lg; b.fillRect(x-60,36,120,120);
+      b.fillStyle=(x/160|0)%2?'#c8282a':'#e0801a'; b.beginPath(); b.ellipse(x,96,14,18,0,0,7); b.fill(); b.fillStyle='#2a1208'; b.fillRect(x-7,76,14,4); b.fillRect(x-7,112,14,4); }
+    const fl=b.createLinearGradient(0,H-90,0,H); fl.addColorStop(0,'rgba(0,0,0,0)'); fl.addColorStop(1,'rgba(0,0,0,.45)'); b.fillStyle=fl; b.fillRect(0,H-90,W,90); }
+  c.drawImage(bgC,0,0); }
+function drawBoss(c){ const b=boss; c.save(); c.translate(b.x,b.y); c.rotate(Math.sin(b.rot)*0.25); if(b.hurt>0) c.translate(R(-5,5),R(-5,5)); if(b.hp<=0) c.globalAlpha=.6;
+  c.fillStyle='#2e9a3a'; for(let i=-3;i<=3;i++){ c.save(); c.rotate(i*0.25); c.beginPath(); c.moveTo(-14,-80); c.quadraticCurveTo(0,-170+Math.abs(i)*8,14,-80); c.fill(); c.restore(); }
+  const g=c.createRadialGradient(-25,-25,10,0,0,95); g.addColorStop(0,'#ffe86a'); g.addColorStop(1,'#c8860a'); c.fillStyle=g; c.shadowColor='#ffd23f'; c.shadowBlur=b.hurt>0?40:20; c.beginPath(); c.ellipse(0,0,78,96,0,0,7); c.fill(); c.shadowBlur=0;
+  c.strokeStyle='rgba(120,70,0,.55)'; c.lineWidth=3; for(let k=-4;k<=4;k++){ c.beginPath(); c.moveTo(k*22-60,-90); c.lineTo(k*22+60,90); c.stroke(); c.beginPath(); c.moveTo(k*22+60,-90); c.lineTo(k*22-60,90); c.stroke(); }
+  c.fillStyle='#fff'; c.beginPath(); c.arc(-24,-6,13,0,7); c.arc(24,-6,13,0,7); c.fill(); c.fillStyle='#200'; c.beginPath(); c.arc(-22,-4,6,0,7); c.arc(26,-4,6,0,7); c.fill();
+  c.strokeStyle='#200'; c.lineWidth=4; c.beginPath(); c.moveTo(-38,-26); c.lineTo(-12,-18); c.moveTo(38,-26); c.lineTo(12,-18); c.stroke(); c.beginPath(); c.arc(0,34,18,Math.PI*1.1,Math.PI*1.9); c.stroke();
+  c.restore(); c.globalAlpha=1; if(b.hp>0&&b.y<H){ c.fillStyle='#000a'; c.fillRect(b.x-60,b.y+108,120,10); c.fillStyle='#ffd23f'; c.fillRect(b.x-60,b.y+108,120*b.hp/b.max,10); } }
 function drawFruit(c,f){ const F=f.f; c.save(); c.translate(f.x,f.y); c.rotate(f.rot);
   const g=c.createRadialGradient(-F.r*.35,-F.r*.35,F.r*.1,0,0,F.r); g.addColorStop(0,lighten(F.o)); g.addColorStop(1,F.o); c.fillStyle=g; c.shadowColor=F.s; c.shadowBlur=14;
-  if(F.n==='lemon'){ c.beginPath(); c.ellipse(0,0,F.r*1.2,F.r,0,0,7); c.fill(); } else if(F.n==='grape'){ c.shadowBlur=8; [[0,-12],[-12,2],[12,2],[0,14],[-6,-2],[6,-2]].forEach(([x,y])=>{ c.beginPath(); c.arc(x,y,11,0,7); c.fill(); }); } else { c.beginPath(); c.arc(0,0,F.r,0,7); c.fill(); }
+  if(F.n==='lemon'){ c.beginPath(); c.ellipse(0,0,F.r*1.2,F.r,0,0,7); c.fill(); } else if(F.n==='grape'){ c.shadowBlur=8; [[0,-12],[-12,2],[12,2],[0,14],[-6,-2],[6,-2]].forEach(([x,y])=>{ c.beginPath(); c.arc(x,y,12,0,7); c.fill(); }); } else { c.beginPath(); c.arc(0,0,F.r,0,7); c.fill(); }
   c.shadowBlur=0;
   if(F.stripe){ c.strokeStyle=F.stripe; c.lineWidth=5; for(let k=-2;k<=2;k++){ c.beginPath(); c.ellipse(k*F.r*.32,0,F.r*.12,F.r*.95,0,0,7); c.stroke(); } }
   if(F.n==='apple'||F.n==='peach'||F.n==='orange'){ c.fillStyle='#5a3a1a'; c.fillRect(-2,-F.r-8,4,12); c.fillStyle='#3bb04a'; c.beginPath(); c.ellipse(9,-F.r-4,9,4,-.5,0,7); c.fill(); }
   c.fillStyle='rgba(255,255,255,.45)'; c.beginPath(); c.ellipse(-F.r*.35,-F.r*.4,F.r*.22,F.r*.12,-.6,0,7); c.fill(); c.restore(); }
 function lighten(h){ const n=parseInt(h.slice(1),16); const r=Math.min(255,(n>>16)+70),g=Math.min(255,((n>>8)&255)+70),b=Math.min(255,(n&255)+70); return `rgb(${r},${g},${b})`; }
-function toss(isBomb){ const x=R(90,W-90), tx=R(W*.25,W*.75), peak=R(H*0.18,H*0.42), grav=api.dv([700,820,940],1000,1150);
-  const vy=-Math.sqrt(2*grav*(H+40-peak)), tt=-vy/grav, vx=(tx-x)/tt;
-  if(isBomb) bombs.push({x,y:H+40,vx,vy,rot:0,vr:R(-3,3),fuse:0});
-  else { const F=FR[Math.floor(Math.random()*FR.length)]; fruits.push({f:F,x,y:H+40,vx,vy,rot:0,vr:R(-4,4),r:F.r}); } }
+// a throw: starts below the bottom edge, peaks in the middle band (y 200-430, never up under the HUD), lands back
+// inside x 150..1000 so nothing hides under the ability column (left) or the action button (bottom-right)
+function toss(isBomb,x){ const xl=Math.max(X0,Math.min(X1,x+S(-420,420))), tx=(x+xl)/2, peak=api.content===0?S(320,440):easy?S(220,420):S(190,430), g=grav();
+  const vy=-Math.sqrt(2*g*(H+40-peak)), tt=-vy/g, vx=(tx-x)/tt, F=FR[Math.floor(rnd()*FR.length)], vr=S(-4,4);
+  if(isBomb) bombs.push({x,y:H+40,vx,vy,rot:0,vr,fuse:0});
+  else fruits.push({f:F,x,y:H+40,vx,vy,rot:0,vr,r:F.r}); }
 function segHit(x0,y0,x1,y1,cx,cy,r){ const dx=x1-x0,dy=y1-y0,L=dx*dx+dy*dy||1; let k=((cx-x0)*dx+(cy-y0)*dy)/L; k=Math.max(0,Math.min(1,k)); return Math.hypot(x0+dx*k-cx,y0+dy*k-cy)<r; }
-function swipeSeg(x0,y0,x1,y1){ if(done||lost) return; if(Math.hypot(x1-x0,y1-y0)<3) return; const ang=Math.atan2(y1-y0,x1-x0);
-  fruits.forEach(f=>{ if(!f.gone&&segHit(x0,y0,x1,y1,f.x,f.y,f.r+6)) cut(f,ang); });
-  bombs.forEach(f=>{ if(!f.gone&&segHit(x0,y0,x1,y1,f.x,f.y,26)){ f.gone=true; if(eff.defuse>0||grace>0){ api.toast('FIZZLE!'); api.fx.burst(f.x,f.y,'#bfefff',20,200,.5,3); api.sfx.small(); } else { api.fx.burst(f.x,f.y,'#ff7a1f',60,520,1,5); api.fx.burst(f.x,f.y,'#fff',20,300,.4,3); api.fx.flash('#fff',.5); api.sfx.boom(); die('BOOM! YOU SLICED A BOMB!'); } } });
+function swipeSeg(x0,y0,x1,y1){ if(done||lost) return; if(Math.hypot(x1-x0,y1-y0)<3) return; const ang=Math.atan2(y1-y0,x1-x0), ex=big?BIGR:0;
+  fruits.forEach(f=>{ if(!f.gone&&segHit(x0,y0,x1,y1,f.x,f.y,f.r+6+ex)) cut(f,ang); });
+  bombs.forEach(f=>{ if(!f.gone&&segHit(x0,y0,x1,y1,f.x,f.y,26+ex)){ f.gone=true;
+    if(eff.defuse>0||grace>0){ api.toast('FIZZLE!'); api.fx.burst(f.x,f.y,'#bfefff',20,200,.5,3); api.sfx.small(); }
+    else if(easy){ api.fx.burst(f.x,f.y,'#ff7a1f',40,400,.8,4); api.fx.shake(6); api.sfx.boom(); miss(); }   // Beginner 1-10: no instant death
+    else { api.fx.burst(f.x,f.y,'#ff7a1f',60,520,1,5); api.fx.burst(f.x,f.y,'#fff',20,300,.4,3); api.fx.flash('#fff',.5); api.sfx.boom(); die('BOOM! YOU SLICED A BOMB!'); } } });
   bombs=bombs.filter(f=>!f.gone);
-  if(boss&&boss.hp>0){ const inside=Math.hypot((x1-boss.x)/80,(y1-boss.y)/98)<1, cross=segHit(x0,y0,x1,y1,boss.x,boss.y,85); if(cross&&!boss.inside&&boss.hitT<=0) hitBoss(); boss.inside=inside; } }
+  if(boss&&boss.hp>0){ const inside=Math.hypot((x1-boss.x)/80,(y1-boss.y)/98)<1, cross=segHit(x0,y0,x1,y1,boss.x,boss.y,85+ex); if(cross&&!boss.inside&&boss.hitT<=0) hitBoss(); boss.inside=inside; } }
 function hitBoss(){ if(!boss||boss.hp<=0) return; boss.hp--; boss.hurt=.15; boss.hitT=.12; api.addScore(40,boss.x+R(-40,40),boss.y+R(-40,40)); api.sfx.small(); api.fx.burst(boss.x,boss.y,'#ffe86a',16,320,.5,4); api.event('slice');
   splats.push(mkSplat(boss.x+R(-60,60),boss.y+R(-60,60),'#ffd23f'));
   if(boss.hp<=0){ api.fx.shake(14); api.fx.burst(boss.x,boss.y,'#ffe86a',90,600,1.2,6); api.addCoins(5); for(let i=0;i<6;i++) halves.push({f:{r:40,o:'#c8860a',i:'#ffe86a',n:'pine'},x:boss.x,y:boss.y,vx:R(-300,300),vy:R(-600,-200),rot:R(0,6),vr:R(-6,6),side:i%2}); } }
@@ -607,8 +643,8 @@ function cut(f,ang){ f.gone=true; fruits=fruits.filter(o=>o!==f); sliced++; comb
   halves.push({f:f.f,x:f.x,y:f.y,vx:f.vx*0.5-px*s,vy:Math.min(f.vy,0)*0.4-py*s-80,rot:ang,vr:R(2,5),side:1});
   api.fx.burst(f.x,f.y,f.f.s,18,300,.6,4); splats.push(mkSplat(f.x,f.y,f.f.s)); if(splats.length>25) splats.shift();
   api.addScore(30*(1+api.dk*.5),f.x,f.y,true); api.sfx.pickup(); api.event('slice'); if(combo>=2) api.event('combo'); }
-function endSwipe(){ if(combo>=3){ const bonus=combo*50; api.addScore(bonus,W/2,H*0.35); api.fx.text(W/2,H*0.3,combo+' FRUIT COMBO!','#ffd23f',30); api.sfx.coin(); if(combo>=4) api.addCoins(combo-2); } combo=0; }
-function die(msg){ if(lost||done) return; lost=true; blade=null; api.toast(msg); api.sfx.hurt(); api.fx.shake(12); setTimeout(()=>api.loseLife(),1000); }
+function endSwipe(){ if(combo>=3){ const bonus=combo*50; api.addScore(bonus,W/2,H*0.4); api.fx.text(W/2,H*0.36,combo+' FRUIT COMBO!','#ffd23f',30); api.sfx.coin(); if(combo>=4) api.addCoins(combo-2); } combo=0; }
+function die(msg){ if(lost||done) return; lost=true; blades={}; api.toast(msg); api.sfx.hurt(); api.fx.shake(12); setTimeout(()=>api.loseLife(),1000); }
 })();
 
 </script>
