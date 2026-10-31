@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-PD-1.3 · 2026-10-18">
+<meta name="build" content="BUILD-PD-1.4 · 2026-10-26">
 <title>Pop Dino</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-PD-1.3 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-PD-1.4 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -490,11 +490,14 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </div>
 <script>
 /* POP DINO — bubble-trap platform remix (#57). 100 stages. Blow bubbles, trap the monsters, pop them into fruit.
-   1.1: real online 2-player CO-OP (NET-1). Host runs the game for both dinos; guest draws snapshots. */
+   1.1: real online 2-player CO-OP (NET-1). Host runs the game for both dinos; guest draws snapshots.
+   1.4: LANDSCAPE 1280x720 wide cave. Stick only runs/drops, 🫧 BUBBLE (hold = keep blowing) + ⤴️ JUMP are buttons.
+        Floor gaps in the bottom corners (under the controls) wrap you to the top. Beginner 1-10 much easier. */
 (function(){
-const W=600,H=900,FLOOR=860,CEIL=150,LX=24,RX=576,PT=18;
-const ROWS=[740,620,500,380,260];
-const PATS=[[[24,200],[376,200]],[[160,280]],[[24,160],[220,160],[416,160]],[[24,420]],[[156,420]],[[80,130],[390,130]],[[24,250],[400,176]],[[24,176],[326,250]]];
+const W=1280,H=720,FLOOR=672,CEIL=100,LX=96,RX=1184,PT=18,FX0=280,FX1=1000;
+const PATS=[[[96,300],[490,300],[884,300]],[[96,380],[804,380]],[[300,680]],[[96,220],[430,420],[964,220]],[[200,340],[740,340]],[[96,520],[760,424]],[[96,424],[664,520]],[[96,180],[360,200],[640,200],[920,264]]];
+const LOWP=[[[300,680]],[[290,300],[690,300]],[[420,440]],[[290,200],[540,200],[790,200]]]; // lowest row stays clear of the joystick / button corners
+const EZ=()=>api.diff===0&&api.level<=10;   // Beginner 1-10 (+ tutorial): gentle
 const FRUIT=['🍒','🍓','🍌','🍉','🍇','🍑','🍍','🥝'];
 const EC={walker:'#ff7ab8',hopper:'#ffd23f',flyer:'#7af7ff',shooter:'#b98bff'};
 const ETY=['walker','hopper','flyer','shooter'], SHC=['#b98bff','#ff4fa0'];
@@ -506,27 +509,30 @@ function rng(seed){ let s=seed>>>0||1; return ()=>{ s^=s<<13; s^=s>>>17; s^=s<<5
 function net(){ return api&&api.net; }
 function isHost(){ const n=net(); return !!(n&&n.role==='host'); }
 function isGuest(){ const n=net(); return !!(n&&n.role==='guest'); }
-function mkPl(i,x){ return {i,sx:x,x,y:FLOOR,vx:0,vy:0,face:i?-1:1,ground:true,drop:0,walk:0,blowT:0,grace:1.5,eff:{shoes:-9,shield:-9},shotCD:0,upPrev:false,tap:null,dead:false,respT:0}; }
+function mkPl(i,x){ return {i,sx:x,x,y:FLOOR,vx:0,vy:0,face:i?-1:1,ground:true,drop:0,walk:0,blowT:0,grace:1.5,eff:{shoes:-9,shield:-9},shotCD:0,dead:false,respT:0}; }
 function me(){ return (isGuest()&&pls&&pls[1])||pl; }
 function ev(k,...a){ if(!isHost()) return; evq.push([++evSeq,t,k,...a]); if(evq.length>30) evq.shift(); }
 function T(msg){ api.toast(msg); ev('toast',msg); }
 function near(o){ let best=pls[0],bd=1e9; for(const p of pls){ if(p.dead) continue; const d=Math.hypot(p.x-o.x,p.y-o.y); if(d<bd){ bd=d; best=p; } } return best; }
 const GAME=window.GAME={
   id:'pop-dino',title:'Pop Dino',titleHTML:'POP<br>DINO',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-PD-1.3 · 2026-10-18',theme:{a:'#5dff7a',b:'#ffd23f',bg:'#120a26'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🦖',joystick:true,coinPts:40,
+  build:'BUILD-PD-1.4 · 2026-10-26',theme:{a:'#5dff7a',b:'#ffd23f',bg:'#120a26'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🦖',joystick:true,coinPts:40,
   net:{mode:'coop'},
   abilities:[
-    {id:'bubble',icon:'🫧',name:'BUBBLE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — blow a bubble the way you face. Or just tap the game.'},
-    {id:'jump',icon:'⤴️',name:'JUMP',cd:0,key:'ArrowUp',keyLabel:'↑',desc:'FREE — jump. You can jump up through platforms. Or push the stick up.'},
+    {id:'bubble',icon:'🫧',name:'BUBBLE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — blow a bubble the way you face. Hold it to keep blowing.'},
+    {id:'jump',icon:'⤴️',name:'JUMP',cd:0,key:'ArrowUp',keyLabel:'↑',desc:'FREE — jump. You can jump up through platforms.'},
     {id:'thunder',icon:'⚡',name:'THUNDER BUBBLE',cd:15,key:'Digit1',keyLabel:'1',desc:'Every monster on screen is trapped in a bubble at once. Hurts the boss a lot.'},
     {id:'shoes',icon:'👟',name:'SPEED SHOES',cd:16,key:'Digit2',keyLabel:'2',desc:'Run faster and blow bubbles twice as fast for 8 seconds.'},
     {id:'shield',icon:'🛡️',name:'BUBBLE SHIELD',cd:20,key:'Digit3',keyLabel:'3',desc:'For 6 seconds nothing can hurt you and any monster you touch gets trapped.'}],
   shop:[{id:'d_g',cat:'Dino',name:'Green Dino',cost:0,colors:['#5dff7a','#c8ffb0'],desc:'Classic.'},{id:'d_b',cat:'Dino',name:'Blue Dino',cost:150,colors:['#4db8ff','#c0ecff'],desc:'Cool as ice.'},{id:'d_p',cat:'Dino',name:'Pink Dino',cost:300,colors:['#ff7ab8','#ffd0e6'],desc:'Bubblegum.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#5dff7a,#ffd23f)'}],
   story:`<h3>POP DINO</h3><p>The monsters stole the fruit from Dino Valley and hid in the Bubble Caves. One little dino with one big talent — blowing bubbles — is going down to get it all back.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Drag</b> to run left and right (← → on PC). Push the stick <b>up</b> or tap ⤴️ to jump (↑ on PC). Push <b>down</b> to drop through a platform.</li><li><b>Tap</b> the game or 🫧 to blow a bubble (SPACE on PC). A bubble that hits a monster traps it.</li><li><b>Touch a trapped monster</b> to pop it — it turns into fruit. Pop them fast: trapped monsters break out angry!</li><li>Clear every monster to finish the cave. Take too long and a ghost comes for you.</li><li><b>Play together:</b> two dinos, shared lives. If one dino gets hit the team loses a life and that dino comes back after 2 seconds.</li></ul>`,
-  tutorial:[{text:'PRACTICE: tap (or SPACE) to blow a bubble at a monster!',ev:'trap'},{text:'Now touch the trapped monster to pop it!',ev:'pop'},{text:'Grab the fruit and clear the cave!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick runs left / right. Push it <b>down</b> to drop through a platform. PC: ← → (or A / D), ↓ to drop.</li><li><b>Right thumb:</b> 🫧 <b>BUBBLE</b> blows a bubble the way you face (hold it to keep blowing). ⤴️ <b>JUMP</b> jumps — you can jump up through platforms. PC: SPACE = bubble, ↑ = jump.</li><li>A bubble that hits a monster traps it.</li><li>The gaps in the floor are safe: fall in and you drop back in from the top.</li><li><b>Touch a trapped monster</b> to pop it — it turns into fruit. Pop them fast: trapped monsters break out angry!</li><li>Clear every monster to finish the cave. Take too long and a ghost comes for you.</li><li><b>Play together:</b> two dinos, shared lives. If one dino gets hit the team loses a life and that dino comes back after 2 seconds.</li></ul>`,
+  tutorial:[{text:'Press <b>← →</b> to run.',touch:'<b>Left thumb:</b> push the stick left / right to run.',ev:'move'},
+    {text:'Press <b>SPACE</b> to blow a bubble at a monster!',touch:'Tap the big <b>🫧 BUBBLE</b> button (right thumb) to blow a bubble at a monster!',ev:'trap'},
+    {text:'Press <b>↑</b> to jump up through platforms.',touch:'Tap <b>⤴️ JUMP</b> (right thumb). You jump up through platforms.',ev:'jump'},
+    {text:'Now touch the trapped monster to pop it!',ev:'pop'},{text:'Grab the fruit and clear the cave!',time:5}],
   stageIntro:{1:'TRAP THEM ALL IN BUBBLES'},bossName:'THE BIG BLOB!',
   ending:{"0":["#FRUIT RESCUED","Dino Valley is full of fruit again."],"1":["#BUBBLE HERO","No monster can escape your bubbles."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const tot={shoes:8,shield:6}[id]; const p=me(); return tot&&p?{left:Math.max(0,p.eff[id]),total:tot}:null; },
@@ -536,42 +542,41 @@ const GAME=window.GAME={
   startStage(n,a){ api=a; t=0; done=false; lost=false; stageT=0; hurried=false; ghost=null; combo=0; comboT=0; nid=0; evq=[]; lastCnt=null;
     bubs=[]; fruits=[]; shots=[]; ens=[]; boss=null;
     const R=rng((a.stage||1)*7919+a.diff*131+3); hue=Math.floor(R()*360);
-    plats=[{x:LX,y:FLOOR,w:RX-LX,floor:true}];
-    if(a.content===0){ plats.push({x:LX,y:700,w:220},{x:356,y:700,w:220},{x:170,y:560,w:260}); }
-    else if(a.content===3){ plats.push({x:LX,y:700,w:150},{x:426,y:700,w:150},{x:200,y:540,w:200}); }
-    else { const used=a.content===2?5:4; for(let r=0;r<used;r++){ const p=PATS[Math.floor(R()*PATS.length)]; p.forEach(s=>plats.push({x:s[0],y:ROWS[r]+(used===4?-20*r:0),w:s[1]})); } }
+    plats=[{x:FX0,y:FLOOR,w:FX1-FX0,floor:true}]; const ez=EZ(), add=(row,y)=>row.forEach(s=>plats.push({x:s[0],y,w:s[1]}));
+    if(a.content===0){ add([[290,300],[690,300]],562); add([[470,340]],442); }
+    else if(a.content===3){ add([[290,240],[750,240]],562); add([[96,240],[944,240]],432); add([[490,300]],302); }
+    else { add(LOWP[Math.floor(R()*LOWP.length)],562); const ys=(a.content===2&&!ez)?[452,342,232]:[422,282];
+      ys.forEach(y=>add(PATS[Math.floor(R()*PATS.length)],y)); }
     capY=Math.max(CEIL+40,Math.min(...plats.map(p=>p.y))-115);
-    pl=mkPl(0,120); pls=[pl]; if(net()) pls.push(mkPl(1,W-120));
-    hurry=a.content===0?999:Math.round(a.dv([60,45,36],28,14));
-    if(a.content===0){ spawnEn('walker',420,700,0.6); spawnEn('walker',300,560,0.6); }
-    else { let cnt=Math.round(a.dv([4,6,8],9,14))+(a.content===3?-2:0); if(net()) cnt=Math.round(cnt*1.3); const types=['walker'];
-      if(a.content===2||a.level>12) types.push('hopper'); if(a.level>25) types.push('flyer'); if(a.level>40) types.push('shooter');
-      let tops=plats.filter(p=>!p.floor).sort((A,B)=>A.y-B.y);
-      if(net()){ const hi=tops.filter(p=>p.y<=560); if(hi.length) tops=hi; } // 2P: both dinos start on the floor, keep monsters up high
-      for(let i=0;i<Math.max(1,cnt);i++){ const p=tops[i%tops.length]||plats[0]; let x=p.x+20+R()*(p.w-40); if(p.y>560&&x<300) x=Math.min(p.x+p.w-20,x+260); if(p.y>560&&x<300) x=W-110; spawnEn(types[Math.floor(R()*types.length)],x,p.y,1); }
-      if(a.content===3){ boss={x:W/2,y:330,vx:api.dv([110,150,190],220,320),vy:90,hp:0,max:0,r:72,shootT:2.5,hit:0,minT:5,face:1};
-        boss.max=boss.hp=Math.round(a.dv([14,22,30],40,90)*(net()?1.3:1)); } } },
+    pl=mkPl(0,net()?540:640); pls=[pl]; if(net()) pls.push(mkPl(1,740));
+    hurry=a.content===0?999:ez?80:Math.round(a.dv([60,45,36],28,14));
+    if(a.content===0){ spawnEn('walker',560,562,0.6); spawnEn('walker',820,562,0.6); }
+    else { const L=a.level; let cnt=ez?(L<=3?2:L<=7?3:4):Math.round(a.dv([4,6,8],9,14))+(a.content===3?-2:0); if(a.content===3&&ez) cnt=1; if(net()) cnt=Math.round(cnt*1.3); const types=['walker'];
+      if(!ez){ if(a.content===2||L>12) types.push('hopper'); if(L>25) types.push('flyer'); if(L>40) types.push('shooter'); }
+      const tops=plats.filter(p=>!p.floor).sort((A,B)=>A.y-B.y);   // monsters start high up, away from the dinos on the floor
+      for(let i=0;i<Math.max(1,cnt);i++){ const p=tops[i%tops.length]||plats[0]; const x=p.x+20+R()*(p.w-40); spawnEn(types[Math.floor(R()*types.length)],x,p.y,1); }
+      if(a.content===3){ boss={x:W/2,y:300,vx:ez?90:api.dv([110,150,190],220,320),vy:ez?60:90,hp:0,max:0,r:72,shootT:ez?4:2.5,hit:0,minT:5,face:1};
+        boss.max=boss.hp=Math.round((ez?10:a.dv([14,22,30],40,90))*(net()?1.3:1)); } } },
   netRevive(){ pls.forEach(p=>{ if(p.dead) respawnP(p); p.grace=Math.max(p.grace,3); }); },
   respawn(){ if(net()) return; // co-op: the hit dino comes back on its own timer; the other dino and the level stay as they are
-    lost=false; pl.grace=2; shots=[]; ghost=null; stageT=Math.min(stageT,hurry-8); pl.x=120; pl.y=FLOOR; pl.vx=0; pl.vy=0; pl.ground=true;
-    ens.forEach(e=>{ if(!e.trap&&Math.abs(e.x-pl.x)<160&&e.y>FLOOR-200) e.x=W-120; }); },
+    lost=false; pl.grace=EZ()?3:2; shots=[]; ghost=null; stageT=Math.min(stageT,hurry-8); pl.x=pl.sx; pl.y=FLOOR; pl.vx=0; pl.vy=0; pl.ground=true;
+    clearAround(pl); },
   stageBonus(){ return Math.max(0,Math.round(hurry-stageT))*15; },
   useAbility(id){ return useAb(pl,id); },
   useAbility2(id){ if(!pls||!pls[1]) return false; return useAb(pls[1],id); },
-  onPointer(type,x,y){ ptr(pl,type,x,y); },
-  onPointer2(type,x,y){ if(pls&&pls[1]) ptr(pls[1],type,x,y); },
+  onPointer(){}, onPointer2(){},   // 1.4: no tap-to-blow — the stick moves, the buttons act
   onKey(code,down){ if(isGuest()) return; if(down&&code==='KeyW') jump(pl); if(down&&(code==='KeyX'||code==='KeyJ')) blow(pl); },
   update(dt){ t+=dt; if(done&&!boss) { updFruit(dt); return; }
     pls.forEach(p=>{ for(const k in p.eff) if(p.eff[k]>-2) p.eff[k]-=dt; p.grace-=dt; p.shotCD-=dt; }); comboT-=dt; if(comboT<=0) combo=0;
     if(lost){ updFruit(dt); return; }
     if(api.content!==0) stageT+=dt;
     // ---- players ----
-    ctrl(pl,api.input.dir(),api.input.touch,dt);
-    if(pls[1]) ctrl(pls[1],api.input2.dir(),true,dt);
+    ctrl(pl,api.input,dt);
+    if(pls[1]) ctrl(pls[1],api.input2,dt);
     // ---- hurry ----
     if(stageT>hurry&&!hurried){ hurried=true; T('HURRY UP!'); api.sfx.hurt(); ev('sfx','hurt'); ens.forEach(e=>e.angry=true); }
     if(stageT>hurry+12&&!ghost&&!done){ ghost={x:W/2,y:CEIL,ph:0}; T('👻 THE CAVE GHOST IS COMING!'); }
-    if(ghost){ ghost.ph+=dt; const tg=near(ghost); if(!tg.dead){ const gs=api.dv([70,95,120],150,260); const dx=tg.x-ghost.x, dy=(tg.y-30)-ghost.y, m=Math.hypot(dx,dy)||1; ghost.x+=dx/m*gs*dt; ghost.y+=dy/m*gs*dt; if(m<40) hurt(tg); } }
+    if(ghost){ ghost.ph+=dt; const tg=near(ghost); if(!tg.dead){ const gs=EZ()?55:api.dv([70,95,120],150,260); const dx=tg.x-ghost.x, dy=(tg.y-30)-ghost.y, m=Math.hypot(dx,dy)||1; ghost.x+=dx/m*gs*dt; ghost.y+=dy/m*gs*dt; if(m<40) hurt(tg); } }
     // ---- bubbles ----
     bubs.forEach(b=>{ b.t+=dt;
       if(b.t<0.38){ b.x+=b.vx*dt*(1-b.t*1.8); if(b.x<LX+b.r){ b.x=LX+b.r; b.t=0.38; } if(b.x>RX-b.r){ b.x=RX-b.r; b.t=0.38; }
@@ -582,26 +587,26 @@ const GAME=window.GAME={
       for(const p of pls){ if(!b.gone&&!p.dead&&p.vy<0&&Math.hypot(b.x-p.x,b.y-(p.y-24))<b.r+18){ b.gone=true; api.addScore(10,b.x,b.y,true); api.sfx.blip(); api.fx.burst(b.x,b.y,'#bfefff',8,120,.3,2); ev('bp',Math.round(b.x),Math.round(b.y)); } } });
     bubs=bubs.filter(b=>!b.gone);
     // ---- enemies ----
-    const es=api.dv([70,95,125],150,240);
+    const es=EZ()?52+api.level*2:api.dv([70,95,125],150,240);
     ens.forEach(e=>{ if(e.dead) return; if(e.spawn>0){ e.spawn-=dt; return; } e.anim+=dt;
       if(e.trap){ e.trapT-=dt; e.y-=60*dt; e.x+=Math.sin(e.anim*2.5)*20*dt; if(e.y<capY) e.y=capY; e.x=Math.max(LX+30,Math.min(RX-30,e.x));
         if(e.trapT<=0){ e.trap=false; e.angry=true; e.vy=0; T('IT BROKE OUT — ANGRY!'); api.fx.burst(e.x,e.y-20,'#ff3b3b',14,200,.4,3); api.sfx.small(); ev('out',Math.round(e.x),Math.round(e.y)); }
         else for(const p of pls){ if(!p.dead&&Math.hypot(e.x-p.x,(e.y-20)-(p.y-24))<46){ popEn(e); break; } } return; }
       const tg=near(e);
       const v=es*(e.angry?1.6:1)*(e.type==='hopper'?0.8:1);
-      if(e.type==='flyer'){ e.x+=e.fx*v*dt; e.y+=e.fy*v*dt; if(e.x<LX+20){ e.x=LX+20; e.fx=1; } if(e.x>RX-20){ e.x=RX-20; e.fx=-1; } if(e.y<CEIL+40){ e.y=CEIL+40; e.fy=1; } if(e.y>FLOOR){ e.y=FLOOR; e.fy=-1; } }
+      if(e.type==='flyer'){ e.x+=e.fx*v*dt; e.y+=e.fy*v*dt; if(e.x<LX+20){ e.x=LX+20; e.fx=1; } if(e.x>RX-20){ e.x=RX-20; e.fx=-1; } if(e.y<CEIL+60){ e.y=CEIL+60; e.fy=1; } if(e.y>600){ e.y=600; e.fy=-1; } }
       else { e.vx=e.dir*v; physics(e,dt,false); if(e.ground){ const p=e.on; if(p&&!p.floor&&((e.dir<0&&e.x<p.x+8)||(e.dir>0&&e.x>p.x+p.w-8))){ if(Math.random()<0.5) e.dir*=-1; }
           if(e.x<=LX+20) e.dir=1; if(e.x>=RX-20) e.dir=-1;
-          e.jt-=dt; if(e.jt<=0){ e.jt=(e.type==='hopper'?0.9:2.2)+Math.random()*1.5; if(e.type==='hopper'||tg.y<e.y-60||Math.random()<0.25){ e.vy=-(e.type==='hopper'?780:900); e.ground=false; } }
+          e.jt-=dt; if(e.jt<=0){ e.jt=((e.type==='hopper'?0.9:2.2)+Math.random()*1.5)*(EZ()?1.8:1); if(e.type==='hopper'||(tg.y<e.y-60&&Math.random()<(EZ()?0.35:1))||Math.random()<0.25){ e.vy=-(e.type==='hopper'?780:900); e.ground=false; } }
           if(Math.random()<0.004) e.dir=tg.x<e.x?-1:1; } }
       if(e.type==='shooter'){ e.st-=dt; if(e.st<=0){ e.st=api.dv([3.2,2.4,1.7],1.3,0.7); if(!tg.dead&&Math.abs(tg.y-e.y)<90){ shots.push({x:e.x,y:e.y-24,vx:(tg.x<e.x?-1:1)*api.dv([220,270,320],360,460),vy:0,c:'#b98bff'}); api.sfx.shoot(); ev('sfx','shoot'); } } }
       for(const p of pls){ if(p.dead) continue; if(Math.abs(e.x-p.x)<30&&Math.abs(e.y-p.y)<34){ if(p.eff.shield>0){ trapEn(e); break; } else hurt(p); } } });
     // ---- boss ----
     if(boss){ boss.hit-=dt; const b=boss; b.x+=b.vx*dt; b.y+=b.vy*dt; if(b.x<LX+b.r){ b.x=LX+b.r; b.vx=Math.abs(b.vx); } if(b.x>RX-b.r){ b.x=RX-b.r; b.vx=-Math.abs(b.vx); }
       if(b.y<CEIL+b.r){ b.y=CEIL+b.r; b.vy=Math.abs(b.vy); } if(b.y>FLOOR-b.r){ b.y=FLOOR-b.r; b.vy=-Math.abs(b.vy); } b.face=b.vx>0?1:-1;
-      b.shootT-=dt; if(b.shootT<=0){ b.shootT=api.dv([2.6,1.9,1.3],1,0.5); const tg=near(b); const n=Math.round(api.dv([3,5,7],9,13)), base=Math.atan2(tg.y-30-b.y,tg.x-b.x);
-        for(let i=0;i<n;i++){ const ang=base+(i-(n-1)/2)*0.22; const s=api.dv([230,290,350],400,520); shots.push({x:b.x,y:b.y,vx:Math.cos(ang)*s,vy:Math.sin(ang)*s,c:'#ff4fa0'}); } api.sfx.shoot(); ev('sfx','shoot'); }
-      b.minT-=dt; if(b.minT<=0){ b.minT=api.dv([7,5,3.5],2.5,1.5); if(ens.filter(e=>!e.dead).length<3) spawnEn('walker',b.x,b.y+40,0.4); }
+      b.shootT-=dt; if(b.shootT<=0){ const ez=EZ(); b.shootT=ez?3.6:api.dv([2.6,1.9,1.3],1,0.5); const tg=near(b); const n=ez?3:Math.round(api.dv([3,5,7],9,13)), base=Math.atan2(tg.y-30-b.y,tg.x-b.x);
+        for(let i=0;i<n;i++){ const ang=base+(i-(n-1)/2)*0.22; const s=ez?190:api.dv([230,290,350],400,520); shots.push({x:b.x,y:b.y,vx:Math.cos(ang)*s,vy:Math.sin(ang)*s,c:'#ff4fa0'}); } api.sfx.shoot(); ev('sfx','shoot'); }
+      b.minT-=dt; if(b.minT<=0){ b.minT=EZ()?10:api.dv([7,5,3.5],2.5,1.5); if(ens.filter(e=>!e.dead).length<3) spawnEn('walker',b.x,b.y+40,0.4); }
       for(const p of pls){ if(!p.dead&&Math.hypot(b.x-p.x,b.y-(p.y-24))<b.r+16&&p.eff.shield<=0) hurt(p); } }
     // ---- shots ----
     shots.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; if(s.x<0||s.x>W||s.y<CEIL-40||s.y>H) s.gone=true;
@@ -651,8 +656,11 @@ const GAME=window.GAME={
     // walls
     const wc=`hsl(${hue},80%,55%)`; c.fillStyle=`hsl(${hue},50%,22%)`; c.fillRect(0,CEIL-30,LX,H); c.fillRect(RX,CEIL-30,W-RX,H);
     c.shadowColor=wc; c.shadowBlur=14; c.fillStyle=wc; c.fillRect(LX-3,CEIL-30,3,H); c.fillRect(RX,CEIL-30,3,H); c.shadowBlur=0;
+    // floor gaps (bottom corners, under the controls): drop in, come back from the top
+    c.fillStyle=`hsla(${(hue+180)%360},90%,70%,.35)`; c.font='bold 22px sans-serif'; c.textAlign='center';
+    [[LX,FX0],[FX1,RX]].forEach(([a,b])=>{ const m=(a+b)/2, k=(t*40)%30; c.fillText('▼',m,FLOOR+20+k*0.5); c.fillText('▼',m,CEIL-6+k*0.5); });
     // platforms
-    plats.forEach(p=>{ const h=p.floor?40:PT; const gg=c.createLinearGradient(0,p.y,0,p.y+h); gg.addColorStop(0,`hsl(${hue},85%,62%)`); gg.addColorStop(1,`hsl(${hue},70%,30%)`);
+    plats.forEach(p=>{ const h=p.floor?48:PT; const gg=c.createLinearGradient(0,p.y,0,p.y+h); gg.addColorStop(0,`hsl(${hue},85%,62%)`); gg.addColorStop(1,`hsl(${hue},70%,30%)`);
       c.fillStyle=gg; c.shadowColor=wc; c.shadowBlur=12; c.fillRect(p.x,p.y,p.w,h); c.shadowBlur=0;
       c.fillStyle='rgba(0,0,0,.22)'; for(let x=p.x;x<p.x+p.w;x+=30){ c.fillRect(x,p.y+(Math.floor((x-p.x)/30)%2?9:0),2,9); } c.fillRect(p.x,p.y+8,p.w,1.5);
       c.fillStyle='rgba(255,255,255,.35)'; c.fillRect(p.x,p.y,p.w,3); });
@@ -679,8 +687,8 @@ const GAME=window.GAME={
     if(api.content!==0&&!done&&hurry-stageT<10&&!hurried){ c.fillStyle='#ff3b3b'; c.font='bold 26px sans-serif'; c.textAlign='center'; c.globalAlpha=0.5+0.5*Math.sin(t*10); c.fillText('HURRY! '+Math.ceil(hurry-stageT),W/2,CEIL+14); c.globalAlpha=1; }
     if(boss){ const bw=300; c.fillStyle='rgba(0,0,0,.5)'; c.fillRect(W/2-bw/2,CEIL-22,bw,12); c.fillStyle='#ff4fa0'; c.fillRect(W/2-bw/2,CEIL-22,bw*Math.max(0,boss.hp)/boss.max,12); c.strokeStyle='#fff'; c.lineWidth=1; c.strokeRect(W/2-bw/2,CEIL-22,bw,12); }
     if(lost){ c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#120a26'; c.fillRect(0,0,W,H); for(let i=0;i<10;i++){ const y=((800-tt*60*(1+i%3))%900+900)%900; drawBubble(c,60+i*52,y,18+i%3*6,'#9fe8ff'); }
-    drawDino(c,300,700,Math.sin(tt)>0?1:-1,tt*10,true,false,['#5dff7a','#c8ffb0']); }
+  attract(c,tt){ c.fillStyle='#120a26'; c.fillRect(0,0,W,H); for(let i=0;i<16;i++){ const y=((700-tt*60*(1+i%3))%760+760)%760; drawBubble(c,80+i*75,y,18+i%3*6,'#9fe8ff'); }
+    drawDino(c,640,620,Math.sin(tt)>0?1:-1,tt*10,true,false,['#5dff7a','#c8ffb0']); }
 };
 function setT(o,x,y){ if(o.tx===undefined||Math.hypot(x-o.x,y-o.y)>160){ o.x=x; o.y=y; } o.tx=x; o.ty=y; }
 function netFx(a){ const k=a[1], F=api.fx, S=api.sfx;
@@ -694,36 +702,34 @@ function netFx(a){ const k=a[1], F=api.fx, S=api.sfx;
   else if(k==='out'){ S.small(); F.burst(a[2],a[3]-20,'#ff3b3b',14,200,.4,3); }
   else if(k==='bh'){ S.small(); F.burst(a[2],a[3],'#ff4fa0',12,220,.4,3); F.shake(4); }
   else if(k==='bd'){ F.burst(a[2],a[3],'#ff4fa0',60,420,.9,5); F.burst(a[2],a[3],'#ffd23f',40,300,.8,4); F.flash('#fff',.6); F.shake(14); S.boom(); }
-  else if(k==='th'){ F.flash('#fffbe0',.6); F.shake(10); S.boom(); for(let i=0;i<8;i++) F.burst(60+i*68,200+Math.random()*600,'#ffe94a',10,260,.5,3); }
+  else if(k==='th'){ F.flash('#fffbe0',.6); F.shake(10); S.boom(); for(let i=0;i<8;i++) F.burst(140+i*140,160+Math.random()*480,'#ffe94a',10,260,.5,3); }
   else if(k==='clear'){ S.clear(); F.flash('#fff',.3); }
   else if(k==='resp'){ F.burst(a[2],FLOOR-30,PCOL[a[3]][0],16,180,.4,3); } }
-function ctrl(p,d,touch,dt){ if(p.dead){ p.respT-=dt; if(p.respT<=0) respawnP(p); return; }
-  const sp=p.eff.shoes>0?380:265;
-  p.vx=d.x*sp; if(Math.abs(d.x)>0.15) p.face=d.x>0?1:-1;
-  const up=d.y<-0.6; if(up&&!p.upPrev&&touch) jump(p); p.upPrev=up;
+function ctrl(p,I,dt){ if(p.dead){ p.respT-=dt; if(p.respT<=0) respawnP(p); return; }
+  const d=I.dir(), sp=p.eff.shoes>0?400:285;
+  p.vx=d.x*sp; if(Math.abs(d.x)>0.15){ p.face=d.x>0?1:-1; if(Math.abs(d.x)>0.3) api.event('move'); }
+  if(I.keys.Space) blow(p);   // hold 🫧 BUBBLE (or SPACE) = keep blowing; never on its own
   if(d.y>0.6&&p.ground&&!onFloor(p)) { p.drop=0.25; p.ground=false; }
   p.drop-=dt; physics(p,dt,true); if(p.ground&&Math.abs(p.vx)>10) p.walk+=dt*12; p.blowT-=dt; }
-function respawnP(p){ p.dead=false; p.grace=2; p.x=p.sx; p.y=FLOOR; p.vx=0; p.vy=0; p.ground=true; p.drop=0; ghost=null; stageT=Math.min(stageT,hurry-8);
-  ens.forEach(e=>{ if(!e.dead&&!e.trap&&Math.abs(e.x-p.x)<160&&e.y>FLOOR-200) e.x=W/2; }); ev('resp',Math.round(p.x),p.i); }
-function ptr(p,type,x,y){ if(done||lost||!p||p.dead) return;
-  if(type==='down') p.tap={x,y,t:t};
-  else if(type==='up'&&p.tap){ if(Math.hypot(x-p.tap.x,y-p.tap.y)<18&&t-p.tap.t<0.3) blow(p); p.tap=null; } }
+function respawnP(p){ p.dead=false; p.grace=EZ()?3:2; p.x=p.sx; p.y=FLOOR; p.vx=0; p.vy=0; p.ground=true; p.drop=0; ghost=null; stageT=Math.min(stageT,hurry-8);
+  clearAround(p); ev('resp',Math.round(p.x),p.i); }
+function clearAround(p){ ens.forEach(e=>{ if(!e.dead&&!e.trap&&Math.abs(e.x-p.x)<200&&e.y>FLOOR-200){ e.x=p.x<W/2?p.x+380:p.x-380; e.y=Math.min(e.y,562); } }); }
 function useAb(p,id){ if(done||lost||!p||p.dead) return false;
   if(id==='bubble') return blow(p);
   if(id==='jump') return jump(p);
   if(id==='thunder'){ let any=false; ens.forEach(e=>{ if(!e.dead&&!e.trap){ trapEn(e); any=true; } }); if(boss){ hurtBoss(6); any=true; }
-    api.fx.flash('#fffbe0',.6); api.fx.shake(10); api.sfx.boom(); for(let i=0;i<8;i++) api.fx.burst(60+i*68,200+Math.random()*600,'#ffe94a',10,260,.5,3); ev('th'); return any||true; }
+    api.fx.flash('#fffbe0',.6); api.fx.shake(10); api.sfx.boom(); for(let i=0;i<8;i++) api.fx.burst(140+i*140,160+Math.random()*480,'#ffe94a',10,260,.5,3); ev('th'); return any||true; }
   p.eff[id]={shoes:8,shield:6}[id]; api.sfx.power(); ev('sfx','power'); return true; }
 function onFloor(o){ return o.on&&o.on.floor; }
 function physics(o,dt,isPl){ const by=o.y; o.vy=Math.min(1100,o.vy+2200*dt); o.x+=o.vx*dt; o.y+=o.vy*dt;
   o.x=Math.max(LX+18,Math.min(RX-18,o.x)); o.ground=false;
   if(o.vy>=0) for(const p of plats){ if((o.drop>0)&&!p.floor) continue; if(o.x>p.x-12&&o.x<p.x+p.w+12&&by<=p.y+1&&o.y>=p.y){ o.y=p.y; o.vy=0; o.ground=true; o.on=p; break; } }
-  if(o.y<CEIL+50){ o.y=CEIL+50; if(o.vy<0) o.vy=0; } if(o.y>FLOOR){ o.y=FLOOR; o.vy=0; o.ground=true; o.on=plats[0]; } }
-function jump(p){ if(done&&!boss||lost||!p||p.dead||!p.ground) return false; p.vy=-930; p.ground=false; api.sfx.bump(); ev('sfx','bump'); return true; }
+  if(o.y<CEIL+50){ o.y=CEIL+50; if(o.vy<0) o.vy=0; } if(o.y>H+30){ o.y=CEIL+50; o.vy=Math.min(o.vy,300); } } // floor gaps wrap to the top
+function jump(p){ if(done&&!boss||lost||!p||p.dead||!p.ground) return false; p.vy=-930; p.ground=false; api.event('jump'); api.sfx.bump(); ev('sfx','bump'); return true; }
 function blow(p){ if(lost||!p||p.dead||p.shotCD>0) return false; if(bubs.length>=(net()?12:8)) return false; p.shotCD=p.eff.shoes>0?0.14:0.3; p.blowT=0.15;
   bubs.push({id:++nid,x:p.x+p.face*30,y:p.y-26,vx:p.face*api.dv([720,700,680],660,640)*(p.eff.shoes>0?1.15:1),t:0,r:22,ph:Math.random()*6}); api.sfx.blip(); ev('sfx','blip'); return true; }
 function spawnEn(type,x,y,sp){ ens.push({id:++nid,type,x,y,vx:0,vy:0,dir:Math.random()<0.5?-1:1,ground:false,drop:0,trap:false,trapT:0,angry:false,dead:false,spawn:sp,anim:Math.random()*5,jt:1+Math.random()*2,st:2+Math.random()*2,fx:Math.random()<0.5?-1:1,fy:1}); }
-function trapEn(e){ e.trap=true; e.trapT=api.dv([7,5.2,3.8],2.6,1.2); api.event('trap'); api.sfx.pickup(); api.fx.burst(e.x,e.y-20,'#9fe8ff',10,160,.35,3); api.addScore(20,e.x,e.y-40,true); ev('trap',Math.round(e.x),Math.round(e.y)); }
+function trapEn(e){ e.trap=true; e.trapT=api.content===0?14:EZ()?9:api.dv([7,5.2,3.8],2.6,1.2); api.event('trap'); api.sfx.pickup(); api.fx.burst(e.x,e.y-20,'#9fe8ff',10,160,.35,3); api.addScore(20,e.x,e.y-40,true); ev('trap',Math.round(e.x),Math.round(e.y)); }
 function popEn(e){ e.dead=true; combo++; comboT=1.2; const pts=100*combo*(1+api.dk*0.5); api.addScore(pts,e.x,e.y-40); if(combo>1) api.fx.text(e.x,e.y-70,'COMBO x'+combo,'#ffd23f',20);
   api.event('pop'); api.sfx.coin(); api.fx.burst(e.x,e.y-20,EC[e.type],22,260,.5,4); api.fx.burst(e.x,e.y-20,'#fff',10,180,.3,2); ev('pop',Math.round(e.x),Math.round(e.y),ETY.indexOf(e.type),combo);
   const fk=Math.floor(Math.random()*FRUIT.length); fruits.push({id:++nid,x:e.x,y:e.y-20,vx:(Math.random()-.5)*240,vy:-520,k:fk,e:FRUIT[fk],life:7,ground:false,drop:0});
@@ -733,7 +739,7 @@ function hurtBoss(n){ const b=boss; if(!b) return; b.hp-=n; b.hit=0.15; api.sfx.
     for(let i=0;i<6;i++) fruits.push({id:++nid,x:b.x,y:b.y,vx:(Math.random()-.5)*500,vy:-500-Math.random()*300,k:i,e:FRUIT[i],life:8,ground:false,drop:0});
     ens.forEach(e=>{ if(!e.dead){ e.dead=true; api.fx.burst(e.x,e.y-20,EC[e.type],12,200,.4,3); } }); boss=null; } }
 function hurt(p){ if(!p||p.grace>0||lost||done||p.eff.shield>0||p.dead) return;
-  if(net()){ p.dead=true; p.respT=2; p.tap=null; const nm=String(net().names[p.i]||('P'+(p.i+1))).slice(0,12).toUpperCase(); T('OUCH! '+nm+' GOT HIT'); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(p.x,p.y-24,PCOL[p.i][0],30,260,.6,4); ev('hurt',Math.round(p.x),Math.round(p.y),p.i);
+  if(net()){ p.dead=true; p.respT=2; const nm=String(net().names[p.i]||('P'+(p.i+1))).slice(0,12).toUpperCase(); T('OUCH! '+nm+' GOT HIT'); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(p.x,p.y-24,PCOL[p.i][0],30,260,.6,4); ev('hurt',Math.round(p.x),Math.round(p.y),p.i);
     api.loseLife(); return; }
   lost=true; api.toast('OUCH!'); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(p.x,p.y-24,'#5dff7a',30,260,.6,4); setTimeout(()=>api.loseLife(),1000); }
 function updFruit(dt){ fruits.forEach(f=>{ f.life-=dt; f.vx*=0.98; physics(f,dt,false); if(!lost) for(const p of pls){ if(!f.gone&&!p.dead&&Math.hypot(f.x-p.x,f.y-p.y)<40){ f.gone=true; api.addScore(150,f.x,f.y-40); api.sfx.pickup(); api.fx.burst(f.x,f.y-14,'#ffd23f',10,160,.4,3); ev('fruit',Math.round(f.x),Math.round(f.y)); } } if(f.life<=0) f.gone=true; }); fruits=fruits.filter(f=>!f.gone); }
