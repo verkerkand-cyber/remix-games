@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-PL-1.0 · 2026-10-18">
+<meta name="build" content="BUILD-PL-1.1 · 2026-10-26">
 <title>Pixel Logic</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-PL-1.0 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-PL-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,9 +489,12 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* PIXEL LOGIC — picture-logic (nonogram) remix. 100 stages. Use the row and column clues to fill the right squares and reveal a hidden pixel picture. */
+/* PIXEL LOGIC — picture-logic (nonogram) remix. 100 stages. Use the row and column clues to fill the right squares and reveal a hidden pixel picture.
+   LANDSCAPE 1.1: grid + clues centred (x 300-980, y 84-704), status panel left (x 150-290, clear of the ability column), preview panel right (y<500, above the
+   action button). FILL / X switch = the bottom-right action button (SPACE). RACE: every puzzle comes from the stage number only (seeded, no Math.random),
+   and is checked line-solvable = exactly one answer, so both racers get the identical picture. */
 (function(){
-const W=600,H=900,BOT=730;
+const W=1280,H=720,BOT=704,CX=640,AW=680;
 const PAL={r:'#ff3b5a',o:'#ff8a2b',y:'#ffd23f',g:'#3dff6a',G:'#22b04e',b:'#3d7bff',c:'#3dd8ff',p:'#ff6bd5',v:'#a45bff',w:'#f2f4ff',n:'#b0703f',k:'#8a90b8',d:'#4a4f70',s:'#ffc89a'};
 /* hand-made pictures: NAME:row/row/... ('.' = empty, letters = colour) */
 const PICS=[
@@ -516,8 +519,9 @@ const PICS=[
 'OWL:.n........n./.nn......nn./.nnnnnnnnnn./nnwwnnnnwwnn/nwkkwnnwkkwn/nwkkwnnwkkwn/nnwwnyynwwnn/.nnnnyynnnn./.nsnsnnsnsn./.nnsnsnsnnn./..nnnnnnnn../..y.y..y.y..',
 'TRUCK:......bbbbb./......bcccb./......bcccb./rrrrrrbbbbbb/rrrrrrbbbbbb/rwwwwrbbbbbb/rrrrrrbbbbbb/rrrrrrbbbbbb/.kkk...kkk../kk.kk.kk.kk./kk.kk.kk.kk./.kkk...kkk..',
 'PARROT:....rrrr..../...rrrrrr.../..rrwkrrrr../..rryyrrrr../..ryyy.rrr../....rrrrr.../...bbbrrrr../...bbbbrrr../..bbbbbbr.../..bbbbbb..../...gggg...../...g..g.....'];
-let fsz=20,api,t,tok=0,N,sol,col,st,rowC,colC,cs,GX,GY,nw,nh,mistakes,left,done,lost,eff,xMode,press,timed,limit,clock,cur,flashBad,pops,winT,picName,tut,lineDone,glow,bgP,inkCol,sparks;
-const shuf=a=>{ for(let i=a.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [a[i],a[j]]=[a[j],a[i]]; } return a; };
+let fsz=20,maxMis=3,api,t,tok=0,N,sol,col,st,rowC,colC,cs,GX,GY,nw,nh,mistakes,left,done,lost,eff,xMode,press,timed,limit,clock,cur,flashBad,pops,winT,picName,tut,lineDone,glow,bgP,inkCol,sparks;
+const rngOf=s=>{ let a=s>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; };
+const easy=()=>api&&api.diff===0&&api.level<=10;
 function parse(s){ const [nm,body]=s.split(':'), rows=body.split('/'); return {name:nm,n:rows.length,cells:rows.join('').split('')}; }
 function clues(line){ const o=[]; let k=0; for(const v of line){ if(v) k++; else if(k){ o.push(k); k=0; } } if(k) o.push(k); return o.length?o:[0]; }
 const rowOf=(g,n,r)=>g.slice(r*n,r*n+n), colOf=(g,n,c)=>{ const o=[]; for(let r=0;r<n;r++) o.push(g[r*n+c]); return o; };
@@ -536,24 +540,25 @@ function logicSolve(n,rc,cc,start){ const g=start?start.slice():new Array(n*n).f
   return g.indexOf(-1)<0?g:null; }
 function solvable(p){ const g=p.cells.map(v=>v==='.'?0:1), n=p.n; const rc=[],cc=[]; for(let i=0;i<n;i++){ rc.push(clues(rowOf(g,n,i))); cc.push(clues(colOf(g,n,i))); } const s=logicSolve(n,rc,cc); return !!s&&s.every((v,i)=>v===g[i]); }
 /* generated mystery mosaics: mirrored blob, smoothed, coloured in bands; kept only if line-solvable */
-function genPic(n){ const P2=['rygb','cvp','ogy','bcw','pvy','Gyg','rop'][Math.random()*7|0];
-  for(let at=0;at<300;at++){ let g=new Array(n*n).fill(0); for(let r=0;r<n;r++) for(let c=0;c<Math.ceil(n/2);c++){ const v=Math.random()<0.58?1:0; g[r*n+c]=v; g[r*n+n-1-c]=v; }
+function genPic(n,rnd){ rnd=rnd||rngOf(n*977); const P2=['rygb','cvp','ogy','bcw','pvy','Gyg','rop'][rnd()*7|0];
+  for(let at=0;at<300;at++){ let g=new Array(n*n).fill(0); for(let r=0;r<n;r++) for(let c=0;c<Math.ceil(n/2);c++){ const v=rnd()<0.58?1:0; g[r*n+c]=v; g[r*n+n-1-c]=v; }
     const h=g.slice(); for(let i=0;i<n*n;i++){ const r=i/n|0,c=i%n; let s=0; for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){ const R=r+dr,C=c+dc; if(R>=0&&C>=0&&R<n&&C<n) s+=h[R*n+C]; } g[i]=s>=5?1:s<=3?0:h[i]; }
     if(g.reduce((a,b)=>a+b,0)<n*n*0.35) continue; const p={name:'MYSTERY MOSAIC',n,cells:g.map((v,i)=>v?P2[((i/n|0)*P2.length/n)|0]:'.')}; if(solvable(p)) return p; }
   return null; }
 function pick(n,seed){ const L=PICS.map(parse).filter(p=>p.n===n); return L.length?L[((seed%L.length)+L.length)%L.length]:null; }
 /* ---------- layout ---------- */
+/* clue block + grid fits in AW wide (centred on CX, so x 300-980: clear of the ability column and the bottom-right action button) and top..BOT high */
 function layout(top){ const mr=Math.max(...rowC.map(c=>c.length)), mc=Math.max(...colC.map(c=>c.length)); cs=60;
-  for(let k=0;k<5;k++){ fsz=Math.round(Math.min(cs*0.55,30)); nw=Math.max(20,fsz*1.15); nh=Math.max(22,fsz*1.1); cs=Math.min(84,(W-24-mr*nw)/N,(BOT-top-mc*nh)/N); }
+  for(let k=0;k<5;k++){ fsz=Math.round(Math.min(cs*0.55,30)); nw=Math.max(20,fsz*1.15); nh=Math.max(22,fsz*1.1); cs=Math.min(92,(AW-mr*nw)/N,(BOT-top-mc*nh)/N); }
   fsz=Math.round(Math.min(cs*0.55,30));
-  cs=Math.floor(cs); const tw=mr*nw+N*cs; GX=Math.round((W-tw)/2+mr*nw); GY=Math.round(top+mc*nh+Math.max(0,(BOT-top-mc*nh-N*cs)*0.35)); }
+  cs=Math.floor(cs); const tw=mr*nw+N*cs; GX=Math.round(CX-tw/2+mr*nw); GY=Math.round(top+mc*nh+Math.max(0,(BOT-top-mc*nh-N*cs)*0.5)); }
 function cellAt(x,y){ const c=Math.floor((x-GX)/cs), r=Math.floor((y-GY)/cs); return c>=0&&r>=0&&c<N&&r<N?r*N+c:-1; }
 function lineCells(k){ const o=[]; for(let j=0;j<N;j++) o.push(k<N?k*N+j:j*N+(k-N)); return o; }
 function counter(){ api.counter('🟦 CELLS LEFT',left,timed&&clock<20?'low':''); }
 /* ---------- actions ---------- */
 function fillCell(i,quiet){ if(i<0||done||lost||st[i]) return true; const x=GX+(i%N)*cs+cs/2, y=GY+(i/N|0)*cs+cs/2;
   if(!sol[i]){ st[i]=3; mistakes++; flashBad.push({i,t:0.9}); api.sfx.hurt(); api.fx.shake(6); api.fx.text(x,y-16,'✖ MISTAKE','#ff3b5a',18); api.fx.burst(x,y,'#ff3b5a',12,160,.4,2);
-    if(mistakes>=3) fail('3 MISTAKES!'); checkLines(i); return false; }
+    if(mistakes>=maxMis) fail(maxMis+' MISTAKES!'); checkLines(i); return false; }
   st[i]=1; left--; pops.push({i,t:0}); api.addScore(10*(1+api.dk*.5),x,y,true); if(!quiet){ api.sfx.pickup(); api.fx.burst(x,y,inkCol,6,110,.3,2); } api.event('fill'); counter(); checkLines(i); if(left<=0) win(); return true; }
 function markX(i,on){ if(i<0||done||lost) return; if(on&&!st[i]){ st[i]=2; api.sfx.click(); api.event('mark'); } else if(!on&&st[i]===2){ st[i]=0; api.sfx.click(); } }
 function checkLines(i){ for(const k of [i/N|0, N+i%N]){ if(lineDone[k]) continue; const cells=lineCells(k); if(cells.every(j=>!sol[j]||st[j]===1)){ lineDone[k]=1; glow[k]=1;
@@ -569,40 +574,62 @@ function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,
 function drawBg(c){ const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#08061c'); g.addColorStop(1,api&&api.boss?'#2c0a2a':'#0b1636'); c.fillStyle=g; c.fillRect(0,0,W,H);
   bgP.forEach(b=>{ const y=((b.y-t*b.v)%(H+40)+H+40)%(H+40)-20; c.globalAlpha=b.a; c.fillStyle=b.c; c.fillRect(b.x,y,b.s,b.s); }); c.globalAlpha=1; }
 function star(c,x,y,r){ c.beginPath(); c.moveTo(x,y-r); c.quadraticCurveTo(x,y,x+r,y); c.quadraticCurveTo(x,y,x,y+r); c.quadraticCurveTo(x,y,x-r,y); c.quadraticCurveTo(x,y,x,y-r); c.fill(); }
-function btns(){ return [{k:'fill',x:40,y:800,w:250,h:76},{k:'x',x:310,y:800,w:250,h:76}]; }
+function setMode(on){ xMode=on; if(api&&api.badge){ api.badge(0,on?'ON':''); api.setActive(0,on); } }
+/* side panels: LEFT (x 150-290) mistakes / size / clock — RIGHT (x 1000-1250, y 90-500) live preview, picture name, mode. Both clear of controls. */
+function fitText(c,txt,x,y,max,sz){ c.font=`bold ${sz}px sans-serif`; while(sz>12&&c.measureText(txt).width>max){ sz-=2; c.font=`bold ${sz}px sans-serif`; } c.fillText(txt,x,y); }
+function panels(c,S){ const LX=150,LW=140; c.textAlign='left'; c.textBaseline='alphabetic';
+  c.fillStyle='rgba(10,12,40,.75)'; rr(c,LX-8,96,LW+16,timed?250:170,12); c.fill();
+  c.font='bold 15px sans-serif'; c.fillStyle='rgba(200,210,255,.6)'; c.fillText('MISTAKES',LX,124);
+  for(let k=0;k<maxMis;k++){ c.font='bold 24px sans-serif'; c.fillStyle=k<mistakes?'#ff3b5a':'rgba(255,255,255,.18)'; c.fillText('✖',LX+k*27,156); }
+  c.font='bold 15px sans-serif'; c.fillStyle='rgba(200,210,255,.6)'; c.fillText('GRID',LX,194); c.font='bold 28px sans-serif'; c.fillStyle='#fff'; c.fillText(N+'×'+N,LX,228);
+  if(timed){ const low=clock<20&&eff.freeze<=0, m=Math.floor(clock/60), sc=Math.floor(clock%60); c.font='bold 15px sans-serif'; c.fillStyle='rgba(200,210,255,.6)'; c.fillText('CLOCK',LX,266);
+    c.font='bold 30px sans-serif'; c.fillStyle=eff.freeze>0?'#8ad8ff':low&&Math.floor(t*4)%2?'#ff3b5a':'#fff'; c.fillText((eff.freeze>0?'❄️':'⏱')+m+':'+String(sc).padStart(2,'0'),LX,302);
+    c.fillStyle='rgba(255,255,255,.1)'; c.fillRect(LX,318,LW,6); c.fillStyle=eff.freeze>0?'#8ad8ff':low?'#ff3b5a':inkCol; c.fillRect(LX,318,LW*Math.max(0,clock)/limit,6); }
+  // right: preview of your board (full colour once solved)
+  const RX=1000,RW=250,ps=Math.floor(200/N),pw=ps*N,px=RX+(RW-pw)/2,py=128; c.fillStyle='rgba(10,12,40,.75)'; rr(c,RX,96,RW,404,12); c.fill();
+  c.textAlign='center'; c.font='bold 15px sans-serif'; c.fillStyle='rgba(200,210,255,.6)'; c.fillText(done?'SOLVED!':'PREVIEW',RX+RW/2,118);
+  c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(px,py,pw,pw);
+  for(let i=0;i<N*N;i++) if(st[i]===1||(done&&sol[i])){ c.fillStyle=done?col[i]||inkCol:inkCol; c.fillRect(px+(i%N)*ps,py+(i/N|0)*ps,ps-1,ps-1); }
+  c.fillStyle=done?'#fff':'rgba(255,255,255,.45)'; if(done){ c.shadowColor='#ffd23f'; c.shadowBlur=16; } fitText(c,done?'✨ '+picName+' ✨':'? ? ?',RX+RW/2,py+pw+42,RW-16,28); c.shadowBlur=0;
+  const mc=xMode?'#ff6bd5':inkCol; c.fillStyle=mc+'26'; rr(c,RX+14,410,RW-28,56,12); c.fill(); c.strokeStyle=mc; c.lineWidth=2.5; c.stroke();
+  c.fillStyle='#fff'; c.font='bold 24px sans-serif'; c.fillText(xMode?'✖ X MODE':'■ FILL MODE',RX+RW/2,446);
+  c.font='bold 13px sans-serif'; c.fillStyle='rgba(200,210,255,.6)'; c.fillText('switch: ✖ button ↓  (SPACE)',RX+RW/2,488); }
 const GAME=window.GAME={
   id:'pixel-logic',title:'Pixel Logic',titleHTML:'PIXEL<br>LOGIC',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-PL-1.0 · 2026-10-18',theme:{a:'#3dd8ff',b:'#ff6bd5',bg:'#08061c'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🟦',joystick:false,coinPts:40,
+  build:'BUILD-PL-1.1 · 2026-10-26',theme:{a:'#3dd8ff',b:'#ff6bd5',bg:'#08061c'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🟦',joystick:false,coinPts:40,
   abilities:[
-    {id:'xmode',icon:'✖️',name:'X MODE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — switch between FILL and X. In X mode a tap marks a square you know is empty.'},
+    {id:'xmode',icon:'✖️',name:'X MODE',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — the bottom-right button switches between FILL and X. In X mode a tap marks a square you know is empty.'},
     {id:'hint',icon:'💡',name:'HINT',cd:14,key:'Digit1',keyLabel:'1',desc:'Solves one whole row or column for you.'},
     {id:'check',icon:'🔍',name:'CHECK',cd:15,key:'Digit2',keyLabel:'2',desc:'Removes wrong X marks and lights up the clues you can solve right now, for 8 seconds.'},
     {id:'freeze',icon:'❄️',name:'FREEZE CLOCK',cd:20,key:'Digit3',keyLabel:'3',desc:'Stops the stage clock for 15 seconds (only on timed stages).'}],
   shop:[{id:'pl_c',cat:'Ink',name:'Neon Cyan',cost:0,colors:['#3dd8ff'],desc:'Classic glowing blocks.'},{id:'pl_p',cat:'Ink',name:'Candy Pink',cost:150,colors:['#ff6bd5'],desc:'Sweet pink blocks.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3dd8ff,#ff6bd5)'}],
   story:`<h3>PIXEL LOGIC</h3><p>The Pixel Museum's paintings were scrambled into number codes. Crack each code square by square and the lost pictures shine again — all the way to the giant Mega Mosaics.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>The numbers beside each <b>row</b> and above each <b>column</b> are the blocks of filled squares in that line, in order. "3 1" = 3 in a row, a gap, then 1.</li><li><b>Phone:</b> tap a square to fill it. Drag along a line to fill many. <b>Long-press</b> (or switch to ✖ X MODE) to mark a square as empty.</li><li><b>PC:</b> click / drag with the mouse, right-click marks X. Or arrow keys + ENTER to fill, X to mark. SPACE switches X MODE.</li><li>Filling a wrong square is a mistake ✖. 3 mistakes cost a life — your board stays.</li><li>Finish every line to reveal the picture in full colour!</li><li>Some stages have a clock. Every 10th stage is a timed MEGA MOSAIC. 1 = hint, 2 = check, 3 = freeze clock.</li></ul>`,
-  tutorial:[{text:'Row clue 5 = the whole row is filled. Tap a square to fill it!',ev:'fill'},{text:'Tap ✖ X MODE (or SPACE) — then taps mark empty squares.',ev:'xmode'},{text:'Fill the rows to reveal the picture!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li>Hold your phone <b>sideways</b>.</li><li>The numbers beside each <b>row</b> and above each <b>column</b> are the blocks of filled squares in that line, in order. "3 1" = 3 in a row, a gap, then 1.</li><li><b>Phone:</b> tap a square to fill it, drag along a line to fill many. <b>Right thumb:</b> the ✖ button bottom-right switches X MODE on/off (taps then mark empty squares). <b>Long-press</b> a square also marks it. Left thumb: 💡 🔍 ❄️ helpers on the left.</li><li><b>PC:</b> click / drag with the mouse, right-click marks X. Or arrow keys + ENTER to fill, X to mark. SPACE switches X MODE.</li><li>Filling a wrong square is a mistake ✖. 3 mistakes cost a life (5 on Beginner stages 1-10) — your board stays.</li><li><b>👥 RACE A FRIEND:</b> you both get the exact same picture — first to finish wins.</li><li>Finish every line to reveal the picture in full colour!</li><li>Some stages have a clock. Every 10th stage is a timed MEGA MOSAIC. 1 = hint, 2 = check, 3 = freeze clock.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. Row clue 5 = the whole row is filled. Tap a square to fill it!',ev:'fill'},{text:'Right thumb: tap the ✖ button bottom-right (PC: SPACE) — now taps mark empty squares.',ev:'xmode'},{text:'Fill the rows to reveal the picture!',time:5}],
   stageIntro:{1:'CRACK THE PICTURE CODE'},bossName:'MEGA MOSAIC!',ending:{"0":["#MUSEUM RESTORED","Every picture shines again."],"1":["#PIXEL MASTER","No code can hide from you."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='freeze') return eff.freeze>0?{left:eff.freeze,total:15}:null; if(id==='check') return eff.check>0?{left:eff.check,total:8}:null; return null; },
-  _dbg(){ return {get N(){return N;}, get sol(){return sol;}, get st(){return st;}, get left(){return left;}, get done(){return done;}, get lost(){return lost;}, get mistakes(){return mistakes;}, get timed(){return timed;}, get clock(){return clock;}, get limit(){return limit;}, get name(){return picName;},
+  _dbg(){ return {get N(){return N;}, get sol(){return sol;}, get st(){return st;}, get left(){return left;}, get done(){return done;}, get lost(){return lost;}, get mistakes(){return mistakes;}, get timed(){return timed;}, get clock(){return clock;}, get limit(){return limit;}, get name(){return picName;}, get cur(){return cur;}, get xMode(){return xMode;}, get maxMis(){return maxMis;},
     get rowC(){return rowC;}, get colC(){return colC;}, get geo(){return {GX,GY,cs};}, PICS:()=>PICS.map(parse), solvable, genPic, lineSolve, logicSolve, clues, fill:(i)=>fillCell(i), mark:(i)=>markX(i,true)}; },
   init(a){ api=a; eff={freeze:-9,check:-9}; bgP=[]; for(let i=0;i<46;i++) bgP.push({x:Math.random()*W,y:Math.random()*H,v:6+Math.random()*22,s:4+Math.random()*12|0,a:.04+Math.random()*.1,c:['#3dd8ff','#ff6bd5','#ffd23f','#a45bff'][i%4]}); },
-  startStage(n,a){ api=a; tok++; t=0; done=false; lost=false; mistakes=0; xMode=false; press=null; eff={freeze:-9,check:-9}; flashBad=[]; pops=[]; winT=-1; sparks=[]; if(!bgP) this.init(a);
-    const L=a.level; tut=a.content===0; let size;
-    if(tut) size=5; else if(a.boss) size=L<20?8:L<45?10:12; else if(L<=4) size=5; else if(L<=10) size=6; else if(L<=19) size=7; else if(L<=34) size=8; else if(L<70) size=10; else size=a.content===2||L>=130?12:10;
-    let p=null; if(!tut&&!a.boss&&a.content===2&&L>=25&&n%3===0) p=genPic(size); if(!p) p=pick(size,tut?0:n*7+a.diff*3+(a.boss?n/10|0:0)); if(!p) p=genPic(size)||pick(5,n);
+  startStage(n,a){ api=a; tok++; t=0; done=false; lost=false; mistakes=0; setMode(false); maxMis=easy()?5:3; press=null; eff={freeze:-9,check:-9}; flashBad=[]; pops=[]; winT=-1; sparks=[]; if(!bgP) this.init(a);
+    const L=a.level, beg=a.diff===0; tut=a.content===0; let size;
+    if(tut) size=5; else if(beg&&a.boss) size=L<=10?6:L<=30?8:10; else if(beg) size=L<=5?5:L<=12?6:L<=22?7:L<=38?8:10;
+    else if(a.boss) size=L<20?8:L<45?10:12; else if(L<=4) size=5; else if(L<=10) size=6; else if(L<=19) size=7; else if(L<=34) size=8; else if(L<70) size=10; else size=a.content===2||L>=130?12:10;
+    /* RACE-safe: picture depends only on stage number + difficulty (seeded), never on Math.random */
+    const rnd=rngOf(n*7919+a.diff*104729+size*31+(tut?7:0));
+    let p=null; if(!tut&&!a.boss&&a.content===2&&L>=25&&n%3===0) p=genPic(size,rnd); if(!p) p=pick(size,tut?0:n*7+a.diff*3+(a.boss?n/10|0:0)); if(p&&!solvable(p)) p=null; if(!p) p=genPic(size,rnd)||pick(5,n);
     N=p.n; picName=p.name; col=p.cells.map(ch=>PAL[ch]||null); sol=p.cells.map(ch=>ch==='.'?0:1); rowC=[]; colC=[]; for(let i=0;i<N;i++){ rowC.push(clues(rowOf(sol,N,i))); colC.push(clues(colOf(sol,N,i))); }
     st=new Array(N*N).fill(0); lineDone=new Array(2*N).fill(0); glow=new Array(2*N).fill(0);
     if(tut){ for(const r of [0,3,4]) for(let c=0;c<N;c++){ const i=r*N+c; st[i]=sol[i]?1:2; } for(let k=0;k<2*N;k++) if(lineCells(k).every(j=>!sol[j]||st[j]===1)) lineDone[k]=1; }
     left=sol.reduce((s,v,i)=>s+(v&&st[i]!==1?1:0),0); cur=sol.findIndex((v,i)=>v&&!st[i]); if(cur<0) cur=0;
-    layout(tut?350:96);
-    timed=!tut&&(a.boss||a.diff===2||(a.content===2&&L>=16)); const spc=a.dv([3.2,2.4,1.8],1.5,0.9)*(a.boss?1.15:1); limit=timed?Math.round(N*N*spc+30):0; clock=limit; counter(); },
+    layout(tut?250:84);
+    timed=!tut&&(beg?(a.boss&&L>10)||(a.content===2&&L>=30):(a.boss||a.diff===2||(a.content===2&&L>=16))); const spc=a.dv([3.2,2.4,1.8],1.5,0.9)*(a.boss?1.15:1)*(beg?1.6:1); limit=timed?Math.round(N*N*spc+30):0; clock=limit; counter(); },
   respawn(){ lost=false; mistakes=0; if(timed&&clock<=0) clock=limit; },
-  stageBonus(){ return Math.round((timed?Math.max(0,clock)*4:0)+N*N*3+(3-mistakes)*40); },
+  stageBonus(){ return Math.round((timed?Math.max(0,clock)*4:0)+N*N*3+Math.max(0,3-mistakes)*40); },
   useAbility(id){ if(done||lost) return false;
-    if(id==='xmode'){ xMode=!xMode; api.sfx.blip(); api.event('xmode'); return true; }
+    if(id==='xmode'){ setMode(!xMode); api.sfx.blip(); api.event('xmode'); return true; }
     if(id==='hint'){ const k=hintLine(); if(k<0) return false; lineCells(k).forEach((j,q)=>{ if(sol[j]&&st[j]!==1){ if(st[j]) st[j]=0; fillCell(j,true); pops.push({i:j,t:-q*0.04}); } else if(!sol[j]&&!st[j]) st[j]=2; }); glow[k]=1.5; api.sfx.power(); return true; }
     if(id==='check'){ let n=0; st.forEach((v,i)=>{ if(v===2&&sol[i]){ st[i]=0; n++; flashBad.push({i,t:0.9}); } }); eff.check=8; api.toast(n?`${n} WRONG X${n>1?"'S":''} REMOVED`:'NO WRONG MARKS!'); api.sfx.power(); return true; }
     if(id==='freeze'){ if(!timed){ api.toast('NO CLOCK ON THIS STAGE'); return false; } eff.freeze=15; api.sfx.power(); api.fx.flash('#8ad8ff',.25); return true; }
@@ -612,8 +639,7 @@ const GAME=window.GAME={
     else if(code==='Enter'||code==='KeyF'){ if(xMode) markX(cur,st[cur]!==2); else fillCell(cur); return; } else if(code==='KeyX'){ markX(cur,st[cur]!==2); return; } else return;
     cur=r*N+c; api.sfx.blip(); },
   onPointer(type,x,y,id,ptype,buttons){ if(done||lost){ press=null; return; }
-    if(type==='down'){ for(const b of btns()) if(x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h){ if((b.k==='x')!==xMode) this.useAbility('xmode'); return; }
-      const i=cellAt(x,y); if(i<0){ press=null; return; } cur=i; const rc=buttons===2;
+    if(type==='down'){ const i=cellAt(x,y); if(i<0){ press=null; return; } cur=i; const rc=buttons===2;
       press={i,r:i/N|0,c:i%N,t:0,axis:null,last:i,act:null,moved:false};
       if(xMode||rc){ press.act=st[i]===2?'unx':'x'; markX(i,press.act==='x'); } return; }
     if(!press) return;
@@ -658,20 +684,10 @@ const GAME=window.GAME={
       c.beginPath(); c.moveTo(GX,GY+k*cs); c.lineTo(GX+S,GY+k*cs); c.moveTo(GX+k*cs,GY); c.lineTo(GX+k*cs,GY+S); c.stroke(); } c.globalAlpha=1; }
     if(!done&&cur>=0){ c.strokeStyle='#ffd23f'; c.lineWidth=2.5; c.strokeRect(GX+(cur%N)*cs+1.5,GY+(cur/N|0)*cs+1.5,cs-3,cs-3); }
     sparks.forEach(s=>{ const a=Math.sin(s.t/0.7*Math.PI); c.globalAlpha=a; c.fillStyle='#fff'; c.shadowColor=s.c||'#fff'; c.shadowBlur=12; star(c,s.x,s.y,4+a*7); c.shadowBlur=0; }); c.globalAlpha=1;
-    if(done&&winT>0.8){ c.globalAlpha=Math.min(1,(winT-0.8)*3); c.font='bold 34px sans-serif'; c.fillStyle='#fff'; c.shadowColor='#ffd23f'; c.shadowBlur=20; c.fillText('✨ '+picName+' ✨',W/2,Math.min(BOT+48,GY+S+50)); c.shadowBlur=0; c.globalAlpha=1; }
-    // status row
-    const sy=BOT+40; c.textBaseline='alphabetic'; c.font='bold 22px sans-serif'; c.textAlign='left';
-    if(!done) for(let k=0;k<3;k++){ c.fillStyle=k<mistakes?'#ff3b5a':'rgba(255,255,255,.18)'; c.fillText('✖',40+k*28,sy); }
-    c.textAlign='center'; c.fillStyle='rgba(255,255,255,.45)'; if(!done) c.fillText(N+'×'+N,W/2,sy);
-    if(timed&&!done){ c.textAlign='right'; const low=clock<20&&eff.freeze<=0; c.fillStyle=eff.freeze>0?'#8ad8ff':low&&Math.floor(t*4)%2?'#ff3b5a':'#fff'; const m=Math.floor(clock/60),s=Math.floor(clock%60);
-      c.fillText((eff.freeze>0?'❄️ ':'⏱ ')+m+':'+String(s).padStart(2,'0'),W-40,sy); c.fillStyle='rgba(255,255,255,.1)'; c.fillRect(40,sy+10,W-80,5); c.fillStyle=eff.freeze>0?'#8ad8ff':low?'#ff3b5a':inkCol; c.fillRect(40,sy+10,(W-80)*Math.max(0,clock)/limit,5); }
-    // mode buttons
-    btns().forEach(b=>{ const on=(b.k==='x')===xMode, cl=b.k==='x'?'#ff6bd5':inkCol; c.fillStyle=on?cl+'33':'rgba(16,20,56,.9)'; rr(c,b.x,b.y,b.w,b.h,14); c.fill();
-      c.strokeStyle=on?cl:'rgba(255,255,255,.2)'; c.lineWidth=on?3:2; if(on){ c.shadowColor=cl; c.shadowBlur=16; } c.stroke(); c.shadowBlur=0;
-      c.fillStyle=on?'#fff':'rgba(255,255,255,.45)'; c.font='bold 28px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(b.k==='x'?'✖ X MODE':'■ FILL',b.x+b.w/2,b.y+b.h/2+2); c.textBaseline='alphabetic'; });
+    panels(c,S);
     if(eff.freeze>0){ c.fillStyle='rgba(120,200,255,.07)'; c.fillRect(0,0,W,H); }
     if(lost){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#08061c'; c.fillRect(0,0,W,H); const p=parse(PICS[(tt/3|0)%PICS.length]), n=p.n, s=Math.floor(420/n), x0=(W-n*s)/2, y0=250, ph=(tt%3)/3;
+  attract(c,tt){ c.fillStyle='#08061c'; c.fillRect(0,0,W,H); const p=parse(PICS[(tt/3|0)%PICS.length]), n=p.n, s=Math.floor(460/n), x0=(W-n*s)/2, y0=(H-n*s)/2+30, ph=(tt%3)/3;
     for(let i=0;i<n*n;i++){ const r=i/n|0,k=i%n; c.strokeStyle='rgba(61,216,255,.2)'; c.strokeRect(x0+k*s,y0+r*s,s,s); if(p.cells[i]!=='.'&&(r*n+k)/(n*n)<ph*1.6){ c.fillStyle=PAL[p.cells[i]]; c.shadowColor=c.fillStyle; c.shadowBlur=10; c.fillRect(x0+k*s+2,y0+r*s+2,s-4,s-4); c.shadowBlur=0; } } }
 };
 })();
