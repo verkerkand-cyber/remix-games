@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RY-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-RY-1.1 · 2026-10-26">
 <title>Royal Solitaire</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-RY-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-RY-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,15 +489,20 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* ROYAL SOLITAIRE — Klondike remix. 100 stages. A neon casino table: send every card home to the 4 royal foundations. */
+/* ROYAL SOLITAIRE — Klondike remix. 100 stages. A neon casino table: send every card home to the 4 royal foundations.
+   1.1 (26 Oct): LANDSCAPE 1280x720 (SHELL-LANDSCAPE-1) + RACE. Deck/pile/homes in a top row below the HUD, 7 columns spread
+   across the middle (x 100..970), info panel on the right (above the action button). Deals use their OWN seeded generator
+   (seed taken from Math.random at stage start), so in a RACE both phones get the identical, solver-checked winnable deal. */
 (function(){
-const W=600,H=900,CW=78,CH=110,GX=(W-16-7*CW)/6;
-let TOPY=114,TABY=244,INFOY=102;
+const W=1280,H=720,BW=78,BH=110,CW=104,CH=146,SK=CW/BW,X0=100,X1=970,GX=(X1-X0-7*CW)/6,OU=46,OD=20,PX0=992,PX1=1268;
+let TOPY=80,TABY=240,seed=0,rs=0,dealN=0,lastBars=0;
+function rnd(){ rs|=0; rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
 const RL=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-const rk=c=>c%13+1, su=c=>(c/13)|0, rd=c=>su(c)&1, cx=i=>8+i*(CW+GX);
+const rk=c=>c%13+1, su=c=>(c/13)|0, rd=c=>su(c)&1, cx=i=>X0+i*(CW+GX);
 let tok=0,api,t,S,N,R,K,ANY,fd0,lockN,mOn,tOn,mLim,tLim,tLeft,moves,hist,done,lost,stuck,vis,P,press,drag,hint,jok,autoT,faces,back,shk,outMsg,dealT;
+const SB=[640-190,640,640+190];  // stuck-panel buttons (centre x)
 const sum=a=>a[0]+a[1]+a[2]+a[3];
-function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function clone(s){ return {t:s.t.map(c=>c.slice()),d:s.d.slice(),s:s.s.slice(),w:s.w.slice(),f:s.f.slice(),L:s.L}; }
 /* ---------- rules ---------- */
 function canF(s,c){ return rk(c)===s.f[su(c)]+1; }
@@ -540,10 +545,10 @@ function deal(){ let dc=fd0,best=null;
     for(let r=0;r<dc&&k<tc;r++) for(let c=r;c<7&&k<tc;c++) s.t[c].push(deck[k++]); s.s=deck.slice(k);
     s.t.forEach((col,i)=>{ s.d[i]=Math.max(0,col.length-1); });
     const fdc=[]; s.t.forEach((col,i)=>{ for(let j=0;j<s.d[i];j++) fdc.push(col[j]); }); shuffle(fdc);
-    for(let j=0;j<lockN&&j<fdc.length;j++) s.L[fdc[j]]=3+Math.floor(Math.random()*N*0.3);
+    for(let j=0;j<lockN&&j<fdc.length;j++) s.L[fdc[j]]=3+Math.floor(rnd()*N*0.3);
     const p=solve(clone(s),at<60?4000:40000); if(p) return {s,p}; best=s; }
   best.d=best.d.map(()=>0); best.L={}; return {s:best,p:solve(clone(best),40000)||new Array(N*2)}; }
-function newDeal(){ const r=deal(); S=r.s; const L=r.p.reduce((a,m)=>a+(m.k==='D'?m.n:1),0); hist=[]; moves=0; stuck=false; hint=null; jok=0; drag=null; press=null; autoT=0; outMsg=null; done=false; lost=false;
+function newDeal(){ rs=(seed^Math.imul(++dealN,0x9E3779B1))|0; const r=deal(); S=r.s; const L=r.p.reduce((a,m)=>a+(m.k==='D'?m.n:1),0); hist=[]; moves=0; stuck=false; hint=null; jok=0; drag=null; press=null; autoT=0; outMsg=null; done=false; lost=false;
   mLim=mOn?Math.ceil(L*api.dv([1.9,1.45,1.25],1.18,1.05))+3:0;
   tLim=tOn?Math.round(15+L*api.dv([3,2.1,1.6],1.35,1)*(api.boss?0.75:1)):0; tLeft=tLim;
   vis={}; for(let x=0;x<4;x++) for(let r=1;r<=13;r++) vis[x*13+r-1]={x:cx(0),y:TOPY,f:0,dl:0,sh:0};
@@ -551,11 +556,11 @@ function newDeal(){ const r=deal(); S=r.s; const L=r.p.reduce((a,m)=>a+(m.k==='D
 function counter(){ api.counter('🃏 CARDS LEFT',N-sum(S.f)); }
 /* ---------- layout ---------- */
 function layout(){ P={}; S.s.forEach((c,i)=>P[c]={x:cx(0)-Math.min(i,4)*0.6,y:TOPY-Math.min(i,4)*0.6,up:0,z:i});
-  const n=S.w.length,m=K===3?Math.min(3,n):1; S.w.forEach((c,i)=>{ const j=i-(n-m); P[c]={x:cx(1)+(j>0?j*24:0),y:TOPY,up:1,z:100+i}; });
+  const n=S.w.length,m=K===3?Math.min(3,n):1; S.w.forEach((c,i)=>{ const j=i-(n-m); P[c]={x:cx(1)+(j>0?j*30:0),y:TOPY,up:1,z:100+i}; });
   for(let x=0;x<4;x++) for(let r=1;r<=S.f[x];r++) P[x*13+r-1]={x:cx(3+x),y:TOPY,up:1,z:200+r};
-  S.t.forEach((col,i)=>{ const dn=S.d[i],up=col.length-dn, max=H-14-TABY-CH; let od=16,ou=36; const need=dn*od+Math.max(0,up-1)*ou; if(need>max){ ou=Math.max(16,(max-dn*od)/Math.max(1,up-1)); if(dn*od+(up-1)*ou>max) od=Math.max(6,(max-(up-1)*ou)/Math.max(1,dn)); }
+  S.t.forEach((col,i)=>{ const dn=S.d[i],up=col.length-dn, max=H-10-TABY-CH; let od=OD,ou=OU; const need=dn*od+Math.max(0,up-1)*ou; if(need>max){ ou=Math.max(18,(max-dn*od)/Math.max(1,up-1)); if(dn*od+(up-1)*ou>max) od=Math.max(6,(max-(up-1)*ou)/Math.max(1,dn)); }
     let y=TABY; col.forEach((c,j)=>{ P[c]={x:cx(i),y,up:j>=dn?1:0,z:300+i*40+j}; y+=j<dn?od:ou; }); }); }
-function colTop(b){ const col=S.t[b]; if(!col.length) return {x:cx(b),y:TABY}; const p=P[col[col.length-1]]; return {x:p.x,y:p.y+(col.length?36:0)}; }
+function colTop(b){ const col=S.t[b]; if(!col.length) return {x:cx(b),y:TABY}; const p=P[col[col.length-1]]; return {x:p.x,y:p.y+(col.length?OU:0)}; }
 function hit(x,y){ const inR=(px,py)=>x>=px&&x<=px+CW&&y>=py&&y<=py+CH;
   if(inR(cx(0),TOPY)) return {z:'s'};
   if(S.w.length){ const c=S.w[S.w.length-1],p=P[c]; if(inR(p.x,p.y)) return {z:'w',c}; }
@@ -600,28 +605,28 @@ function suit(g,s,x,y,r){ g.beginPath();
   else if(s===1){ g.moveTo(x,y+r); g.bezierCurveTo(x-r*1.5,y-r*.1,x-r*.8,y-r*1.3,x,y-r*.45); g.bezierCurveTo(x+r*.8,y-r*1.3,x+r*1.5,y-r*.1,x,y+r); }
   else if(s===0){ g.moveTo(x,y-r); g.bezierCurveTo(x+r*1.5,y+r*.15,x+r*.75,y+r*.95,x,y+r*.35); g.bezierCurveTo(x-r*.75,y+r*.95,x-r*1.5,y+r*.15,x,y-r); g.moveTo(x,y+r*.2); g.lineTo(x+r*.38,y+r); g.lineTo(x-r*.38,y+r); g.closePath(); }
   else { [[0,-.45],[-.47,.14],[.47,.14]].forEach(([a,b])=>{ g.moveTo(x+a*r+r*.43,y+b*r); g.arc(x+a*r,y+b*r,r*.43,0,7); }); g.moveTo(x,y); g.lineTo(x+r*.36,y+r); g.lineTo(x-r*.36,y+r); g.closePath(); } }
-function mk(f){ const cv=document.createElement('canvas'); cv.width=CW*2; cv.height=CH*2; const g=cv.getContext('2d'); g.scale(2,2); f(g); return cv; }
-function mkFace(c){ return mk(g=>{ rr(g,1,1,CW-2,CH-2,9); const gr=g.createLinearGradient(0,0,0,CH); gr.addColorStop(0,'#ffffff'); gr.addColorStop(1,'#efe4cc'); g.fillStyle=gr; g.fill(); g.lineWidth=2; g.strokeStyle='#d8b45a'; g.stroke();
-  const col=rd(c)?'#e3123e':'#14142a', r=rk(c), s=su(c); g.fillStyle=col; g.textBaseline='alphabetic'; g.textAlign='left'; g.font=(r===10?'900 27px ':'900 32px ')+'Arial,Helvetica,sans-serif'; g.fillText(RL[r],5,31); suit(g,s,CW-16,17,11); g.fill();
-  if(r>10){ g.strokeStyle=col; g.lineWidth=1.5; rr(g,12,42,CW-24,CH-52,6); g.stroke(); g.fillStyle=rd(c)?'rgba(227,18,62,.1)':'rgba(20,20,42,.08)'; g.fill(); g.fillStyle='#d8a020';
-    g.beginPath(); const cy=56; g.moveTo(CW/2-15,cy+8); g.lineTo(CW/2-15,cy-4); g.lineTo(CW/2-7,cy+2); g.lineTo(CW/2,cy-8); g.lineTo(CW/2+7,cy+2); g.lineTo(CW/2+15,cy-4); g.lineTo(CW/2+15,cy+8); g.closePath(); g.fill();
-    g.fillStyle=col; g.textAlign='center'; g.font='900 34px Arial,sans-serif'; g.fillText(RL[r],CW/2,CH-18); }
-  else { suit(g,s,CW/2,CH*.64,r===1?26:20); g.fill(); } }); }
-function mkBack(){ return mk(g=>{ rr(g,1,1,CW-2,CH-2,9); const gr=g.createLinearGradient(0,0,CW,CH); gr.addColorStop(0,'#5a0a6e'); gr.addColorStop(1,'#1a0638'); g.fillStyle=gr; g.fill(); g.lineWidth=2; g.strokeStyle='#ffd23f'; g.stroke();
-  g.save(); rr(g,7,7,CW-14,CH-14,6); g.clip(); g.strokeStyle='rgba(255,59,212,.35)'; g.lineWidth=1; for(let i=-CH;i<CW+CH;i+=12){ g.beginPath(); g.moveTo(i,0); g.lineTo(i+CH,CH); g.moveTo(i+CH,0); g.lineTo(i,CH); g.stroke(); } g.restore();
-  g.strokeStyle='#ffd23f'; g.lineWidth=1.2; rr(g,7,7,CW-14,CH-14,6); g.stroke(); g.fillStyle='#ffd23f'; g.beginPath(); g.moveTo(CW/2,CH/2-16); g.lineTo(CW/2+12,CH/2); g.lineTo(CW/2,CH/2+16); g.lineTo(CW/2-12,CH/2); g.closePath(); g.fill(); g.fillStyle='#5a0a6e'; g.font='900 14px Arial'; g.textAlign='center'; g.fillText('R',CW/2,CH/2+5); }); }
+function mk(f){ const cv=document.createElement('canvas'); cv.width=CW*2; cv.height=CH*2; const g=cv.getContext('2d'); g.scale(2*SK,2*SK); f(g); return cv; }
+function mkFace(c){ return mk(g=>{ rr(g,1,1,BW-2,BH-2,9); const gr=g.createLinearGradient(0,0,0,BH); gr.addColorStop(0,'#ffffff'); gr.addColorStop(1,'#efe4cc'); g.fillStyle=gr; g.fill(); g.lineWidth=2; g.strokeStyle='#d8b45a'; g.stroke();
+  const col=rd(c)?'#e3123e':'#14142a', r=rk(c), s=su(c); g.fillStyle=col; g.textBaseline='alphabetic'; g.textAlign='left'; g.font=(r===10?'900 27px ':'900 32px ')+'Arial,Helvetica,sans-serif'; g.fillText(RL[r],5,31); suit(g,s,BW-16,17,11); g.fill();
+  if(r>10){ g.strokeStyle=col; g.lineWidth=1.5; rr(g,12,42,BW-24,BH-52,6); g.stroke(); g.fillStyle=rd(c)?'rgba(227,18,62,.1)':'rgba(20,20,42,.08)'; g.fill(); g.fillStyle='#d8a020';
+    g.beginPath(); const cy=56; g.moveTo(BW/2-15,cy+8); g.lineTo(BW/2-15,cy-4); g.lineTo(BW/2-7,cy+2); g.lineTo(BW/2,cy-8); g.lineTo(BW/2+7,cy+2); g.lineTo(BW/2+15,cy-4); g.lineTo(BW/2+15,cy+8); g.closePath(); g.fill();
+    g.fillStyle=col; g.textAlign='center'; g.font='900 34px Arial,sans-serif'; g.fillText(RL[r],BW/2,BH-18); }
+  else { suit(g,s,BW/2,BH*.64,r===1?26:20); g.fill(); } }); }
+function mkBack(){ return mk(g=>{ rr(g,1,1,BW-2,BH-2,9); const gr=g.createLinearGradient(0,0,BW,BH); gr.addColorStop(0,'#5a0a6e'); gr.addColorStop(1,'#1a0638'); g.fillStyle=gr; g.fill(); g.lineWidth=2; g.strokeStyle='#ffd23f'; g.stroke();
+  g.save(); rr(g,7,7,BW-14,BH-14,6); g.clip(); g.strokeStyle='rgba(255,59,212,.35)'; g.lineWidth=1; for(let i=-BH;i<BW+BH;i+=12){ g.beginPath(); g.moveTo(i,0); g.lineTo(i+BH,BH); g.moveTo(i+BH,0); g.lineTo(i,BH); g.stroke(); } g.restore();
+  g.strokeStyle='#ffd23f'; g.lineWidth=1.2; rr(g,7,7,BW-14,BH-14,6); g.stroke(); g.fillStyle='#ffd23f'; g.beginPath(); g.moveTo(BW/2,BH/2-16); g.lineTo(BW/2+12,BH/2); g.lineTo(BW/2,BH/2+16); g.lineTo(BW/2-12,BH/2); g.closePath(); g.fill(); g.fillStyle='#5a0a6e'; g.font='900 14px Arial'; g.textAlign='center'; g.fillText('R',BW/2,BH/2+5); }); }
 function drawCard(c,k,x,y,f,lock){ const up=f>0.5, sx=Math.max(0.04,Math.abs(f*2-1)); c.save(); c.translate(x+CW/2,y); c.scale(sx,1);
   c.drawImage(up?faces[k]:back,-CW/2,0,CW,CH); c.restore();
-  if(!up&&lock>sum(S.f)){ c.fillStyle='rgba(0,0,0,.55)'; rr(c,x+14,y+34,CW-28,44,8); c.fill(); c.fillStyle='#ffd23f'; c.font='bold 22px sans-serif'; c.textAlign='center'; c.fillText('🔒',x+CW/2,y+58); c.font='bold 13px sans-serif'; c.fillText(lock-sum(S.f)+' MORE',x+CW/2,y+74); } }
-function slot(c,x,y,lab,col){ c.strokeStyle=col; c.lineWidth=2; c.setLineDash([6,5]); c.shadowColor=col; c.shadowBlur=10; rr(c,x+2,y+2,CW-4,CH-4,9); c.stroke(); c.setLineDash([]); c.shadowBlur=0; c.fillStyle='rgba(255,255,255,.04)'; c.fill();
-  if(lab!==undefined){ c.fillStyle=col; c.globalAlpha=.55; if(typeof lab==='number'){ suit(c,lab,x+CW/2,y+CH/2,18); c.fill(); } else { c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillText(lab,x+CW/2,y+CH/2+6); } c.globalAlpha=1; } }
-function bg(c,tt){ const g=c.createRadialGradient(W/2,H*.45,60,W/2,H*.45,700); g.addColorStop(0,'#0d3b38'); g.addColorStop(.55,'#082222'); g.addColorStop(1,'#05060f'); c.fillStyle=g; c.fillRect(0,0,W,H);
-  c.strokeStyle='rgba(255,59,212,.5)'; c.lineWidth=2; c.shadowColor='#ff3bd4'; c.shadowBlur=12; rr(c,3,76,W-6,H-80,14); c.stroke(); c.shadowBlur=0;
-  for(let i=0;i<24;i++){ const on=(Math.floor(tt*4)+i)%3===0; c.fillStyle=on?'#ffd23f':'rgba(255,210,63,.25)'; c.beginPath(); c.arc(14+i*(W-28)/23,H-6,2.5,0,7); c.fill(); } }
+  if(!up&&lock>sum(S.f)){ c.save(); c.translate(x,y); c.scale(SK,SK); c.fillStyle='rgba(0,0,0,.55)'; rr(c,14,34,BW-28,44,8); c.fill(); c.fillStyle='#ffd23f'; c.font='bold 22px sans-serif'; c.textAlign='center'; c.fillText('🔒',BW/2,58); c.font='bold 13px sans-serif'; c.fillText(lock-sum(S.f)+' MORE',BW/2,74); c.restore(); } }
+function slot(c,x,y,lab,col){ c.strokeStyle=col; c.lineWidth=2.5; c.setLineDash([7,6]); c.shadowColor=col; c.shadowBlur=10; rr(c,x+2,y+2,CW-4,CH-4,11); c.stroke(); c.setLineDash([]); c.shadowBlur=0; c.fillStyle='rgba(255,255,255,.04)'; c.fill();
+  if(lab!==undefined){ c.fillStyle=col; c.globalAlpha=.55; if(typeof lab==='number'){ suit(c,lab,x+CW/2,y+CH/2,24); c.fill(); } else { c.font='bold 24px sans-serif'; c.textAlign='center'; c.fillText(lab,x+CW/2,y+CH/2+8); } c.globalAlpha=1; } }
+function bg(c,tt){ const g=c.createRadialGradient(W*.42,H*.5,60,W*.42,H*.5,820); g.addColorStop(0,'#0d3b38'); g.addColorStop(.55,'#082222'); g.addColorStop(1,'#05060f'); c.fillStyle=g; c.fillRect(0,0,W,H);
+  c.strokeStyle='rgba(255,59,212,.5)'; c.lineWidth=2; c.shadowColor='#ff3bd4'; c.shadowBlur=12; rr(c,3,72,W-6,H-75,14); c.stroke(); c.shadowBlur=0;
+  for(let i=0;i<40;i++){ const on=(Math.floor(tt*4)+i)%3===0; c.fillStyle=on?'#ffd23f':'rgba(255,210,63,.25)'; c.beginPath(); c.arc(14+i*(W-28)/39,H-5,2.5,0,7); c.fill(); } }
 const GAME=window.GAME={
   id:'royal-solitaire',title:'Royal Solitaire',titleHTML:'ROYAL<br>SOLITAIRE',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-RY-1.0 · 2026-10-17',theme:{a:'#ffd23f',b:'#ff3bd4',bg:'#061614'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'♦️',joystick:false,coinPts:40,
+  build:'BUILD-RY-1.1 · 2026-10-26',theme:{a:'#ffd23f',b:'#ff3bd4',bg:'#061614'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'♦️',joystick:false,coinPts:40,
   abilities:[
     {id:'hint',icon:'💡',name:'HINT',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — glows the best next move for 3 seconds.'},
     {id:'undo',icon:'↩️',name:'UNDO',cd:12,key:'Digit1',keyLabel:'1',desc:'Take back your last move.'},
@@ -630,16 +635,20 @@ const GAME=window.GAME={
   shop:[{id:'rs_g',cat:'Table',name:'Emerald Felt',cost:0,colors:['#0d3b38'],desc:'Classic casino green.'},{id:'rs_p',cat:'Table',name:'Royal Purple',cost:150,colors:['#2a0d4a'],desc:'High-roller velvet.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#ff3bd4)'}],
   story:`<h3>ROYAL SOLITAIRE</h3><p>The neon casino has one table nobody can beat. Sit down, shuffle up, and send every card home to the four royal suits.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap a card</b> and it jumps to the best spot. You can also <b>drag</b> cards (PC: click or drag with the mouse).</li><li>Build the 7 columns <b>down</b> in <b>alternating colours</b> (red on black). Build the 4 homes up from <b>A</b> in one suit.</li><li>Tap the deck (top left) to draw (PC: D). Empty deck = tap to turn the pile over.</li><li>🔒 cards open when enough cards are home. Some tables have a move limit or a clock.</li><li>💡 HINT is free (SPACE). Stuck? Use UNDO, REVEAL or JOKER, or redeal for a life.</li></ul>`,
-  tutorial:[{text:'Tap a card! The A goes home to the top right.',ev:'home'},{text:'Tap the deck (top left) to draw a card.',ev:'draw'},{text:'Send all the cards home!',time:5}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Phone:</b> tap a card with either thumb and it jumps to the best spot, or <b>slide</b> it where you want. Right thumb: 💡 HINT button. Left thumb: UNDO / REVEAL / JOKER on the left edge.</li><li><b>PC:</b> click or drag cards with the mouse. <b>D</b> or <b>ENTER</b> draws, <b>SPACE</b> = hint, <b>1</b> undo, <b>2</b> reveal, <b>3</b> joker.</li><li>Build the 7 columns <b>down</b> in <b>alternating colours</b> (red on black). Build the 4 homes (top right) up from <b>A</b> in one suit.</li><li>Tap the deck (top left) to draw. Empty deck = tap to turn the pile over.</li><li>🔒 cards open when enough cards are home. Some tables have a move limit or a clock. Stuck? Undo, reveal, joker, or redeal for a life.</li><li><b>RACE:</b> everyone gets the same deal — first to clear the table wins.</li></ul>`,
+  tutorial:[{text:'Click a card! The A goes home to the top right.',touch:'Tap a card! The A goes home to the top right.',ev:'home'},{text:'Click the deck (top left) or press D to draw.',touch:'Tap the deck (top left) to draw a card.',ev:'draw'},{text:'Send all the cards home! Stuck? SPACE = free hint.',touch:'Send all the cards home! Stuck? 💡 = free hint.',time:5}],
   stageIntro:{1:'SEND EVERY CARD HOME'},bossName:'HIGH-ROLLER TABLE!',contentIntro:{2:'BEAT THE TABLE'},ending:{"0":["#JACKPOT","The table is yours."],"1":["#HIGH ROLLER","The house never stood a chance."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ return null; },
   _dbg(){ return {get S(){return S;}, get N(){return N;}, get stuck(){return stuck;}, get moves(){return moves;}, get mLim(){return mLim;}, get tLeft(){return tLeft;}, get done(){return done;}, get lost(){return lost;}, get K(){return K;}, get R(){return R;}, solve:(b)=>solve(clone(S),b||20000), deal:()=>deal(),
-    step(){ const p=solve(clone(S),20000); if(!p||!p.length) return false; doMove(p[0].k==='D'?{k:'d'}:p[0]); return true; }, tapAt:(x,y)=>tap(hit(x,y)), setT:(v)=>tLeft=v, chk:()=>{ layout(); after(); }}; },
+    step(){ const p=solve(clone(S),20000); if(!p||!p.length) return false; doMove(p[0].k==='D'?{k:'d'}:p[0]); return true; }, tapAt:(x,y)=>tap(hit(x,y)), get seed(){return seed;}, get P(){return P;}, get geo(){return {TOPY,TABY,CW,CH,cx};}, setT:(v)=>tLeft=v, chk:()=>{ layout(); after(); }}; },
   init(a){ api=a; if(typeof document!=='undefined'&&!faces){ faces={}; for(let x=0;x<4;x++) for(let r=1;r<=13;r++) faces[x*13+r-1]=mkFace(x*13+r-1); back=mkBack(); } },
-  startStage(n,a){ api=a; t=0; tok++; const L=a.level, tut=a.content===0; const sh=tut?250:0; INFOY=102+sh; TOPY=114+sh; TABY=244+sh;
-    R=tut?3:Math.min(13,5+Math.floor(L/3.5)); K=(!tut&&L>=30)?3:1; ANY=tut||L<14; fd0=tut?1:Math.min(7,2+Math.floor(L/7));
-    mOn=!tut&&!a.boss&&a.content===1&&L>=12; tOn=a.boss||(!tut&&a.content===2&&L>=16); lockN=(!tut&&(a.content===2||a.boss)&&L>=20)?Math.min(5,1+Math.floor((L-20)/25)):0;
+  startStage(n,a){ api=a; t=0; tok++; const L=a.level, tut=a.content===0, ez=!tut&&a.diff===0; const sh=tut?150:0; TOPY=80+sh; TABY=240+sh;
+    seed=(Math.random()*1e9)|0; dealN=0;   // RACE: shell seeds Math.random -> same seed -> same deals (incl. redeals) on every phone
+    if(ez){ // Beginner: tiny decks, no face-down cards early, draw 1, any card on an empty column; limits arrive late
+      R=Math.min(13,4+Math.floor(L/4)); K=L>=60?3:1; ANY=L<24; fd0=Math.min(7,1+Math.floor(L/8));
+      mOn=!a.boss&&a.content===1&&L>=30; tOn=(a.boss&&L>=30)||(a.content===2&&L>=40); lockN=(a.content===2||a.boss)&&L>=45?Math.min(4,1+Math.floor((L-45)/25)):0; }
+    else { R=tut?3:Math.min(13,5+Math.floor(L/3.5)); K=(!tut&&L>=30)?3:1; ANY=tut||L<14; fd0=tut?1:Math.min(7,2+Math.floor(L/7));
+      mOn=!tut&&!a.boss&&a.content===1&&L>=12; tOn=a.boss||(!tut&&a.content===2&&L>=16); lockN=(!tut&&(a.content===2||a.boss)&&L>=20)?Math.min(5,1+Math.floor((L-20)/25)):0; }
     newDeal(); },
   respawn(){ newDeal(); },
   stageBonus(){ return tLim?Math.round(tLeft)*5:mLim?Math.max(0,mLim-moves)*10:150; },
@@ -651,7 +660,7 @@ const GAME=window.GAME={
     if(id==='joker'){ if(jok){ jok=0; api.setActive(3,false); api.toast('JOKER PUT AWAY'); return false; } jok=1; api.setActive(3,true); api.sfx.power(); api.toast('JOKER READY'); stuck=false; return true; } },
   onKey(code,down){ if(down&&(code==='KeyD'||code==='Enter')&&!done&&!lost&&(S.s.length||S.w.length)) doMove({k:'d'}); },
   onPointer(type,x,y){ if(done||lost||autoT>0) return;
-    if(type==='down'){ if(stuck&&y>470&&y<540){ if(x<210) api.useAb(1); else if(x<390) api.useAb(2); else { stuck=false; fail('REDEAL!'); } return; }
+    if(type==='down'){ if(stuck&&y>468&&y<536&&Math.abs(x-640)<275){ if(x<SB[0]+90) api.useAb(1); else if(x<SB[1]+90) api.useAb(2); else { stuck=false; fail('REDEAL!'); } return; }
       const h=hit(x,y); press={h,x,y}; drag=null; return; }
     if(!press) return;
     if(type==='move'){ const h=press.h; if(!drag&&h&&Math.hypot(x-press.x,y-press.y)>12&&(h.z==='w'||h.z==='f'||(h.z==='t'&&seqOK(S,h.a,h.i)))) drag={h,cards:srcCards(h),dx:press.x-P[h.c].x,dy:press.y-P[h.c].y,x,y};
@@ -659,35 +668,47 @@ const GAME=window.GAME={
     if(type==='up'){ const p=press; press=null;
       if(!drag){ tap(p.h); return; } const d=drag; drag=null; const mx=x-d.dx+CW/2, my=y-d.dy+20, h=d.h;
       let m=null; if(my<TABY-10&&mx>cx(3)-GX){ if(d.cards.length===1&&canF(S,d.cards[0])&&h.z!=='f') m=h.z==='w'?{k:'wf'}:{k:'tf',a:h.a}; }
-      else { const b=Math.max(0,Math.min(6,Math.round((mx-8-CW/2)/(CW+GX))));
+      else { const b=Math.max(0,Math.min(6,Math.round((mx-X0-CW/2)/(CW+GX))));
         if(jok&&jok!==0){ m=jokerMove(h,b); if(m){ jok=0; api.setActive(3,false); api.toast('JOKER!'); } }
         else if(canT(S,d.cards[0],b)&&!(h.z==='t'&&h.a===b)) m=h.z==='w'?{k:'wt',to:b}:h.z==='f'?{k:'ft',x:h.x,to:b}:{k:'tt',a:h.a,i:h.i,to:b}; }
       if(m) doMove(m); else api.sfx.bump(); } },
-  update(dt){ t+=dt; dealT+=dt; if(hint) { hint.t-=dt; if(hint.t<=0) hint=null; }
+  update(dt){ t+=dt; dealT+=dt; if(t-lastBars>0.4){ lastBars=t; placeBars(); } if(hint) { hint.t-=dt; if(hint.t<=0) hint=null; }
     for(const c in vis){ const v=vis[c], p=P[c]; if(v.sh>0) v.sh-=dt; if(!p) continue; if(v.dl>0){ v.dl-=dt; continue; } const k=Math.min(1,dt*16); v.x+=(p.x-v.x)*k; v.y+=(p.y-v.y)*k; v.f+=((p.up?1:0)-v.f)*Math.min(1,dt*10); }
     if(done||lost) return;
     if(tLim&&!stuck&&dealT>1){ const s0=Math.ceil(tLeft); tLeft-=dt; if(tLeft<=10&&Math.ceil(tLeft)<s0) api.sfx.blip(); if(tLeft<=0){ tLeft=0; fail("TIME'S UP!"); return; } }
     if(autoT>0){ autoT-=dt; if(autoT<=0){ let best=null; for(let a=0;a<7;a++){ const col=S.t[a]; if(col.length&&canF(S,col[col.length-1])&&(!best||rk(col[col.length-1])<rk(S.t[best.a][S.t[best.a].length-1]))) best={k:'tf',a}; }
       if(best){ doMove(best,true); if(!done) autoT=0.09; } else autoT=0; } } },
   render(c){ bg(c,t); const tc=api.cos('Table').colors[0]; if(tc!=='#0d3b38'){ c.fillStyle=tc; c.globalAlpha=.55; c.fillRect(0,0,W,H); c.globalAlpha=1; }
-    c.font='bold 20px Orbitron,sans-serif'; c.textAlign='left'; c.fillStyle='#3dd8ff'; c.fillText('DRAW '+K,14,INFOY);
-    c.textAlign='right'; if(tLim){ const s=Math.max(0,Math.ceil(tLeft)); c.fillStyle=tLeft<15?(Math.floor(t*4)%2?'#ff3b6b':'#fff'):'#ffd23f'; c.fillText('⏱ '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0'),W-14,INFOY); }
-    else if(mLim){ c.fillStyle=mLim-moves<=5?'#ff3b6b':'#ffd23f'; c.fillText('MOVES '+moves+' / '+mLim,W-14,INFOY); } else { c.fillStyle='rgba(255,210,63,.6)'; c.fillText('MOVES '+moves,W-14,INFOY); }
+    panel(c);
     slot(c,cx(0),TOPY,S.s.length||!S.w.length?undefined:'↻','#3dd8ff'); slot(c,cx(1),TOPY,undefined,'rgba(61,216,255,.4)'); for(let x=0;x<4;x++) slot(c,cx(3+x),TOPY,[0,1,2,3][x],x&1?'#ff3b6b':'#c9c9ff');
     for(let i=0;i<7;i++) slot(c,cx(i),TABY,S.t[i].length?undefined:(ANY?'ANY':RL[R]),'rgba(255,210,63,.5)');
     const dragSet=drag?new Set(drag.cards):null, list=Object.keys(P).map(Number);
     const zz=k=>{ const v=vis[k],p=P[k]; return p.z+(Math.abs(v.x-p.x)+Math.abs(v.y-p.y)>3?1000:0)+(dragSet&&dragSet.has(k)?3000:0); }; list.sort((a,b)=>zz(a)-zz(b));
     const hs=hint?hintCards(hint.m):null;
-    for(const k of list){ const v=vis[k]; let x=v.x,y=v.y; if(dragSet&&dragSet.has(k)){ const i=drag.cards.indexOf(k); x=drag.x-drag.dx; y=drag.y-drag.dy+i*36; }
+    for(const k of list){ const v=vis[k]; let x=v.x,y=v.y; if(dragSet&&dragSet.has(k)){ const i=drag.cards.indexOf(k); x=drag.x-drag.dx; y=drag.y-drag.dy+i*OU; }
       if(v.sh>0) x+=Math.sin(v.sh*60)*5; if(dragSet&&dragSet.has(k)){ c.shadowColor='#000'; c.shadowBlur=18; c.shadowOffsetY=8; } drawCard(c,k,x,y,v.f,S.L[k]); c.shadowBlur=0; c.shadowOffsetY=0;
       const sel=(jok&&jok.h&&srcCards(jok.h).includes(k))||(hs&&hs.includes(k)); if(sel){ const col=jok&&jok.h?'#ff3bd4':'#ffd23f'; c.strokeStyle=col; c.lineWidth=3; c.shadowColor=col; c.shadowBlur=16+Math.sin(t*8)*6; rr(c,x,y,CW,CH,9); c.stroke(); c.shadowBlur=0; } }
     if(hint){ const d=hintDest(hint.m); if(d){ c.strokeStyle='#ffd23f'; c.lineWidth=3; c.setLineDash([8,6]); c.shadowColor='#ffd23f'; c.shadowBlur=14; rr(c,d.x,d.y,CW,d.h||CH,9); c.stroke(); c.setLineDash([]); c.shadowBlur=0; } }
-    if(jok===1){ c.fillStyle='#ff3bd4'; c.font='bold 18px Orbitron,sans-serif'; c.textAlign='center'; c.fillText('🃏 JOKER: TAP ANY CARD',W/2,INFOY); } else if(jok){ c.fillStyle='#ff3bd4'; c.font='bold 18px Orbitron,sans-serif'; c.textAlign='center'; c.fillText('🃏 NOW TAP ANY COLUMN',W/2,INFOY); }
-    if(stuck&&!lost&&!done){ c.fillStyle='rgba(5,0,20,.88)'; rr(c,30,400,W-60,150,16); c.fill(); c.strokeStyle='#ff3bd4'; c.lineWidth=2; c.stroke(); c.fillStyle='#fff'; c.font='bold 22px Orbitron,sans-serif'; c.textAlign='center'; c.fillText('NO MOVES LEFT',W/2,440);
-      [['↩️ UNDO',120,'#3dd8ff'],['👁️ REVEAL',300,'#3dd8ff'],['🔄 REDEAL −1♦',480,'#ff3b6b']].forEach(([s,x,col])=>{ c.strokeStyle=col; c.lineWidth=2; rr(c,x-82,470,164,64,12); c.stroke(); c.fillStyle='rgba(255,255,255,.07)'; c.fill(); c.fillStyle=col; c.font='bold 21px sans-serif'; c.fillText(s,x,510); }); }
+    if(stuck&&!lost&&!done){ c.fillStyle='rgba(5,0,20,.9)'; rr(c,350,395,580,155,16); c.fill(); c.strokeStyle='#ff3bd4'; c.lineWidth=2; c.stroke(); c.fillStyle='#fff'; c.font='bold 24px Orbitron,sans-serif'; c.textAlign='center'; c.fillText('NO MOVES LEFT',640,438);
+      [['↩️ UNDO',SB[0],'#3dd8ff'],['👁️ REVEAL',SB[1],'#3dd8ff'],['🔄 REDEAL −1♦',SB[2],'#ff3b6b']].forEach(([s,x,col])=>{ c.strokeStyle=col; c.lineWidth=2; rr(c,x-82,470,164,64,12); c.stroke(); c.fillStyle='rgba(255,255,255,.07)'; c.fill(); c.fillStyle=col; c.font='bold 21px sans-serif'; c.fillText(s,x,510); }); }
     if(outMsg&&lost){ c.fillStyle='rgba(0,0,0,.5)'; c.fillRect(0,0,W,H); c.fillStyle='#ff3b6b'; c.font='bold 34px Orbitron,sans-serif'; c.textAlign='center'; c.shadowColor='#ff3b6b'; c.shadowBlur=20; c.fillText(outMsg,W/2,H/2); c.shadowBlur=0; } },
-  attract(c,tt){ bg(c,tt); if(!faces) return; for(let i=0;i<13;i++){ const a=tt*0.8+i*0.48; const x=W/2-CW/2+Math.cos(a)*190, y=H/2-CH/2+Math.sin(a*1.3)*240; c.drawImage(faces[(i%4)*13+12-i],x,y,CW,CH); } }
+  attract(c,tt){ bg(c,tt); if(!faces) return; for(let i=0;i<13;i++){ const a=tt*0.8+i*0.48; const x=W/2-CW/2+Math.cos(a)*420, y=H/2-CH/2+Math.sin(a*1.3)*190; c.drawImage(faces[(i%4)*13+12-i],x,y,CW,CH); } }
 };
+/* right info panel (x 992..1268, y 232..508) — clear of the HUD strip and the action button below it */
+function panel(c){ c.fillStyle='rgba(5,0,20,.45)'; rr(c,PX0,232,PX1-PX0,276,14); c.fill(); c.strokeStyle='rgba(255,210,63,.35)'; c.lineWidth=1.5; c.stroke();
+  const mx=(PX0+PX1)/2; c.textAlign='center'; c.font='bold 20px Orbitron,sans-serif'; c.fillStyle='#3dd8ff'; c.fillText('DRAW '+K+(ANY?' · ANY ON EMPTY':''),mx,266);
+  c.font='bold 30px Orbitron,sans-serif';
+  if(tLim){ const s=Math.max(0,Math.ceil(tLeft)); c.fillStyle=tLeft<15?(Math.floor(t*4)%2?'#ff3b6b':'#fff'):'#ffd23f'; c.fillText('⏱ '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0'),mx,312); }
+  else if(mLim){ c.fillStyle=mLim-moves<=5?'#ff3b6b':'#ffd23f'; c.fillText(moves+' / '+mLim,mx,312); c.font='bold 14px sans-serif'; c.fillText('MOVES',mx,332); }
+  else { c.fillStyle='rgba(255,210,63,.75)'; c.fillText('MOVES '+moves,mx,312); }
+  c.font='bold 17px Orbitron,sans-serif'; c.fillStyle='#fff'; c.fillText('HOME '+(S?sum(S.f):0)+' / '+N,mx,362);
+  if(jok){ c.fillStyle='#ff3bd4'; c.font='bold 17px Orbitron,sans-serif'; c.fillText(jok===1?'🃏 TAP ANY CARD':'🃏 TAP ANY COLUMN',mx,400); }
+  else if(!raceOn){ c.fillStyle='rgba(255,255,255,.45)'; c.font='bold 14px sans-serif'; c.fillText('Tap a card = best move',mx,400); c.fillText('Slide to choose the spot',mx,422); c.fillText('💡 HINT is free',mx,444); } }
+/* RACE: the shell puts the progress bars at the top-centre — over the deck/homes row. Park them in the info panel instead. */
+let raceOn=false;
+function placeBars(){ if(typeof document==='undefined') return; const el=document.getElementById('mpBars'), on=!!(el&&el.style.display!=='none'&&el.innerHTML); raceOn=on; if(!on) return;
+  const cv=document.getElementById('game')||document.querySelector('canvas'); if(!cv) return; const b=cv.getBoundingClientRect(), k=b.width/W; const S2=(p,v)=>el.style.setProperty(p,v,'important');
+  S2('left',(b.left+(PX0+10)*k)+'px'); S2('top',(b.top+418*k)+'px'); S2('bottom','auto'); S2('transform','none'); S2('flex-direction','column'); S2('max-width',((PX1-PX0-20)*k)+'px'); }
 function hintCards(m){ if(m.k==='wf'||m.k==='wt') return S.w.length?[S.w[S.w.length-1]]:[]; if(m.k==='tf') return S.t[m.a].slice(-1); if(m.k==='tt') return S.t[m.a].slice(m.i); if(m.k==='ft') return [m.x*13+S.f[m.x]-1]; if(m.k==='d') return S.s.length?[S.s[S.s.length-1]]:[]; return []; }
 function hintDest(m){ if(m.k==='wf'||m.k==='tf'){ const c=hintCards(m)[0]; return c===undefined?null:{x:cx(3+su(c)),y:TOPY}; } if(m.k==='d') return {x:cx(0),y:TOPY}; if(m.to!==undefined){ const p=colTop(m.to); return {x:p.x,y:p.y}; } return null; }
 })();
