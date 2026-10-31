@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-TS-1.0 · 2026-10-17">
+<meta name="build" content="BUILD-TS-1.1 · 2026-10-26">
 <title>Tower Stack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-TS-1.0 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-TS-1.1 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,78 +489,87 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* TOWER STACK — stack-the-tower remix (#58). 100 stages. Drop each sliding block onto the tower; whatever hangs over gets sliced off. */
+/* TOWER STACK — stack-the-tower remix (#58). 100 stages. Drop each sliding block onto the tower; whatever hangs over gets sliced off.
+   1.1 (26 Oct): LANDSCAPE 1280x720 (flatter view, crane swings the block far left/right across the wide screen, camera rises),
+   RACE mode (block start sides come from the seeded stage RNG), stage clock (idle = lose a life), Beginner 1-10 much easier
+   (slow, wide PERFECT window, target outline + NOW! glow, 2 free misses). DROP only on tap / SPACE / button. */
 (function(){
-const W=600,H=900,BH=34,K=0.866*1.15,KZ=0.5*1.15,R=240,BASE=150;
-let api,t,tower,cur,falls,rings,done,lost,eff,grace,combo,placed,goal,hueBase,anchor,anchorT,wind,sway,stars,dropCD,perfects,miss;
+const W=1280,H=720,BH=34,K=1.0,KZ=0.32,R=380,BASE=150,ANC=360;
+let api,t,clock,clock0,easyB,freeMiss,wait,seed,anc0,tower,cur,falls,rings,done,lost,eff,grace,combo,placed,goal,hueBase,anchor,anchorT,wind,sway,stars,dropCD,perfects,miss;
 const hsl=(h,s,l,a)=>`hsla(${h%360},${s}%,${l}%,${a===undefined?1:a})`;
 const GAME=window.GAME={
   id:'tower-stack',title:'Tower Stack',titleHTML:'TOWER<br>STACK',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-TS-1.0 · 2026-10-17',theme:{a:'#ff4fd8',b:'#3bf0ff',bg:'#0b0620'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🧱',joystick:false,coinPts:40,
+  build:'BUILD-TS-1.1 · 2026-10-26',theme:{a:'#ff4fd8',b:'#3bf0ff',bg:'#0b0620'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🧱',joystick:false,coinPts:40,
   abilities:[
-    {id:'drop',icon:'⬇️',name:'DROP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — drop the sliding block. Or just tap the game.'},
+    {id:'drop',icon:'⬇️',name:'DROP',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — drop the swinging block. Or just tap the game.'},
     {id:'slow',icon:'🐌',name:'SLOW SLIDE',cd:16,key:'Digit1',keyLabel:'1',desc:'Blocks slide at half speed for 6 seconds.'},
     {id:'rebuild',icon:'🔧',name:'REBUILD',cd:22,key:'Digit2',keyLabel:'2',desc:'The top of your tower grows back to full size.'},
     {id:'magnet',icon:'🧲',name:'PERFECT MAGNET',cd:20,key:'Digit3',keyLabel:'3',desc:'For 6 seconds, close drops snap into a PERFECT drop.'}],
   shop:[{id:'t_n',cat:'Blocks',name:'Neon Rainbow',cost:0,colors:['#ff4fd8'],desc:'Classic.'},{id:'t_g',cat:'Blocks',name:'Gold Rush',cost:150,colors:['#ffc23b'],desc:'Shiny gold tower.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff4fd8,#3bf0ff)'}],
   story:`<h3>TOWER STACK</h3><p>The city wants the tallest tower in the world, and you're the only crane driver brave enough. Every block counts.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>A block slides over your tower. <b>Tap</b> (or SPACE) to drop it.</li><li>Any part hanging over the edge gets sliced off — the tower gets thinner.</li><li>Land it <b>PERFECT</b> to keep the full size. 3 perfects in a row makes the tower grow back!</li><li>Miss completely, or get too thin, and you lose a life.</li><li>Stack the number of floors shown at the top to clear the stage.</li></ul>`,
-  tutorial:[{text:'PRACTICE: tap when the block is right over the tower!',ev:'place'},{text:'Try to land it PERFECTLY lined up!',ev:'perfect'},{text:'Finish the practice tower!',time:6}],
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>The crane swings a block across the screen over your tower. <b>Phone:</b> tap anywhere on the game (or the ⬇️ button, bottom-right, right thumb) to drop it. <b>PC:</b> SPACE or click. Abilities: left side (left thumb), or keys 1 2 3.</li><li>Any part hanging over the edge gets sliced off — the tower gets thinner.</li><li>Land it <b>PERFECT</b> to keep the full size. 3 perfects in a row makes the tower grow back!</li><li>Miss completely, or get too thin, and you lose a life.</li><li>Stack the number of floors shown at the top to clear the stage before the ⏱ clock (right side) runs out — if it runs out you lose a life.</li><li>Race mode: both players get the same tower — first to finish wins.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. Press SPACE (or click) when the block is right over the tower!',touch:'Hold your phone sideways. Tap the screen (or ⬇️ bottom-right) when the block is over the tower!',ev:'place'},{text:'Try to land it PERFECTLY lined up!',ev:'perfect'},{text:'Finish the practice tower!',time:6}],
   stageIntro:{1:'STACK THE TOWER'},bossName:'THE STORM TOWER!',ending:{"0":["#SKYSCRAPER","The tallest tower in town."],"1":["#MEGA TOWER","It touches the clouds."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ const tot={slow:6,magnet:6}[id]; return tot?{left:Math.max(0,eff[id]),total:tot}:null; },
-  _dbg(){ return {get cur(){return cur;}, get top(){return topW();}, get tower(){return tower;}, get placed(){return placed;}, get goal(){return goal;}, get lost(){return lost;}, get done(){return done;}, drop:()=>drop()}; },
+  _dbg(){ return {get cur(){return cur;}, get top(){return topW();}, get tower(){return tower;}, get placed(){return placed;}, get goal(){return goal;}, get lost(){return lost;}, get done(){return done;}, get clock(){return clock;}, get easyB(){return easyB;}, get seed(){return seed;}, get tol(){return tolV();}, foot:()=>curFoot(), drop:()=>drop()}; },
   init(a){api=a;},
-  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=0.6; eff={slow:-9,magnet:-9}; combo=0; placed=0; perfects=0; miss=0; falls=[]; rings=[]; dropCD=0;
+  startStage(n,a){ api=a; t=0; done=false; lost=false; grace=0.6; wait=0; seed=(Math.random()*1e9)|0; // race: shell seeds Math.random -> same seed on both phones
+    easyB=api.diff===0&&a.content!==0&&a.level<=10; freeMiss=easyB?2:0; anc0=a.content===0?470:ANC; eff={slow:-9,magnet:-9}; combo=0; placed=0; perfects=0; miss=0; falls=[]; rings=[]; dropCD=0;
     hueBase=api.cos('Blocks').id==='t_g'?38:(n*37)%360; wind=0; sway={x:0,z:0};
     tower=[]; for(let k=0;k<4;k++) tower.push({x0:-BASE/2,x1:BASE/2,z0:-BASE/2,z1:BASE/2,k,base:true});
-    goal=a.content===0?5:Math.round(a.dv([10,15,20],26,36)*(a.boss?1.1:1));
-    anchorT=anchor=560+tower.length*BH; stars=[...Array(80)].map(()=>({x:Math.random()*W,y:Math.random()*H*2,s:Math.random()*2+.5,d:Math.random()*.4+.1}));
+    goal=a.content===0?5:easyB?6+Math.floor(a.level/2):Math.round(a.dv([10,15,20],26,36)*(a.boss?1.1:1));
+    clock0=clock=a.content===0?999:goal*(easyB?10:a.dv([8,6,5],4,3.2))+4;
+    anchorT=anchor=anc0+tower.length*BH; stars=[...Array(140)].map((_,i)=>({x:(i*9301+49297)%1280,y:(i*233280*0.37)%(H*2),s:(i%4)*0.5+.5,d:(i%5)*.08+.1}));
     newCur(); },
-  respawn(){ lost=false; grace=0.8; combo=0; const tp=topW(); const cx=(tp.x0+tp.x1)/2-sway.x, cz=(tp.z0+tp.z1)/2-sway.z; tower.push({x0:cx-BASE/2,x1:cx+BASE/2,z0:cz-BASE/2,z1:cz+BASE/2,k:tower.length,rescue:true}); api.fx.flash('#3bf0ff',.25); newCur(); },
+  respawn(){ lost=false; grace=0.8; combo=0; wait=0; clock=Math.max(clock,(goal-placed)*(easyB?10:api.dv([8,6,5],4,3.2))+4); clock0=Math.max(clock0,clock); const tp=topW(); const cx=(tp.x0+tp.x1)/2-sway.x, cz=(tp.z0+tp.z1)/2-sway.z; tower.push({x0:cx-BASE/2,x1:cx+BASE/2,z0:cz-BASE/2,z1:cz+BASE/2,k:tower.length,rescue:true}); api.fx.flash('#3bf0ff',.25); newCur(); },
   stageBonus(){ return perfects*60+(miss===0?300:0); },
-  useAbility(id){ if(done||lost) return false;
+  useAbility(id){ if(done||lost||wait>0) return false;
     if(id==='drop') return drop();
     if(id==='rebuild'){ const tp=tower[tower.length-1]; const cx=(tp.x0+tp.x1)/2, cz=(tp.z0+tp.z1)/2; tp.x0=cx-BASE/2; tp.x1=cx+BASE/2; tp.z0=cz-BASE/2; tp.z1=cz+BASE/2; const a=cur.axis; resizeCur(); cur.axis=a; api.sfx.power(); rings.push({k:tp.k,r:0,c:'#3bf0ff'}); api.fx.flash('#3bf0ff',.2); return true; }
     eff[id]={slow:6,magnet:6}[id]; api.sfx.power(); return true; },
   onPointer(type,x,y){ if(type==='down') drop(); },
   update(dt){ t+=dt; for(const k in eff) if(eff[k]>-2) eff[k]-=dt; grace-=dt; dropCD-=dt;
-    anchorT=560+tower.length*BH; anchor+=(anchorT-anchor)*Math.min(1,dt*5);
+    anchorT=anc0+tower.length*BH; if(wait>0&&(wait-=dt)<=0){ wait=0; newCur(); } anchor+=(anchorT-anchor)*Math.min(1,dt*5);
     // boss: the whole tower sways in the storm
-    if(api.boss){ const A=api.dv([22,34,46],55,70), w=api.dv([1,1.4,1.8],2.1,2.6); sway={x:Math.sin(t*w)*A,z:Math.cos(t*w*0.8)*A*0.8}; } else sway={x:0,z:0};
+    if(api.boss){ const A=api.dv([22,34,46],55,70)*(easyB?0.5:1), w=api.dv([1,1.4,1.8],2.1,2.6); sway={x:Math.sin(t*w)*A,z:Math.cos(t*w*0.8)*A*0.8}; } else sway={x:0,z:0};
     falls.forEach(f=>{ f.vy+=1600*dt; f.y-=f.vy*dt; f.rot+=f.rv*dt; f.dx+=f.vx*dt; f.a-=dt*0.5; });
     falls=falls.filter(f=>f.a>0&&f.y>-1500);
     rings.forEach(r=>r.r+=dt*2.2); rings=rings.filter(r=>r.r<1);
-    if(done||lost) return;
+    if(done||lost||!cur) return;
+    if(grace<=0&&api.content!==0){ clock-=dt; if(clock<=0){ clock=0; lost=true; combo=0; api.sfx.hurt(); api.fx.shake(8); api.toast("⏱ TIME'S UP!"); cur=null; setTimeout(()=>api.loseLife(),700); return; } }
     const K2=api.input.keys; if(K2.Space&&!this._s) drop(); this._s=K2.Space; if(K2.Enter&&!this._e) drop(); this._e=K2.Enter;
-    let sp=api.dv([170,260,340],420,800)*(eff.slow>0?0.5:1); if(api.boss) sp*=1.25+0.35*Math.sin(t*2.7);
+    let sp=(easyB?105+api.level*6:api.dv([170,260,340],420,800)*(api.diff>0?1.15:1))*(eff.slow>0?0.5:1); if(api.boss) sp*=1.25+0.35*Math.sin(t*2.7);
     if(grace<=0){ cur.pos+=cur.dir*sp*dt; if(cur.pos>R){ cur.pos=R; cur.dir=-1; } if(cur.pos<-R){ cur.pos=-R; cur.dir=1; } }
     const wl=api.level; wind=(!api.boss&&wl>=30&&api.content!==0)?Math.sin(t*2.3)*api.dv([0,14,24],30,40)*Math.min(1,(wl-29)/20):0;
     api.counter('🏢 FLOORS',Math.max(0,goal-placed)); },
   render(c){ const h=tower.length*BH, prog=Math.min(1,h/2400);
     const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,hsl(250+prog*30,60,8+prog*2)); g.addColorStop(1,hsl(hueBase+300,55,28-prog*14)); c.fillStyle=g; c.fillRect(0,0,W,H);
-    stars.forEach(s=>{ const y=((s.y+(anchor-560)*s.d*0.3)%(H*1.2)); c.globalAlpha=(0.25+prog*0.6)*(0.6+0.4*Math.sin(t*2+s.x)); c.fillStyle='#fff'; c.fillRect(s.x,y,s.s,s.s); }); c.globalAlpha=1;
+    stars.forEach(s=>{ const y=((s.y+(anchor-anc0)*s.d*0.3)%(H*1.2)); c.globalAlpha=(0.25+prog*0.6)*(0.6+0.4*Math.sin(t*2+s.x)); c.fillStyle='#fff'; c.fillRect(s.x,y,s.s,s.s); }); c.globalAlpha=1;
     // city skyline that falls away as the tower rises
-    const cy=800+(anchor-696)*0.5; if(cy<H+200){ c.fillStyle=hsl(hueBase+260,40,12); for(let i=0;i<14;i++){ const bw=40+((i*37)%30), bh=80+((i*73)%160); c.fillRect(i*45-10,cy-bh,bw,H); c.fillStyle='rgba(255,230,140,.35)'; for(let wy=cy-bh+10;wy<cy;wy+=18) for(let wx=i*45-4;wx<i*45-10+bw-6;wx+=12) if(((wx*7+wy*3)|0)%5) c.fillRect(wx,wy,4,7); c.fillStyle=hsl(hueBase+260,40,12); } }
+    const cy=H-10+(anchor-anc0-4*BH)*0.5; if(cy<H+200){ c.fillStyle=hsl(hueBase+260,40,12); for(let i=0;i<30;i++){ const bw=40+((i*37)%30), bh=80+((i*73)%160); c.fillRect(i*45-10,cy-bh,bw,H); c.fillStyle='rgba(255,230,140,.35)'; for(let wy=cy-bh+10;wy<cy;wy+=18) for(let wx=i*45-4;wx<i*45-10+bw-6;wx+=12) if(((wx*7+wy*3)|0)%5) c.fillRect(wx,wy,4,7); c.fillStyle=hsl(hueBase+260,40,12); } }
     // tower (only the part on screen)
     const top=tower.length; for(let i=0;i<top;i++){ const b=tower[i]; const by=yOf(b.k); if(by>H+80||by<-60) continue; const fr=top>1?i/(top-1):1; drawBox(c,b.x0+sway.x*fr,b.x1+sway.x*fr,b.z0+sway.z*fr,b.z1+sway.z*fr,b.k,0,0,1); }
     // perfect rings
     rings.forEach(r=>{ const b=tower[r.k]; if(!b) return; const e=r.r*30; c.globalAlpha=1-r.r; c.strokeStyle=r.c; c.lineWidth=4; c.shadowColor=r.c; c.shadowBlur=20; diamond(c,b.x0-e+sway.x,b.x1+e+sway.x,b.z0-e+sway.z,b.z1+e+sway.z,yOf(b.k)-BH); c.stroke(); c.shadowBlur=0; c.globalAlpha=1; });
     // moving block + guide
-    if(cur&&!lost&&!done){ const f=curFoot(); const tp=topW();
+    if(cur&&!lost&&!done){ const f=curFoot(); const tp=topW(); const yt=yOf(tower.length)-BH, ctr=sp((f.x0+f.x1)/2,(f.z0+f.z1)/2,yt);
+      // crane: rail + trolley + cable down to the swinging block
+      c.strokeStyle='rgba(255,210,63,.55)'; c.lineWidth=4; c.beginPath(); c.moveTo(150,78); c.lineTo(1130,78); c.stroke(); c.strokeStyle='rgba(255,255,255,.7)'; c.lineWidth=2; c.beginPath(); c.moveTo(ctr[0],84); c.lineTo(ctr[0],ctr[1]); c.stroke(); c.fillStyle='#ffd23f'; c.fillRect(ctr[0]-16,72,32,14);
+      if(easyB||api.content===0){ const near=Math.abs((cur.axis==='x'?f.x0-tp.x0:f.z0-tp.z0))<=tolV()+4; c.strokeStyle=near?'#39ff6a':'rgba(255,255,255,.55)'; c.lineWidth=near?4:2; c.setLineDash([8,6]); diamond(c,tp.x0,tp.x1,tp.z0,tp.z1,yt); c.stroke(); c.setLineDash([]); if(near){ c.font='bold 40px sans-serif'; c.textAlign='center'; c.lineWidth=6; c.strokeStyle='#000'; c.strokeText('NOW!',W/2+250,yt+30); c.fillStyle='#39ff6a'; c.fillText('NOW!',W/2+250,yt+30); } }
       c.globalAlpha=0.25; c.fillStyle='#fff'; diamond(c,f.x0,f.x1,f.z0,f.z1,yOf(tower.length-1)-BH); c.fill(); c.globalAlpha=1; // shadow on tower
       if(eff.magnet>0){ c.strokeStyle='#ffd23f'; c.setLineDash([8,6]); c.lineWidth=2; diamond(c,tp.x0,tp.x1,tp.z0,tp.z1,yOf(tower.length)-BH); c.stroke(); c.setLineDash([]); }
       drawBox(c,f.x0,f.x1,f.z0,f.z1,tower.length,0,0,1,true); }
     // falling slices
     falls.forEach(f=>{ c.save(); c.globalAlpha=Math.max(0,Math.min(1,f.a)); const sc=sp(f.cx,f.cz,yOf(f.k)-BH/2); c.translate(sc[0]+f.dx,sc[1]-f.y); c.rotate(f.rot); c.translate(-sc[0],-sc[1]); drawBox(c,f.x0,f.x1,f.z0,f.z1,f.k,0,0,1); c.restore(); });
     // combo
-    if(combo>=2&&!done){ c.fillStyle='#fff'; c.shadowColor=hsl(hueBase+tower.length*7,90,60); c.shadowBlur=18; c.font='bold 30px sans-serif'; c.textAlign='center'; c.fillText('PERFECT x'+combo,W/2,250); c.shadowBlur=0; }
+    if(combo>=2&&!done){ c.fillStyle='#fff'; c.shadowColor=hsl(hueBase+tower.length*7,90,60); c.shadowBlur=18; c.font='bold 30px sans-serif'; c.textAlign='center'; c.fillText('PERFECT x'+combo,1000,200); c.shadowBlur=0; }
+    if(api.content!==0&&!done){ const f=clock/Math.max(1,clock0), x=1222, y0=150, hh=330; c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(x-4,y0-4,28,hh+8); c.fillStyle=f<.25?(t%0.5<.25?'#ff3b3b':'#ff8a3b'):f<.5?'#ffd23f':'#3bf0ff'; c.fillRect(x,y0+hh*(1-f),20,hh*f); c.fillStyle='#fff'; c.font='bold 22px sans-serif'; c.textAlign='center'; c.fillText('⏱',x+10,y0-12); c.font='bold 18px sans-serif'; c.fillText(Math.ceil(clock)+'s',x+10,y0+hh+28); }
     if(api.boss&&!done){ c.fillStyle='rgba(180,220,255,.5)'; for(let i=0;i<40;i++){ const x=(i*97+t*600)%(W+100)-50, y=(i*131+t*900)%H; c.fillRect(x,y,2,14); } }
   },
-  attract(c,tt){ c.fillStyle='#0b0620'; c.fillRect(0,0,W,H); const n=12; for(let k=0;k<n;k++){ const s=BASE*(1-k*0.03); drawBoxAt(c,W/2,800-k*BH,s,(tt*40+k*12)%360); } const off=Math.sin(tt*2)*200; drawBoxAt(c,W/2+off,800-n*BH-10,BASE*0.64,(tt*40+n*12)%360); }
+  attract(c,tt){ c.fillStyle='#0b0620'; c.fillRect(0,0,W,H); const n=12; for(let k=0;k<n;k++){ const s=BASE*(1-k*0.03); drawBoxAt(c,W/2,660-k*BH,s,(tt*40+k*12)%360); } const off=Math.sin(tt*2)*420; drawBoxAt(c,W/2+off,660-n*BH-10,BASE*0.64,(tt*40+n*12)%360); }
 };
-function OXc(x,z){ return W/2+(x-z)*K; }
 function yOf(k){ return anchor-k*BH; } // screen y of the BOTTOM of floor k at x=z=0
 function sp(x,z,yb){ return [W/2+(x-z)*K, yb+(x+z)*KZ]; }
 function diamond(c,x0,x1,z0,z1,yb){ const a=sp(x0,z0,yb),b=sp(x1,z0,yb),d=sp(x1,z1,yb),e=sp(x0,z1,yb); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.lineTo(...d); c.lineTo(...e); c.closePath(); }
@@ -580,23 +589,27 @@ function drawBox(c,x0,x1,z0,z1,k,ox,oy,alpha,moving){ const yb=yOf(k), yt=yb-BH;
   c.globalAlpha/=alpha; }
 function drawBoxAt(c,x,y,s,hue){ const h=s/2; const pts=(dx,dz,dy)=>[x+(dx-dz)*K,y+(dx+dz)*KZ-dy]; c.fillStyle=hsl(hue,80,34); let a=pts(h,-h,BH),b=pts(h,h,BH),d=pts(h,h,0),e=pts(h,-h,0); c.beginPath(); [a,b,d,e].forEach(p=>c.lineTo(...p)); c.fill(); c.fillStyle=hsl(hue,80,48); a=pts(-h,h,BH); b=pts(h,h,BH); d=pts(h,h,0); e=pts(-h,h,0); c.beginPath(); [a,b,d,e].forEach(p=>c.lineTo(...p)); c.fill(); c.fillStyle=hsl(hue,80,64); c.shadowColor=hsl(hue,100,60); c.shadowBlur=14; a=pts(-h,-h,BH); b=pts(h,-h,BH); d=pts(h,h,BH); e=pts(-h,h,BH); c.beginPath(); [a,b,d,e].forEach(p=>c.lineTo(...p)); c.fill(); c.shadowBlur=0; }
 function topW(){ const b=tower[tower.length-1]; return {x0:b.x0+sway.x,x1:b.x1+sway.x,z0:b.z0+sway.z,z1:b.z1+sway.z}; }
-function newCur(){ const tp=tower[tower.length-1]; const axis=tower.length%2?'x':'z'; cur={axis,pos:(tower.length%4<2?-R:R),dir:tower.length%4<2?1:-1,w:tp.x1-tp.x0,d:tp.z1-tp.z0,cx:(tp.x0+tp.x1)/2,cz:(tp.z0+tp.z1)/2}; }
+function sideFor(k){ let h=Math.imul(seed^Math.imul(k+1,0x9e3779b1),0x85ebca6b)>>>0; h^=h>>>13; h=Math.imul(h,0xc2b2ae35)>>>0; h^=h>>>16; return (h&1)===0; } // same seed + floor = same side on both racers' phones
+function tolV(){ return api.content===0||easyB?12:api.dv([7,5,4],3,2.2); }
+function newCur(){ const tp=tower[tower.length-1]; const axis=tower.length%2?'x':'z', L=sideFor(tower.length); cur={axis,pos:L?-R:R,dir:L?1:-1,w:tp.x1-tp.x0,d:tp.z1-tp.z0,cx:(tp.x0+tp.x1)/2,cz:(tp.z0+tp.z1)/2}; }
 function resizeCur(){ const tp=tower[tower.length-1]; cur.w=tp.x1-tp.x0; cur.d=tp.z1-tp.z0; cur.cx=(tp.x0+tp.x1)/2; cur.cz=(tp.z0+tp.z1)/2; }
 function curFoot(){ const o=cur.pos+wind; const ox=cur.axis==='x'?o:0, oz=cur.axis==='z'?o:0; return {x0:cur.cx-cur.w/2+ox,x1:cur.cx+cur.w/2+ox,z0:cur.cz-cur.d/2+oz,z1:cur.cz+cur.d/2+oz}; }
-function drop(){ if(done||lost||!cur||dropCD>0||grace>0) return false; dropCD=0.12;
+function drop(){ if(done||lost||wait>0||!cur||dropCD>0||grace>0) return false; dropCD=0.12;
   const f=curFoot(), tp=topW(); const ax=cur.axis; const a0=ax==='x'?tp.x0:tp.z0, a1=ax==='x'?tp.x1:tp.z1; let b0=ax==='x'?f.x0:f.z0, b1=ax==='x'?f.x1:f.z1;
-  const off=b0-a0, tol=api.content===0?10:api.dv([7,5,4],3,2.2)+(eff.magnet>0?34:0);
-  const minW=api.content===0?8:api.dv([12,16,20],24,30);
+  const off=b0-a0, tol=tolV()+(eff.magnet>0?34:0);
+  const minW=api.content===0||easyB?6:api.dv([12,16,20],24,30);
   const k=tower.length;
   if(Math.abs(off)<=tol){ // PERFECT
     b0=a0; b1=a1; combo++; perfects++; api.sfx.coin(); api.event('perfect'); api.event('place');
     let nb={x0:f.x0,x1:f.x1,z0:f.z0,z1:f.z1,k}; if(ax==='x'){ nb.x0=a0; nb.x1=a1; } else { nb.z0=a0; nb.z1=a1; }
-    if(combo>=3){ const gx=Math.min(BASE,(nb.x1-nb.x0)+10), gz=Math.min(BASE,(nb.z1-nb.z0)+10); const cx=(nb.x0+nb.x1)/2, cz=(nb.z0+nb.z1)/2; nb.x0=cx-gx/2; nb.x1=cx+gx/2; nb.z0=cz-gz/2; nb.z1=cz+gz/2; api.fx.text(W/2,300,'GROW!','#3bf0ff',22); }
+    if(combo>=3){ const gx=Math.min(BASE,(nb.x1-nb.x0)+10), gz=Math.min(BASE,(nb.z1-nb.z0)+10); const cx=(nb.x0+nb.x1)/2, cz=(nb.z0+nb.z1)/2; nb.x0=cx-gx/2; nb.x1=cx+gx/2; nb.z0=cz-gz/2; nb.z1=cz+gz/2; api.fx.text(W/2,220,'GROW!','#3bf0ff',22); }
     place(nb); rings.push({k,r:0,c:'#fff'}); api.addScore(100*(1+combo*0.5)*(1+api.dk*.5),W/2,yOf(k)-60); if(combo>=2) api.fx.flash('#fff',.12);
     api.fx.burst(W/2,yOf(k)-BH,'#fff',18,260,.5,3); return true; }
   const o0=Math.max(a0,b0), o1=Math.min(a1,b1);
   if(o1-o0<minW){ // miss / too thin
-    combo=0; miss++; falls.push(mkFall(f,k,(off>0?1:-1)*90)); api.sfx.hurt(); api.fx.shake(10); lost=true; api.toast(o1-o0<=0?'MISSED THE TOWER!':'TOO THIN!'); cur=null; setTimeout(()=>api.loseLife(),900); return true; }
+    combo=0; miss++; falls.push(mkFall(f,k,(off>0?1:-1)*90)); api.sfx.hurt(); api.fx.shake(10);
+    if(freeMiss>0){ freeMiss--; cur=null; wait=0.9; api.toast('MISSED! FREE TRY ('+freeMiss+' left)'); return true; }
+    lost=true; api.toast(o1-o0<=0?'MISSED THE TOWER!':'TOO THIN!'); cur=null; setTimeout(()=>api.loseLife(),900); return true; }
   // slice
   combo=0; const keep={...f,k}; const cut={...f};
   if(ax==='x'){ keep.x0=o0; keep.x1=o1; if(b0<a0){ cut.x0=b0; cut.x1=a0; } else { cut.x0=a1; cut.x1=b1; } }
@@ -607,7 +620,7 @@ function mkFall(f,k,vx){ const cx=(f.x0+f.x1)/2, cz=(f.z0+f.z1)/2; return {x0:f.
 function place(nb){ // store without the storm sway
   nb.x0-=sway.x; nb.x1-=sway.x; nb.z0-=sway.z; nb.z1-=sway.z; tower.push(nb); placed++;
   api.fx.burst(W/2,yOf(nb.k)-BH,hsl(hueBase+nb.k*7,90,65),10,180,.4,3);
-  if(placed>=goal){ done=true; cur=null; api.toast(api.boss?'THE STORM TOWER STANDS!':'TOWER COMPLETE!'); api.sfx.clear(); api.fx.flash('#fff',.35); for(let i=0;i<4;i++) setTimeout(()=>api.fx.burst(100+Math.random()*400,200+Math.random()*300,hsl(Math.random()*360,90,65),30,320,.9,4),i*180); setTimeout(()=>api.stageClear(),1200); return; }
+  if(placed>=goal){ done=true; cur=null; api.toast(api.boss?'THE STORM TOWER STANDS!':'TOWER COMPLETE!'); api.sfx.clear(); api.fx.flash('#fff',.35); for(let i=0;i<4;i++) setTimeout(()=>api.fx.burst(200+Math.random()*880,150+Math.random()*300,hsl(Math.random()*360,90,65),30,320,.9,4),i*180); setTimeout(()=>api.stageClear(),1200); return; }
   newCur(); }
 })();
 
