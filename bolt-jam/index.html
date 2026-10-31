@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-BJ-1.1 · 2026-10-17">
+<meta name="build" content="BUILD-BJ-1.2 · 2026-10-26">
 <title>Bolt Jam</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-BJ-1.1 · 2026-10-17 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-BJ-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,68 +489,167 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* BOLT JAM — screw puzzle remix (#31) — PROTOTYPE: 3 test stages */
+/* BOLT JAM — screw-sorting puzzle remix. 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1, 1.2) + RACE.
+   Board (plates + bolts) centred; boxes + waiting tray in the right panel; clock + next boxes on the left panel.
+   Keep-clear (game px): top 0-76 HUD, left 0-140 ability column, x>980&&y>520 action button. Race bars parked in the right panel.
+   Every stage is built from ONE seed (taken from Math.random at stage start -> same board for both racers, same board after a lost life).
+   Guaranteed solvable: we record a legal unscrew order, colour the bolts in threes along it, shuffle a little and re-check by simulation. */
 (function(){
-const W=600, H=900, BR=17, SLOTS=5;
+const W=1280,H=720,BR=22,BX0=310,BX1=960,BY0=92,BY1=704,PX=990,PW=275,BOXY=88,TRY=286,LX=150,LW=145;
 const COL=['#ff3b5c','#2ec4ff','#ffe14a','#3bff7a','#c45cff','#ff9a2e','#f0f0ff'];
-let api,t,plates,bolts,boxes,tray,done,lost,nC,falling,hintT,hintB,drill;
-function rnd(n){ return Math.floor(Math.random()*n); }
-function freeBolt(b){ return !b.gone && !plates.some(p=>!p.gone && p.layer>b.layer && b.x>p.x-4 && b.x<p.x+p.w+4 && b.y>p.y-4 && b.y<p.y+p.h+4); }
-function remainingCols(){ const s=new Set(); bolts.forEach(b=>{ if(!b.gone) s.add(b.col); }); tray.forEach(c=>s.add(c)); return [...s]; }
-function newBox(){ const need={}; bolts.forEach(b=>{ if(!b.gone) need[b.col]=(need[b.col]||0)+1; }); tray.forEach(c=>need[c]=(need[c]||0)+1); boxes.forEach(bx=>{ if(bx) need[bx.col]=(need[bx.col]||0)-(3-bx.n); });
-  const cands=Object.keys(need).filter(k=>need[k]>0).map(Number); if(!cands.length) return null; const fromTray=cands.filter(c=>tray.includes(c)); const pool=fromTray.length&&Math.random()<.6?fromTray:cands; return {col:pool[rnd(pool.length)],n:0}; }
-function makeStage(n,a){ nC=n===0?3:Math.min(7,Math.round(a.dv([4,5,6],7,7))); const layers=n===0?2:Math.min(9,Math.round(a.dv([3,5,7],8,10)));
-  plates=[]; bolts=[]; const cols=[];
-  for(let l=0;l<layers;l++){ const k=1+rnd(2); for(let j=0;j<k;j++){ const w=160+rnd(200), h=70+rnd(90); const x=40+rnd(W-80-w), y=260+rnd(420-h); plates.push({x,y,w,h,layer:l,gone:false,vy:0,col:`hsl(${(l*47+j*90)%360},45%,${30+l*3}%)`});
-    const nb=2+rnd(2); for(let q=0;q<nb;q++) bolts.push({x:x+18+rnd(w-36),y:y+18+rnd(h-36),layer:l,plate:plates.length-1,col:-1,gone:false}); } }
-  while(bolts.length%3) bolts.pop();
-  for(let i=0;i<bolts.length;i+=3){ const c=rnd(nC); cols.push(c,c,c); } cols.sort(()=>Math.random()-.5); bolts.forEach((b,i)=>b.col=cols[i]); }
-const GAME = window.GAME = {
-  id:'bolt-jam', title:'Bolt Jam', titleHTML:'BOLT<br>JAM', tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-BJ-1.1 · 2026-10-17', theme:{a:'#ff9a2e', b:'#2ec4ff', bg:'#14161c'},
-  w:W, h:H, stages:100,  lives:3, livesIcon:'🔩', joystick:false, coinPts:40,
+const NAMES=['RED','BLUE','YELLOW','GREEN','PURPLE','ORANGE','WHITE'];
+let api,t=0,plates,bolts,Q,S,cap,clock,limit,done,lost,hintT=0,hintB=null,drill=false,cur=-1,showCur=false,prevK={},anims=[],pops=[],seed=0,sol=[],easy=false,raceOn=false,shk=0;
+function mul(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+let rng=Math.random; const ri=n=>Math.floor(rng()*n), rf=(a,b)=>a+rng()*(b-a);
+/* ---------- puzzle state machine (shared by the game and the solvability check) ---------- */
+function covered(b,gone,pg){ for(let i=0;i<plates.length;i++){ const p=plates[i]; if(pg[i]||p.layer<=b.layer) continue; const m=BR*.55; if(b.x>p.x-m&&b.x<p.x+p.w+m&&b.y>p.y-m&&b.y<p.y+p.h+m) return true; } return false; }
+function supply(St,c){ let n=0; bolts.forEach((b,i)=>{ if(!St.gone[i]&&b.col===c) n++; }); St.tray.forEach(x=>{ if(x===c) n++; }); return n; }
+function need(St,c,skip){ let n=supply(St,c); St.boxes.forEach((bx,i)=>{ if(bx&&i!==skip&&bx.col===c) n-=3-bx.n; }); return n; }
+function newBox(St,i){ while(St.qi<Q.length){ const c=Q[St.qi++]; if(need(St,c,i)>0) return {col:c,n:0}; }
+  let best=-1,bn=0; for(let c=0;c<COL.length;c++){ const k=need(St,c,i); if(k>bn){ bn=k; best=c; } } return best<0?null:{col:best,n:0}; }
+function settle(St,on){ let moved=true,guard=0; while(moved&&guard++<200){ moved=false;
+    for(let i=0;i<St.boxes.length;i++){ const bx=St.boxes[i];
+      if(bx&&bx.n>=3){ on&&on('full',i,bx.col); St.boxes[i]=null; }
+      else if(bx&&supply(St,bx.col)===0){ St.boxes[i]=null; }
+      if(!St.boxes[i]){ const nb=newBox(St,i); if(nb){ St.boxes[i]=nb; moved=true; } } }
+    for(let k=0;k<St.tray.length;k++){ const bi=St.boxes.findIndex(x=>x&&x.col===St.tray[k]&&x.n<3); if(bi>=0){ St.boxes[bi].n++; on&&on('drain',bi,k); St.tray.splice(k,1); moved=true; break; } } } }
+function take(St,i,on){ const b=bolts[i]; St.gone[i]=1; let where;
+  const bi=St.boxes.findIndex(x=>x&&x.col===b.col&&x.n<3); if(bi>=0){ St.boxes[bi].n++; where={box:bi,k:St.boxes[bi].n-1}; } else { St.tray.push(b.col); where={tray:St.tray.length-1}; }
+  const pi=b.plate; if(!bolts.some((q,j)=>!St.gone[j]&&q.plate===pi)){ St.pg[pi]=1; on&&on('plate',pi); }
+  settle(St,on); return where; }
+function fresh(){ const St={gone:new Uint8Array(bolts.length),pg:new Uint8Array(plates.length),boxes:[null,null],tray:[],qi:0}; settle(St); return St; }
+function simOK(order,maxT){ const St=fresh(); let mx=0; for(const i of order){ take(St,i); mx=Math.max(mx,St.tray.length); if(mx>maxT) return false; } return !St.tray.length; }
+/* ---------- stage builder ---------- */
+function build(){ const L=api.level,tut=api.tutorial,boss=api.boss&&!tut;
+  const nC=tut?2:easy?(L<=3?3:4):Math.min(7,Math.round(api.dv([4,5,6],7,7))+(boss?1:0));
+  const layers=tut?2:easy?(L<=4?2:3):Math.min(11,Math.round(api.dv([3,5,7],8,10))+(boss?1:0));
+  for(let tries=0;tries<40;tries++){ plates=[]; bolts=[];
+    for(let l=0;l<layers;l++){ const k=tut?1:1+(rng()<(easy?.35:.6)?1:0);
+      for(let j=0;j<k;j++){ const w=rf(200,380)|0,h=rf(120,250)|0,x=BX0+((rng()+rng())/2*(BX1-BX0-w)|0),y=BY0+((rng()+rng())/2*(BY1-BY0-h)|0); const pi=plates.length;
+        const hue=(l*53+j*140+seed%360)%360; plates.push({x,y,w,h,layer:l,hue,vy:0,rot:0,vr:0,fy:0});
+        const nb=tut?3:2+(rng()<.5?1:0); let put=0;
+        for(let a=0;a<40&&put<nb;a++){ const bx=x+28+rng()*(w-56),by=y+28+rng()*(h-56); if(bolts.some(q=>Math.hypot(q.x-bx,q.y-by)<BR*2.5)) continue; bolts.push({x:bx,y:by,layer:l,plate:pi,col:0}); put++; }
+        if(!put) plates.pop(); } }
+    if(bolts.length%3) continue; if(bolts.length<6) continue;
+    /* a legal order: keep unscrewing a random free bolt */
+    const gone=new Uint8Array(bolts.length),pg=new Uint8Array(plates.length),order=[];
+    while(order.length<bolts.length){ const fr=[]; bolts.forEach((b,i)=>{ if(!gone[i]&&!covered(b,gone,pg)) fr.push(i); }); if(!fr.length) break; const i=fr[ri(fr.length)]; gone[i]=1; order.push(i); const pi=bolts[i].plate; if(!bolts.some((q,j)=>!gone[j]&&q.plate===pi)) pg[pi]=1; }
+    if(order.length<bolts.length) continue;
+    Q=[]; let last=-1; for(let k=0;k<order.length;k+=3){ let c=ri(nC); if(c===last&&rng()<.8) c=(c+1+ri(nC-1))%nC; last=c; Q.push(c); order.slice(k,k+3).forEach(i=>bolts[i].col=c); }
+    const maxT=easy||tut?2:api.diff===2?cap-1:cap-2, swaps=tut?0:easy?1+(L>>2):Math.round(api.dv([6,16,28],34,48)), win=easy?3:Math.round(api.dv([4,7,10],12,16));
+    for(let s=0;s<swaps;s++){ const a=ri(order.length),b=Math.min(order.length-1,a+1+ri(win)); const A=bolts[order[a]],B=bolts[order[b]]; if(A.col===B.col) continue; [A.col,B.col]=[B.col,A.col]; if(!simOK(order,maxT)) [A.col,B.col]=[B.col,A.col]; }
+    if(!simOK(order,maxT)) continue; sol=order; return true; }
+  /* fallback (never seen): one plate per layer in a column, solid colours */
+  plates=[]; bolts=[]; Q=[]; sol=[]; for(let l=0;l<3;l++){ plates.push({x:BX0+60+l*60,y:BY0+40+l*60,w:300,h:200,layer:l,hue:l*90,vy:0,rot:0,vr:0,fy:0}); for(let k=0;k<3;k++){ bolts.push({x:BX0+110+l*60+k*90,y:BY0+140+l*60,layer:l,plate:l,col:l}); } Q.push(l); }
+  for(let i=bolts.length-1;i>=0;i--) sol.push(i); return true; }
+/* ---------- helpers ---------- */
+const isFree=i=>!S.gone[i]&&!covered(bolts[i],S.gone,S.pg);
+const left=()=>bolts.reduce((n,b,i)=>n+(S.gone[i]?0:1),0);
+function boxPos(i,k){ return {x:PX+92+k*66,y:BOXY+46+i*96}; }
+function trayPos(k){ const per=cap>5?4:5,sp=cap>5?62:54; return {x:PX+30+(k%per)*sp+(cap>5?12:0),y:TRY+52+Math.floor(k/per)*58}; }
+function tap(i){ if(done||lost||S.gone[i]) return; drill=false; hintT=0; const b=bolts[i];
+  const fx=b.x,fy=b.y; const before=S.tray.length;
+  const w=take(S,i,(e,a,b2)=>{ if(e==='full'){ const p=boxPos(a,1); api.addScore(150*(1+api.dk*.5),p.x,p.y); api.sfx.pickup(); pops.push({x:p.x,y:p.y,c:COL[b2],t:0}); api.fx.burst(p.x,p.y,COL[b2],18,260,.6,4); }
+    else if(e==='plate'){ const p=plates[a]; p.vr=(rng()-.5)*2; p.vy=-120; api.sfx.small(); } });
+  const to=w.box!==undefined?boxPos(w.box,w.k):trayPos(w.tray); anims.push({x:fx,y:fy,tx:to.x,ty:to.y,c:b.col,t:0});
+  api.sfx.click(); api.addScore(20*(1+api.dk*.5),fx,fy); if(w.box!==undefined) api.event('box');
+  if(cur===i) cur=-1;
+  if(!left()&&!S.tray.length){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); return; }
+  if(S.tray.length>=cap){ lost=true; api.toast('TRAY FULL!'); api.sfx.hurt(); shk=.5; setTimeout(()=>{ if(lost) api.loseLife(); },900); }
+  else if(S.tray.length>before&&S.tray.length>=cap-1) api.toast('TRAY ALMOST FULL!'); }
+function pick(dx,dy){ const fr=bolts.map((b,i)=>i).filter(isFree); if(!fr.length) return; if(cur<0||S.gone[cur]){ cur=fr[0]; return; }
+  const c=bolts[cur]; let best=-1,bs=1e9; fr.forEach(i=>{ if(i===cur) return; const ex=bolts[i].x-c.x,ey=bolts[i].y-c.y,f=ex*dx+ey*dy; if(f<=4) return; const s=f+Math.abs(ex*dy-ey*dx)*2.2; if(s<bs){ bs=s; best=i; } }); if(best>=0) cur=best; }
+function placeBars(){ const el=document.getElementById('mpBars'),on=!!(el&&el.style.display!=='none'&&el.innerHTML); raceOn=on; if(!on) return;
+  const cv=document.getElementById('game')||document.querySelector('canvas'); if(!cv) return; const b=cv.getBoundingClientRect(),k=b.width/W,S2=(p,v)=>el.style.setProperty(p,v,'important');
+  S2('left',(b.left+(PX+4)*k)+'px'); S2('top',(b.top+440*k)+'px'); S2('bottom','auto'); S2('transform','none'); S2('flex-direction','column'); S2('max-width',(PW*k)+'px'); }
+const GAME=window.GAME={
+  id:'bolt-jam',title:'Bolt Jam',titleHTML:'BOLT<br>JAM',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-BJ-1.2 · 2026-10-26',theme:{a:'#ff9a2e',b:'#2ec4ff',bg:'#14161c'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🔩',joystick:false,coinPts:40,
   abilities:[
-    {id:'hint', icon:'💡', name:'HINT', cd:10, key:'Digit1', keyLabel:'1', desc:'Shows a bolt that fits a box.'},
-    {id:'slot', icon:'➕', name:'+SLOT', cd:20, key:'Digit2', keyLabel:'2', desc:'Empties the tray into a spare box.'},
-    {id:'drill', icon:'🪛', name:'DRILL', cd:20, key:'Digit3', keyLabel:'3', desc:'Next tap removes a covered bolt.'},
-    {id:'shake', icon:'🔀', name:'NEW BOX', cd:10, key:'Digit4', keyLabel:'4', desc:'Swaps the box colours.'}],
+    {id:'unscrew',icon:'🔧',name:'UNSCREW',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — unscrews the bolt your cursor is on (PC: pick it with the arrow keys). On a phone just tap the bolt.'},
+    {id:'hint',icon:'💡',name:'HINT',cd:10,key:'Digit1',keyLabel:'1',desc:'Lights up a good bolt to unscrew next.'},
+    {id:'slot',icon:'🧺',name:'EMPTY TRAY',cd:20,key:'Digit2',keyLabel:'2',desc:'Throws away every bolt in the waiting tray.'},
+    {id:'drill',icon:'🪛',name:'DRILL',cd:20,key:'Digit3',keyLabel:'3',desc:'Your next tap can unscrew a bolt that is covered by a plate.'}],
   shop:[{id:'k_s',cat:'Bolts',name:'Steel',cost:0,colors:[0],desc:'Steel bolts.'},{id:'b_w',cat:'Bench',name:'Workbench',cost:0,colors:['#14161c','#2a2e38'],desc:'Garage bench.'},{id:'b_b',cat:'Bench',name:'Blueprint',cost:180,colors:['#0a1a3a','#123a6a'],desc:'Blueprint.'}],
-  premium:[{name:'Ultimate Pack', price:'$3', desc:'Everything in the shop.', swatch:'linear-gradient(90deg,#ff9a2e,#2ec4ff)'}],
-  story:`<h3>BOLT JAM</h3><p>Unscrew the bolts into the matching boxes until every plate drops away.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li>Tap a bolt that isn't covered by a plate above it.</li><li>It goes into the box of its colour, or the waiting tray.</li><li>3 bolts fill a box. If the tray fills up (5), you lose a life.</li><li>Plates drop when all their bolts are out.</li></ul>`,
-  tutorial:[{text:'Tap a bolt with the same colour as a box at the top.', ev:'box'},{text:'Clear every bolt!', time:6}],
-  stageIntro:{1:'UNSCREW EVERYTHING'}, bossName:'MEGA MACHINE!', ending:{"0":["#FIXED","The machine is fixed."],"1":["#ENGINEER","Chief engineer."],"2":["#LEGEND","Impossible. You did it."]},
-  _dbg(){ return {get bolts(){return bolts;}, get boxes(){return boxes;}, get tray(){return tray;}, tap:(b)=>tapBolt(b), free:freeBolt, get lost(){return lost;}}; },
-  abTime(id){ if(id==='hint') return {left:Math.max(0,hintT),total:3}; if(id==='drill'&&drill) return {left:1,total:1,label:'TAP'}; return null; },
+  premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff9a2e,#2ec4ff)'}],
+  story:`<h3>BOLT JAM</h3><p>The machine shop is jammed! Unscrew the coloured bolts into their matching boxes until every metal plate drops off the bench.</p>`,
+  howto:`<h3>HOW TO PLAY</h3><ul><li>Hold your phone <b>sideways</b>.</li><li>Unscrew a bright bolt — dark bolts are stuck under a plate on top.</li><li>It flies into the <b>box</b> of its colour (right side). 3 bolts fill a box and a new box arrives. No box for it? It waits in the <b>tray</b>.</li><li>If the tray fills up, or the clock (left side) runs out, you lose a life — your board stays.</li><li>Plates drop when all their bolts are out. Clear every bolt to win.</li><li><b>Phone:</b> tap bolts with either thumb. Abilities are on the left edge.</li><li><b>PC:</b> click a bolt, or arrow keys to pick and SPACE to unscrew. 1 = hint, 2 = empty tray, 3 = drill.</li><li><b>👥 RACE A FRIEND:</b> you both get the exact same board — first to clear it wins. Every board can be solved.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. Tap a bright bolt that matches a box on the right!',ev:'box'},{text:'PC: arrow keys pick a bolt, SPACE unscrews it. Clear every bolt!',time:6}],
+  stageIntro:{1:'UNSCREW EVERYTHING'},bossName:'MEGA MACHINE!',ending:{"0":["#FIXED","The machine is fixed."],"1":["#ENGINEER","Chief engineer."],"2":["#LEGEND","Impossible. You did it."]},
+  _dbg(){ return {get bolts(){return bolts;},get plates(){return plates;},get S(){return S;},get sol(){return sol;},get Q(){return Q;},get cap(){return cap;},get clock(){return clock;},get seed(){return seed;},
+    tap:i=>tap(i),free:isFree,setCur:i=>{cur=i;},get lost(){return lost;},get done(){return done;}}; },
+  abTime(id){ if(id==='hint'&&hintT>0) return {left:hintT,total:4}; if(id==='drill'&&drill) return {left:1,total:1,label:'TAP'}; return null; },
   init(a){ api=a; },
-  startStage(n,a){ api=a; this._n=n; t=0; done=false; lost=false; tray=[]; falling=[]; hintT=0; drill=false; makeStage(n,a); boxes=[null,null]; boxes[0]=newBox(); boxes[1]=newBox(); },
-  respawn(){ this.startStage(this._n, api); },
-  stageBonus(){ return 0; },
-  useAbility(id){ if(done||lost) return false;
-    if(id==='hint'){ hintB=bolts.find(b=>freeBolt(b)&&boxes.some(x=>x&&x.col===b.col)); hintT=3; return !!hintB; }
-    if(id==='slot'){ if(!tray.length) return false; tray=[]; api.sfx.power(); return true; }
-    if(id==='drill'){ drill=true; api.toast('TAP ANY BOLT'); return true; }
-    if(id==='shake'){ boxes=boxes.map(b=>b&&b.n===0?newBox():b); api.sfx.blip(); return true; } },
-  onPointer(type,x,y){ if(type!=='down'||done||lost) return; let best=null,bd=40; bolts.forEach(b=>{ if(b.gone) return; const d=Math.hypot(b.x-x,b.y-y); if(d<bd&&(freeBolt(b)||drill)){ bd=d; best=b; } }); if(best) tapBolt(best); },
-  update(dt){ t+=dt; if(hintT>0) hintT-=dt; plates.forEach(p=>{ if(p.gone&&p.y<H+200){ p.vy+=1500*dt; p.y+=p.vy*dt; } }); if(done||lost) return;
-    api.counter('🔩 BOLTS', bolts.filter(b=>!b.gone).length+' left', tray.length>=4?'low':''); },
+  startStage(n,a){ api=a; seed=Math.floor(Math.random()*1e9); this.reset(); },
+  reset(){ t=0; done=false; lost=false; hintT=0; drill=false; cur=-1; showCur=false; anims=[]; pops=[];
+    easy=api.tutorial||(api.diff===0&&api.level<=10); cap=easy?7:api.diff===0&&api.level<=30?6:5;
+    rng=mul(seed); build(); rng=mul(seed^0x5bd1e995); S=fresh();
+    const N=bolts.length; limit=api.tutorial?999:Math.round(easy?40+N*8:15+N*api.dv([6,3.4,2.4],2,1.4)); clock=limit; },
+  respawn(){ /* lost a life: board stays, tray emptied, clock refilled */ lost=false; if(!S){ this.reset(); return; } S.tray=[]; settle(S); clock=limit; drill=false; },
+  stageBonus(){ return Math.max(0,Math.round(clock))*5; },
+  useAbility(id){ if(done||lost||!S) return false;
+    if(id==='unscrew'){ if(cur>=0&&!S.gone[cur]&&(isFree(cur)||drill)){ tap(cur); return true; } showCur=true; pick(1,0); return false; }
+    if(id==='hint'){ const fr=bolts.map((b,i)=>i).filter(isFree); hintB=fr.find(i=>S.boxes.some(x=>x&&x.col===bolts[i].col&&x.n<3)); if(hintB===undefined) hintB=sol.find(i=>isFree(i)); if(hintB===undefined) return false; hintT=4; cur=hintB; return true; }
+    if(id==='slot'){ if(!S.tray.length) return false; S.tray.forEach((c,k)=>{ const p=trayPos(k); api.fx.burst(p.x,p.y,COL[c],8,160,.4,3); }); S.tray=[]; settle(S); api.sfx.power(); return true; }
+    if(id==='drill'){ drill=true; api.toast('TAP ANY BOLT'); return true; } },
+  onPointer(type,x,y){ if(type!=='down'||done||lost||!S) return; let best=-1,bd=BR*2.1; bolts.forEach((b,i)=>{ if(S.gone[i]) return; const d=Math.hypot(b.x-x,b.y-y); if(d<bd&&(drill||isFree(i))){ bd=d; best=i; } });
+    if(best>=0){ showCur=false; tap(best); } else { let cov=bolts.findIndex((b,i)=>!S.gone[i]&&Math.hypot(b.x-x,b.y-y)<BR*1.4); if(cov>=0){ api.sfx.blip&&api.sfx.blip(); pops.push({x:bolts[cov].x,y:bolts[cov].y,c:'#ff4444',t:0,lock:1}); } } },
+  update(dt){ t+=dt; if(hintT>0) hintT-=dt; if(shk>0) shk-=dt;
+    plates&&plates.forEach((p,i)=>{ if(S&&S.pg[i]&&p.fy<H+400){ p.vy+=1500*dt; p.fy+=p.vy*dt; p.rot+=p.vr*dt; } });
+    anims=anims.filter(a=>(a.t+=dt*3.2)<1); pops=pops.filter(p=>(p.t+=dt*1.6)<1);
+    placeBars(); if(done||lost||!S) return;
+    const K=api.input.keys; [['ArrowLeft',-1,0],['ArrowRight',1,0],['ArrowUp',0,-1],['ArrowDown',0,1]].forEach(([k,dx,dy])=>{ if(K[k]&&!prevK[k]){ showCur=true; pick(dx,dy); } prevK[k]=K[k]; });
+    if(cur>=0&&S.gone[cur]) cur=-1;
+    clock-=dt; if(clock<=0){ clock=0; lost=true; api.toast('TIME UP!'); api.sfx.hurt(); setTimeout(()=>{ if(lost) api.loseLife(); },900); }
+    api.counter('🔩 BOLTS',left(),S.tray.length>=cap-1||clock<10?'low':''); },
   render(c){ const bg=api.cos('Bench').colors; const gr=c.createLinearGradient(0,0,0,H); gr.addColorStop(0,bg[0]); gr.addColorStop(1,bg[1]); c.fillStyle=gr; c.fillRect(0,0,W,H);
-    boxes.forEach((b,i)=>{ const x=80+i*250; c.fillStyle='#333'; c.fillRect(x,40,190,70); if(!b) return; c.fillStyle=COL[b.col]; c.fillRect(x,40,190,14); for(let k=0;k<3;k++){ c.strokeStyle='#666'; c.beginPath(); c.arc(x+40+k*55,85,BR,0,7); c.stroke(); if(k<b.n) bolt(c,x+40+k*55,85,b.col); } });
-    c.fillStyle='rgba(0,0,0,0.4)'; c.fillRect(60,140,480,60); for(let k=0;k<SLOTS;k++){ c.strokeStyle=tray.length>=4?'#ff3b3b':'#555'; c.beginPath(); c.arc(108+k*96,170,BR+2,0,7); c.stroke(); if(k<tray.length) bolt(c,108+k*96,170,tray[k]); }
-    plates.slice().sort((a,b)=>a.layer-b.layer).forEach(p=>{ if(p.y>H+150) return; c.fillStyle=p.col; c.globalAlpha=0.92; c.fillRect(p.x,p.y,p.w,p.h); c.globalAlpha=1; c.strokeStyle='rgba(255,255,255,0.3)'; c.strokeRect(p.x,p.y,p.w,p.h);
-      bolts.forEach(b=>{ if(!b.gone && b.layer===p.layer && b.plate===plates.indexOf(p)) bolt(c,b.x,b.y,b.col, !freeBolt(b), hintT>0&&hintB===b); }); }); },
-  attract(c,tt){ c.fillStyle='#14161c'; c.fillRect(0,0,W,H); for(let i=0;i<20;i++) bolt(c,(i*97)%W,(i*137+tt*40)%H,i%7); }
+    c.save(); if(shk>0) c.translate((Math.random()-.5)*12*shk,0);
+    /* pegboard bench */ c.fillStyle='rgba(255,255,255,0.035)'; for(let y=BY0+8;y<BY1;y+=32) for(let x=BX0+8;x<BX1;x+=32){ c.beginPath(); c.arc(x,y,3,0,7); c.fill(); }
+    c.strokeStyle='rgba(255,154,46,0.35)'; c.lineWidth=3; rr(c,BX0-8,BY0-8,BX1-BX0+16,BY1-BY0+12,14); c.stroke();
+    if(!S){ c.restore(); return; }
+    /* plates bottom -> top, each with its own bolts and empty holes */
+    const order=plates.map((p,i)=>i).sort((a,b)=>plates[a].layer-plates[b].layer);
+    order.forEach(pi=>{ const p=plates[pi]; if(p.fy>H+300) return; c.save(); c.translate(p.x+p.w/2,p.y+p.h/2+p.fy); c.rotate(p.rot); c.globalAlpha=S.pg[pi]?.85:.88;
+      const g=c.createLinearGradient(-p.w/2,-p.h/2,p.w/2,p.h/2); g.addColorStop(0,`hsl(${p.hue},38%,${46}%)`); g.addColorStop(1,`hsl(${p.hue},42%,${24}%)`); c.fillStyle=g; rr(c,-p.w/2,-p.h/2,p.w,p.h,16); c.fill();
+      c.globalAlpha=1; c.strokeStyle='rgba(255,255,255,0.35)'; c.lineWidth=2; c.stroke(); c.strokeStyle='rgba(0,0,0,0.35)'; c.lineWidth=1; rr(c,-p.w/2+6,-p.h/2+6,p.w-12,p.h-12,11); c.stroke();
+      bolts.forEach((b,i)=>{ if(b.plate!==pi) return; const x=b.x-p.x-p.w/2,y=b.y-p.y-p.h/2; c.fillStyle='rgba(0,0,0,0.55)'; c.beginPath(); c.arc(x,y,BR*.62,0,7); c.fill(); });
+      c.restore();
+      bolts.forEach((b,i)=>{ if(b.plate!==pi||S.gone[i]) return; const fr=isFree(i); bolt(c,b.x,b.y,b.col,!fr&&!drill,hintT>0&&hintB===i,drill&&!fr); }); });
+    /* keyboard cursor */ if(showCur&&cur>=0&&!S.gone[cur]){ const b=bolts[cur]; c.strokeStyle='#fff'; c.lineWidth=3; c.setLineDash([6,5]); c.lineDashOffset=-t*30; c.beginPath(); c.arc(b.x,b.y,BR+9,0,7); c.stroke(); c.setLineDash([]); }
+    pops.forEach(p=>{ c.globalAlpha=1-p.t; c.strokeStyle=p.c; c.lineWidth=4; c.beginPath(); c.arc(p.x,p.y,(p.lock?BR:30)+p.t*30,0,7); c.stroke(); if(p.lock){ c.fillStyle='#fff'; c.font='bold 18px sans-serif'; c.textAlign='center'; c.fillText('🔒',p.x,p.y-BR-10-p.t*14); } c.globalAlpha=1; });
+    panelR(c); panelL(c);
+    anims.forEach(a=>{ const e=1-(1-a.t)*(1-a.t),x=a.x+(a.tx-a.x)*e,y=a.y+(a.ty-a.y)*e-Math.sin(a.t*Math.PI)*90; bolt(c,x,y,a.c,false,false,false,a.t*9); });
+    c.restore(); },
+  attract(c,tt){ c.fillStyle='#14161c'; c.fillRect(0,0,W,H); for(let i=0;i<34;i++) bolt(c,(i*157)%W,((i*137+tt*40)%(H+60))-30,i%7,false,false,false,tt+i); }
 };
-function bolt(c,x,y,v,dim,hl){ c.save(); if(hl){ c.shadowColor='#fff45a'; c.shadowBlur=20; } const g=c.createRadialGradient(x-5,y-5,2,x,y,BR); g.addColorStop(0,'#fff'); g.addColorStop(0.3,COL[v]); g.addColorStop(1,'#222'); c.fillStyle=g; c.beginPath(); for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; i?c.lineTo(x+Math.cos(a)*BR,y+Math.sin(a)*BR):c.moveTo(x+Math.cos(a)*BR,y+Math.sin(a)*BR); } c.closePath(); c.fill(); c.strokeStyle='rgba(0,0,0,.5)'; c.lineWidth=3; c.beginPath(); c.moveTo(x-7,y); c.lineTo(x+7,y); c.stroke(); if(dim){ c.fillStyle='rgba(0,0,0,0.5)'; c.fill(); } c.restore(); }
-function tapBolt(b){ drill=false; b.gone=true; api.sfx.click(); api.addScore(20*(1+api.dk*0.5),b.x,b.y);
-  const bi=boxes.findIndex(x=>x&&x.col===b.col&&x.n<3); if(bi>=0){ boxes[bi].n++; api.event('box'); } else tray.push(b.col);
-  const p=plates[b.plate]; if(p && !bolts.some(q=>!q.gone&&q.plate===b.plate)){ p.gone=true; api.sfx.small(); }
-  settle(); }
-function settle(){ let moved=true; while(moved){ moved=false;
-    boxes.forEach((bx,i)=>{ if(bx&&bx.n>=3){ api.addScore(150*(1+api.dk*0.5),180+i*250,80); api.sfx.pickup(); boxes[i]=newBox(); moved=true; } if(!boxes[i]){ boxes[i]=newBox(); if(boxes[i]) moved=true; } });
-    for(let k=0;k<tray.length;k++){ const bi=boxes.findIndex(x=>x&&x.col===tray[k]&&x.n<3); if(bi>=0){ boxes[bi].n++; tray.splice(k,1); moved=true; break; } } }
-  if(!bolts.some(b=>!b.gone) && !tray.length){ done=true; api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),900); return; }
-  if(tray.length>=SLOTS){ lost=true; api.toast('TRAY FULL!'); api.sfx.hurt(); setTimeout(()=>{ lost=false; api.loseLife(); },900); } }
+function panelR(c){ c.fillStyle='rgba(0,0,0,0.38)'; rr(c,PX-6,BOXY-8,PW+12,TRY-BOXY+(cap>5?180:132),14); c.fill();
+  c.textAlign='left'; c.font='bold 16px sans-serif'; c.fillStyle='#ffb35c'; c.fillText('BOXES',PX+6,BOXY+8);
+  for(let i=0;i<2;i++){ const bx=S.boxes[i],y=BOXY+16+i*96; const col=bx?COL[bx.col]:'#555';
+    const g=c.createLinearGradient(PX,y,PX,y+76); g.addColorStop(0,'#3a3326'); g.addColorStop(1,'#1f1a12'); c.fillStyle=g; rr(c,PX+4,y,PW-8,74,10); c.fill(); c.lineWidth=3; c.strokeStyle=col; c.stroke();
+    c.fillStyle=col; rr(c,PX+10,y+8,40,58,8); c.fill(); c.fillStyle='rgba(0,0,0,.55)'; c.font='bold 13px sans-serif'; c.textAlign='center'; c.fillText(bx?bx.n+'/3':'—',PX+30,y+42);
+    for(let k=0;k<3;k++){ const p=boxPos(i,k); c.fillStyle='rgba(0,0,0,.45)'; c.beginPath(); c.arc(p.x,p.y,BR+3,0,7); c.fill(); if(bx&&k<bx.n&&!anims.some(a=>a.tx===p.x&&a.ty===p.y)) bolt(c,p.x,p.y,bx.col,false,false,false,0); } }
+  const full=S.tray.length>=cap-1; c.textAlign='left'; c.font='bold 16px sans-serif'; c.fillStyle=full?'#ff5a5a':'#ffb35c'; c.fillText('WAITING TRAY '+S.tray.length+'/'+cap,PX+6,TRY+16);
+  for(let k=0;k<cap;k++){ const p=trayPos(k); c.strokeStyle=full?(Math.sin(t*10)>0?'#ff3b3b':'#802020'):'#5a5a66'; c.lineWidth=3; c.beginPath(); c.arc(p.x,p.y,BR+3,0,7); c.stroke();
+    if(k<S.tray.length&&!anims.some(a=>a.tx===p.x&&a.ty===p.y)) bolt(c,p.x,p.y,S.tray[k],false,false,false,0); } }
+function panelL(c){ const x=LX,w=LW; c.fillStyle='rgba(0,0,0,0.38)'; rr(c,x,BOXY-8,w,330,14); c.fill(); c.textAlign='center';
+  const cx=x+w/2,cy=BOXY+60,f=limit>0?clock/limit:0,low=clock<10&&limit<999; c.lineWidth=10; c.strokeStyle='rgba(255,255,255,.12)'; c.beginPath(); c.arc(cx,cy,46,0,7); c.stroke();
+  c.strokeStyle=low?'#ff4a4a':f<.35?'#ffd23a':'#3bff7a'; c.beginPath(); c.arc(cx,cy,46,-Math.PI/2,-Math.PI/2+Math.PI*2*f); c.stroke();
+  c.fillStyle=low&&Math.sin(t*10)>0?'#ff4a4a':'#fff'; c.font='bold 26px sans-serif'; c.fillText(limit>=999?'∞':Math.ceil(clock)+'',cx,cy+9); c.font='bold 13px sans-serif'; c.fillStyle='#aab'; c.fillText('TIME',cx,cy+66);
+  c.font='bold 30px sans-serif'; c.fillStyle='#fff'; c.fillText(left(),cx,cy+118); c.font='bold 13px sans-serif'; c.fillStyle='#aab'; c.fillText('BOLTS LEFT',cx,cy+136);
+  c.fillText('NEXT BOXES',cx,cy+172); const nx=[]; for(let q=S.qi;q<Q.length&&nx.length<3;q++) nx.push(Q[q]);
+  nx.forEach((col,k)=>{ c.fillStyle=COL[col]; c.globalAlpha=1-k*.25; rr(c,x+14+k*42,cy+184,34,26,6); c.fill(); }); c.globalAlpha=1; if(!nx.length){ c.fillStyle='#667'; c.fillText('none',cx,cy+202); }
+  if(drill){ c.fillStyle='#ffd23a'; c.font='bold 15px sans-serif'; c.fillText('🪛 DRILL READY',cx,cy+246); } }
+function bolt(c,x,y,v,dim,hl,drillable,spin){ c.save(); c.translate(x,y); c.rotate((spin||0)+v*.4); if(hl){ c.shadowColor='#fff45a'; c.shadowBlur=26+Math.sin(t*8)*8; }
+  c.fillStyle='rgba(0,0,0,.35)'; c.beginPath(); c.arc(3,4,BR,0,7); c.fill();
+  const g=c.createRadialGradient(-6,-6,2,0,0,BR); g.addColorStop(0,'#fff'); g.addColorStop(.3,COL[v]); g.addColorStop(1,'#1a1a1a'); c.fillStyle=g; c.beginPath();
+  for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; c[i?'lineTo':'moveTo'](Math.cos(a)*BR,Math.sin(a)*BR); } c.closePath(); c.fill(); c.shadowBlur=0;
+  c.strokeStyle='rgba(255,255,255,.35)'; c.lineWidth=1.5; c.stroke(); c.strokeStyle='rgba(0,0,0,.6)'; c.lineWidth=4; c.beginPath(); c.moveTo(-9,0); c.lineTo(9,0); c.moveTo(0,-9); c.lineTo(0,9); c.stroke();
+  if(dim){ c.fillStyle='rgba(0,0,0,0.55)'; c.beginPath(); c.arc(0,0,BR+1,0,7); c.fill(); }
+  if(drillable){ c.strokeStyle='#ffd23a'; c.lineWidth=2; c.beginPath(); c.arc(0,0,BR+4,0,7); c.stroke(); }
+  if(hl){ c.strokeStyle='#fff45a'; c.lineWidth=3; c.beginPath(); c.arc(0,0,BR+6,0,7); c.stroke(); }
+  c.restore(); }
+function rr(c,x,y,w,h,r){ r=Math.min(r,w/2,h/2); c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
 })();
 
 </script>
