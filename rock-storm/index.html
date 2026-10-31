@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-RS-1.5 · 2026-10-18">
+<meta name="build" content="BUILD-RS-1.6 · 2026-10-26">
 <title>Rock Storm</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-RS-1.5 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-RS-1.6 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,36 +489,42 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* ROCK STORM — Asteroids remix (#26): fly, blast and survive the storm */
+/* ROCK STORM — Asteroids remix (#26): fly, blast and survive the storm.
+   LANDSCAPE (SHELL-LANDSCAPE-1): a wide 1280x720 space field that wraps at every edge. The stick turns + thrusts the ship
+   (a small push only turns it, to aim); HOLD 🔫 FIRE / SPACE to shoot — never auto-fire. RACE: every stage layout (and every
+   rock split) comes from a generator seeded by the stage number, so both racers fly the same storm. */
 (function(){
-const W=600, H=900, SR=16, SIZES=[0,16,30,52];
-let api, t, ship, rocks, bullets, ebullets, ufos, done, lost, fireT, eff, ufoT, stageN, mouse, inv, boss;
+const W=1280, H=720, CX=640, CY=400, SR=16, SIZES=[0,16,30,52];
+let api, t, ship, rocks, bullets, ebullets, ufos, done, lost, fireT, eff, ufoT, stageN, mouse, inv, boss, SR2=Math.random;
+const easy=()=>api.diff===0&&api.level<=10;   // Beginner stages 1-10 (+ tutorial): very forgiving
 
 function rng(s){ return function(){ s|=0; s=s+0x6D2B79F5|0; let x=Math.imul(s^s>>>15,1|s); x=x+Math.imul(x^x>>>7,61|x)^x; return ((x^x>>>14)>>>0)/4294967296; }; }
 function shape(R){ const n=9+Math.floor(R()*4), pts=[]; for(let i=0;i<n;i++){ pts.push(0.72+R()*0.36); } return pts; }
 function rock(x,y,size,spd,R){ const a=R()*Math.PI*2, s=spd*(0.6+R()*0.8)*(size===1?1.35:size===2?1.1:1); return {x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,size,r:SIZES[size],rot:R()*6,vr:(R()-.5)*2,pts:shape(R),hp:size===4?0:1}; }
 function wrap(o,m){ if(o.x<-m) o.x=W+m; if(o.x>W+m) o.x=-m; if(o.y<-m) o.y=H+m; if(o.y>H+m) o.y=-m; }
-function rockSpeed(){ return api.content===0? 45 : api.dv([50,90,135],175,340); }
+function rockSpeed(){ if(api.content===0) return 40; if(api.diff===0) return api.level<=10? 30+api.level*2.5 : api.dv([44,90,135],175,340); return api.dv([50,90,135],175,340); }
+function rockCount(a){ if(a.diff===0) return a.level<=10? 2+Math.floor(a.level/4) : Math.round(a.dv([3,6,9],12)); return Math.min(30, Math.round(a.dv([3,6,9],12,26)*1.25)); }   // wider field = a few more rocks on Hard/Expert
+function clearAround(x,y,rad){ rocks.forEach(r=>{ const dx=r.x-x, dy=r.y-y, d=Math.hypot(dx,dy)||1; if(d<rad+r.r){ r.x=x+dx/d*(rad+r.r); r.y=y+dy/d*(rad+r.r); } }); }
 
 function makeStage(n,a){
-  const R=rng(n===0?5:n*4271+a.diff*619+7);
-  const count = n===0? 2 : Math.min(26, Math.round(a.dv([3,6,9],12,26)) + (a.boss?2:0));
+  const sd=n===0?5:n*4271+a.diff*619+7, R=rng(sd); SR2=rng(sd^0x5bd1e995);   // seeded by the stage: same storm for every racer
+  const count = n===0? 2 : rockCount(a) + (a.boss?2:0);
   rocks=[]; const sp=rockSpeed();
-  for(let i=0;i<count;i++){ let x,y; do{ x=R()*W; y=R()*H; } while(Math.hypot(x-W/2,y-H/2)<220); rocks.push(rock(x,y,3,sp,R)); }
+  for(let i=0;i<count;i++){ let x,y; do{ x=R()*W; y=R()*H; } while(Math.hypot(x-CX,y-CY)<(easy()?380:300)); rocks.push(rock(x,y,3,sp,R)); }
   // BOSS: a giant armoured rock that takes many hits before it cracks
-  boss=null; if(a.boss){ boss={x:W/2,y:170,vx:sp*0.5,vy:sp*0.3,r:90,rot:0,vr:0.3,pts:shape(R),hp:Math.round(Math.min(160,25+a.level*0.5)),max:0,size:4}; boss.max=boss.hp; rocks.push(boss); }
+  boss=null; if(a.boss){ boss={x:W/2,y:200,vx:sp*0.5,vy:sp*0.3,r:90,rot:0,vr:0.3,pts:shape(R),hp:Math.round(Math.min(160,25+a.level*0.5)),max:0,size:4}; boss.max=boss.hp; rocks.push(boss); }
   ufoT = (n===0 || a.level<25)? 1e9 : a.dv([18,11,6],4,1.2);
 }
 
 const GAME = window.GAME = {
   id:'rock-storm', title:'Rock Storm', titleHTML:'ROCK<br>STORM', tagline:'Blast the rocks · Survive the storm',
-  build:'BUILD-RS-1.5 · 2026-10-18', theme:{a:'#7df9ff', b:'#ff9a2e', bg:'#04030c'},
-  w:W, h:H, stages:100, lives:3, livesIcon:'▲', joystick:true, coinPts:30,
+  build:'BUILD-RS-1.6 · 2026-10-26', theme:{a:'#7df9ff', b:'#ff9a2e', bg:'#04030c'},
+  landscape:true, race:true, w:W, h:H, stages:100, lives:3, livesIcon:'▲', joystick:true, coinPts:30,
   abilities:[
+    {id:'fire', icon:'🔫', name:'FIRE', cd:0, key:'Space', keyLabel:'SPC', desc:'FREE — HOLD to shoot. Let go and the guns stop. Bullets never run out.'},
     {id:'shield', icon:'🛡️', name:'SHIELD', cd:20, key:'Digit1', keyLabel:'1', desc:'Nothing can hurt you for 6 seconds.'},
     {id:'bomb', icon:'💥', name:'NOVA', cd:25, key:'Digit2', keyLabel:'2', desc:'A shockwave that smashes every rock on screen.'},
-    {id:'hyper', icon:'🌀', name:'WARP', cd:10, key:'Digit3', keyLabel:'3', desc:'Teleports you to the safest spot.'},
-    {id:'rapid', icon:'🔥', name:'RAPID', cd:15, key:'Digit4', keyLabel:'4', desc:'Triple fire rate and spread shot for 8 seconds.'}
+    {id:'hyper', icon:'🌀', name:'WARP', cd:10, key:'Digit3', keyLabel:'3', desc:'Teleports you to the safest spot. For 8 seconds after, your FIRE shoots a triple spread.'}
   ],
   shop:[
     {id:'s_cyan', cat:'Ship', name:'Ice Arrow', cost:0, colors:['#7df9ff','#1a5a6a'], desc:'Classic neon ship.'},
@@ -534,32 +540,33 @@ const GAME = window.GAME = {
     {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#7df9ff,#ff9a2e)'}
   ],
   story:`<h3>THE STORM</h3><p>A storm of rocks is heading straight for the last space station, where the whole colony sleeps.</p><p>You're the only pilot on duty. Blast the rocks into dust before they reach the station.</p>`,
-  howto:`<h3>GOAL</h3><p>Destroy every rock.</p><h3>HOW TO PLAY</h3><ul><li><b>Phone:</b> drag anywhere to fly — your ship turns the way you drag.</li><li><b>PC:</b> arrow keys / WASD, or hold the mouse button to fly towards the pointer.</li><li>Your ship fires while you fly (finger on the screen, keys held, or SPACE). Let go and it stops. Bullets are free.</li><li>Big rocks split into smaller, faster rocks.</li><li>Fly off one edge and you come back on the other.</li><li>Later on, <b>UFOs</b> fly in and shoot at you.</li></ul><h3>ABILITIES</h3><ul><li>🛡️ <b>SHIELD</b> <span class="key">1</span> — 6 seconds of safety</li><li>💥 <b>NOVA</b> <span class="key">2</span> — smashes every rock</li><li>🌀 <b>WARP</b> <span class="key">3</span> — jump to the safest spot</li><li>🔥 <b>RAPID</b> <span class="key">4</span> — triple fire + spread shot</li></ul>`,
+  howto:`<h3>HOLD YOUR PHONE SIDEWAYS</h3><p>Destroy every rock to clear the stage. Doing nothing never wins — rocks keep drifting until they hit you.</p><h3>CONTROLS</h3><ul><li><b>Left thumb (phone):</b> the stick turns your ship and pushes it forward. A <b>small</b> push only turns the ship, so you can aim without moving.</li><li><b>Right thumb (phone):</b> HOLD <b>🔫 FIRE</b> to shoot. Let go and the guns stop.</li><li><b>PC:</b> arrow keys / WASD to fly, HOLD <b>SPACE</b> to shoot. Or hold the mouse button to fly towards the pointer.</li><li>Big rocks split into smaller, faster rocks.</li><li>Fly off one edge and you come back on the other.</li><li>Later on, <b>UFOs</b> fly in and shoot at you.</li></ul><h3>ABILITIES</h3><ul><li>🛡️ <b>SHIELD</b> <span class="key">1</span> — 6 seconds of safety</li><li>💥 <b>NOVA</b> <span class="key">2</span> — smashes every rock</li><li>🌀 <b>WARP</b> <span class="key">3</span> — jump to the safest spot, then triple shot for 8 seconds</li></ul><h3>RACE</h3><p>In a multiplayer race everybody gets the exact same storm — first to clear it wins.</p>`,
   tutorial:[
-    {text:'Drag (or use the arrow keys) to fly. Your ship shoots while you fly.', ev:'move'},
-    {text:'Shoot a rock!', ev:'hit'},
+    {text:'Fly with the arrow keys / WASD.', touch:'Left thumb: push the stick to turn and fly.', ev:'move'},
+    {text:'<b>HOLD SPACE</b> to fire. Shoot a rock!', touch:'Right thumb: <b>HOLD 🔫 FIRE</b> to shoot. Hit a rock!', ev:'hit'},
     {text:'Big rocks split into small ones. Destroy a small one!', ev:'kill'},
-    {text:'In trouble? Tap <b>🛡️ SHIELD</b> (key 1).', ev:'ab_shield'},
+    {text:'In trouble? Press <b>1</b> for 🛡️ SHIELD.', touch:'In trouble? Tap <b>🛡️ SHIELD</b> on the left.', ev:'ab_shield'},
     {text:'Destroy every rock to finish the stage!', time:6}
   ],
   stageIntro:{1:'CLEAR THE STORM', 25:'UFOs INCOMING!'},
   bossName:'THE MOTHER ROCK!',
   ending:{"0":["#CLEAR SKIES","The last rock turns to dust and drifts away into the dark.","On the space station, the lights come on one window at a time. The colony wakes up and has no idea how close it came.","#THE PILOT","The station commander finds a single scorch mark on your ship's nose.","She doesn't say anything. She just paints a small gold star next to it.","Tomorrow there'll be another storm. There's always another storm.","But tonight, everyone sleeps."],"1":["#WHERE DO ROCKS COME FROM?","After a hundred storms, you get curious. Rocks don't just fly in formation.","You follow the trail past the moon, past the old mining belt, all the way to a place no map shows.","#THE MOTHER ROCK","It's a rock the size of a city, and it's alive. Every few hours it cracks, and a new storm spills out.","You fight it for three days.","#THE CORE","When it finally breaks, there's something glowing at its heart: a crystal, warm as sunlight.","You bring it home. The station runs on it now: free power for a thousand years.","The colony names the new wing after you.","It has a very big window facing the stars."],"2":["#THE IMPOSSIBLE STORM","Expert was never meant to be finished.","Rocks faster than your eyes. UFOs everywhere. A sky with no safe place in it.","You flew through it a hundred times.","#THE EDGE OF SPACE","After the last storm, the rocks stop coming. For the first time, the sky is completely empty.","Then the stars start to move.","#THE WATCHERS","They were never stars. They were ships: thousands of them, watching the storm from far away for a million years, waiting for someone who could fly through it.","One of them blinks its lights at you. Once. Twice.","It's a greeting.","#LEGEND","They give you a map of the whole galaxy, drawn in light.","The colony will spend the next thousand years exploring it.","Every ship they send has the same name painted on the side. Yours."]},
-  _dbg(){ return {get rocks(){return rocks;}, get ship(){return ship;}, get lost(){return lost;}, restart:()=>GAME.startStage(GAME._n,api), get ufos(){return ufos;}, get eb(){return ebullets;}}; },
+  _dbg(){ return {get rocks(){return rocks;}, get ship(){return ship;}, get lost(){return lost;}, restart:()=>GAME.startStage(GAME._n,api), get ufos(){return ufos;}, get eb(){return ebullets;}, get bullets(){return bullets;}, get done(){return done;}}; },
   init(a){ api=a; },
   startStage(n,a){
-    api=a; this._n=n; stageN=a.content; t=0; done=false; lost=false; bullets=[]; ebullets=[]; ufos=[]; fireT=0; eff={shield:0,rapid:0}; mouse=null; inv=2.5;
-    ship={x:W/2,y:H/2,vx:0,vy:0,a:-Math.PI/2};
+    api=a; this._n=n; stageN=a.content; t=0; done=false; lost=false; bullets=[]; ebullets=[]; ufos=[]; fireT=0; eff={shield:0,rapid:0}; mouse=null; inv=easy()?4:2.5;
+    ship={x:CX,y:CY,vx:0,vy:0,a:-Math.PI/2};
     makeStage(n,a);
   },
-  respawn(){ lost=false; ship={x:W/2,y:H/2,vx:0,vy:0,a:-Math.PI/2}; inv=3; ebullets=[]; rocks.forEach(r=>{ if(Math.hypot(r.x-W/2,r.y-H/2)<160){ r.x=(r.x<W/2?0:W); } }); },
+  respawn(){ lost=false; ship={x:CX,y:CY,vx:0,vy:0,a:-Math.PI/2}; inv=easy()?5:api.diff===0?4:3; ebullets=[]; ufos.forEach(u=>u.fire=Math.max(u.fire,2)); clearAround(CX,CY,api.diff===0?330:220); },   // safe respawn: rocks pushed out of a ring around you
+  abTime(id){ if(id==='shield') return eff&&eff.shield>0?{left:eff.shield,total:6}:null; if(id==='hyper') return eff&&eff.rapid>0?{left:eff.rapid,total:8}:null; return null; },
   stageBonus(){ return 0; },
   useAbility(id){
     if(done||lost) return false;
+    if(id==='fire') return true;
     if(id==='shield'){ eff.shield=6; api.sfx.power(); return true; }
     if(id==='bomb'){ api.fx.flash('#fff',.5); api.fx.shake(14); api.sfx.boom(); const hit=rocks.slice(); hit.forEach(r=>{ if(r.size===4){ r.hp-=Math.ceil(r.max*0.15); if(r.hp<=0) smash(r); } else smash(r); }); ufos.forEach(u=>u.dead=true); api.event('kill'); return true; }
-    if(id==='hyper'){ let best=null, bd=-1; for(let i=0;i<40;i++){ const x=40+Math.random()*(W-80), y=60+Math.random()*(H-120); const d=Math.min(...rocks.map(r=>Math.hypot(r.x-x,r.y-y)-r.r),999); if(d>bd){ bd=d; best={x,y}; } } api.fx.burst(ship.x,ship.y,'#7df9ff',20,200,.5,3); ship.x=best.x; ship.y=best.y; ship.vx=ship.vy=0; inv=Math.max(inv,1.2); api.sfx.power(); return true; }
-    if(id==='rapid'){ eff.rapid=8; api.sfx.power(); return true; }
+    if(id==='hyper'){ let best=null, bd=-1; for(let i=0;i<40;i++){ const x=140+Math.random()*(W-460), y=110+Math.random()*(H-300); const d=Math.min(...rocks.map(r=>Math.hypot(r.x-x,r.y-y)-r.r),999); if(d>bd){ bd=d; best={x,y}; } } api.fx.burst(ship.x,ship.y,'#7df9ff',20,200,.5,3); ship.x=best.x; ship.y=best.y; ship.vx=ship.vy=0; inv=Math.max(inv,1.2); eff.rapid=8; api.sfx.power(); return true; }
   },
   onPointer(type,x,y,id,ptype,buttons){
     if(ptype==='mouse'){ if(type==='down') mouse={x,y}; else if(type==='move' && mouse) mouse={x,y}; else if(type==='up') mouse=null; }
@@ -571,13 +578,14 @@ const GAME = window.GAME = {
     // ---- ship ----
     if(!lost){
       let d=api.input.dir(); if(mouse){ const dx=mouse.x-ship.x, dy=mouse.y-ship.y, m=Math.hypot(dx,dy); d = m>20? {x:dx/m,y:dy/m} : {x:0,y:0}; }
-      const m=Math.hypot(d.x,d.y);
-      if(m>0.1){ const ta=Math.atan2(d.y,d.x); let da=((ta-ship.a+Math.PI*3)%(Math.PI*2))-Math.PI; ship.a+=da*Math.min(1,dt*12); ship.vx+=Math.cos(ship.a)*620*Math.min(1,m)*dt; ship.vy+=Math.sin(ship.a)*620*Math.min(1,m)*dt; api.event('move'); }
+      const m=Math.min(1,Math.hypot(d.x,d.y));
+      if(m>0.1){ const ta=Math.atan2(d.y,d.x); let da=((ta-ship.a+Math.PI*3)%(Math.PI*2))-Math.PI; ship.a+=da*Math.min(1,dt*12); const th=m<0.45?0:(m-0.3)/0.7;   // small push = turn/aim only
+        ship.vx+=Math.cos(ship.a)*620*th*dt; ship.vy+=Math.sin(ship.a)*620*th*dt; ship.th=th; api.event('move'); } else ship.th=0;
       ship.vx*=Math.pow(0.35,dt); ship.vy*=Math.pow(0.35,dt); const sp=Math.hypot(ship.vx,ship.vy); if(sp>420){ ship.vx*=420/sp; ship.vy*=420/sp; }
       ship.x+=ship.vx*dt; ship.y+=ship.vy*dt; wrap(ship,SR);
-      // auto-fire (bullets are free)
-      fireT-=dt; if(fireT<=0&&(m>0.1||mouse||api.input.keys.Space)){ fireT = eff.rapid>0? 0.09 : 0.26; const spread = eff.rapid>0? [-0.18,0,0.18] : [0];
-        spread.forEach(o=>bullets.push({x:ship.x+Math.cos(ship.a)*SR,y:ship.y+Math.sin(ship.a)*SR,vx:Math.cos(ship.a+o)*760+ship.vx*0.3,vy:Math.sin(ship.a+o)*760+ship.vy*0.3,l:0.75})); }
+      // guns: ONLY while FIRE (Space) is held
+      fireT-=dt; if(fireT<=0&&api.input.keys.Space){ fireT = eff.rapid>0? 0.12 : 0.22; const spread = eff.rapid>0? [-0.18,0,0.18] : [0];
+        spread.forEach(o=>bullets.push({x:ship.x+Math.cos(ship.a)*SR,y:ship.y+Math.sin(ship.a)*SR,vx:Math.cos(ship.a+o)*760+ship.vx*0.3,vy:Math.sin(ship.a+o)*760+ship.vy*0.3,l:0.85})); }
     }
     // ---- bullets ----
     bullets.forEach(b=>{ b.x+=b.vx*dt; b.y+=b.vy*dt; b.l-=dt; wrap(b,4); });
@@ -589,13 +597,13 @@ const GAME = window.GAME = {
     // ---- rocks ----
     rocks.forEach(r=>{ r.x+=r.vx*dt; r.y+=r.vy*dt; r.rot+=r.vr*dt; wrap(r,r.r); });
     // ---- UFOs (from level 20) ----
-    ufoT-=dt; if(ufoT<=0 && stageN>0){ ufoT=api.dv([16,10,6],4,1.2); const left=Math.random()<.5; ufos.push({x:left?-30:W+30,y:120+Math.random()*(H-300),vx:(left?1:-1)*api.dv([90,130,170],200,300),fire:2}); }
+    ufoT-=dt; if(ufoT<=0 && stageN>0){ ufoT=api.dv([16,10,6],4,1.2); const left=Math.random()<.5; ufos.push({x:left?-30:W+30,y:130+Math.random()*(H-330),vx:(left?1:-1)*api.dv([90,130,170],200,300),fire:2}); }
     ufos.forEach(u=>{ u.x+=u.vx*dt; u.y+=Math.sin(t*2+u.x*0.01)*40*dt; u.fire-=dt; if(u.fire<=0 && !lost){ u.fire=api.dv([3,1.8,1],0.8,0.25); const a=Math.atan2(ship.y-u.y,ship.x-u.x)+(Math.random()-.5)*api.dv([0.5,0.3,0.15],0.12,0.02); const s=api.dv([200,300,400],480,700); ebullets.push({x:u.x,y:u.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:2.5}); api.sfx.shoot(); } if(u.x<-60||u.x>W+60) u.dead=true; });
     ufos=ufos.filter(u=>!u.dead);
     ebullets.forEach(b=>{ b.x+=b.vx*dt; b.y+=b.vy*dt; b.l-=dt; }); ebullets=ebullets.filter(b=>b.l>0 && b.x>-10 && b.x<W+10 && b.y>-10 && b.y<H+10);
     // ---- collisions with the ship ----
     if(!lost && inv<=0 && eff.shield<=0){
-      for(const r of rocks){ if(Math.hypot(r.x-ship.x,r.y-ship.y)<r.r*0.85+SR*0.7){ crash(); break; } }
+      for(const r of rocks){ if(Math.hypot(r.x-ship.x,r.y-ship.y)<r.r*(easy()?0.7:0.85)+SR*0.7){ crash(); break; } }
       if(!lost) for(const b of ebullets){ if(Math.hypot(b.x-ship.x,b.y-ship.y)<SR){ b.l=0; crash(); break; } }
       if(!lost) for(const u of ufos){ if(Math.hypot(u.x-ship.x,u.y-ship.y)<30){ crash(); break; } }
     }
@@ -606,7 +614,7 @@ const GAME = window.GAME = {
   render(c){
     const bg=api.cos('Space').colors, sc=api.cos('Ship').colors;
     const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,bg[0]); g.addColorStop(1,bg[1]); c.fillStyle=g; c.fillRect(0,0,W,H);
-    for(let i=0;i<70;i++){ const x=(i*151)%W, y=(i*263+t*(4+i%5*3))%H; c.fillStyle='rgba(255,255,255,'+(0.25+0.5*((i*7)%10)/10)+')'; c.fillRect(x,y,i%9===0?2:1,i%9===0?2:1); }
+    for(let i=0;i<130;i++){ const x=(i*151)%W, y=(i*263+t*(4+i%5*3))%H; c.fillStyle='rgba(255,255,255,'+(0.25+0.5*((i*7)%10)/10)+')'; c.fillRect(x,y,i%9===0?2:1,i%9===0?2:1); }
     // rocks
     rocks.forEach(r=>{ c.save(); c.translate(r.x,r.y); c.rotate(r.rot); c.beginPath(); r.pts.forEach((k,i)=>{ const a=i/r.pts.length*Math.PI*2; const px=Math.cos(a)*r.r*k, py=Math.sin(a)*r.r*k; i?c.lineTo(px,py):c.moveTo(px,py); }); c.closePath();
       const rg=c.createRadialGradient(-r.r*0.3,-r.r*0.3,2,0,0,r.r); rg.addColorStop(0, r.size===4?'#8a3a2a':'#6a6070'); rg.addColorStop(1, r.size===4?'#2a0a08':'#221e2a'); c.fillStyle=rg; c.fill();
@@ -619,13 +627,15 @@ const GAME = window.GAME = {
     c.fillStyle='#ff3b3b'; ebullets.forEach(b=>{ c.beginPath(); c.arc(b.x,b.y,4,0,7); c.fill(); });
     // ship
     if(!lost && !(inv>0 && Math.floor(t*12)%2)){
-      c.save(); c.translate(ship.x,ship.y); c.rotate(ship.a); c.shadowColor=sc[0]; c.shadowBlur=18;
+      c.save(); c.translate(ship.x,ship.y); c.rotate(ship.a); c.scale(1.35,1.35); c.shadowColor=sc[0]; c.shadowBlur=18;
       c.fillStyle=sc[1]; c.strokeStyle=sc[0]; c.lineWidth=3; c.beginPath(); c.moveTo(SR+4,0); c.lineTo(-SR,-SR*0.8); c.lineTo(-SR*0.5,0); c.lineTo(-SR,SR*0.8); c.closePath(); c.fill(); c.stroke();
-      if(Math.hypot(ship.vx,ship.vy)>60){ c.fillStyle='#ff9a2e'; c.beginPath(); c.moveTo(-SR*0.6,-5); c.lineTo(-SR*0.6-8-Math.random()*10,0); c.lineTo(-SR*0.6,5); c.fill(); }
+      if(ship.th>0.05){ c.fillStyle='#ff9a2e'; c.beginPath(); c.moveTo(-SR*0.6,-5); c.lineTo(-SR*0.6-8-Math.random()*10,0); c.lineTo(-SR*0.6,5); c.fill(); }
+      if(api.input.keys.Space&&!done){ c.fillStyle='rgba(255,240,150,.9)'; c.beginPath(); c.arc(SR+6,0,3+Math.random()*3,0,7); c.fill(); }
       c.restore();
       if(eff.shield>0){ c.strokeStyle='rgba(125,249,255,'+(0.5+0.4*Math.sin(t*10))+')'; c.lineWidth=3; c.beginPath(); c.arc(ship.x,ship.y,SR+12,0,7); c.stroke(); }
     }
-    let ex=12; [['shield','🛡️'],['rapid','🔥']].forEach(([k,ic])=>{ if(eff[k]>0){ c.font='16px sans-serif'; c.textAlign='left'; c.fillStyle='#fff'; c.fillText(ic+' '+Math.ceil(eff[k]),ex,H-20); ex+=70; } });
+    let ex=W/2-60; [['shield','🛡️'],['rapid','🔥']].forEach(([k,ic])=>{ if(eff[k]>0){ c.font='bold 20px sans-serif'; c.textAlign='left'; c.fillStyle='#fff'; c.fillText(ic+' '+Math.ceil(eff[k]),ex,96); ex+=80; } });
+    if(lost){ c.fillStyle='rgba(0,0,0,.35)'; c.fillRect(0,0,W,H); }
   },
   attract(c,tt){
     c.fillStyle='#04030c'; c.fillRect(0,0,W,H); const R=rng(3);
@@ -637,7 +647,7 @@ function smash(r){
   const pts = r.size===4? 500 : r.size===3? 20 : r.size===2? 50 : 100;
   api.addScore(pts*(1+api.dk*0.5), r.x, r.y);
   api.fx.burst(r.x,r.y, r.size===4?'#ff3b3b':'#ffb870', r.size===4?60:10+r.size*6, 200+r.size*40, .6, 3); api.sfx[r.size>=3?'boom':'small']();
-  const R=Math.random, sp=rockSpeed();
+  const R=SR2, sp=rockSpeed();
   if(r.size===4){ for(let i=0;i<6;i++) rocks.push(rock(r.x,r.y,3,sp,R)); api.addCoins(10); api.fx.shake(14); }
   else if(r.size>1){ const n = api.diff===2 && api.level>140? 3 : 2; for(let i=0;i<n;i++) rocks.push(rock(r.x,r.y,r.size-1,sp,R)); }
   else api.event('kill');
