@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-SZ-1.1 · 2026-10-18">
+<meta name="build" content="BUILD-SZ-1.2 · 2026-10-26">
 <title>Slide Puzzle</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-SZ-1.1 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-SZ-1.2 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,9 +489,14 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* SLIDE PUZZLE — sliding-tile remix. 100 stages. Neon pictures cut into tiles: 3x3 -> 4x4 -> 5x5 -> 6x6. Always solvable (shuffled by legal moves). */
+/* SLIDE PUZZLE — sliding-tile remix. 100 stages. Neon pictures cut into tiles: 3x3 -> 4x4 -> 5x5 -> 6x6. Always solvable (shuffled by legal moves).
+   1.2 (26 Oct): LANDSCAPE 1280x720 — board centre-left (clear of the ability column), target picture + status on the right
+   (clear of the HUD strip and the action-button corner x>980,y>520). RACE: every shuffle comes from a seeded RNG whose seed
+   is the first Math.random() of the stage (the shell seeds Math.random in a race) -> both racers get the same board.
+   Beginner: 3x3 boards up to stage 20, short shuffles, big move limits, slow scramblers. */
 (function(){
-const W=600,H=900; let GX=40,GY=140,GS=516,SY=GY+GS+30;
+const W=1280,H=720; let GX=150,GY=96,GS=588,PX=790,PY=96,PH=420,SX=790,SY=560,tut=false;
+let rs=1; function srnd(){ rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
 const SCENES=['NEON SUNSET','RINGED PLANET','BIG WAVE','SYNTH PEAKS','PALM BEACH','SPIRAL GALAXY','CIRCUIT CORE'];
 let api,t,N,b,z,pos,moves,limit,timed,clock,clockMax,done,lost,eff,stack,stackOK,scene,pic,picKey,peekT,peekHold,hint,scr,scrT,scrEvery,winT,swipe,deco,depth,zaps,placed;
 function R(a,b){ return a+Math.random()*(b-a); }
@@ -501,7 +506,7 @@ function nbrs(i){ const x=i%N,y=i/N|0,o=[]; if(x>0)o.push(i-1); if(x<N-1)o.push(
 function outOf(){ let n=0; for(let i=0;i<N*N-1;i++) if(b[i]!==i+1) n++; return n; }
 function rawMove(i){ b[z]=b[i]; b[i]=0; if(stack.length&&stack[stack.length-1]===i) stack.pop(); else stack.push(z); z=i; } // stack = blank cells that lead back to solved
 function shuffle(d){ for(let k=0;k<60;k++){ b=[]; for(let i=1;i<N*N;i++) b.push(i); b.push(0); z=N*N-1; stack=[]; let prev=-1;
-    for(let s=0;s<d;s++){ const o=nbrs(z).filter(i=>i!==prev); prev=z; rawMove(o[Math.random()*o.length|0]); }
+    for(let s=0;s<d;s++){ const o=nbrs(z).filter(i=>i!==prev); prev=z; rawMove(o[srnd()*o.length|0]); }
     if(stack.length>=Math.max(3,d*0.6)&&outOf()>=Math.min(4,N*N-2)) break; }
   stackOK=true; depth=stack.length; }
 const md=(v,i)=>{ const g=v-1; return Math.abs(g%N-i%N)+Math.abs((g/N|0)-(i/N|0)); };
@@ -554,17 +559,17 @@ function place(){ for(let v=1;v<N*N;v++){ const a=b.indexOf(v),h=v-1; if(a===h||
   const p=getPath(); if(p&&p.length){ const h=z; slide(p[0],true); return h; } return -1; }
 const lockedScr=v=>scr.some(s=>s.v===v&&b[v-1]===v);
 function win(){ if(done) return; done=true; winT=0; api.toast(api.boss?'SCRAMBLER BEATEN!':'PICTURE COMPLETE!'); api.sfx.clear(); api.fx.flash('#fff',.3);
-  api.fx.burst(W/2,GY+GS/2,'#3dfff2',60,520,1,4); api.fx.burst(W/2,GY+GS/2,'#ff4fd8',40,420,1,4); api.event('solve'); setTimeout(()=>api.stageClear(),1700); }
+  api.fx.burst(GX+GS/2,GY+GS/2,'#3dfff2',60,520,1,4); api.fx.burst(GX+GS/2,GY+GS/2,'#ff4fd8',40,420,1,4); api.event('solve'); setTimeout(()=>api.stageClear(),1700); }
 function fail(msg){ if(lost||done) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(8); setTimeout(()=>api.loseLife(),900); }
 function scramble(){ const ts=GS/N; let any=false;
   scr.forEach(s=>{ const a=b.indexOf(s.v); if(a===s.v-1) return; const free=c=>c!==a&&b[c]!==0&&!lockedScr(b[c]);
-    const B=nbrs(a).filter(free); if(!B.length) return; const bb=B[Math.random()*B.length|0]; const C=nbrs(bb).concat(nbrs(a)).filter(c=>free(c)&&c!==bb); if(!C.length) return; const c=C[Math.random()*C.length|0];
+    const B=nbrs(a).filter(free); if(!B.length) return; const bb=B[srnd()*B.length|0]; const C=nbrs(bb).concat(nbrs(a)).filter(c=>free(c)&&c!==bb); if(!C.length) return; const c=C[srnd()*C.length|0];
     cyc(a,bb,c); any=true; [a,bb,c].forEach(k=>{ zaps.push({x:GX+(k%N+.5)*ts,y:GY+((k/N|0)+.5)*ts,x0:GX+(a%N+.5)*ts,y0:GY+((a/N|0)+.5)*ts,t:.5}); api.fx.burst(GX+(k%N+.5)*ts,GY+((k/N|0)+.5)*ts,'#ff3b5a',10,200,.4,3); }); });
   if(any){ stackOK=false; hint.path=null; api.sfx.boom(); api.fx.shake(6); api.toast('⚡ SCRAMBLED! PUT ⚡ TILES HOME TO LOCK THEM'); } }
 const GAME=window.GAME={
   id:'slide-puzzle',title:'Slide Puzzle',titleHTML:'SLIDE<br>PUZZLE',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-SZ-1.1 · 2026-10-18',theme:{a:'#3dfff2',b:'#ff4fd8',bg:'#08061c'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🧩',joystick:false,coinPts:40,
+  build:'BUILD-SZ-1.2 · 2026-10-26',theme:{a:'#3dfff2',b:'#ff4fd8',bg:'#08061c'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🧩',joystick:false,coinPts:40,
   abilities:[
     {id:'peek',icon:'👁️',name:'PEEK',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE — shows the finished picture over the board while you hold it.'},
     {id:'hint',icon:'💡',name:'HINT',cd:12,key:'Digit1',keyLabel:'1',desc:'For 8 seconds the next best tile to slide glows, with an arrow.'},
@@ -573,16 +578,25 @@ const GAME=window.GAME={
   shop:[{id:'f_c',cat:'Frame',name:'Cyan Frame',cost:0,colors:['#3dfff2'],desc:'Classic.'},{id:'f_g',cat:'Frame',name:'Gold Frame',cost:150,colors:['#ffd23f'],desc:'Gallery grade.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3dfff2,#ff4fd8)'}],
   story:`<h3>SLIDE PUZZLE</h3><p>A glitch has sliced the city's neon billboards into pieces. Slide every piece back where it belongs and the pictures light up again — sunsets, planets, waves and more.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Tap a tile</b> in the same row or column as the gap to slide it in (or <b>swipe</b>). PC: <b>arrow keys</b> / WASD slide a tile into the gap.</li><li>Put every tile back in order to finish the picture. The small numbers show the order (1 top-left).</li><li>Hold <b>PEEK</b> (SPACE) to see the finished picture.</li><li>Early stages have a <b>move limit</b>, later ones a <b>clock</b>. Run out and you lose a life — the board stays and you get more.</li><li>Every 10th stage: ⚡ SCRAMBLER tiles swap pieces around every few seconds until you put them home.</li><li>PC abilities: 1 = hint, 2 = auto place, 3 = freeze clock.</li></ul>`,
-  tutorial:[{text:'Tap a tile next to the dark gap to slide it in!',ev:'slide'},{text:'Hold PEEK (👁️ or SPACE) to see the finished picture.',ev:'peek'},{text:'Slide every tile home to finish the picture!',time:6}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li>Hold your phone <b>sideways</b>. The board is on the left, the finished picture on the right.</li><li><b>Phone:</b> <b>tap a tile</b> in the same row or column as the dark gap to slide it in (or <b>swipe</b> on the board). Right thumb: hold <b>👁️ PEEK</b> (bottom-right). Left thumb: 💡 🪄 ❄️ abilities (left side).</li><li><b>PC:</b> click tiles, or <b>arrow keys</b> / WASD slide a tile into the gap. SPACE = peek.</li><li>Put every tile back in order to finish the picture. The small numbers show the order (1 top-left).</li><li>Hold <b>PEEK</b> (SPACE) to see the finished picture.</li><li>Early stages have a <b>move limit</b>, later ones a <b>clock</b>. Run out and you lose a life — the board stays and you get more.</li><li>Every 10th stage: ⚡ SCRAMBLER tiles swap pieces around every few seconds until you put them home.</li><li>PC abilities: 1 = hint, 2 = auto place, 3 = freeze clock.</li><li><b>👥 RACE A FRIEND:</b> you both get the exact same shuffled picture — first to finish wins.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. Tap a tile next to the dark gap to slide it in! (PC: arrow keys)',ev:'slide'},{text:'Hold 👁️ PEEK (bottom-right · SPACE) to see the finished picture.',ev:'peek'},{text:'Slide every tile home to finish the picture!',time:6}],
   stageIntro:{1:'REBUILD THE PICTURE'},bossName:'THE SCRAMBLER!',ending:{"0":["#MASTERPIECE","Every billboard shines again."],"1":["#GRANDMASTER","No puzzle can stop you."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='freeze') return eff.freeze>0?{left:eff.freeze,total:12}:null; if(id==='hint') return hint&&hint.t>0?{left:hint.t,total:8}:null; return null; },
   _dbg(){ return {get b(){return b;}, get N(){return N;}, get z(){return z;}, get moves(){return moves;}, get limit(){return limit;}, get clock(){return clock;}, get timed(){return timed;}, get done(){return done;}, get lost(){return lost;}, get depth(){return depth;}, get scr(){return scr;},
     out:()=>outOf(), slide:i=>slide(i), path:()=>getPath(), step:()=>{ const p=getPath(); return p&&p.length?slide(p[0]):false; }, scramble, place}; },
-  init(a){ api=a; N=3; b=[1,2,3,4,5,6,7,8,0]; z=8; stack=[]; scr=[]; eff={freeze:-9}; hint={t:0,path:null}; deco=[]; for(let i=0;i<26;i++) deco.push({x:R(0,W),y:R(0,H),s:R(20,70),v:R(6,22),r:R(0,6),a:R(.03,.09)}); },
+  init(a){ api=a; N=3; b=[1,2,3,4,5,6,7,8,0]; z=8; stack=[]; scr=[]; eff={freeze:-9}; hint={t:0,path:null}; deco=[]; for(let i=0;i<40;i++) deco.push({x:R(0,W),y:R(0,H),s:R(20,70),v:R(6,22),r:R(0,6),a:R(.03,.09)}); },
   startStage(n,a){ api=a; t=0; done=false; lost=false; moves=0; eff={freeze:-9}; hint={t:0,path:null}; peekT=0; peekHold=false; winT=0; zaps=[]; scr=[]; placed={};
-    const L=a.level, tut=a.content===0; let d; if(tut){ GX=90; GY=360; GS=420; } else { GX=40; GY=140; GS=516; } SY=GY+GS+30; // tutorial board sits below the tutorial box
+    rs=(Math.random()*1e9)|0; // FIRST random call of the stage: in a RACE the shell seeds Math.random -> same seed, same board on both phones
+    const L=a.level, beg=a.diff===0; tut=a.content===0; let d;
+    /* landscape layout (game px): ability column x<140, HUD y<80, action buttons x>980&&y>520. Tutorial: help box covers the top-left ~880x240 */
+    if(tut){ GX=170; GY=262; GS=420; PX=740; PY=262; PH=240; SX=740; SY=560; } else { GX=150; GY=96; GS=588; PX=790; PY=96; PH=420; SX=790; SY=560; }
     if(tut){ N=3; d=4; }
+    else if(beg){ /* Beginner: much easier — 3x3 up to stage 20, short shuffles */
+      if(a.boss){ N=L<40?3:4; d=N===3?Math.round(Math.min(22,10+L*.3)):Math.round(Math.min(34,16+(L-40)*.15)); }
+      else if(L<=10){ N=3; d=Math.round(4+L*1.2); }
+      else if(L<=20){ N=3; d=Math.round(Math.min(24,14+(L-10)*.8)); }
+      else if(L<=70){ N=4; d=Math.round(Math.min(36,14+(L-21)*.45)); }
+      else { N=5; d=Math.round(Math.min(50,28+(L-71)*.6)); } }
     else if(a.boss){ N=L<20?3:4; d=Math.round(N===3?16+L*.5:Math.min(40,18+L*.12)); }
     else if(L<=10){ N=3; d=Math.round(7+L*1.6); }
     else if(L<=42){ N=4; d=Math.round(Math.min(44,18+(L-11)*.8)); }
@@ -590,9 +604,9 @@ const GAME=window.GAME={
     else { N=a.content===1?5:6; d=Math.round(Math.min(110,58+(L-121)*.25)); }
     shuffle(d); scene=a.boss?6:(n-1+(a.diff||0)*3)%6; if(tut) scene=0;
     timed=!tut&&(a.boss||(a.content===2&&L>=6));
-    const mult=a.dv([3.2,2.5,2],1.7,1.5), hm=humMoves(); limit=Math.round(Math.max(depth*mult,hm*a.dv([1.6,1.35,1.15],1.1,1))+(tut?20:12));
-    clockMax=Math.round(Math.max(depth*a.dv([4.2,3.2,2.6],2.1,1.7),hm*a.dv([1.5,1.15,.95],.9,.85))+(N*N)*1.2+15); clock=clockMax;
-    if(a.boss){ const ns=Math.min(3,1+(L/40|0)); const pool=[]; for(let v=1;v<N*N;v++) if(b[v-1]!==v) pool.push(v); for(let k=0;k<ns&&pool.length;k++) scr.push({v:pool.splice(Math.random()*pool.length|0,1)[0]}); scrEvery=a.dv([10,8,6],5,4); scrT=scrEvery; }
+    const easy=beg&&L<=10, mult=a.dv([3.2,2.5,2],1.7,1.5)*(easy?1.6:1), hm=humMoves(); limit=Math.round(Math.max(depth*mult,hm*a.dv([1.6,1.35,1.15],1.1,1)*(easy?1.5:1))+(tut?20:easy?25:12));
+    clockMax=Math.round((Math.max(depth*a.dv([4.2,3.2,2.6],2.1,1.7),hm*a.dv([1.5,1.15,.95],.9,.85))+(N*N)*1.2+15)*(easy?1.6:1)); clock=clockMax;
+    if(a.boss){ const ns=beg&&L<=30?1:Math.min(3,1+(L/40|0)); const pool=[]; for(let v=1;v<N*N;v++) if(b[v-1]!==v) pool.push(v); for(let k=0;k<ns&&pool.length;k++) scr.push({v:pool.splice(srnd()*pool.length|0,1)[0]}); scrEvery=a.dv([10,8,6],5,4)*(easy?1.5:1); scrT=scrEvery; }
     pos={}; for(let i=0;i<N*N;i++) if(b[i]) pos[b[i]]={x:i%N,y:i/N|0}; },
   respawn(){ lost=false; if(timed){ clock=Math.max(clock,0)+Math.round(clockMax*.5); api.toast('+'+Math.round(clockMax*.5)+' SECONDS'); } else { const add=Math.max(8,Math.round(limit*.4)); limit=moves+add; api.toast('+'+add+' MOVES'); } if(scr.length) scrT=scrEvery; },
   stageBonus(){ return Math.round(timed?Math.max(0,clock)*6:Math.max(0,limit-moves)*12)+N*N*5; },
@@ -644,27 +658,28 @@ const GAME=window.GAME={
     // peek / win reveal
     const pk=done?Math.min(1,winT*1.5):Math.min(1,Math.max(0,peekT)*6)*.6;
     if(pk>0){ c.save(); c.globalAlpha=pk; rr(c,GX,GY,GS,GS,10); c.clip(); c.drawImage(pic,GX,GY,GS,GS); if(done){ const sx=GX-200+((winT*700)%(GS+400)); const g=c.createLinearGradient(sx,0,sx+160,0); g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.5,'rgba(255,255,255,.5)'); g.addColorStop(1,'rgba(255,255,255,0)'); c.fillStyle=g; c.fillRect(GX,GY,GS,GS); } c.restore();
-      if(!done){ c.fillStyle='#fff'; c.font='bold 22px sans-serif'; c.textAlign='center'; c.shadowColor='#000'; c.shadowBlur=8; c.fillText('👁️ PEEK',W/2,GY+GS-16); c.shadowBlur=0; } }
+      if(!done){ c.fillStyle='#fff'; c.font='bold 22px sans-serif'; c.textAlign='center'; c.shadowColor='#000'; c.shadowBlur=8; c.fillText('👁️ PEEK',GX+GS/2,GY+GS-16); c.shadowBlur=0; } }
     if(eff.freeze>0){ c.fillStyle='rgba(120,200,255,.08)'; c.fillRect(GX,GY,GS,GS); }
-    // status row
-    c.textAlign='left'; c.font='bold 22px sans-serif'; const fr=eff.freeze>0;
+    // status (right side, LEFT of the action-button corner x>980)
+    c.textAlign='left'; c.font='bold 26px sans-serif'; const fr=eff.freeze>0;
     if(timed){ const low=clock<12&&!fr; c.fillStyle=fr?'#8ad8ff':low&&Math.floor(t*4)%2?'#ff3b5a':'#fff'; const m=Math.floor(Math.max(0,clock)/60),s=Math.floor(Math.max(0,clock)%60);
-      c.fillText((fr?'❄️ ':'⏱ ')+m+':'+String(s).padStart(2,'0'),GX,SY); bar(c,Math.max(0,clock)/clockMax,fr?'#8ad8ff':low?'#ff3b5a':fc); }
-    else { const left=Math.max(0,limit-moves), low=left<=5; c.fillStyle=low?'#ff3b5a':'#fff'; c.fillText('👣 MOVES LEFT '+left,GX,SY); bar(c,left/Math.max(1,limit),low?'#ff3b5a':fc); }
-    c.textAlign='right'; c.fillStyle='rgba(255,255,255,.55)'; c.fillText(N+'×'+N,GX+GS,SY);
-    // preview card
-    if(SY+206>H){ if(lost){ c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(0,0,W,H); } return; }
-    const py=SY+36, ps=150; c.fillStyle='rgba(10,10,34,.9)'; rr(c,GX,py,GS,ps+20,14); c.fill(); c.strokeStyle='rgba(61,255,242,.25)'; c.lineWidth=2; c.stroke();
-    c.save(); rr(c,GX+10,py+10,ps,ps,10); c.clip(); c.drawImage(pic,GX+10,py+10,ps,ps); c.restore();
-    c.textAlign='left'; c.fillStyle=fc; c.shadowColor=fc; c.shadowBlur=10; c.font='bold 26px sans-serif'; c.fillText(SCENES[scene],GX+ps+28,py+48); c.shadowBlur=0;
-    c.fillStyle='rgba(255,255,255,.7)'; c.font='bold 17px sans-serif'; c.fillText('Target picture',GX+ps+28,py+78);
-    c.fillText(scr.length?'⚡ Put the ⚡ tiles home to lock them':'Hold 👁️ PEEK to see it full size',GX+ps+28,py+106);
-    c.fillStyle='rgba(255,255,255,.45)'; c.fillText(timed?'Beat the clock!':'Moves used: '+moves,GX+ps+28,py+134);
+      c.fillText((fr?'❄️ ':'⏱ ')+m+':'+String(s).padStart(2,'0'),SX,SY); bar(c,Math.max(0,clock)/clockMax,fr?'#8ad8ff':low?'#ff3b5a':fc); }
+    else { const left=Math.max(0,limit-moves), low=left<=5; c.fillStyle=low?'#ff3b5a':'#fff'; c.fillText('👣 '+left+' MOVES LEFT',SX,SY); bar(c,left/Math.max(1,limit),low?'#ff3b5a':fc); }
+    c.font='bold 18px sans-serif'; c.fillStyle='rgba(255,255,255,.5)'; c.fillText(N+'×'+N+' · moves used '+moves,SX,SY+52);
+    // target picture card (right of the board)
+    const ps=tut?200:300, pw=380; c.fillStyle='rgba(10,10,34,.9)'; rr(c,PX,PY,pw,PH,16); c.fill(); c.strokeStyle='rgba(61,255,242,.3)'; c.lineWidth=2; c.stroke();
+    c.textAlign='center'; c.fillStyle=fc; c.shadowColor=fc; c.shadowBlur=10; c.font='bold 24px sans-serif'; c.fillText(SCENES[scene],PX+pw/2,PY+34); c.shadowBlur=0;
+    const ix=PX+(pw-ps)/2, iy=PY+48; c.save(); rr(c,ix,iy,ps,ps,10); c.clip(); c.drawImage(pic,ix,iy,ps,ps);
+    c.strokeStyle='rgba(255,255,255,.18)'; c.lineWidth=1; for(let k=1;k<N;k++){ c.beginPath(); c.moveTo(ix+k*ps/N,iy); c.lineTo(ix+k*ps/N,iy+ps); c.moveTo(ix,iy+k*ps/N); c.lineTo(ix+ps,iy+k*ps/N); c.stroke(); } c.restore();
+    c.strokeStyle=fc; c.lineWidth=2; rr(c,ix,iy,ps,ps,10); c.stroke();
+    if(!tut){ c.fillStyle='rgba(255,255,255,.75)'; c.font='bold 17px sans-serif'; c.fillText('🎯 TARGET PICTURE',PX+pw/2,iy+ps+28);
+      c.fillStyle='rgba(255,255,255,.5)'; c.font='bold 15px sans-serif'; c.fillText(scr.length?'⚡ Put the ⚡ tiles home to lock them':'Hold 👁️ PEEK to see it on the board',PX+pw/2,iy+ps+52); }
+    c.textAlign='left';
     if(lost){ c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#08061c'; c.fillRect(0,0,W,H); if(!pic) pic=mkPic(0), picKey='0:'+GS; const n=4, ts=120, x0=60, y0=200;
+  attract(c,tt){ c.fillStyle='#08061c'; c.fillRect(0,0,W,H); if(!pic) pic=mkPic(0), picKey='0:'+GS; const n=4, ts=140, x0=(W-n*ts)/2, y0=(H-n*ts)/2;
     for(let i=0;i<15;i++){ const v=(i+Math.floor(tt))%15, hx=v%n, hy=v/n|0, x=x0+(i%n)*ts, y=y0+(i/n|0)*ts; c.drawImage(pic,hx*GS/n,hy*GS/n,GS/n,GS/n,x+3,y+3,ts-6,ts-6); } }
 };
-function bar(c,k,col){ c.fillStyle='rgba(255,255,255,.1)'; c.fillRect(GX,SY+10,GS,6); c.fillStyle=col; c.fillRect(GX,SY+10,GS*Math.max(0,Math.min(1,k)),6); }
+function bar(c,k,col){ const bw=180; c.fillStyle='rgba(255,255,255,.1)'; c.fillRect(SX,SY+14,bw,8); c.fillStyle=col; c.fillRect(SX,SY+14,bw*Math.max(0,Math.min(1,k)),8); }
 function drawBg(c){ const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,'#08061c'); g.addColorStop(1,api&&api.boss?'#2a0716':'#140a36'); c.fillStyle=g; c.fillRect(0,0,W,H);
   deco.forEach(d=>{ const y=((d.y-t*d.v)%(H+80)+H+80)%(H+80)-40; c.save(); c.translate(d.x,y); c.rotate(d.r+t*.1); c.strokeStyle=`rgba(61,255,242,${d.a})`; c.lineWidth=2; c.strokeRect(-d.s/2,-d.s/2,d.s,d.s); c.restore(); }); }
 function rr(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
