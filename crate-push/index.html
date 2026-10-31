@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05030f">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="build" content="BUILD-KP-1.1 · 2026-10-18">
+<meta name="build" content="BUILD-KP-1.3 · 2026-10-26">
 <title>Crate Push</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -430,7 +430,7 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 </style>
 </head>
 <body>
-<!-- BUILD-KP-1.1 · 2026-10-18 · shell v1.5 SHELL-LAYOUT-2 -->
+<!-- BUILD-KP-1.3 · 2026-10-26 · shell v1.5 SHELL-LAYOUT-2 -->
 <div id="app" class="lay-top">
   <canvas id="game"></canvas>
   <div id="joy" class="hidden"><i></i></div>
@@ -489,13 +489,18 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
   <div id="modal" class="hidden"></div>
 </div>
 <script>
-/* CRATE PUSH — warehouse crate-pushing remix. 100 stages. 20 hand-made rooms, then rooms built backwards from the solved state (always solvable). */
+/* CRATE PUSH — warehouse crate-pushing remix. 100 stages. 20 hand-made rooms, then rooms built backwards from the solved state (always solvable).
+   1.3 (26 Oct): LANDSCAPE 1280x720 — wide rooms (up to 14x8), board in x112-972 (clear of HUD strip, ability column and the
+   action button), info panel on the right above the UNDO button. RACE: rooms come from a local seeded RNG taken from
+   Math.random at stage start (no clock budget, Fisher-Yates shuffles) so both racers get the identical room. */
 (function(){
-const W=600,H=900,TOP=96,AV=730;
+const W=1280,H=720,BX0=112,BX1=972,PX=1125;
 const HAND=["#######|#@ $ .#|#######"," #####| #.  #|##$# #|#  @ #|# $ .#|#    #|######","  ####|###  #|#. $ #|# $@ #|#.   #|######","#######|#  .  #|# @$$ #|#   . #|#######","#######|#  .  #|# $$$ #|#. @ .#|#     #|#######"," ######|##  . #|# $#  #|# @ $ #|##.   #| ######","########|#   .  #|# #$## #|# @  $.#|#  $   #|## . ###| #####","########|#  #   #|# $  $ #|#@ ## .#|#   .  #|########","########|#  .   #|# $$$  #|#  @ ..#|########","#######|#.   .#|#.$$$.#|#  @  #|#  $  #|#     #|#######","#######|#. # .#|# $ $ #|#  @  #|# $ $ #|#. # .#|#######","########|#      #|# $$ $ #|# #    #|#@ ... #|########","  #######|###  .  #|#  $#$  #|# # @ # #|#. $ $ .#|##  .  ##| #######","#########|#.  #  .#|# $ # $ #|#   @   #|# $ # $ #|#.  #  .#|#########","#######|#     #|# $#$ #|#. @ .#|# $#  #|#  .  #|#######","  #####|  #   #|###$# #|# .  $ #|# #@ . #|#  $ . #|########"," #######| #  .  #|## $#$ ##|#.  @  .#|## $#$ ##| #  .  #| #######","#########|#   #   #|# $ . $ #|#  #@#  #|# $ . $ #|#  . .  #|#########","##########|#   ##   #|# $    $ #|#.##@ ##.#|# $    $ #|#   ..   #|##########","  ######|  #    #|### ## #|# $ $  #|# @ .. #|########"];
 const TUT="#########|#       #|# @ $ . #|#       #|# . $   #|#       #|#########";
-let api,t,w,h,wall,pad,floor,crates,start,pl,face,hist,moves,limit,done,lost,eff,ghost,pull,drones,grace,swipe,path,buf,holdT,sol,rows,CS,OX,OY,stuckN,crAnim,lastDir,winT,deco;
+let rs=1,seed=0,bot=704,raceT=0,api,t,w,h,wall,pad,floor,crates,start,pl,face,hist,moves,limit,done,lost,eff,ghost,pull,drones,grace,swipe,path,buf,holdT,sol,rows,CS,OX,OY,stuckN,crAnim,lastDir,winT,deco;
 function R(a,b){ return a+Math.random()*(b-a); }
+function rnd(){ rs|=0; rs=rs+0x6D2B79F5|0; let q=Math.imul(rs^rs>>>15,1|rs); q=q+Math.imul(q^q>>>7,61|q)^q; return ((q^q>>>14)>>>0)/4294967296; }
+function shuf(a){ for(let i=a.length-1;i>0;i--){ const j=rnd()*(i+1)|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
 const D4=()=>[1,-1,w,-w];
 const crAt=i=>crates.indexOf(i);
 const isDead=c=>!pad[c]&&(wall[c-1]||wall[c+1])&&(wall[c-w]||wall[c+w]);
@@ -504,23 +509,29 @@ function load(str){ rows=str.split('|'); h=rows.length; w=Math.max(...rows.map(r
   return p; }
 function flood(from,block){ const seen=new Map([[from,-1]]), q=[from]; while(q.length){ const c=q.shift(); for(const d of D4()){ const n=c+d; if(n<0||n>=w*h||wall[n]||seen.has(n)||(block&&block(n))) continue; seen.set(n,c); q.push(n); } } return seen; }
 /* reverse-pull generator: start solved, pull crates away; the recorded moves played backwards are a real solution */
-function gen(iw,ih,nc,obst,tries){ let best=null; const t0=Date.now();
-  for(let at=0;at<tries&&(at<4||Date.now()-t0<90);at++){ w=iw+2; h=ih+2; wall=[]; for(let y=0;y<h;y++) for(let x=0;x<w;x++) wall.push(x===0||y===0||x===w-1||y===h-1);
+function gen(iw,ih,nc,obst,tries){ let best=null;
+  for(let at=0;at<tries;at++){ w=iw+2; h=ih+2; wall=[]; for(let y=0;y<h;y++) for(let x=0;x<w;x++) wall.push(x===0||y===0||x===w-1||y===h-1);
     const inner=[]; for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) inner.push(y*w+x);
     const conn=()=>{ const f=inner.filter(i=>!wall[i]); return flood(f[0]).size===f.length; };
-    for(let k=0;k<obst;k++){ const c=inner[Math.random()*inner.length|0]; if(wall[c]) continue; wall[c]=true; if(!conn()) wall[c]=false; }
-    const fl=inner.filter(i=>!wall[i]); if(fl.length<nc+4) continue; const sh=fl.slice().sort(()=>Math.random()-.5);
+    for(let k=0;k<obst;k++){ const c=inner[rnd()*inner.length|0]; if(wall[c]) continue; wall[c]=true; if(!conn()) wall[c]=false; }
+    const fl=inner.filter(i=>!wall[i]); if(fl.length<nc+4) continue; const sh=shuf(fl.slice());
     const pads=sh.slice(0,nc); crates=pads.slice(); let p=sh[nc]; const rev=[]; let pulls=0,sw=0,lastC=-1;
-    for(let it=0;it<nc*9;it++){ const ci=Math.random()*nc|0, c=crates[ci]; const reach=flood(p,n=>crates.includes(n));
-      const ds=D4().sort(()=>Math.random()-.5).filter(d=>{ const s=c+d,e=c+2*d; return !wall[s]&&!wall[e]&&!crates.includes(s)&&!crates.includes(e)&&reach.has(s); });
+    for(let it=0;it<nc*9;it++){ const ci=rnd()*nc|0, c=crates[ci]; const reach=flood(p,n=>crates.includes(n));
+      const ds=shuf(D4()).filter(d=>{ const s=c+d,e=c+2*d; return !wall[s]&&!wall[e]&&!crates.includes(s)&&!crates.includes(e)&&reach.has(s); });
       if(!ds.length) continue; const d=ds[0]; const pth=[]; for(let k=c+d;k!==p;k=reach.get(k)) pth.push(k); pth.reverse(); let q=p; for(const k of pth){ rev.push({d:k-q,pull:false}); q=k; } p=c+d;
-      if(ci!==lastC){ sw++; lastC=ci; } const n=1+(Math.random()*3|0);
+      if(ci!==lastC){ sw++; lastC=ci; } const n=1+(rnd()*3|0);
       for(let k=0;k<n;k++){ const cc=crates[ci], e=p+d; if(wall[e]||crates.includes(e)) break; crates[ci]=p; p=e; rev.push({d,pull:true}); pulls++; } }
     const off=crates.filter(c=>!pads.includes(c)).length, dist=crates.reduce((s,c)=>s+Math.min(...pads.map(q=>Math.abs(q%w-c%w)+Math.abs((q/w|0)-(c/w|0)))),0);
     const sc=pulls+sw*4+dist*2+(off===nc?60:off*5);
     if(off>0&&(!best||sc>best.sc)) best={sc,wall:wall.slice(),pads,crates:crates.slice(),p,sol:rev.slice().reverse().map(m=>-m.d),pulls,w,h}; }
+  if(!best) return gen(iw,ih,nc,0,tries);
   w=best.w; h=best.h; wall=best.wall; pad=wall.map(()=>false); best.pads.forEach(q=>pad[q]=true); crates=best.crates; sol=best.sol; return best.p; }
-function layout(){ const tut=api.content===0, top=tut?250:TOP, av=tut?560:AV; CS=Math.min(60,Math.floor(560/w),Math.floor(av/h)); OX=(W-w*CS)/2; OY=top+(av-h*CS)/2; }
+/* board area: x112-972 (ability column on the left edge, info panel + UNDO button on the right), y84-704 under the HUD strip;
+   tutorial box covers the top-left so the tutorial room drops below it; in a RACE the progress bars (bottom-centre) lift the bottom */
+function layout(){ const y0=api.content===0?236:84, y1=Math.min(bot,704); CS=Math.floor(Math.min(84,(BX1-BX0)/w,(y1-y0)/h)); OX=Math.round(BX0+(BX1-BX0-w*CS)/2); OY=Math.round(y0+(y1-y0-h*CS)/2); }
+function raceFit(){ try{ const el=document.getElementById('mpBars'), cv=document.querySelector('canvas'); let b=704;
+  if(el&&cv&&el.style.display!=='none'&&el.offsetHeight){ const r=el.getBoundingClientRect(), q=cv.getBoundingClientRect(); if(q.height>0) b=Math.min(704,Math.floor((r.top-q.top)/q.height*H)-12); }
+  b=Math.max(420,b); if(b!==bot){ bot=b; layout(); } }catch(e){} }
 /* ---------- moves ---------- */
 function step(d){ if(done||lost) return false; const n=pl.c+d; face=d; if(wall[n]){ api.sfx.bump(); return false; }
   const ci=crAt(n);
@@ -542,7 +553,7 @@ function win(){ if(done) return; done=true; winT=0; api.toast(api.boss?'DRONE DO
 function fail(msg){ if(lost||done) return; lost=true; api.toast(msg); api.sfx.hurt(); api.fx.shake(10); api.fx.burst(pcx(),pcy(),'#ff3b5a',24,260,.6,3); setTimeout(()=>api.loseLife(),900); }
 const cx=c=>OX+(c%w+.5)*CS, cy=c=>OY+((c/w|0)+.5)*CS;
 const pcx=()=>cx(pl.f)+(cx(pl.c)-cx(pl.f))*Math.min(1,pl.a), pcy=()=>cy(pl.f)+(cy(pl.c)-cy(pl.f))*Math.min(1,pl.a)-(pl.hop?Math.sin(Math.min(1,pl.a)*Math.PI)*CS*.6:0);
-function droneSet(){ drones=[]; if(!api.boss) return; const L=api.level, n=L>=60?2:1, sp=api.dv([1.3,1.8,2.3],2.6,3);
+function droneSet(){ drones=[]; if(!api.boss) return; const L=api.level, n=L>=60?2:1, sp=api.diff===0&&L<=10?.9:api.dv([1.3,1.8,2.3],2.6,3);
   const path=[pl.c]; if(sol) sol.forEach(m=>path.push(path[path.length-1]+m)); // pick a line the known solution only needs to cross briefly (fair patrol)
   for(let k=0;k<n;k++){ const vert=k===1, len=vert?h-2:w-2; let best=-1,bd=-1e9; for(let j=1;j<(vert?w:h)-1;j++){ let f=0; for(let s=1;s<=len;s++){ const c=vert?s*w+j:j*w+s; if(!wall[c]) f++; }
       let run=0,mx=0,vis=0; path.forEach(c=>{ if((vert?c%w:c/w|0)===j){ run++; vis++; mx=Math.max(mx,run); } else run=0; });
@@ -552,8 +563,8 @@ function dronesAway(){ const px=pl.c%w, py=pl.c/w|0; drones.forEach(d=>{ const m
 const dpos=d=>d.vert?{x:d.line,y:d.u}:{x:d.u,y:d.line};
 const GAME=window.GAME={
   id:'crate-push',title:'Crate Push',titleHTML:'CRATE<br>PUSH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
-  build:'BUILD-KP-1.1 · 2026-10-18',theme:{a:'#ffb03d',b:'#3dfff2',bg:'#070a1a'},
-  w:W,h:H,stages:100,lives:3,livesIcon:'🤖',joystick:false,coinPts:40,
+  build:'BUILD-KP-1.3 · 2026-10-26',theme:{a:'#ffb03d',b:'#3dfff2',bg:'#070a1a'},
+  landscape:true,race:true,w:W,h:H,stages:100,lives:3,livesIcon:'🤖',joystick:false,coinPts:40,
   abilities:[
     {id:'undo',icon:'↩️',name:'UNDO',cd:0,key:'Space',keyLabel:'SPC',desc:'FREE and unlimited — takes back your last move (and gives the move back).'},
     {id:'reset',icon:'🔄',name:'RESET',cd:12,key:'Digit1',keyLabel:'1',desc:'Puts the whole room back to the start. Costs no life.'},
@@ -562,20 +573,22 @@ const GAME=window.GAME={
   shop:[{id:'r_c',cat:'Robot',name:'Cyan Bot',cost:0,colors:['#3dfff2'],desc:'Classic.'},{id:'r_p',cat:'Robot',name:'Pink Bot',cost:150,colors:['#ff4fd8'],desc:'Night-shift edition.'}],
   premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffb03d,#3dfff2)'}],
   story:`<h3>CRATE PUSH</h3><p>The neon warehouse is a mess and the delivery trucks leave at dawn. You're BOX-E, the little robot who can only push. Get every crate onto a glowing pad — and watch out for the security drones on the night shift.</p>`,
-  howto:`<h3>HOW TO PLAY</h3><ul><li><b>Swipe</b> to move one step, or <b>tap</b> a floor tile to walk there. PC: <b>arrow keys</b> / WASD.</li><li>Walk into a crate to <b>push</b> it. You can't pull (unless you use 🧲 PULL), and you can't push two crates at once.</li><li>Get every crate onto a glowing pad.</li><li>A crate pushed into a corner with no pad is stuck — it flashes red. Tap <b>UNDO</b> (SPACE) as often as you like.</li><li>Later stages have a move limit. Run out and you lose a life — the room stays and you get more moves.</li><li>Every 10th stage a security drone patrols. Touch it and you lose a life.</li><li>PC abilities: 1 = reset, 2 = ghost hop, 3 = pull.</li></ul>`,
-  tutorial:[{text:'Swipe (or use the arrow keys) to walk. Walk into the crate to push it onto the glowing pad!',ev:'pad'},{text:'Made a mistake? Tap ↩️ UNDO (or SPACE) to take back a move.',ev:'undo'},{text:'Push every crate onto a pad!',time:6}],
+  howto:`<h3>HOW TO PLAY</h3><ul><li>Hold your phone <b>sideways</b>.</li><li><b>Phone:</b> swipe anywhere on the room (either thumb) to move one step, or tap a floor tile to walk there. Right thumb: <b>↩️ UNDO</b> button (bottom-right). Left thumb: abilities (left edge).</li><li><b>PC:</b> arrow keys / WASD to move (hold to keep walking), SPACE = undo.</li><li>Walk into a crate to <b>push</b> it. You can't pull (unless you use 🧲 PULL), and you can't push two crates at once.</li><li>Get every crate onto a glowing pad.</li><li>A crate pushed into a corner with no pad is stuck — it flashes red. Tap <b>UNDO</b> (SPACE) as often as you like.</li><li>Later stages have a move limit. Run out and you lose a life — the room stays and you get more moves.</li><li>Every 10th stage a security drone patrols. Touch it and you lose a life.</li><li>PC abilities: 1 = reset, 2 = ghost hop, 3 = pull.</li><li><b>👥 RACE A FRIEND:</b> you both get the exact same room — first to fill every pad wins.</li></ul>`,
+  tutorial:[{text:'Hold your phone sideways. Swipe on the room (PC: arrow keys) to walk. Walk into the crate to push it onto the glowing pad!',ev:'pad'},{text:'Made a mistake? Tap ↩️ UNDO bottom-right (PC: SPACE) to take back a move.',ev:'undo'},{text:'Push every crate onto a pad!',time:6}],
   stageIntro:{1:'PUSH EVERY CRATE ONTO A PAD'},bossName:'NIGHT SHIFT DRONE!',ending:{"0":["#WAREHOUSE HERO","Every truck left on time."],"1":["#MASTER MOVER","No crate can stop you."],"2":["#LEGEND","Impossible. You did it."]},
   abTime(id){ if(id==='ghost'&&ghost) return {left:1,total:1,label:'ARMED'}; if(id==='pull'&&pull) return {left:1,total:1,label:'ARMED'}; return null; },
-  _dbg(){ return {get w(){return w;}, get h(){return h;}, get wall(){return wall;}, get pad(){return pad;}, get crates(){return crates;}, get p(){return pl.c;}, get busy(){return pl.a<1||(path&&path.length>0);}, get sol(){return sol;}, get rows(){return rows;},
+  _dbg(){ return {get w(){return w;}, get h(){return h;}, get wall(){return wall;}, get pad(){return pad;}, get crates(){return crates;}, get p(){return pl.c;}, get busy(){return pl.a<1||(path&&path.length>0);}, get sol(){return sol;}, get rows(){return rows;}, get seed(){return seed;}, get box(){return {OX,OY,CS};},
     get moves(){return moves;}, get limit(){return limit;}, get done(){return done;}, get lost(){return lost;}, get drones(){return drones.map(d=>Object.assign(dpos(d),{dir:d.dir,vert:d.vert,sp:d.sp}));}, get grace(){return grace;},
     step:d=>step(d), undo, left:()=>crates.filter(c=>!pad[c]).length}; },
   init(a){ api=a; deco=[]; for(let i=0;i<18;i++) deco.push({x:R(0,W),y:R(0,H),v:R(5,16),s:R(16,40),a:R(.03,.08)}); },
-  startStage(n,a){ api=a; t=0; done=false; lost=false; hist=[]; moves=0; ghost=false; pull=false; path=[]; buf=0; holdT=0; stuckN=0; winT=0; grace=2; sol=null; rows=null;
+  startStage(n,a){ api=a; seed=(Math.random()*1e9)|0; rs=seed; t=0; raceT=0; done=false; lost=false; hist=[]; moves=0; ghost=false; pull=false; path=[]; buf=0; holdT=0; stuckN=0; winT=0; grace=2; sol=null; rows=null;
     const L=a.level, tut=a.content===0; let p;
     let hi=-1; if(!tut&&a.diff===0&&!a.boss&&n<=22){ hi=n-1-Math.floor(n/10); }
     if(tut) p=load(TUT); else if(hi>=0&&hi<HAND.length) p=load(HAND[hi]);
-    else { const iw=Math.min(9,5+(L/18|0)), ih=Math.min(10,5+(L/14|0)), cap=a.diff===2?7:6; let nc=Math.min(cap,2+(L/24|0)+(a.content===2&&L>20?1:0)); if(a.boss) nc=Math.max(2,nc-1);
-      p=gen(iw,ih,nc,Math.round(iw*ih*R(.08,.16)),40); rows=null; }
+    else { let iw=Math.min(14,6+(L/9|0)), ih=Math.min(8,5+(L/25|0)), cap=a.diff===2?7:6; let nc=Math.min(cap,2+(L/24|0)+(a.content===2&&L>20?1:0));
+      if(a.diff===0){ iw=Math.min(iw,6+(L/12|0)); nc=Math.min(nc,L<=30?2:L<=70?3:4); if(L<=10){ iw=6; ih=4; } }   // Beginner: small, few crates
+      if(a.boss) nc=Math.max(2,nc-1);
+      p=gen(iw,ih,nc,Math.round(iw*ih*(.08+rnd()*.08)),30); rows=null; }
     floor=[...flood(p).keys()]; start={p,crates:crates.slice()}; pl={c:p,f:p,a:1,hop:false}; face=1; crAnim=crates.map(()=>({d:0,a:1})); stuckN=crates.filter(isDead).length;
     limit=0; if(sol&&!tut&&(a.content===2&&L>=12||a.diff===2)) limit=Math.round(sol.length*a.dv([2.4,2,1.7],1.5,1.35))+20;
     layout(); droneSet(); },
@@ -599,6 +612,7 @@ const GAME=window.GAME={
     const K=api.input.keys; let hd=0; if(K.ArrowLeft||K.KeyA) hd=-1; else if(K.ArrowRight||K.KeyD) hd=1; else if(K.ArrowUp||K.KeyW) hd=-w; else if(K.ArrowDown||K.KeyS) hd=w;
     if(hd){ holdT+=dt; } else holdT=0;
     if(pl.a>=1){ if(buf){ const d=buf; buf=0; step(d); } else if(path.length){ const nx=path.shift(); if(Math.abs(nx-pl.c)===1||Math.abs(nx-pl.c)===w) step(nx-pl.c); else path=[]; } else if(hd&&holdT>0.05){ step(hd); holdT=0; } }
+    if((raceT-=dt)<=0){ raceT=.5; raceFit(); }
     drones.forEach(d=>{ d.u+=d.dir*d.sp*dt; if(d.u>d.len){ d.u=d.len; d.dir=-1; } if(d.u<1){ d.u=1; d.dir=1; }
       if(grace<=0&&!lost){ const q=dpos(d), px=(pcx()-OX)/CS-.5, py=(pcy()-OY)/CS-.5; if(Math.abs(q.x-px)<.55&&Math.abs(q.y-py)<.55&&!(pl.hop&&pl.a<1)) fail('⚡ ZAPPED BY THE DRONE!'); } });
     api.counter('📦 CRATES LEFT',crates.filter(c=>!pad[c]).length,limit&&limit-moves<=8?'low':''); },
@@ -635,15 +649,18 @@ const GAME=window.GAME={
       for(const [ox,oy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){ const px=x+ox*r*.85, py=y+oy*r*.6; c.strokeStyle='#8a94b8'; c.lineWidth=2; c.beginPath(); c.moveTo(x,y); c.lineTo(px,py); c.stroke(); c.strokeStyle='rgba(220,230,255,.7)'; c.beginPath(); const a=t*30+ox; c.moveTo(px-Math.cos(a)*r*.4,py-Math.sin(a)*r*.15); c.lineTo(px+Math.cos(a)*r*.4,py+Math.sin(a)*r*.15); c.stroke(); }
       c.fillStyle='#2a2f48'; c.beginPath(); c.arc(x,y,r*.6,0,7); c.fill(); c.strokeStyle='#ff3b5a'; c.lineWidth=3; c.shadowColor='#ff3b5a'; c.shadowBlur=14; c.stroke();
       c.fillStyle='#ff3b5a'; c.beginPath(); c.arc(x+(d.vert?0:d.dir*r*.2),y+(d.vert?d.dir*r*.2:0),r*.22,0,7); c.fill(); c.shadowBlur=0; c.globalAlpha=1; });
-    // status line
-    c.textAlign='center'; c.font='bold 20px sans-serif'; const sy=Math.min(H-24,OY+h*CS+34);
-    if(limit){ const left=limit-moves; c.fillStyle=left<=8?'#ff3b5a':'#fff'; c.fillText(`👣 MOVES LEFT ${Math.max(0,left)}   ·   ↩️ UNDO = SPACE`,W/2,sy); }
-    else { c.fillStyle='rgba(255,255,255,.7)'; c.fillText(`👣 MOVES ${moves}   ·   ↩️ UNDO = SPACE`,W/2,sy); }
-    if(ghost||pull){ c.fillStyle=ghost?'#b9a8ff':'#ffd23f'; c.fillText(ghost?'👻 GHOST HOP ARMED':'🧲 PULL ARMED',W/2,sy+26); }
-    if(stuckN>0&&!done){ c.fillStyle=Math.floor(t*3)%2?'#ff3b5a':'#ffd23f'; c.fillText('⚠️ A CRATE IS STUCK — UNDO!',W/2,Math.max(TOP+14,OY-14)); }
+    // info panel (right, above the UNDO button)
+    const nT=crates.length, nOn=crates.filter(q=>pad[q]).length; c.fillStyle='rgba(10,16,44,.78)'; rr(c,992,92,266,410,18); c.fill(); c.strokeStyle='rgba(255,176,61,.5)'; c.lineWidth=2; c.stroke();
+    c.textAlign='center'; c.fillStyle='#ffb03d'; c.font='bold 26px sans-serif'; c.fillText('📦 CRATES ON PADS',PX,136);
+    c.fillStyle=nOn===nT?'#3dff9a':'#fff'; c.font='bold 72px sans-serif'; c.fillText(nOn+'/'+nT,PX,214);
+    c.font='bold 28px sans-serif'; if(limit){ const left=limit-moves; c.fillStyle=left<=8?'#ff3b5a':'#fff'; c.fillText('👣 '+Math.max(0,left)+' MOVES LEFT',PX,268); } else { c.fillStyle='rgba(255,255,255,.8)'; c.fillText('👣 MOVES '+moves,PX,268); }
+    c.font='bold 22px sans-serif'; c.fillStyle='#3dfff2'; c.fillText('↩️ UNDO = SPACE / button',PX,308);
+    if(ghost||pull){ c.fillStyle=ghost?'#b9a8ff':'#ffd23f'; c.font='bold 26px sans-serif'; c.fillText(ghost?'👻 GHOST HOP ARMED':'🧲 PULL ARMED',PX,352); }
+    if(stuckN>0&&!done){ c.fillStyle=Math.floor(t*3)%2?'#ff3b5a':'#ffd23f'; c.font='bold 28px sans-serif'; c.fillText('⚠️ CRATE STUCK!',PX,410); c.fillText('TAP ↩️ UNDO',PX,446); }
+    else if(drones.length){ c.fillStyle='#ff6b8a'; c.font='bold 22px sans-serif'; c.fillText('🚨 DODGE THE DRONE',PX,428); }
     if(done){ c.fillStyle=`rgba(61,255,154,${Math.max(0,.25-winT*.2)})`; c.fillRect(0,0,W,H); }
     if(lost){ c.fillStyle='rgba(0,0,0,.4)'; c.fillRect(0,0,W,H); } },
-  attract(c,tt){ c.fillStyle='#070a1a'; c.fillRect(0,0,W,H); const x=150+((tt*80)%300); drawBot(c,x-70,450,70,'#3dfff2'); c.fillStyle='#ffb03d'; rr(c,x-28,422,56,56,6); c.fill(); c.strokeStyle='#3dff9a'; c.lineWidth=3; c.beginPath(); c.arc(470,450,24,0,7); c.stroke(); }
+  attract(c,tt){ c.fillStyle='#070a1a'; c.fillRect(0,0,W,H); const x=360+((tt*110)%520); drawBot(c,x-100,400,100,'#3dfff2'); c.fillStyle='#ffb03d'; rr(c,x-40,360,80,80,8); c.fill(); c.strokeStyle='#3dff9a'; c.lineWidth=4; c.beginPath(); c.arc(960,400,34,0,7); c.stroke(); }
 };
 function drawBot(c,x,y,S,col){ const s=S*.36, bob=Math.sin(t*6)*1.5, fx=face===1?1:face===-1?-1:0, fy=face===w?1:face===-w?-1:0;
   c.fillStyle='rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(x,y+s*1.05,s*.95,s*.3,0,0,7); c.fill();
@@ -654,7 +671,6 @@ function drawBot(c,x,y,S,col){ const s=S*.36, bob=Math.sin(t*6)*1.5, fx=face===1
   c.strokeStyle=col; c.lineWidth=2; c.beginPath(); c.moveTo(x,y-s*.75+bob); c.lineTo(x,y-s*1.1+bob); c.stroke(); c.fillStyle=Math.floor(t*3)%2?'#ff3b5a':'#ffd23f'; c.beginPath(); c.arc(x,y-s*1.15+bob,s*.12,0,7); c.fill(); }
 function rr(c,x,y,w2,h2,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w2,y,x+w2,y+h2,r); c.arcTo(x+w2,y+h2,x,y+h2,r); c.arcTo(x,y+h2,x,y,r); c.arcTo(x,y,x+w2,y,r); c.closePath(); }
 })();
-
 </script>
 <script>
 /* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 · SHELL-GOLD-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
