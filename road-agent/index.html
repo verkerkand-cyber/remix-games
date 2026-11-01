@@ -426,6 +426,21 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 .mbox #gcIn{width:100%;box-sizing:border-box;margin-bottom:8px}
 .mbox .gmsg{min-height:1.3em;font-size:13px;font-family:'Segoe UI',system-ui,sans-serif;margin:8px 0 4px;color:#ffd24a}
 .mbox .gmsg.ok{color:#7dff9b}.mbox .gmsg.bad{color:#ff8a8a}
+/* SHELL-LOGIN-1: sign-in screens, account line, bought-gold note */
+.abshop .bal .bnote{display:block;font-family:'Segoe UI',system-ui,sans-serif;font-size:11px;color:#7dff9b;opacity:.9;margin-top:2px;letter-spacing:0}
+.mbox input.lgin{text-transform:none;letter-spacing:.02em;font-size:17px;width:100%;box-sizing:border-box}
+.mbox input.lgcode{letter-spacing:.45em;font-size:24px;font-weight:800;width:100%;box-sizing:border-box}
+.mbox .lgsafe{font-size:12px;color:#7dff9b;opacity:.9}
+.mbox .acctline{margin:-4px 0 8px}
+.abshop .acct{font-size:12px;text-align:center;padding:8px;border-radius:10px;background:rgba(125,255,155,.07);border:1px solid #7dff9b55;line-height:1.5}
+.abshop .acct .bn{color:#ffd24a;font-weight:800}
+.abshop .acctout{margin-left:6px;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#fff}
+.abshop .grest{background:rgba(125,255,155,.08);color:#7dff9b;border-color:#7dff9b99}
+/* SHELL-CONT-1: continue-after-death screen + always-visible menu CONTINUE */
+.mbox .big small,#btnCont small{display:block;font-size:11px;letter-spacing:.06em;font-weight:700;margin-top:3px;opacity:.85}
+.mbox .goldbtn{background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f;border:none}
+#btnCont.nosave:disabled{opacity:.55;filter:grayscale(.9);box-shadow:none}
+.mbox #ctMsg:empty{display:none}
 
 </style>
 </head>
@@ -590,7 +605,7 @@ function die(msg){ if(lost||done) return; lost=true; api.toast(msg); api.fx.burs
 
 </script>
 <script>
-/* ===== REMIX ARCADE SHELL v1.5 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 · SHELL-GOLD-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+/* ===== REMIX ARCADE SHELL v1.6 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 · SHELL-GOLD-1 · SHELL-LOGIN-1 · SHELL-CONT-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
 (function(){
 'use strict';
 const G = window.GAME;
@@ -636,11 +651,29 @@ function goldWrite(v){ GOLD = Math.max(0, Math.floor(v) || 0); try { localStorag
     set(v){ v = Math.floor(+v) || 0; const d = v - GOLD; const now = goldRead(); goldWrite((now === null ? GOLD : now) + d); } });
   if(!P.goldMig){ if(old > 0){ const now = goldRead(); goldWrite((now === null ? GOLD : now) + old); } P.goldMig = 1; save(); }
 })();
+/* ===== SHELL-LOGIN-1 (Andrew, 1 Nov 2026): bought gold can never get lost =====
+   FREE gold (earned by playing) = local 'rmxGold' above, stays on this phone, no account needed.
+   BOUGHT gold = a server wallet (Supabase table player_wallets), tied to an email login (one-time 6-digit code).
+   The login is ONLY asked when the player taps BUY GOLD / I HAVE A CODE / RESTORE PURCHASES — never before playing.
+   The session lives in localStorage 'rmxAuth' (shared by every game on the site; own key so lobby.js's client never touches it).
+   'rmxBought' = last known bought balance, for DISPLAY only; the server always decides when spending.
+   Spending: free gold first, then bought gold via the spend_bought_gold RPC (needs internet + login). */
+const AUTH_KEY = 'rmxAuth', BOUGHT_KEY = 'rmxBought';
+let authMemo = [undefined, null];
+function authRaw(){ try { const s = localStorage.getItem(AUTH_KEY); if(s === authMemo[0]) return authMemo[1]; const j = s ? JSON.parse(s) : null; authMemo = [s, j && j.user && j.access_token ? j : null]; return authMemo[1]; } catch(e){ return null; } }
+function signedIn(){ return !!authRaw(); }
+function maskEmail(e){ e = String(e||''); const at = e.indexOf('@'); if(at < 1) return e ? e[0]+'***' : ''; return e[0] + '***' + e.slice(at); }
+function acctMasked(){ const a = authRaw(); return a ? maskEmail(a.user.email) : ''; }
+function boughtRead(){ const a = authRaw(); if(!a) return 0; try { const o = JSON.parse(localStorage.getItem(BOUGHT_KEY)); return o && o.u === a.user.id ? Math.max(0, Math.floor(+o.n) || 0) : 0; } catch(e){ return 0; } }
+function boughtWrite(n){ const a = authRaw(); if(!a) return; try { localStorage.setItem(BOUGHT_KEY, JSON.stringify({u:a.user.id, n:Math.max(0, Math.floor(+n) || 0), t:Date.now()})); } catch(e){} try { goldUI(); } catch(e){} }
+function totalGold(){ return P.coins + boughtRead(); }
+function boughtNote(){ const b = boughtRead(); return b > 0 ? `<small class="bnote">(incl. ${b.toLocaleString()} bought, safe in your account)</small>` : ''; }
 function goldSync(){ const v = goldRead(); if(v === null || v === GOLD) return; GOLD = v; try { goldUI(); } catch(e){} }
-function goldUI(){ const t = P.coins.toLocaleString(); ['#hudCoins','#mCoins','#slC'].forEach(id=>{ const e=$(id); if(e) e.textContent=t; }); document.querySelectorAll('.abshop .bal .coins').forEach(e=>e.textContent=t); }
+function goldUI(){ const t = totalGold().toLocaleString(); ['#hudCoins','#mCoins'].forEach(id=>{ const e=$(id); if(e) e.textContent=t; }); const s=$('#slC'); if(s) s.textContent=P.coins.toLocaleString();
+  document.querySelectorAll('.abshop .bal .coins').forEach(e=>e.textContent=t); document.querySelectorAll('.abshop .bal').forEach(e=>{ const old=e.querySelector('.bnote'); if(old) old.remove(); const n=boughtNote(); if(n) e.insertAdjacentHTML('beforeend', n); }); }
 window.addEventListener('focus', goldSync); window.addEventListener('pageshow', goldSync);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) goldSync(); });
-window.addEventListener('storage', e=>{ if(!e.key || e.key === GOLD_KEY) goldSync(); });
+window.addEventListener('storage', e=>{ if(!e.key || e.key === GOLD_KEY) goldSync(); if(e.key === BOUGHT_KEY || e.key === AUTH_KEY){ try { goldUI(); } catch(_){} } });
 G.shop.forEach(it => { if(it.cost === 0 && !P.owned.includes(it.id)) P.owned.push(it.id); if(it.cost===0 && !P.equipped[it.cat]) P.equipped[it.cat] = it.id; });
 function have(a){ return a.cd>0 ? (P.abil[a.id]||0) : Infinity; }
 function starterKit(){ BUY.forEach(a=>{ if(!(P.abil[a.id]>0)) P.abil[a.id]=1; }); save(); }
@@ -1056,7 +1089,7 @@ function setCounter(label, value, level){
   const el=$('#hudCounter'); el.classList.remove('hidden'); el.className='ctr '+(level||'');
   el.innerHTML=`<span>${label}</span><b>${value}</b>`;
 }
-function updCoins(){ $('#hudCoins').textContent = P.coins.toLocaleString(); }
+function updCoins(){ $('#hudCoins').textContent = totalGold().toLocaleString(); }
 function updHud(){
   $('#hudScore').textContent = run.score.toLocaleString();
   $('#hudStage').textContent = run.tutorial ? 'TUTORIAL' : run.stage + '/' + G.stages;
@@ -1109,9 +1142,9 @@ function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 
 /* ---------- ability shop (menu tab, in-game 🛒 button, after each stage) ---------- */
 function abShopHTML(){
-  let h=`<div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>`;
+  let h=`<div class="abshop"><div class="bal">🪙 <b class="coins">${totalGold().toLocaleString()}</b> GOLD${boughtNote()}</div>`;
   BUY.forEach(a=>{ const p=abPrice(a), n=have(a);
-    h+=`<div class="abrow"><div class="ic">${a.icon}</div><div class="tx"><b>${a.name}</b>${a.desc||''}<span class="have">YOU HAVE: ${n}</span></div><button data-abbuy="${a.id}" ${P.coins<p?'disabled':''}>BUY 🪙${p}</button></div>`; });
+    h+=`<div class="abrow"><div class="ic">${a.icon}</div><div class="tx"><b>${a.name}</b>${a.desc||''}<span class="have">YOU HAVE: ${n}</span></div><button data-abbuy="${a.id}" ${totalGold()<p?'disabled':''}>BUY 🪙${p}</button></div>`; });
   G.abilities.filter(a=>a.cd===0).forEach(a=>{
     h+=`<div class="abrow free"><div class="ic">${a.icon}</div><div class="tx"><b>${a.name}</b>Part of the game — always free, never runs out.</div></div>`; });
   h+=`<div class="cat">GOLD PACKS</div>`;
@@ -1122,8 +1155,8 @@ function abShopHTML(){
 function bindAbShop(refresh){
   document.querySelectorAll('[data-abbuy]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation();
     const a=BUY.find(x=>x.id===b.dataset.abbuy), p=abPrice(a);
-    if(P.coins<p){ SFX.bump(); return; }
-    P.coins-=p; P.abil[a.id]=have(a)+1; save(); SFX.power(); refresh(); }));
+    if(totalGold()<p){ SFX.bump(); return; }
+    b.disabled=true; spendGold(p, (ok,msg)=>{ if(ok){ P.abil[a.id]=have(a)+1; save(); SFX.power(); refresh(); } else { SFX.bump(); goldNotice(msg, refresh); } }); }));
   bindGoldPacks(refresh);
 }
 function abilPanel(){ panel('ABILITIES', `<p style="margin-bottom:10px">You start every new game with <b>1 of each</b> ability. Buy more here with 🪙 gold. What you buy stays with you until you use it.</p>`+abShopHTML()); bindAbShop(abilPanel); }
@@ -1172,9 +1205,12 @@ function toMenu(){
 }
 function renderMenu(){
   document.querySelectorAll('.diff button').forEach((b,i)=>b.classList.toggle('on', i===P.diff));
-  $('#mCoins').textContent = P.coins.toLocaleString();
+  $('#mCoins').textContent = totalGold().toLocaleString();
   const best = (P.scores[P.diff]||[])[0]; $('#mBest').textContent = best? best.score.toLocaleString() : '—';
-  $('#btnCont').disabled = !P.slots.some(Boolean);
+  // SHELL-CONT-1: CONTINUE is always visible — bright with the stage when a save exists, greyed "no saved game yet" when not
+  const si=savedIdx(), cb=$('#btnCont');
+  if(si>=0){ const s=P.slots[si]; cb.disabled=false; cb.classList.remove('nosave'); cb.innerHTML=`▶ CONTINUE <small>STAGE ${s.stage} · ${DIFFS[s.diff]}</small>`; }
+  else { cb.disabled=true; cb.classList.add('nosave'); cb.innerHTML='CONTINUE <small>no saved game yet</small>'; }
   $('#sndBtn').textContent = P.sound ? '🔊' : '🔇';
   $('#mAbil').textContent = BUY.map(a=>a.icon+have(a)).join(' ');
 }
@@ -1222,7 +1258,7 @@ function scoresPanel(d){
   document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click', ()=>{ SFX.click(); scoresPanel(+b.dataset.d); }));
 }
 function shopPanel(){
-  let h = `<p style="margin-bottom:10px">Your gold: <span class="coins">🪙 ${P.coins.toLocaleString()}</span> — collect gold while you play and clear stages. Nothing is ever locked: every level and mode is free. Abilities are in <b>⚡ ABILITIES</b> on the main menu.</p>`;
+  let h = `<p style="margin-bottom:10px">Your gold: <span class="coins">🪙 ${totalGold().toLocaleString()}</span> — collect gold while you play and clear stages. Nothing is ever locked: every level and mode is free. Abilities are in <b>⚡ ABILITIES</b> on the main menu.</p>`;
   const cats = [...new Set(G.shop.map(s=>s.cat))];
   cats.forEach(c=>{
     h += `<div class="cat">${c.toUpperCase()}</div><div class="shop-grid">`;
@@ -1230,7 +1266,7 @@ function shopPanel(){
       const own=P.owned.includes(it.id), eq=P.equipped[c]===it.id;
       const sw = it.swatch || `linear-gradient(90deg,${(it.colors||['#fff']).join(',')})`;
       h += `<div class="item"><div class="sw" style="background:${sw}"></div><b>${it.name}</b><small>${it.desc||''}</small>
-        ${eq?`<button class="eq" disabled>✓ EQUIPPED</button>`: own?`<button data-eq="${it.id}">EQUIP</button>`:`<button class="buy" data-buy="${it.id}" ${P.coins<it.cost?'disabled style="opacity:.45"':''}>🪙 ${it.cost}</button>`}</div>`;
+        ${eq?`<button class="eq" disabled>✓ EQUIPPED</button>`: own?`<button data-eq="${it.id}">EQUIP</button>`:`<button class="buy" data-buy="${it.id}" ${totalGold()<it.cost?'disabled style="opacity:.45"':''}>🪙 ${it.cost}</button>`}</div>`;
     });
     h += `</div>`;
   });
@@ -1238,7 +1274,7 @@ function shopPanel(){
   (G.premium||[]).forEach(p=>{ h += `<div class="item prem"><div class="sw" style="background:${p.swatch}"></div><b>${p.name}</b><small>${p.desc}</small><button disabled>${p.price} · COMING SOON</button></div>`; });
   h += `</div><p style="opacity:.6;font-size:12px;margin-top:10px">Premium packs will be paid with PayFast before launch. Test build: not purchasable yet.</p>`;
   panel('SHOP', h);
-  document.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click', ()=>{ const it=G.shop.find(s=>s.id===b.dataset.buy); if(P.coins>=it.cost){ P.coins-=it.cost; P.owned.push(it.id); P.equipped[it.cat]=it.id; save(); SFX.pickup(); shopPanel(); } }));
+  document.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click', ()=>{ const it=G.shop.find(s=>s.id===b.dataset.buy); if(totalGold()>=it.cost && !P.owned.includes(it.id)){ b.disabled=true; spendGold(it.cost, (ok,msg)=>{ if(ok){ if(!P.owned.includes(it.id)) P.owned.push(it.id); P.equipped[it.cat]=it.id; save(); SFX.pickup(); if(state==='menu') shopPanel(); } else { SFX.bump(); goldNotice(msg, ()=>{ if(state==='menu') shopPanel(); }); } }); } }));
   document.querySelectorAll('[data-eq]').forEach(b=>b.addEventListener('click', ()=>{ const it=G.shop.find(s=>s.id===b.dataset.eq); P.equipped[it.cat]=it.id; save(); SFX.click(); shopPanel(); }));
 }
 
@@ -1364,7 +1400,7 @@ function stageClear(){
   const bonus = G.stageBonus ? G.stageBonus(API) : 0; if(bonus) run.score += bonus;
   if(run.stage >= G.stages){ victory(coins, bonus); return; }
   run.stage++; writeSlot();
-  const showClear = ()=>{ state='modal'; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2>${wasBoss?'<p class="coins">🏆 BOSS BEATEN! +50 🪙</p>':''}${bonus?`<p>Stage bonus +${bonus.toLocaleString()}</p>`:''}<div class="stat">${run.score.toLocaleString()}</div><p class="coins">🪙 ${got} collected · +${coins} clear bonus</p><p style="font-size:13px">Gold: 🪙 ${P.coins.toLocaleString()} · Progress saved ✔</p><button class="big" data-a="n">STAGE ${run.stage} ▶</button><button class="mid abil" data-a="shop">⚡ TOP UP ABILITIES · ${BUY.map(a=>a.icon+have(a)).join(' ')}</button><button class="mid" data-a="m">SAVE &amp; MENU</button>`,
+  const showClear = ()=>{ state='modal'; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2>${wasBoss?'<p class="coins">🏆 BOSS BEATEN! +50 🪙</p>':''}${bonus?`<p>Stage bonus +${bonus.toLocaleString()}</p>`:''}<div class="stat">${run.score.toLocaleString()}</div><p class="coins">🪙 ${got} collected · +${coins} clear bonus</p><p style="font-size:13px">Gold: 🪙 ${totalGold().toLocaleString()} · Progress saved ✔</p><button class="big" data-a="n">STAGE ${run.stage} ▶</button><button class="mid abil" data-a="shop">⚡ TOP UP ABILITIES · ${BUY.map(a=>a.icon+have(a)).join(' ')}</button><button class="mid" data-a="m">SAVE &amp; MENU</button>`,
     {n:()=>{ if(G.betweenStages) G.betweenStages(API, beginStage); else beginStage(); }, shop:()=>shopModal(showClear,'◀ BACK'), m:toMenu}); };
   showClear();
 }
@@ -1381,8 +1417,36 @@ function gameOver(){
   if(NET.on){ if(NET.role==='host') netStageEnd(false); return; }
   if(MP.on){ mpFinish(false); return; }
   if(state==='modal' || state==='menu') return; state='modal'; SFX.over(); flushCoins();
-  const coins = Math.floor(run.score/500), got=run.coinsStage; P.coins += coins; save();
+  if(run.tutorial){ finalOver(); return; }
+  contOffer();
+}
+function finalOver(){
+  state='modal'; const coins = Math.floor(run.score/500), got=run.coinsStage; P.coins += coins; save();
   nameEntry('GAME OVER', `🪙 ${got} collected this stage · +${coins} score bonus`, false);
+}
+/* ===== SHELL-CONT-1 (Andrew, 1 Nov 2026): CONTINUE after losing your last life (single player only) =====
+   Before the game-over / name screen: 💰 CONTINUE (pay gold: full lives back — +2 on Beginner like a new game — and the
+   SAME stage restarts from its start, score kept), 🛒 BUY GOLD (gold store, then back here), GIVE UP (normal game over).
+   Price = the 2-player continue price (netContCost) x (continues already used this run + 1), so it grows with the stage
+   and with every continue. No timer. Never in a RACE (mpFinish) or PLAY TOGETHER (netContinue) — those keep their own rules. */
+function contCost(){ return netContCost() * (1 + (Math.floor(+run.extra.payCont)||0)); }
+function contOffer(msg){
+  state='modal'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden');
+  const cost=contCost(), tot=totalGold(), can=tot>=cost, lv=startLives();
+  modal(`<h2>OUT OF LIVES!</h2><p>Stage ${run.stage} · ${DIFFS[P.diff]} · Score ${run.score.toLocaleString()}</p>
+    <button class="big" id="ctPay" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙${can?'':`<small>need ${(cost-tot).toLocaleString()} more</small>`}</button>
+    <p class="gnote">${can?`Get ${lv} lives and replay stage ${run.stage} from its start. Your score stays.`:`You have 🪙 ${tot.toLocaleString()}.`}${boughtRead()>0?' Bought gold is used after your free gold.':''}</p>
+    <p class="gmsg bad" id="ctMsg">${msg?esc(msg):''}</p>
+    <button class="mid goldbtn" data-a="s">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+    {p:()=>{ const c=contCost(); if(totalGold()<c){ contOffer(); return; }
+        state='modal'; modal(`<h2>💰 CONTINUE</h2><p>Paying ${c.toLocaleString()} 🪙…</p>`,{});
+        spendGold(c, (ok,m)=>{ if(state!=='modal') return; if(ok) contGo(); else contOffer(m); }); },
+     s:()=>goldStore(()=>contOffer(), '🛒 BUY GOLD TO CONTINUE'),
+     g:finalOver});
+}
+function contGo(){
+  run.extra.payCont=(Math.floor(+run.extra.payCont)||0)+1; run.lives=startLives(); writeSlot();
+  SFX.power(); beginStage(); setTimeout(()=>{ if(state==='play') toast('💰 CONTINUE! '+run.lives+' LIVES'); }, 300);
 }
 function victory(coins, bonus){
   const code=claimCode(), fin=finishRecord(code);
@@ -1814,10 +1878,10 @@ function netContinue(){
   NET.waitPay=true; netContinueShow();
 }
 function netShopTime(){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },120000); }
-function netContinueShow(){ if(!NET.on||!NET.waitPay) return; const cost=netContCost(), can=P.coins>=cost;
-  modal(`<h2>OUT OF LIVES!</h2><p>Either player can pay to keep going together.</p><button class="big" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙</button><p style="font-size:13px">You have ${P.coins.toLocaleString()} 🪙${can?'':' — not enough'}</p><button class="mid" data-a="s" style="background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+function netContinueShow(){ if(!NET.on||!NET.waitPay) return; const cost=netContCost(), can=totalGold()>=cost;
+  modal(`<h2>OUT OF LIVES!</h2><p>Either player can pay to keep going together.</p><button class="big" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙</button><p style="font-size:13px">You have ${totalGold().toLocaleString()} 🪙${can?'':' — not enough'}</p><button class="mid" data-a="s" style="background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
     {s:()=>{ if(NET.role==='host') netShopTime(); else netSendRel({e:'nshop'}); goldStore(()=>netContinueShow(),'🛒 BUY GOLD TO CONTINUE'); },
-     p:()=>{ if(P.coins<cost){ netContinueShow(); return; } P.coins-=cost; save(); updCoins(); if(NET.role==='host') netResume(MP.name); else { netSendRel({e:'npay',name:MP.name}); modal(`<h2>PAID ✔</h2><p>Continuing…</p>`,{}); } }, g:()=>{ netSendRel({e:'ngive'}); if(NET.role==='host'){ clearTimeout(NET.contT); NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } else modal(`<h2>WAITING…</h2><p>Your partner can still pay to continue.</p>`,{}); }});
+     p:()=>{ if(totalGold()<cost){ netContinueShow(); return; } modal(`<h2>💰 PAYING…</h2>`,{}); spendGold(cost,(ok,m)=>{ if(!NET.on||!NET.waitPay) return; if(!ok){ netContinueShow(); toast(m); return; } updCoins(); if(NET.role==='host') netResume(MP.name); else { netSendRel({e:'npay',name:MP.name}); modal(`<h2>PAID ✔</h2><p>Continuing…</p>`,{}); } }); }, g:()=>{ netSendRel({e:'ngive'}); if(NET.role==='host'){ clearTimeout(NET.contT); NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } else modal(`<h2>WAITING…</h2><p>Your partner can still pay to continue.</p>`,{}); }});
 }
 function netResume(payer){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.waitPay=false; run.lives=G.lives; updHud(); if(G.netRevive) G.netRevive(); else if(G.respawn) G.respawn(); netSendRel({e:'nresume',payer}); closeModal(); state='play'; last=performance.now(); toast('💰 '+payer+' PAID — KEEP GOING!'); }
 function netGameOver(){ state='modal'; if(NET.role==='host'){ P.coop=P.coop||{}; P.coop[G.id]=null; save(); }
@@ -1834,7 +1898,7 @@ function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) mo
 const PAYHIP_STORE = 'https://payhip.com/b/kXlAa';
 const PAY_LINKS = {500:'https://payhip.com/b/ZoQzY', 1500:'https://payhip.com/b/CkmTU', 4000:'https://payhip.com/b/K2FSs'};  // SHELL-GOLD-2   // per-pack Payhip links go here; empty = the main store page
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'Buy gold on our Payhip page. You get a code by email — type it here. Each code works once, on one device.';
+const GOLD_NOTE = 'Buy gold on our Payhip page. You get a code by email — type it in 🎟️ I HAVE A CODE. Bought gold is saved to your account, so it can never get lost.';
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
     const url = PAY_LINKS[pack.gold] || PAYHIP_STORE; let w=null;
@@ -1843,18 +1907,25 @@ const PAY = { enabled:true,
     toast('🛒 OPENING PAYHIP…'); SFX.click(); } };
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
-    + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>`;
+    + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
 }
 function bindGoldPacks(back){
-  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); PAY.buy(GOLD_PACKS[+b.dataset.gp]); }));
-  document.querySelectorAll('[data-gcode]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); SFX.click(); redeemModal(back); }));
+  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); const pack=GOLD_PACKS[+b.dataset.gp];
+    if(signedIn()){ PAY.buy(pack); return; } SFX.click();
+    loginModal('Sign in once before you buy, so the gold you buy is saved to your account and can never get lost.', ()=>buyReady(pack, back), back); }));
+  document.querySelectorAll('[data-gcode]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); SFX.click();
+    if(signedIn()) redeemModal(back); else loginModal('Sign in first, so the gold from your code is saved to your account and can never get lost.', ()=>redeemModal(back), back); }));
+  document.querySelectorAll('[data-grest]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); SFX.click();
+    loginModal('Sign in with the email you used when you bought gold. Your bought gold comes back on this phone.', ok=>restoreDone(back, ok), back); }));
+  document.querySelectorAll('[data-gout]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); SFX.click(); signOutModal(back); }));
+  if(signedIn()) walletRefresh();
 }
 function goldStore(back, title){
-  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${P.coins.toLocaleString()}</b> GOLD</div>${goldPackRows()}<p class="note">${GOLD_NOTE}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${totalGold().toLocaleString()}</b> GOLD${boughtNote()}</div>${goldPackRows()}<p class="note">${GOLD_NOTE}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
   bindGoldPacks(()=>goldStore(back,title));
 }
 function redeemModal(back){
-  modal(`<h2>🎟️ REDEEM CODE</h2><p class="gnote">${GOLD_NOTE}</p><input id="gcIn" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="YOUR CODE"><button class="big" id="gcGo">REDEEM</button><p class="gmsg" id="gcMsg"></p><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  modal(`<h2>🎟️ REDEEM CODE</h2><p class="gnote">${GOLD_NOTE}</p>${signedIn()?`<p class="gnote acctline">🔐 Signed in as <b>${esc(acctMasked())}</b></p>`:''}<input id="gcIn" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="YOUR CODE"><button class="big" id="gcGo">REDEEM</button><p class="gmsg" id="gcMsg"></p><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
   const inp=$('#gcIn'), go=$('#gcGo'), msg=$('#gcMsg'); let busy=false;
   const say=(t,ok)=>{ msg.textContent=t; msg.className='gmsg'+(ok?' ok':t?' bad':''); };
   inp.addEventListener('input',()=>{ const v=inp.value.toUpperCase().replace(/[^A-Z0-9-]/g,''); if(v!==inp.value) inp.value=v; });
@@ -1863,18 +1934,131 @@ function redeemModal(back){
   go.addEventListener('click',e=>{ e.stopPropagation(); if(busy) return;
     const code=inp.value.toUpperCase().replace(/[^A-Z0-9-]/g,'');
     if(code.length<4){ say('Type the code from your email.'); SFX.bump(); return; }
+    if(!signedIn()){ loginModal('Sign in first, so the gold from your code is saved to your account and can never get lost.', ()=>redeemModal(back), back); return; }
     let pid=''; try{ pid=localStorage.getItem('rmxId')||''; }catch(err){}
     busy=true; go.disabled=true; say('Checking your code…');
-    let ac=null, tm=null; try{ ac=new AbortController(); tm=setTimeout(()=>ac.abort(),15000); }catch(err){}
+    let ac=null, tm=null; try{ ac=new AbortController(); tm=setTimeout(()=>ac.abort(),20000); }catch(err){}
     const done=()=>{ busy=false; go.disabled=false; clearTimeout(tm); };
-    fetch(REDEEM_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':FIN.key},body:JSON.stringify({code,pid}),signal:ac?ac.signal:undefined})
+    const offline=()=>{ done(); SFX.bump(); say('No connection — could not check your code. Check your internet and try again.'); };
+    sbAuth(sb=>{ tmo(sb.auth.getSession(),15000).then(({data})=>{ const tok=data&&data.session&&data.session.access_token;
+      if(!tok){ done(); say('Please sign in again.'); setTimeout(()=>loginModal('Your sign-in ran out. Sign in again to redeem your code.', ()=>redeemModal(back), back),900); return; }
+      fetch(REDEEM_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':FIN.key,'Authorization':'Bearer '+tok},body:JSON.stringify({code,pid}),signal:ac?ac.signal:undefined})
       .then(r=>r.json().catch(()=>({ok:false,msg:r.ok?'':'Could not check the code right now. Please try again later.'})))
       .then(j=>{ done(); const n=Math.floor(+(j&&j.gold))||0;
-        if(j&&j.ok&&n>0){ P.coins+=n; save(); goldUI(); SFX.coin(); toast('+'+n.toLocaleString()+' GOLD ADDED'); inp.value=''; say('+'+n.toLocaleString()+' GOLD ADDED ✔ · You now have 🪙 '+P.coins.toLocaleString(),true); }
+        if(j&&j.ok&&n>0&&typeof j.bought==='number'){ boughtWrite(j.bought); SFX.coin(); toast('+'+n.toLocaleString()+' GOLD ADDED'); inp.value=''; say('+'+n.toLocaleString()+' GOLD ADDED ✔ · Saved to your account · You now have 🪙 '+totalGold().toLocaleString(),true); }
+        else if(j&&j.ok&&n>0){ P.coins+=n; save(); goldUI(); SFX.coin(); toast('+'+n.toLocaleString()+' GOLD ADDED'); inp.value=''; say('+'+n.toLocaleString()+' GOLD ADDED ✔ · You now have 🪙 '+totalGold().toLocaleString(),true); }  // old server (before the wallet update): gold stays on this phone
+        else if(j&&j.login){ SFX.bump(); say((j&&j.msg)||'Please sign in again.'); }
         else { SFX.bump(); say((j&&j.msg)||'That code did not work. Check it and try again.'); } })
-      .catch(()=>{ done(); SFX.bump(); say('No connection — could not check your code. Check your internet and try again.'); });
+      .catch(offline); }, offline); }, offline);
   });
 }
+
+/* ---------- SHELL-LOGIN-1: email one-time-code login, bought-gold wallet ---------- */
+const SB_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+const OFFLINE_MSG = 'No connection. Your bought gold is safe in your account, but using it needs internet. Try again when you are online.';
+let SBA = null, sbWait = null, spending = false;
+function tmo(p, ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms))]); }
+// supabase-js is loaded only when the player actually needs the login / wallet (never before playing)
+function sbAuth(ok, fail){
+  if(SBA) return ok(SBA);
+  const make=()=>{ if(SBA) return ok(SBA); try { SBA = window.supabase.createClient(FIN.sb, FIN.key, {auth:{storageKey:AUTH_KEY, persistSession:true, autoRefreshToken:true, detectSessionInUrl:false}});
+      SBA.auth.onAuthStateChange(()=>{ setTimeout(()=>{ try { goldUI(); } catch(e){} }, 0); }); } catch(e){ SBA = null; }
+    if(SBA) ok(SBA); else fail(); };
+  if(window.supabase && window.supabase.createClient) return make();
+  if(!sbWait){ sbWait = []; const sc = document.createElement('script'); sc.src = SB_JS;
+    sc.onload = ()=>{ const q = sbWait || []; sbWait = null; q.forEach(f=>f[0]()); };
+    sc.onerror = ()=>{ sc.remove(); const q = sbWait || []; sbWait = null; q.forEach(f=>f[1]()); };
+    document.head.appendChild(sc); }
+  sbWait.push([()=>{ if(window.supabase && window.supabase.createClient) make(); else fail(); }, fail]);
+}
+function walletRefresh(cb){ cb = cb || (()=>{}); if(!signedIn() || !navigator.onLine) return cb(false);
+  sbAuth(sb=>{ tmo(sb.from('player_wallets').select('bought_gold').maybeSingle(), 15000).then(({data, error})=>{
+      if(error){ cb(false); return; } boughtWrite(data ? data.bought_gold : 0); cb(true); }, ()=>cb(false)); }, ()=>cb(false)); }
+// spend: FREE gold first, then BOUGHT gold from the account (server checks and takes it atomically)
+function spendGold(cost, cb){
+  cost = Math.max(0, Math.floor(+cost) || 0); const free = P.coins;
+  if(free >= cost){ P.coins -= cost; save(); goldUI(); cb(true); return; }
+  const need = cost - free;
+  if(!signedIn() || boughtRead() < need){ cb(false, 'Not enough gold — you need '+(cost-totalGold()).toLocaleString()+' more.'); return; }
+  if(!navigator.onLine){ cb(false, OFFLINE_MSG); return; }
+  if(spending){ cb(false, 'Please wait — still paying…'); return; } spending = true;
+  const end=(ok,m)=>{ spending = false; cb(ok, m); };
+  sbAuth(sb=>{ tmo(sb.rpc('spend_bought_gold', {p_amount:need}), 15000).then(({data, error})=>{
+      if(error){ const m = String(error.message||'');
+        if(error.code === 'P0001' || /not enough/i.test(m)){ walletRefresh(()=>end(false, 'Not enough bought gold left in your account.')); return; }
+        if(error.code === '28000' || /signed in|jwt/i.test(m)){ end(false, 'Please sign in again: 🛒 BUY GOLD → 🔄 RESTORE PURCHASES.'); return; }
+        end(false, error.code ? 'Could not use your bought gold right now. Please try again.' : OFFLINE_MSG); return; }
+      boughtWrite(+data || 0); P.coins = Math.max(0, P.coins - free); save(); goldUI(); end(true);
+    }, ()=>{ walletRefresh(); end(false, OFFLINE_MSG); }); }, ()=>end(false, OFFLINE_MSG));
+}
+function goldNotice(msg, back){ modal(`<h2>🪙 GOLD</h2><p>${esc(msg)}</p><button class="big" data-a="b">OK</button>`, {b:back||(()=>{})}); }
+function acctRow(){
+  if(signedIn()) return `<div class="acct">🔐 Signed in as <b>${esc(acctMasked())}</b><br><span class="bn">${boughtRead().toLocaleString()}</span> bought gold safe in your account <button class="acctout" data-gout="1">SIGN OUT</button></div>`;
+  return `<button class="gcode grest" data-grest="1">🔄 RESTORE PURCHASES</button><p class="note">Bought gold before? Sign in with the same email to get it back on this phone.</p>`;
+}
+function authErr(e, verify){ const m = String((e && e.message) || e || '').toLowerCase(), st = e && e.status, c = String((e && e.code) || '');
+  if(/security purposes|only request this after/.test(m)) return 'Please wait a minute before asking for another code.';
+  if(st === 429 || /rate limit/.test(m) || c.indexOf('rate_limit') >= 0) return 'Too many sign-in emails were sent just now. Please wait a few minutes (up to an hour) and try again.';
+  if(verify && (/expired|invalid|token/.test(m) || st === 403 || st === 401)) return 'That code is wrong or has expired. Check the newest email, or tap SEND A NEW CODE.';
+  if(/not authorized/.test(m) || c.indexOf('not_authorized') >= 0) return 'Sign-in emails are not switched on yet. Please try again later, or contact support.';
+  if(/signups? not allowed|signup.*disabled/.test(m)) return 'New sign-ups are switched off right now. Please contact support.';
+  if(/email/.test(m) && /invalid/.test(m)) return 'That email address does not look right.';
+  if(!st || /fetch|network|timeout/.test(m)) return 'No connection — check your internet and try again.';
+  return 'Something went wrong. Please try again in a minute.';
+}
+function loginModal(why, next, back, pre){
+  modal(`<h2>🔐 SIGN IN</h2><p class="gnote">${why}</p><input id="lgEmail" class="lgin" type="email" inputmode="email" autocomplete="email" maxlength="120" placeholder="you@gmail.com" value="${esc(pre||'')}"><button class="big" id="lgSend">SEND CODE</button><p class="gmsg" id="lgMsg"></p><p class="gnote lgsafe">🔒 We only use your email to keep your bought gold safe. No password. Free gold you earned stays on this phone.</p><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  const inp=$('#lgEmail'), go=$('#lgSend'), msg=$('#lgMsg'); let busy=false;
+  const say=(t,ok)=>{ msg.textContent=t; msg.className='gmsg'+(ok?' ok':t?' bad':''); };
+  inp.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') go.click(); });
+  setTimeout(()=>{ try{ inp.focus(); }catch(e){} },50);
+  go.addEventListener('click',e=>{ e.stopPropagation(); if(busy) return; const email=inp.value.trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ SFX.bump(); say('Type your email address, e.g. you@gmail.com'); return; }
+    if(!navigator.onLine){ SFX.bump(); say('No connection — check your internet and try again.'); return; }
+    busy=true; go.disabled=true; say('Sending your code…');
+    const fail=t=>{ busy=false; go.disabled=false; SFX.bump(); say(t); };
+    sbAuth(sb=>{ tmo(sb.auth.signInWithOtp({email, options:{shouldCreateUser:true}}), 20000).then(({error})=>{
+        if(error) fail(authErr(error)); else { SFX.pickup(); codeModal(email, why, next, back); } }, er=>fail(authErr(er))); },
+      ()=>fail('No connection — check your internet and try again.'));
+  });
+}
+function codeModal(email, why, next, back){
+  modal(`<h2>📧 CHECK YOUR EMAIL</h2><p class="gnote">We sent a 6-digit code to <b>${esc(maskEmail(email))}</b>. It can take a minute — check spam too.</p><input id="lgCode" class="lgcode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456"><button class="big" id="lgGo">DONE</button><p class="gmsg" id="lgMsg"></p><button class="mid" id="lgNew">SEND A NEW CODE</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  const inp=$('#lgCode'), go=$('#lgGo'), msg=$('#lgMsg'), nw=$('#lgNew'); let busy=false;
+  const say=(t,ok)=>{ msg.textContent=t; msg.className='gmsg'+(ok?' ok':t?' bad':''); };
+  inp.addEventListener('input',()=>{ const v=inp.value.replace(/\D/g,''); if(v!==inp.value) inp.value=v; });
+  inp.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') go.click(); });
+  setTimeout(()=>{ try{ inp.focus(); }catch(e){} },50);
+  go.addEventListener('click',e=>{ e.stopPropagation(); if(busy) return; const token=inp.value.replace(/\D/g,'');
+    if(token.length<6){ SFX.bump(); say('Type the 6-digit code from the email.'); return; }
+    busy=true; go.disabled=true; say('Checking…');
+    const fail=t=>{ busy=false; go.disabled=false; SFX.bump(); say(t); };
+    sbAuth(sb=>{ tmo(sb.auth.verifyOtp({email, token, type:'email'}), 20000).then(({data, error})=>{
+        if(error || !data || !data.session){ fail(authErr(error||'invalid', true)); return; }
+        say('Signed in ✔', true); try { localStorage.removeItem(BOUGHT_KEY); } catch(_){}
+        walletRefresh(ok=>{ SFX.pickup(); toast('SIGNED IN ✔'); goldUI(); next(ok); }); }, er=>fail(authErr(er, true))); },
+      ()=>fail('No connection — check your internet and try again.'));
+  });
+  nw.addEventListener('click',e=>{ e.stopPropagation(); if(busy) return; busy=true; nw.disabled=true; say('Sending a new code…');
+    const end=(t,ok)=>{ busy=false; nw.disabled=false; if(!ok) SFX.bump(); say(t, ok); };
+    sbAuth(sb=>{ tmo(sb.auth.signInWithOtp({email, options:{shouldCreateUser:true}}), 20000).then(({error})=>{ if(error) end(authErr(error)); else end('New code sent ✔ — use the NEWEST email.', true); }, er=>end(authErr(er))); },
+      ()=>end('No connection — check your internet and try again.'));
+  });
+}
+function buyReady(pack, back){
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Now buy on Payhip. You get a code by email — come back and tap 🎟️ I HAVE A CODE. The gold goes into your account.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
+}
+function restoreDone(back, ok){
+  const b=boughtRead();
+  modal(`<h2>🔄 PURCHASES RESTORED</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><div class="stat">🪙 ${b.toLocaleString()}</div><p>bought gold in your account${ok===false?' (last known — could not reach the server just now)':''}</p><p class="gnote">Total gold on this phone: 🪙 ${totalGold().toLocaleString()}</p><button class="big" data-a="b">OK</button>`, {b:back});
+}
+function signOutModal(back){
+  modal(`<h2>SIGN OUT?</h2><p class="gnote">Your bought gold stays safe in your account. Sign in again with the same email any time (🔄 RESTORE PURCHASES) to use it. Free gold you earned stays on this phone.</p><button class="big" data-a="y">SIGN OUT</button><button class="mid" data-a="n">CANCEL</button>`,
+    {y:()=>{ let done=false; const fin=()=>{ if(done) return; done=true; try { localStorage.removeItem(AUTH_KEY); localStorage.removeItem(BOUGHT_KEY); } catch(e){} goldUI(); back(); };
+        sbAuth(sb=>{ tmo(sb.auth.signOut({scope:'local'}), 8000).then(fin, fin); }, fin); }, n:back});
+}
+if(signedIn()) setTimeout(()=>walletRefresh(), 2500);   // show the latest bought balance (e.g. after buying on another phone)
 
 
 })();
