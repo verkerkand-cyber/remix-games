@@ -442,6 +442,25 @@ table.sc tr:first-child td{color:var(--a);font-weight:700}
 #btnCont.nosave:disabled{opacity:.55;filter:grayscale(.9);box-shadow:none}
 .mbox #ctMsg:empty{display:none}
 
+/* SLOTS-LAYOUT-1: machine left, choices right when the screen is wide */
+.slot2{flex-direction:column}
+.slot2 .sl-left,.slot2 .sl-right{display:flex;flex-direction:column;gap:10px;align-items:center;width:100%}
+@media (orientation:landscape){
+  .slot2{flex-direction:row;align-items:flex-start;gap:18px}
+  .slot2 .sl-left{flex:1 1 55%;position:sticky;top:0;justify-content:center;min-height:100%}
+  .slot2 .sl-right{flex:1 1 45%;max-width:420px}
+  .slot2 .tabs button{font-size:11px;padding:8px 6px}
+  .slot2 .bets{flex-wrap:wrap;justify-content:center}
+  .slot2 .paytable{font-size:11px}
+}
+@media (orientation:landscape) and (max-height:480px){
+  .slot2 .reel{width:54px;height:66px;font-size:34px}
+  .slot2 .reels.five .reel{width:42px;height:56px;font-size:26px}
+  .slot2 .wheel-box,.slot2 .wheel{width:190px;height:190px}
+  .slot2 .wheel-lbl span{top:-82px;transform-origin:18px 82px!important}
+  .slot2 .coin{width:64px;height:64px;font-size:22px}
+}
+
 </style>
 </head>
 <body>
@@ -1390,6 +1409,7 @@ function scoresPanel(d){
 }
 function shopPanel(){
   let h = `<p style="margin-bottom:10px">Your gold: <span class="coins">🪙 ${totalGold().toLocaleString()}</span> — collect gold while you play and clear stages. Nothing is ever locked: every level and mode is free. Abilities are in <b>⚡ ABILITIES</b> on the main menu.</p>`;
+  h += `<div class="cat">GOLD PACKS</div><div class="abshop">${goldPackRows()}<p class="note">${GOLD_NOTE}</p></div>`; // SHOP-GOLD-1
   const cats = [...new Set(G.shop.map(s=>s.cat))];
   cats.forEach(c=>{
     h += `<div class="cat">${c.toUpperCase()}</div><div class="shop-grid">`;
@@ -1403,8 +1423,9 @@ function shopPanel(){
   });
   h += `<div class="cat">PREMIUM PACKS</div><div class="shop-grid">`;
   (G.premium||[]).forEach(p=>{ h += `<div class="item prem"><div class="sw" style="background:${p.swatch}"></div><b>${p.name}</b><small>${p.desc}</small><button disabled>${p.price} · COMING SOON</button></div>`; });
-  h += `</div><p style="opacity:.6;font-size:12px;margin-top:10px">Premium packs will be paid with PayFast before launch. Test build: not purchasable yet.</p>`;
+  h += `</div><p style="opacity:.6;font-size:12px;margin-top:10px">Premium packs are coming soon.</p>`;
   panel('SHOP', h);
+  bindGoldPacks(()=>shopPanel());
   document.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click', ()=>{ const it=G.shop.find(s=>s.id===b.dataset.buy); if(totalGold()>=it.cost && !P.owned.includes(it.id)){ b.disabled=true; spendGold(it.cost, (ok,msg)=>{ if(ok){ if(!P.owned.includes(it.id)) P.owned.push(it.id); P.equipped[it.cat]=it.id; save(); SFX.pickup(); if(state==='menu') shopPanel(); } else { SFX.bump(); goldNotice(msg, ()=>{ if(state==='menu') shopPanel(); }); } }); } }));
   document.querySelectorAll('[data-eq]').forEach(b=>b.addEventListener('click', ()=>{ const it=G.shop.find(s=>s.id===b.dataset.eq); P.equipped[it.cat]=it.id; save(); SFX.click(); shopPanel(); }));
 }
@@ -1427,18 +1448,18 @@ function slotsPanel(){
   const pt = sTab===0? `3 in a row: 🍒x6 · 🍋x10 · 🔔x18 · ⭐x35 · 💎x100 · 7️⃣x300<br>🍒🍒 first two: x2.5 · 🍒 first: x0.6` :
              sTab===1? `Match from the left — any 2: x0.4<br>3 / 4 / 5 in a row: 🍒 4/14/55 · 🍋 5/23/90 · 🔔 11/40/180<br>⭐ 18/75/360 · 💎 45/180/1100 · 7️⃣ 90/450/3600` :
              `Spin the wheel: win x0.5 up to x3 your bet, or lose it (✕).`;
-  const h=`<div class="slot-wrap">
-    <div class="tabs" style="width:100%">${names.map((n,i)=>`<button data-st="${i}" class="${i===sTab?'on':''}">${n}</button>`).join('')}</div>
+  const h=`<div class="slot-wrap slot2"><div class="sl-left">
     <div class="slot-coins coins">🪙 <span id="slC">${P.coins.toLocaleString()}</span></div>
     ${m}
+    <div class="slot-msg" id="slMsg">${sPend>0?'':'Good luck!'}</div></div><div class="sl-right">
+    <div class="tabs" style="width:100%">${names.map((n,i)=>`<button data-st="${i}" class="${i===sTab?'on':''}">${n}</button>`).join('')}</div>
     <div class="bets">${[10,25,50,100].map(b=>`<button data-bet="${b}" class="${b===sBet?'on':''}">BET ${b}</button>`).join('')}</div>
-    <div class="slot-msg" id="slMsg">${sPend>0?'':'Good luck!'}</div>
     <button class="big casino" id="slSpin" style="width:100%">🎰 SPIN · 🪙${sBet}</button>
     <div class="dbl hidden" id="dbl"><div>WIN <b class="coins" id="dAmt">0</b> — <b>DOUBLE UP OR LOSS?</b></div><div class="coin" id="coinEl">?</div>
       <div class="row" style="width:100%"><button class="mid" id="dH">HEADS (x2)</button><button class="mid" id="dT">TAILS (x2)</button></div><button class="big" id="dC" style="width:100%">COLLECT</button></div>
     <div class="paytable">${pt}</div>
     <p style="font-size:11px;opacity:.55;text-align:center;font-family:Segoe UI,sans-serif">Uses coins you earned by playing only. Coins can't be bought for this. Just for fun: on average the machines keep about 8% of what's bet.</p>
-  </div>`;
+  </div></div>`; // SLOTS-LAYOUT-1
   panel('DOUBLE UP OR LOSS', h, slotsBack);
   document.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{ if(sSpin||sPend>0) return; SFX.click(); sTab=+b.dataset.st; slotsPanel(); });
   document.querySelectorAll('[data-bet]').forEach(b=>b.onclick=()=>{ if(sSpin||sPend>0) return; SFX.click(); sBet=+b.dataset.bet; slotsPanel(); });
