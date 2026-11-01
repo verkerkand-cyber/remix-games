@@ -1,0 +1,70 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Remix Arcade — visits</title>
+<!-- STATS-1 · visit counts only (day + page + number). No personal data. Not linked from anywhere. -->
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b0718;color:#f2eefa;font:15px system-ui,sans-serif;padding:16px;display:flex;justify-content:center}
+main{width:min(760px,100%)}
+h1{font-size:22px;margin:4px 0 2px}
+.sub{color:#b8b0cc;font-size:13px;margin:0 0 14px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.tile{background:#17112a;border:1px solid #2c2347;border-radius:14px;padding:12px}
+.tile span{display:block;color:#b8b0cc;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+.tile b{display:block;font-size:30px;margin-top:4px;font-variant-numeric:tabular-nums}
+h2{font-size:15px;margin:18px 0 8px;color:#f2eefa}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.bl{display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;align-items:center;font-size:13px}
+.bl .l{color:#b8b0cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.bl .v{text-align:right;font-variant-numeric:tabular-nums;color:#f2eefa;min-width:34px}
+.track{height:14px;position:relative}
+.bar{height:14px;border-radius:0 4px 4px 0;background:#4fb3ff;min-width:2px}
+.bar.today{background:#a8dcff}
+.track:hover .bar{filter:brightness(1.25)}
+button{font:700 14px system-ui,sans-serif;border:1px solid #4fb3ff;background:#4fb3ff1a;color:#f2eefa;border-radius:10px;padding:8px 14px;cursor:pointer}
+.msg{color:#ffb4a8;margin:12px 0}
+.foot{color:#7d7494;font-size:12px;margin-top:22px}
+@media (max-width:600px){ .cols{grid-template-columns:1fr} .tile b{font-size:24px} }
+</style></head><body><main>
+<h1>Remix Arcade — visits</h1>
+<p class="sub">Page opens per day (South African time). One per page per browser tab — reloads don't count twice. <button id="rf">↻ Refresh</button></p>
+<div class="tiles">
+  <div class="tile"><span>Today</span><b id="tToday">–</b></div>
+  <div class="tile"><span>Last 7 days</span><b id="t7">–</b></div>
+  <div class="tile"><span>Last 30 days</span><b id="t30">–</b></div>
+</div>
+<div id="msg" class="msg" hidden></div>
+<div class="cols">
+  <section><h2>Visits per day (last 30 days)</h2><div class="bl" id="days"></div></section>
+  <section><h2>Top pages (last 30 days)</h2><div class="bl" id="top"></div></section>
+</div>
+<p class="foot">STATS-1 · counts only — no names, IPs, emails or device ids are stored.</p>
+</main>
+<script>
+(function(){
+  var SB='https://uuyaoffzgjxxwxlzhwur.supabase.co', KEY='sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9';
+  var $=function(id){ return document.getElementById(id); };
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function sast(d){ return d.toLocaleDateString('en-CA',{timeZone:'Africa/Johannesburg'}); } // YYYY-MM-DD
+  function nice(id){ return id==='home'?'🏠 Games page':id.split('-').map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1); }).join(' '); }
+  function fmt(n){ return n.toLocaleString(); }
+  function bars(el,rows,hi){ var max=Math.max(1,Math.max.apply(null,rows.map(function(r){ return r.v; })));
+    el.innerHTML=rows.map(function(r){ return '<div class="l" title="'+esc(r.tip||r.l)+'">'+esc(r.l)+'</div><div class="track" title="'+esc((r.tip||r.l)+': '+fmt(r.v)+' visits')+'"><div class="bar'+(r.k===hi?' today':'')+'" style="width:'+(r.v/max*100)+'%"></div></div><div class="v">'+fmt(r.v)+'</div>'; }).join(''); }
+  function load(){
+    $('msg').hidden=true;
+    fetch(SB+'/rest/v1/rpc/get_visit_stats',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({p_days:30})})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(draw).catch(function(e){ $('msg').hidden=false; $('msg').textContent='Could not load the numbers ('+e.message+'). Check your internet, or the visit counter SQL may not be set up yet.'; });
+  }
+  function draw(rows){
+    var now=new Date(), today=sast(now), byDay={}, byPage={}, t7=0, t30=0, cut7=sast(new Date(now.getTime()-6*864e5));
+    rows.forEach(function(r){ var v=+r.visits||0; byDay[r.day]=(byDay[r.day]||0)+v; byPage[r.page]=(byPage[r.page]||0)+v; t30+=v; if(r.day>=cut7) t7+=v; });
+    $('tToday').textContent=fmt(byDay[today]||0); $('t7').textContent=fmt(t7); $('t30').textContent=fmt(t30);
+    var days=[]; for(var i=0;i<30;i++){ var d=sast(new Date(now.getTime()-i*864e5)), dt=new Date(d+'T12:00:00Z');
+      days.push({k:d,l:(i===0?'Today':dt.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'})),tip:d,v:byDay[d]||0}); }
+    bars($('days'),days,today);
+    var top=Object.keys(byPage).map(function(p){ return {k:p,l:nice(p),v:byPage[p]}; }).sort(function(a,b){ return b.v-a.v; }).slice(0,15);
+    if(top.length) bars($('top'),top); else $('top').innerHTML='<div class="l">No visits yet</div>';
+  }
+  $('rf').onclick=load; load();
+})();
+</script></body></html>
