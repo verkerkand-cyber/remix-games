@@ -7,6 +7,12 @@ h1{font-size:clamp(28px,8vw,52px);margin:4px 0 2px;background:linear-gradient(90
 .sub{opacity:.75;margin:0 0 16px;text-align:center;font-family:system-ui,sans-serif;font-size:14px}
 .g{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:min(900px,100%);transition:opacity .2s,transform .2s}
 .g.out{opacity:0;transform:translateX(-30px)}
+.g.outL{opacity:0;transform:translateX(-60px);transition:opacity .16s,transform .16s ease-in}.g.outR{opacity:0;transform:translateX(60px);transition:opacity .16s,transform .16s ease-in}
+.g.inL{opacity:0;transform:translateX(60px);transition:none}.g.inR{opacity:0;transform:translateX(-60px);transition:none}
+.g{touch-action:pan-y}
+#swHint{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:60;padding:10px 20px;border-radius:999px;background:rgba(5,4,16,.88);border:1px solid #3dffd8;color:#3dffd8;font:800 15px system-ui,sans-serif;letter-spacing:.08em;box-shadow:0 0 18px #3dffd866;pointer-events:none;opacity:0;transition:opacity .6s;white-space:nowrap}
+#swHint.on{opacity:1;animation:swNudge 1.2s ease-in-out 2}
+@keyframes swNudge{25%{transform:translateX(calc(-50% - 10px))}75%{transform:translateX(calc(-50% + 10px))}}
 .c{display:flex;gap:10px;align-items:center;padding:8px;border-radius:14px;cursor:pointer;color:#fff;background:rgba(255,255,255,.05);border:2px solid color-mix(in srgb,var(--c) 70%,transparent);box-shadow:0 0 12px color-mix(in srgb,var(--c) 25%,transparent);transition:transform .12s,box-shadow .12s;text-align:left;font:inherit}
 .c:hover,.c:focus-visible{transform:translateY(-2px);box-shadow:0 0 22px color-mix(in srgb,var(--c) 55%,transparent);outline:none}
 .c.last{background:color-mix(in srgb,var(--c) 16%,transparent)}
@@ -73,13 +79,39 @@ function draw(){ const g=$('grid'); g.innerHTML='';
   g.classList.toggle('picking', sel>=0 && Math.floor(sel/PER)===page);
   $('hint').innerHTML= sel>=0 ? `<b style="color:${GAMES[sel][2]}">${GAMES[sel][1]}</b> selected — tap it again (or ▶ PLAY) to start` : 'Tap a game to light it up, tap again to play';
   $('prev').disabled=page===0; $('next').disabled=page===PAGES-1; }
-function go(p){ if(p<0||p>=PAGES||p===page) return; const g=$('grid'); g.classList.add('out'); setTimeout(()=>{ page=p; draw(); g.classList.remove('out'); scrollTo({top:0,behavior:'smooth'}); },160); }
+/* REMIX-HOME-SWIPE-1: direction-aware slide between pages (arrows, keys and swipes all use go) */
+let going=false;
+function go(p){ if(p<0||p>=PAGES||p===page||going) return; going=true; const g=$('grid'), fwd=p>page; g.classList.add(fwd?'outL':'outR');
+  setTimeout(()=>{ page=p; draw(); g.classList.remove('outL','outR'); g.classList.add(fwd?'inL':'inR'); void g.offsetWidth; g.classList.remove('inL','inR'); going=false; scrollTo({top:0,behavior:'smooth'}); },170); }
 function play(i){ try{ localStorage.setItem('rmxHomeIdx',i); }catch(e){} location.href=GAMES[i][0]+'/'; }
 // 1st tap lights the game up among the others, 2nd tap (or ▶ PLAY / Enter) goes into it
 function pick(i){ if(i===sel){ play(i); return; } sel=(i+GAMES.length)%GAMES.length; last=sel; const p=Math.floor(sel/PER); if(p!==page){ page=p; } draw(); const el=document.querySelector('.c.sel'); el&&el.scrollIntoView({block:'nearest',behavior:'smooth'}); }
 $('prev').onclick=()=>go(page-1); $('next').onclick=()=>go(page+1);
 addEventListener('keydown',e=>{ if(e.key==='Escape'){ sel=-1; draw(); } if(e.key==='ArrowLeft') sel>=0? pick(sel-1) : go(page-1); if(e.key==='ArrowRight') sel>=0? pick(sel+1) : go(page+1); if(e.key==='Enter'&&sel>=0) play(sel); });
-let sx=null; $('grid').addEventListener('pointerdown',e=>sx=e.clientX); $('grid').addEventListener('pointerup',e=>{ if(sx!==null&&Math.abs(e.clientX-sx)>60){ go(page+(e.clientX<sx?1:-1)); } sx=null; });
+/* REMIX-HOME-SWIPE-1: swipe left/right anywhere on the page = next/previous page */
+(function(){
+  const TH=50; let st=null, dragged=false;
+  function blocked(t){ for(let el=t; el && el!==document.body && el.nodeType===1; el=el.parentElement){
+      if(/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable) return true;
+      const cs=getComputedStyle(el); if(cs.position==='fixed') return true; // pop-ups / lobby / modals
+      if((cs.overflowX==='auto'||cs.overflowX==='scroll') && el.scrollWidth>el.clientWidth+2) return true; // sideways-scrolling rows
+    } return document.querySelector('.ov.on')!==null; }
+  function start(x,y,t){ st = blocked(t) ? null : {x,y}; }
+  function end(x,y){ if(!st) return false; const dx=x-st.x, dy=y-st.y; st=null;
+    if(Math.abs(dx)>=TH && Math.abs(dx)>Math.abs(dy)*1.5){ go(page+(dx<0?1:-1)); return true; } return false; }
+  addEventListener('touchstart',e=>{ if(e.touches.length!==1){ st=null; return; } const t=e.touches[0]; start(t.clientX,t.clientY,e.target); },{passive:true});
+  addEventListener('touchend',e=>{ const t=e.changedTouches[0]; if(t) end(t.clientX,t.clientY); },{passive:true});
+  addEventListener('touchcancel',()=>{ st=null; },{passive:true});
+  // desktop: click-and-drag with the mouse
+  addEventListener('mousedown',e=>{ if(e.button===0) start(e.clientX,e.clientY,e.target); dragged=false; });
+  addEventListener('mouseup',e=>{ if(e.button===0 && end(e.clientX,e.clientY)) dragged=true; });
+  addEventListener('click',e=>{ if(dragged){ dragged=false; e.stopPropagation(); e.preventDefault(); } },true);
+  // first-time hint
+  let seen=false; try{ seen=localStorage.getItem('rmxSwipeHint')==='1'; }catch(e){}
+  if(!seen && PAGES>1){ const h=document.createElement('div'); h.id='swHint'; h.textContent='← swipe →'; document.body.appendChild(h);
+    setTimeout(()=>h.classList.add('on'),700); setTimeout(()=>{ h.classList.remove('on'); setTimeout(()=>h.remove(),700); },4200);
+    try{ localStorage.setItem('rmxSwipeHint','1'); }catch(e){} }
+})();
 draw();
 </script><script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));/*OFFLINE-1*/</script><script>/*INSTALL-1*/(function(){var b=document.getElementById('inst'),tip=document.getElementById('iosTip'),ev=null;
 var standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
