@@ -1864,7 +1864,7 @@ function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) mo
 // Gold is sold on Payhip (no card details ever touch the game). The buyer gets a code by email and types it in
 // "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
 const PAYHIP_STORE = 'https://payhip.com/b/kXlAa';
-const PAY_LINKS = {500:'', 1500:'', 4000:''};   // per-pack Payhip links go here; empty = the main store page
+const PAY_LINKS = {500:'https://payhip.com/b/ZoQzY', 1500:'https://payhip.com/b/CkmTU', 4000:'https://payhip.com/b/K2FSs'};  // SHELL-GOLD-2   // per-pack Payhip links go here; empty = the main store page
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
 const GOLD_NOTE = 'Buy gold on our Payhip page. You get a code by email — type it here. Each code works once, on one device.';
 const PAY = { enabled:true,
