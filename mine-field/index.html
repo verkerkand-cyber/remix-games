@@ -1977,13 +1977,21 @@ const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
 const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
 const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'Pay by card with Paystack using the SAME email you sign in with. Your gold is added to your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
+const GOLD_NOTE = 'Pay by card with Paystack while signed in. Your gold goes straight into your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
+const CHECKOUT_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/create-checkout'; // SHELL-GOLD-4: checkout tied to the signed-in account
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
-    const url = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
-    try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
-    if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
-    toast('💳 PAY WITH YOUR GAME EMAIL'); SFX.click(); } };
+    const fallback = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
+    try { w = window.open('', '_blank'); if(w){ try{ w.opener=null; w.document.title='Opening checkout…'; w.document.body.innerHTML='<p style="font:16px sans-serif;padding:24px">Opening secure Paystack checkout…</p>'; }catch(e){} } } catch(e){}
+    const go=(url)=>{ if(w && !w.closed){ try { w.location.href=url; return; } catch(e){} } location.href=url; };
+    toast('💳 OPENING SECURE CHECKOUT…'); SFX.click();
+    const viaLink=()=>go(fallback);
+    sbAuth(sb=>{ tmo(sb.auth.getSession(),15000).then(({data})=>{ const tok=data&&data.session&&data.session.access_token; if(!tok) return viaLink();
+      fetch(CHECKOUT_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':FIN.key,'Authorization':'Bearer '+tok},body:JSON.stringify({gold:pack.gold, back:location.href.split('#')[0]})})
+        .then(r=>r.json()).then(j=>{ if(j&&j.ok&&j.url) go(j.url); else viaLink(); }, viaLink); }, viaLink); }, viaLink); } };
+// SHELL-GOLD-4: refresh the account's bought gold when the player comes back from the checkout tab
+let __walletAt=0; function walletOnReturn(){ if(!signedIn() || Date.now()-__walletAt<8000) return; __walletAt=Date.now(); walletRefresh(()=>{ try { goldUI(); } catch(e){} }); }
+window.addEventListener('focus', walletOnReturn); document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) walletOnReturn(); });
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
     + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
@@ -2125,7 +2133,7 @@ function codeModal(email, why, next, back){
   });
 }
 function buyReady(pack, back){
-  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack with this SAME email. Your gold is added to your account automatically — reopen the game to see it.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack. The gold goes straight into THIS account, and shows as soon as you come back to the game.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
   $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
 }
 function restoreDone(back, ok){
