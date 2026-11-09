@@ -597,7 +597,7 @@ const GAME=window.GAME={
     {id:'can',icon:'⛽',name:'FUEL CAN',cd:20,key:'Digit2',keyLabel:'2',desc:'Fills your fuel tank right up.'},
     {id:'cage',icon:'🛡️',name:'ROLL CAGE',cd:22,key:'Digit3',keyLabel:'3',desc:'For 10 seconds, one flip onto your head is forgiven — the jeep lands back on its wheels.'}],
   shop:SHOP,
-  premium:[{name:'Ultimate Pack',price:'$3',desc:'Every jeep colour.',swatch:'linear-gradient(90deg,#ff9f1c,#3dffd8)'}],
+  premium:[{name:'Ultimate Pack',price:'R50',desc:'Every jeep colour.',swatch:'linear-gradient(90deg,#ff9f1c,#3dffd8)'}],
   story:`<h3>HILL RIDER</h3><p>Rex has a rusty jeep, a full tank and a map with one hundred flags on it — across deserts, the moon, frozen peaks and a neon city. Keep the wheels down, keep the fuel up, and watch out for The Crusher.</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>. The view is wide so you can see the hills coming.</p><ul><li><b>Right thumb:</b> HOLD <b>⏩ GAS</b> (bottom-right) to drive — or hold anywhere on the right half. 💥 BOOST is next to it.</li><li><b>Left thumb:</b> HOLD the <b>BRAKE</b> pedal (bottom-left) — or anywhere on the left half — to brake / reverse.</li><li><b>PC:</b> → or D = gas, ← or A = brake. SPACE = BOOST. 1-3 = abilities.</li><li>The jeep never drives by itself: let go and it rolls to a stop.</li><li>In the air, GAS tips the jeep back and BRAKE tips it forward — land on your wheels!</li><li>If the driver's head hits the ground you lose a life and restart at the last checkpoint 🚩. (Beginner stages 1-10: the jeep flips back for you.)</li><li>Grab ⛽ fuel cans — run out of fuel and you lose a life. Collect coins on the way.</li><li>Reach the 🏁 flag to clear the stage. Every 10th stage: race The Crusher monster truck!</li></ul><h3>🔧 UPGRADE YOUR RIDE</h3><ul><li>Main menu → <b>🛒 SHOP</b>: <b>ENGINE</b> (power + top speed), <b>TYRES</b> (grip + brakes), <b>SUSPENSION</b> (soft landings + air control), <b>FUEL TANK</b> (fuel lasts longer). 5 levels each.</li><li>Paid with the 🪙 gold you collect while playing — never real money. Each upgrade shows on your jeep.</li></ul>`,
   tutorial:[{text:'Hold → (or D) to drive!',touch:'HOLD <b>⏩ GAS</b> (bottom-right) to drive!',ev:'gas'},{text:'Grab the fuel can ⛽',ev:'fuel'},{text:'Reach the flag! ← = brake.',touch:'Reach the flag! The BRAKE pedal is bottom-left.',time:5}],
@@ -768,7 +768,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'$1'},{gold:1500, price:'$2'},{gold:4000, price:'$3'}];
+const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */
@@ -2036,19 +2036,19 @@ function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NE
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
 
 // ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
-// Gold is ordered via WhatsApp (Paystack pages TBD). The buyer gets a code by email and types it in
+// Gold is paid on Paystack (rand). The paystack-webhook edge function credits the signed-in email's wallet;
 // "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
 const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
 const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
-const PAY_LINKS = {500: WA_GOLD(500), 1500: WA_GOLD(1500), 4000: WA_GOLD(4000)};  // SHELL-GOLD-2 WhatsApp order (Paystack pages TBD)
+const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'To buy gold, WhatsApp Jayden on 066 239 2340. You get a code by email — type it in 🎟️ I HAVE A CODE. Bought gold is saved to your account, so it can never get lost. Or visit our shop: App Stream Prints.';
+const GOLD_NOTE = 'Pay by card with Paystack using the SAME email you sign in with. Your gold is added to your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
     const url = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
     try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
     if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
-    toast('🛒 OPENING WHATSAPP…'); SFX.click(); } };
+    toast('💳 PAY WITH YOUR GAME EMAIL'); SFX.click(); } };
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
     + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
@@ -2190,7 +2190,7 @@ function codeModal(email, why, next, back){
   });
 }
 function buyReady(pack, back){
-  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Now WhatsApp Jayden to buy gold. You get a code by email — come back and tap 🎟️ I HAVE A CODE. The gold goes into your account.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack with this SAME email. Your gold is added to your account automatically — reopen the game to see it.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
   $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
 }
 function restoreDone(back, ok){

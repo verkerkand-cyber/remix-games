@@ -589,7 +589,7 @@ const GAME=window.GAME={
     {id:'speed',icon:'👟',name:'SPEED',cd:15,key:'Digit2',keyLabel:'2',desc:'Dig twice as fast for 8 seconds.'},
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit3',keyLabel:'3',desc:'6 seconds of safety — even from apples.'}],
   shop:[{id:'k_r',cat:'Clown',name:'Red Clown',cost:0,colors:['#ff3b5c'],desc:'Classic.'},{id:'k_b',cat:'Clown',name:'Blue Clown',cost:150,colors:['#2e7bff'],desc:'Cool.'}],
-  premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff3b5c,#3bff7a)'}],
+  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff3b5c,#3bff7a)'}],
   story:`<h3>CHERRY DIG</h3><p>Monsters have moved into the cherry orchard. Dig, pick every cherry and drop the apples on their heads.</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick digs and moves you through the garden. PC: arrow keys or WASD.</li><li><b>Right thumb:</b> tap <b>⚪ POWER BALL</b> (PC: SPACE) to throw your ball down the tunnel you face — it pops the first monster it hits.</li><li>Pick up EVERY cherry 🍒 — or pop every monster — to clear the stage.</li><li>Dig under an apple 🍎 and it falls — squashing monsters (or you!).</li><li>Monsters chase you through the tunnels — and dig to you if they have to. Keep moving!</li></ul>`,
   tutorial:[{text:'Arrow keys dig and move. Pick up all the cherries 🍒!',touch:'Left thumb digs and moves. Pick up all the cherries 🍒!',ev:'cherry'},
@@ -686,7 +686,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'$1'},{gold:1500, price:'$2'},{gold:4000, price:'$3'}];
+const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */
@@ -1954,19 +1954,19 @@ function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NE
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
 
 // ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
-// Gold is ordered via WhatsApp (Paystack pages TBD). The buyer gets a code by email and types it in
+// Gold is paid on Paystack (rand). The paystack-webhook edge function credits the signed-in email's wallet;
 // "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
 const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
 const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
-const PAY_LINKS = {500: WA_GOLD(500), 1500: WA_GOLD(1500), 4000: WA_GOLD(4000)};  // SHELL-GOLD-2 WhatsApp order (Paystack pages TBD)
+const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'To buy gold, WhatsApp Jayden on 066 239 2340. You get a code by email — type it in 🎟️ I HAVE A CODE. Bought gold is saved to your account, so it can never get lost. Or visit our shop: App Stream Prints.';
+const GOLD_NOTE = 'Pay by card with Paystack using the SAME email you sign in with. Your gold is added to your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
     const url = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
     try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
     if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
-    toast('🛒 OPENING WHATSAPP…'); SFX.click(); } };
+    toast('💳 PAY WITH YOUR GAME EMAIL'); SFX.click(); } };
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
     + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
@@ -2108,7 +2108,7 @@ function codeModal(email, why, next, back){
   });
 }
 function buyReady(pack, back){
-  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Now WhatsApp Jayden to buy gold. You get a code by email — come back and tap 🎟️ I HAVE A CODE. The gold goes into your account.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack with this SAME email. Your gold is added to your account automatically — reopen the game to see it.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
   $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
 }
 function restoreDone(back, ok){

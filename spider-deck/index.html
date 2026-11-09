@@ -676,7 +676,7 @@ const GAME=window.GAME={
     {id:'reveal',icon:'👁️',name:'REVEAL',cd:15,key:'Digit2',keyLabel:'2',desc:'Flips the face-down card in the column that has the most of them.'},
     {id:'wild',icon:'🃏',name:'WILD',cd:20,key:'Digit3',keyLabel:'3',desc:'Tap it, then tap any face-up card, then any column: that card (and everything on it) moves there, no rules.'}],
   shop:[{id:'sd_v',cat:'Web',name:'Violet Web',cost:0,colors:['#c06bff'],desc:'Classic neon violet.'},{id:'sd_c',cat:'Web',name:'Ice Web',cost:150,colors:['#3dd8ff'],desc:'Frosty blue silk.'}],
-  premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#c06bff,#3dd8ff)'}],
+  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#c06bff,#3dd8ff)'}],
   story:`<h3>SPIDER DECK</h3><p>Deep in the neon arcade a card-spinning spider has wrapped every deck in silk. Sort the cards into perfect runs and each one spins free — until you face the Web Queen herself.</p>`,
   howto:`<h3>HOW TO PLAY</h3><ul><li>📱 <b>Hold your phone sideways.</b> Right thumb: tap or drag cards, 💡 HINT button bottom-right. Left thumb: UNDO / REVEAL / WILD on the left edge.</li><li>💻 PC: click or drag cards with the mouse · SPACE hint · 1 undo · 2 reveal · 3 wild · D or ENTER deal.</li><li><b>Tap a card</b> and it jumps to the best spot, or <b>drag</b> it where you want.</li><li>Put a card on any card <b>one higher</b> (5 on a 6). Only cards of the <b>same suit</b> in order move together.</li><li>Build a full run in <b>one suit</b> from the top card down to <b>A</b> and it flies away. Clear every run to win.</li><li>Tap the <b>deck</b> (top right panel) to deal one card on every column (PC: D or ENTER).</li><li>Early tables use 1 suit and short runs. Later: 2 suits, then 4, move limits and clocks.</li><li>💡 HINT is free (SPACE). Stuck? UNDO (1), REVEAL (2), WILD (3) — or redeal for a life.</li></ul>`,
   tutorial:[{text:'Hold your phone sideways. Tap a card (right thumb) — it jumps onto a card one higher.',ev:'move'},{text:'Tap the deck (top right) to deal a new row. PC: D key.',ev:'deal'},{text:'Build 5 4 3 2 A in one suit to clear a run! Stuck? 💡 HINT bottom-right (SPACE).',time:6}],
@@ -777,7 +777,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'$1'},{gold:1500, price:'$2'},{gold:4000, price:'$3'}];
+const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */
@@ -2045,19 +2045,19 @@ function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NE
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
 
 // ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
-// Gold is ordered via WhatsApp (Paystack pages TBD). The buyer gets a code by email and types it in
+// Gold is paid on Paystack (rand). The paystack-webhook edge function credits the signed-in email's wallet;
 // "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
 const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
 const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
-const PAY_LINKS = {500: WA_GOLD(500), 1500: WA_GOLD(1500), 4000: WA_GOLD(4000)};  // SHELL-GOLD-2 WhatsApp order (Paystack pages TBD)
+const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'To buy gold, WhatsApp Jayden on 066 239 2340. You get a code by email — type it in 🎟️ I HAVE A CODE. Bought gold is saved to your account, so it can never get lost. Or visit our shop: App Stream Prints.';
+const GOLD_NOTE = 'Pay by card with Paystack using the SAME email you sign in with. Your gold is added to your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
     const url = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
     try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
     if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
-    toast('🛒 OPENING WHATSAPP…'); SFX.click(); } };
+    toast('💳 PAY WITH YOUR GAME EMAIL'); SFX.click(); } };
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
     + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
@@ -2199,7 +2199,7 @@ function codeModal(email, why, next, back){
   });
 }
 function buyReady(pack, back){
-  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Now WhatsApp Jayden to buy gold. You get a code by email — come back and tap 🎟️ I HAVE A CODE. The gold goes into your account.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack with this SAME email. Your gold is added to your account automatically — reopen the game to see it.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
   $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
 }
 function restoreDone(back, ok){

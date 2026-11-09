@@ -553,7 +553,7 @@ const GAME=window.GAME={
     {id:'speed',icon:'👟',name:'SPEED',cd:15,key:'Digit3',keyLabel:'3',desc:'Waddle even faster for 8 seconds.'},
     {id:'quake',icon:'💢',name:'WALL QUAKE',cd:15,key:'Digit4',keyLabel:'4',desc:'Shake the walls: beasts next to the edge are knocked out, the rest are stunned for 3 seconds.'}],
   shop:[{id:'p_b',cat:'Penguin',name:'Blue Penguin',cost:0,colors:['#2e7bff'],desc:'Classic.'},{id:'p_r',cat:'Penguin',name:'Rockhopper',cost:150,colors:['#ffd23f'],desc:'Yellow crest.'}],
-  premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#7df9ff,#ff3bd4)'}],
+  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#7df9ff,#ff3bd4)'}],
   story:`<h3>ICE PUSH</h3><p>Snow-beasts have hatched all over the ice field. Kick the ice blocks, squash them flat, and line up the three diamond blocks for a big bonus.</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> push the stick — the penguin steps one square straight away. Keep holding to keep walking. You can also swipe on the right side. PC: arrow keys or WASD.</li><li><b>Right thumb:</b> tap <b>🧊 PUSH</b> to kick the ice block in front of the penguin (PC: SPACE). It slides until it hits something and squashes any beast in the way.</li><li>Walking into a block just turns the penguin to face it — the block glows and says PUSH.</li><li>Push a block that's stuck against another block or the wall and it breaks.</li><li>Squash every snow-beast to clear the stage. Line up the 3 💎 blocks for a bonus.</li><li>Every 10th stage: the BEAST QUEEN.</li></ul>`,
   tutorial:[{text:'Arrow keys move one square per press. Face a block and press <b>SPACE</b> to PUSH it at the snow-beast!',touch:'Left thumb moves one square per push. Face a block and tap <b>🧊 PUSH</b> to kick it at the snow-beast!',ev:'squash'},{text:'Squash them all!',time:5}],
@@ -681,7 +681,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'$1'},{gold:1500, price:'$2'},{gold:4000, price:'$3'}];
+const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */
@@ -1949,19 +1949,19 @@ function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NE
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
 
 // ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
-// Gold is ordered via WhatsApp (Paystack pages TBD). The buyer gets a code by email and types it in
+// Gold is paid on Paystack (rand). The paystack-webhook edge function credits the signed-in email's wallet;
 // "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
 const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
 const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
-const PAY_LINKS = {500: WA_GOLD(500), 1500: WA_GOLD(1500), 4000: WA_GOLD(4000)};  // SHELL-GOLD-2 WhatsApp order (Paystack pages TBD)
+const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'To buy gold, WhatsApp Jayden on 066 239 2340. You get a code by email — type it in 🎟️ I HAVE A CODE. Bought gold is saved to your account, so it can never get lost. Or visit our shop: App Stream Prints.';
+const GOLD_NOTE = 'Pay by card with Paystack using the SAME email you sign in with. Your gold is added to your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
     const url = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
     try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
     if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
-    toast('🛒 OPENING WHATSAPP…'); SFX.click(); } };
+    toast('💳 PAY WITH YOUR GAME EMAIL'); SFX.click(); } };
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
     + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
@@ -2103,7 +2103,7 @@ function codeModal(email, why, next, back){
   });
 }
 function buyReady(pack, back){
-  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Now WhatsApp Jayden to buy gold. You get a code by email — come back and tap 🎟️ I HAVE A CODE. The gold goes into your account.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack with this SAME email. Your gold is added to your account automatically — reopen the game to see it.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
   $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
 }
 function restoreDone(back, ok){

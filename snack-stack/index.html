@@ -696,9 +696,9 @@ const GAME = window.GAME = {
     {id:'t_sunset', cat:'Table', name:'Karoo Sunset', cost:250, colors:['#2a0f1f','#b24a1c'], desc:'Warm sunset.'}
   ],
   premium:[
-    {name:'Supporter Pack', price:'$1', desc:'Gold Leaf tiles + supporter badge.', swatch:'linear-gradient(90deg,#fff6cf,#f3d36b)'},
-    {name:'Tables Bundle', price:'$2', desc:'All tables + 2 exclusive ones.', swatch:'linear-gradient(90deg,#0a2240,#b24a1c)'},
-    {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ffb000,#1fc36b)'}
+    {name:'Supporter Pack', price:'R15', desc:'Gold Leaf tiles + supporter badge.', swatch:'linear-gradient(90deg,#fff6cf,#f3d36b)'},
+    {name:'Tables Bundle', price:'R30', desc:'All tables + 2 exclusive ones.', swatch:'linear-gradient(90deg,#0a2240,#b24a1c)'},
+    {name:'Ultimate Pack', price:'R50', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ffb000,#1fc36b)'}
   ],
   story:`<h3>GOGO'S SNACK FESTIVAL</h3><p>Every year Gogo Thandi runs the biggest snack festival in Mzansi from her little spaza shop. This year a wild wind blew through the market and stacked every snack into a giant wobbly tower!</p><p>You're Gogo's helper. Sort the snacks back onto the counter tray in sets of three before the festival opens.</p><h3>THE SNACKS</h3><p>Bunny chow, koeksisters, biltong, boerewors rolls, vetkoek, melktert, rusks, samoosas, mealies, sosaties, naartjies, rooibos, lamb chops, malva pudding, droëwors and chakalaka.</p><p>Watch out for <b>frozen snacks</b> 🧊 fresh from the freezer, and <b>covered snacks</b> hiding under their wrappers.</p>`,
   howto:`<h3>GOAL</h3><p>Clear every snack from the board before the clock runs out.</p><p>📱 <b>Hold your phone sideways.</b></p><h3>CONTROLS</h3><ul><li><b>Phone:</b> tap a bright snack with either thumb. Ability buttons are on the <b>left</b>, 👆 PICK is bottom-<b>right</b>.</li><li><b>PC:</b> click a snack — or move the yellow cursor with <span class="key">←↑↓→</span> / <span class="key">WASD</span> and press <span class="key">SPACE</span>.</li></ul><h3>HOW TO PLAY</h3><ul><li>A snack you pick jumps to the <b>tray</b> under the board.</li><li>Get <b>3 of the same</b> in the tray and they clear. Snacks that would finish a set <b>glow green</b>.</li><li>The tray holds <b>7</b> (<b>8</b> on Beginner). If it fills up, you lose a life.</li><li>The <b>goals panel</b> on the right shows what's left and the clock.</li><li>Dark snacks are covered — clear what's on top first.</li><li>🧊 <b>Frozen snacks</b> need one tap to crack the ice first.</li><li>❓ <b>Wrapped snacks</b> only show what they are when nothing is on top of them.</li><li>On harder stages there's a <b>timer</b> — clear the board before it runs out.</li></ul><h3>ABILITIES</h3><ul><li>💡 <b>HINT</b> <span class="key">1</span> — shows the best snack to tap</li><li>↩️ <b>UNDO</b> <span class="key">2</span> — puts the last snack back</li><li>🔀 <b>SHUFFLE</b> <span class="key">3</span> — mixes up the board</li><li>🧲 <b>MAGNET</b> <span class="key">4</span> — finishes a set of 3 for you</li></ul>`,
@@ -898,7 +898,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'$1'},{gold:1500, price:'$2'},{gold:4000, price:'$3'}];
+const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */
@@ -2166,19 +2166,19 @@ function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NE
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
 
 // ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
-// Gold is ordered via WhatsApp (Paystack pages TBD). The buyer gets a code by email and types it in
+// Gold is paid on Paystack (rand). The paystack-webhook edge function credits the signed-in email's wallet;
 // "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
 const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
 const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
-const PAY_LINKS = {500: WA_GOLD(500), 1500: WA_GOLD(1500), 4000: WA_GOLD(4000)};  // SHELL-GOLD-2 WhatsApp order (Paystack pages TBD)
+const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'To buy gold, WhatsApp Jayden on 066 239 2340. You get a code by email — type it in 🎟️ I HAVE A CODE. Bought gold is saved to your account, so it can never get lost. Or visit our shop: App Stream Prints.';
+const GOLD_NOTE = 'Pay by card with Paystack using the SAME email you sign in with. Your gold is added to your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
     const url = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
     try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
     if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
-    toast('🛒 OPENING WHATSAPP…'); SFX.click(); } };
+    toast('💳 PAY WITH YOUR GAME EMAIL'); SFX.click(); } };
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
     + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
@@ -2320,7 +2320,7 @@ function codeModal(email, why, next, back){
   });
 }
 function buyReady(pack, back){
-  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Now WhatsApp Jayden to buy gold. You get a code by email — come back and tap 🎟️ I HAVE A CODE. The gold goes into your account.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack with this SAME email. Your gold is added to your account automatically — reopen the game to see it.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
   $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
 }
 function restoreDone(back, ok){

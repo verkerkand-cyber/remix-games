@@ -674,7 +674,7 @@ const GAME=window.GAME={
     {id:'bomb',icon:'💣',name:'BOMB',cd:15,key:'Digit2',keyLabel:'2',desc:'Arms a bomb: then TAP one of your pipes to blow it away — no time penalty.'},
     {id:'peek',icon:'👁️',name:'PEEK',cd:20,key:'Digit3',keyLabel:'3',desc:'See 5 more pieces coming in the queue for 12 seconds.'}],
   shop:[{id:'g_g',cat:'Goo',name:'Toxic Green',cost:0,colors:['#39ff6a'],desc:'Classic glow.'},{id:'g_p',cat:'Goo',name:'Plasma Pink',cost:150,colors:['#ff3bd4'],desc:'Hot pink plasma.'}],
-  premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#39ff6a,#ffd23f)'}],
+  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#39ff6a,#ffd23f)'}],
   story:`<h3>PIPE FLOW</h3><p>The lab's glowing goo tank is about to blow. Build a pipeline — fast — and keep every drop inside the pipes.</p>`,
   howto:`<h3>HOW TO PLAY</h3><ul><li>📱 <b>Hold your phone sideways.</b></li><li><b>Tap an empty square</b> — the NEXT pipe (top of the queue on the left) goes exactly there. PC: click, or arrows + ENTER.</li><li>The queue always holds the pipes for a full route, in order, plus a few <b>spare</b> pipes: put spares on any square off your route.</li><li>When the countdown on the tank hits 0, the goo flows. It must pass through the number of pipes shown at the top.</li><li>If the goo reaches an open end — <b>LEAK</b> — you lose a life and the stage restarts. On Beginner stages 1-10 the goo waits a few seconds first so you can still add the pipe.</li><li>Beginner 1-10: a dotted line shows the route, a <b>green square</b> shows where the next pipe goes, and the queue marks the pipe the route needs (ROUTE) and spares (SPARE).</li><li><b>Replacing:</b> one tap on your own pipe never changes it — it only flashes orange. Tap the SAME pipe again within 3 seconds to replace it with the next pipe (costs 2 seconds, or a short wait once the goo flows). Or use 💣.</li><li>✚ Crosses can be used twice. ⭐ pipes count double. Yellow arrows only flow one way. Glass tanks slow the goo down.</li><li><b>⏩ SPEED FLOW</b> (button bottom-right, PC: SPACE) when you're done = bonus points.</li><li>Abilities on the left: 🐌 1 · 💣 2 · 👁️ 3.</li></ul>`,
   tutorial:[{text:'Tap the GREEN square next to the goo tank to lay a pipe!',ev:'place'},{text:'Lay 3 pipes in a row, then tap <b>⏩ SPEED FLOW</b> (bottom-right · SPACE) to start the goo!',ev:'flow'},{text:'Fill 3 pipes to win!',time:6}],
@@ -804,7 +804,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'$1'},{gold:1500, price:'$2'},{gold:4000, price:'$3'}];
+const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */
@@ -2072,19 +2072,19 @@ function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NE
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
 
 // ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
-// Gold is ordered via WhatsApp (Paystack pages TBD). The buyer gets a code by email and types it in
+// Gold is paid on Paystack (rand). The paystack-webhook edge function credits the signed-in email's wallet;
 // "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
 const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
 const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
-const PAY_LINKS = {500: WA_GOLD(500), 1500: WA_GOLD(1500), 4000: WA_GOLD(4000)};  // SHELL-GOLD-2 WhatsApp order (Paystack pages TBD)
+const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'To buy gold, WhatsApp Jayden on 066 239 2340. You get a code by email — type it in 🎟️ I HAVE A CODE. Bought gold is saved to your account, so it can never get lost. Or visit our shop: App Stream Prints.';
+const GOLD_NOTE = 'Pay by card with Paystack using the SAME email you sign in with. Your gold is added to your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
     const url = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
     try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
     if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
-    toast('🛒 OPENING WHATSAPP…'); SFX.click(); } };
+    toast('💳 PAY WITH YOUR GAME EMAIL'); SFX.click(); } };
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
     + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
@@ -2226,7 +2226,7 @@ function codeModal(email, why, next, back){
   });
 }
 function buyReady(pack, back){
-  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Now WhatsApp Jayden to buy gold. You get a code by email — come back and tap 🎟️ I HAVE A CODE. The gold goes into your account.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack with this SAME email. Your gold is added to your account automatically — reopen the game to see it.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
   $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
 }
 function restoreDone(back, ok){

@@ -558,9 +558,9 @@ const GAME = window.GAME = {
     {id:'x_void', cat:'Explosion', name:'Void', cost:300, colors:['#a066ff','#ff3dd6'], desc:'Purple void bursts.'}
   ],
   premium:[
-    {name:'Supporter Pack', price:'$1', desc:'Royal Gold ship + supporter badge.', swatch:'linear-gradient(90deg,#ffd23f,#fff6c8)'},
-    {name:'Ace Bundle', price:'$2', desc:'All ships + lasers + exclusive "Stealth" hull.', swatch:'linear-gradient(90deg,#222,#3fe0ff,#ff3d5a)'},
-    {name:'Ultimate Pack', price:'$3', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ff3d7f,#3fe0ff,#ffd23f)'}
+    {name:'Supporter Pack', price:'R15', desc:'Royal Gold ship + supporter badge.', swatch:'linear-gradient(90deg,#ffd23f,#fff6c8)'},
+    {name:'Ace Bundle', price:'R30', desc:'All ships + lasers + exclusive "Stealth" hull.', swatch:'linear-gradient(90deg,#222,#3fe0ff,#ff3d5a)'},
+    {name:'Ultimate Pack', price:'R50', desc:'Everything in the shop, forever.', swatch:'linear-gradient(90deg,#ff3d7f,#3fe0ff,#ffd23f)'}
   ],
   story:`<h3>THE SWARM</h3><p>The <b>Vrak Swarm</b> has crossed into human space: thousands of insect-like warships moving as one mind.</p><p>You fly the <b>Arrow</b>, an experimental fighter fitted with a stolen Vrak technology: the <b>Capture Beam</b>.</p><h3>TURN THEIR SHIPS AGAINST THEM</h3><p>Pull enemy ships into your beam and they switch sides. Captured ships fly next to you as <b>wingmen</b> and fire with you. They also take a hit to protect you.</p><ul><li><b style="color:#ffd23f">Drones</b> — fast and many.</li><li><b style="color:#ff4f7a">Stingers</b> — dive at you and shoot.</li><li><b style="color:#3dff9a">Guardians</b> — armoured, take 2 hits.</li><li><b style="color:#ff3d7f">The Dreadnought</b> — the Swarm's flagship. Stage 3.</li></ul>`,
   howto:`<h3>GOAL</h3><p>Hold your phone <b>sideways</b>. Destroy every wave of the Swarm. Your guns only fire while you <b>hold FIRE</b> — let go and they stop.</p><h3>CONTROLS</h3><ul><li><b>Left thumb:</b> put it down anywhere on the left part of the screen and slide left/right — the ship follows.</li><li><b>Right thumb:</b> HOLD <b>🔫 FIRE</b> (bottom-right) to shoot.</li><li><b>PC:</b> <span class="key">←</span> <span class="key">→</span> or <span class="key">A</span> <span class="key">D</span> to move, HOLD <span class="key">SPACE</span> to fire (or drag with the mouse).</li></ul><h3>ABILITIES</h3><ul><li>🧲 <b>CAPTURE BEAM</b> <span class="key">1</span> — grab an enemy above you. It becomes your wingman (max 2)</li><li>🛡️ <b>SHIELD</b> <span class="key">2</span> — 3 seconds of protection</li><li>✴️ <b>NOVA BOMB</b> <span class="key">3</span> — wipes enemy bullets and hurts everything</li></ul><h3>PICKUPS</h3><p>Grab the glowing <b>P</b> orbs for rapid fire.</p><h3>WINGMEN</h3><p>If you get hit while you have a wingman, the wingman is lost instead of your life.</p><h3>RACE</h3><p>In a multiplayer race both pilots get the same waves — first to clear the stage wins.</p>`,
@@ -780,7 +780,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'$1'},{gold:1500, price:'$2'},{gold:4000, price:'$3'}];
+const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */
@@ -2048,19 +2048,19 @@ function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NE
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
 
 // ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
-// Gold is ordered via WhatsApp (Paystack pages TBD). The buyer gets a code by email and types it in
+// Gold is paid on Paystack (rand). The paystack-webhook edge function credits the signed-in email's wallet;
 // "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
 const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
 const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
-const PAY_LINKS = {500: WA_GOLD(500), 1500: WA_GOLD(1500), 4000: WA_GOLD(4000)};  // SHELL-GOLD-2 WhatsApp order (Paystack pages TBD)
+const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'To buy gold, WhatsApp Jayden on 066 239 2340. You get a code by email — type it in 🎟️ I HAVE A CODE. Bought gold is saved to your account, so it can never get lost. Or visit our shop: App Stream Prints.';
+const GOLD_NOTE = 'Pay by card with Paystack using the SAME email you sign in with. Your gold is added to your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
     const url = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
     try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
     if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
-    toast('🛒 OPENING WHATSAPP…'); SFX.click(); } };
+    toast('💳 PAY WITH YOUR GAME EMAIL'); SFX.click(); } };
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
     + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
@@ -2202,7 +2202,7 @@ function codeModal(email, why, next, back){
   });
 }
 function buyReady(pack, back){
-  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Now WhatsApp Jayden to buy gold. You get a code by email — come back and tap 🎟️ I HAVE A CODE. The gold goes into your account.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack with this SAME email. Your gold is added to your account automatically — reopen the game to see it.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
   $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
 }
 function restoreDone(back, ok){

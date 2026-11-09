@@ -584,7 +584,7 @@ const GAME=window.GAME={
     {id:'frost',icon:'❄️',name:'FROST STORM',cd:22,key:'Digit2',keyLabel:'2',desc:'Freezes every enemy solid for 5 seconds.'},
     {id:'rain',icon:'🌧️',name:'ENERGY RAIN',cd:18,key:'Digit3',keyLabel:'3',desc:'+150 energy straight away.'}],
   shop:[{id:'l_spring',cat:'Lawn',name:'Spring Lawn',cost:0,colors:['#1d5a2a','#246c32'],desc:'Fresh green grass.'},{id:'l_night',cat:'Lawn',name:'Moonlit Lawn',cost:150,colors:['#0e2a3a','#123848'],desc:'Blue night garden.'}],
-  premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop, forever.',swatch:'linear-gradient(90deg,#7dff5a,#ffd23f)'}],
+  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop, forever.',swatch:'linear-gradient(90deg,#7dff5a,#ffd23f)'}],
   story:`<h3>THE GLOOP INVASION</h3><p>Something oozed out of the old compost heap — a whole army of <b>Gloop slimes</b>, bugs and hoppers, all heading for your house.</p><p>Luckily your veggie patch fights back. Plant <b>Berry Blasters</b>, grow <b>Glow Corn</b> for energy, and stack <b>Rock Pumpkins</b> to hold the line.</p><p>Somewhere behind them waits <b>King Gloop</b>.</p>`,
   howto:`<h3>GOAL</h3><p>📱 <b>Hold your phone sideways.</b> Slimes ooze in from the <b>right</b>. Stop every one before it reaches your houses on the <b>left</b>.</p><h3>PHONE</h3><ul><li><b>Right thumb:</b> tap a card in the bottom row, then tap a lawn square to plant it. Tap glowing ✨ energy to collect it, or tap the big ✨ button (bottom-right) to grab it all.</li><li><b>Left thumb:</b> the ability buttons on the left (🚜 ❄️ 🌧️).</li></ul><h3>PC</h3><ul><li>Keys <span class="key">Q</span> <span class="key">W</span> <span class="key">E</span> <span class="key">R</span> <span class="key">T</span> <span class="key">Y</span> pick a card, then <b>click</b> a square.</li><li><span class="key">SPACE</span> collect all energy · <span class="key">1</span> <span class="key">2</span> <span class="key">3</span> abilities.</li></ul><p>You plant everything yourself — nothing plants on its own. Glow Corn makes extra energy and you earn a little over time.</p><h3>DEFENDERS</h3><ul><li>🫐 <b>Berry Blaster</b> — shoots seeds down its lane</li><li>🌽 <b>Glow Corn</b> — makes energy</li><li>🎃 <b>Rock Pumpkin</b> — a tough wall</li><li>🌶 <b>Boom Radish</b> — explodes and hits everything nearby</li><li>🌿 <b>Frost Mint</b> — ice seeds slow enemies</li><li>🫐🫐 <b>Twin Berry</b> — double shots</li></ul><h3>ENEMIES</h3><ul><li>Slimes, fast Beetles, armoured Shell Slimes, Hoppers that jump over your first defender, and flying Gnats that fly over everything.</li><li>If one reaches your house you lose a life and that lane's enemies are knocked back to the far end.</li></ul><h3>ABILITIES</h3><ul><li>✨ <b>COLLECT ALL</b> <span class="key">SPACE</span> — free</li><li>🚜 <b>MOWER</b> <span class="key">1</span> — then tap a lane</li><li>❄️ <b>FROST STORM</b> <span class="key">2</span> — freeze all 5s</li><li>🌧️ <b>ENERGY RAIN</b> <span class="key">3</span> — +150 energy</li></ul><h3>RACE</h3><p>In a multiplayer race both players get exactly the same waves — first to clear the stage wins.</p>`,
   tutorial:[{text:'📱 Hold your phone sideways. Tap the <b>Berry Blaster</b> card (bottom), then tap a lawn square to plant it. PC: Q then click.',ev:'plant'},{text:'Tap the glowing <b>✨ energy</b> to collect it — or the big ✨ button / SPACE grabs it all.',ev:'collect'},{text:'Slimes come from the RIGHT. Stop them before they reach your houses!',time:5}],
@@ -740,7 +740,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'$1'},{gold:1500, price:'$2'},{gold:4000, price:'$3'}];
+const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */
@@ -2008,19 +2008,19 @@ function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NE
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
 
 // ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
-// Gold is ordered via WhatsApp (Paystack pages TBD). The buyer gets a code by email and types it in
+// Gold is paid on Paystack (rand). The paystack-webhook edge function credits the signed-in email's wallet;
 // "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
 const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
 const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
-const PAY_LINKS = {500: WA_GOLD(500), 1500: WA_GOLD(1500), 4000: WA_GOLD(4000)};  // SHELL-GOLD-2 WhatsApp order (Paystack pages TBD)
+const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'To buy gold, WhatsApp Jayden on 066 239 2340. You get a code by email — type it in 🎟️ I HAVE A CODE. Bought gold is saved to your account, so it can never get lost. Or visit our shop: App Stream Prints.';
+const GOLD_NOTE = 'Pay by card with Paystack using the SAME email you sign in with. Your gold is added to your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
     const url = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
     try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
     if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
-    toast('🛒 OPENING WHATSAPP…'); SFX.click(); } };
+    toast('💳 PAY WITH YOUR GAME EMAIL'); SFX.click(); } };
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
     + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
@@ -2162,7 +2162,7 @@ function codeModal(email, why, next, back){
   });
 }
 function buyReady(pack, back){
-  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Now WhatsApp Jayden to buy gold. You get a code by email — come back and tap 🎟️ I HAVE A CODE. The gold goes into your account.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack with this SAME email. Your gold is added to your account automatically — reopen the game to see it.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
   $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
 }
 function restoreDone(back, ok){

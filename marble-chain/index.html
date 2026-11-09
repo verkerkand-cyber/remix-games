@@ -626,7 +626,7 @@ const GAME=window.GAME={
     {id:'slow',icon:'🐢',name:'SLOW',cd:15,key:'Digit2',keyLabel:'2',desc:'The chain crawls at a third of its speed for 6 seconds.'},
     {id:'bomb',icon:'💣',name:'BOMB MARBLE',cd:20,key:'Digit3',keyLabel:'3',desc:'Your next shot explodes and blasts every marble near it.'}],
   shop:[{id:'o_gloss',cat:'Orbs',name:'Glossy Orbs',cost:0,colors:['#ff4060'],desc:'Shiny polished marbles.'},{id:'o_neon',cat:'Orbs',name:'Neon Rings',cost:150,colors:['#2ec4ff'],desc:'Glowing neon marbles.'}],
-  premium:[{name:'Ultimate Pack',price:'$3',desc:'Everything in the shop, forever.',swatch:'linear-gradient(90deg,#ffb347,#2ec4ff)'}],
+  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop, forever.',swatch:'linear-gradient(90deg,#ffb347,#2ec4ff)'}],
   story:`<h3>THE SUN IDOL</h3><p>Deep in a forgotten desert temple, a stone <b>Sun Idol</b> has guarded the sky-marbles for a thousand years.</p><p>Now the <b>Void Pit</b> has opened, and it is swallowing the marbles one chain at a time. If the last chain falls in, the sun goes out.</p><p>Wake the Idol. Fire. Match three. Don't let them fall.</p>`,
   howto:`<h3>GOAL</h3><p>Destroy the whole marble chain before it rolls into the Void Pit.</p><h3>CONTROLS</h3><p><b>Hold your phone sideways.</b></p><ul><li><b>Phone — right thumb:</b> touch and drag anywhere on the track area to aim (the dotted line shows where it goes), let go to shoot. Or aim, then tap the big 🔆 <b>FIRE</b> button (bottom right). 🔄 <b>SWAP</b> button or tap the Sun Idol to swap marbles.</li><li><b>Phone — left thumb:</b> the ability buttons on the left (⏪ 🐢 💣).</li><li><b>PC:</b> aim with the mouse and click to shoot, or ◀ ▶ (A / D) to turn the Idol and <b>SPACE</b> (or ▲ / ENTER) to shoot — hold SPACE to keep firing. <b>S</b> or ▼ swaps. <b>1 2 3</b> = abilities.</li></ul><h3>RULES</h3><ul><li>Shoot a marble into the chain. <b>3 or more</b> of the same colour pop.</li><li>If the marbles either side of a gap match, the chain <b>pulls back together</b> — and can pop again for a <b>COMBO</b>.</li><li>Your current marble sits in the Idol's mouth; the small one behind is next.</li><li>If the chain reaches the Void Pit you lose a life and the chain starts again. Doing nothing never wins — the chain keeps rolling.</li><li>Boss stages: <b>two chains</b> on two tracks at once!</li><li><b>Race:</b> both players get exactly the same chains — first to clear wins.</li></ul><h3>ABILITIES</h3><ul><li>🔆 <b>FIRE</b> <span class="key">SPACE</span> — free</li><li>🔄 <b>SWAP</b> <span class="key">S</span> — free</li><li>⏪ <b>REVERSE</b> <span class="key">1</span> — chain backs up for 3s</li><li>🐢 <b>SLOW</b> <span class="key">2</span> — chain crawls for 6s</li><li>💣 <b>BOMB MARBLE</b> <span class="key">3</span> — next shot explodes</li></ul>`,
   tutorial:[{text:'Hold your phone sideways. <b>Drag</b> to aim, let go (or 🔆 FIRE / SPACE) to <b>shoot</b>.',ev:'shoot'},{text:'Hit marbles of the <b>same colour</b> — 3 in a row pop!',ev:'pop'},{text:'Tap the Sun Idol, 🔄 SWAP or <b>S</b> to swap. Clear the whole chain!',time:5}],
@@ -725,7 +725,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'$1'},{gold:1500, price:'$2'},{gold:4000, price:'$3'}];
+const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */
@@ -1993,19 +1993,19 @@ function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NE
 function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
 
 // ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
-// Gold is ordered via WhatsApp (Paystack pages TBD). The buyer gets a code by email and types it in
+// Gold is paid on Paystack (rand). The paystack-webhook edge function credits the signed-in email's wallet;
 // "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
 const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
 const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
-const PAY_LINKS = {500: WA_GOLD(500), 1500: WA_GOLD(1500), 4000: WA_GOLD(4000)};  // SHELL-GOLD-2 WhatsApp order (Paystack pages TBD)
+const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
 const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
-const GOLD_NOTE = 'To buy gold, WhatsApp Jayden on 066 239 2340. You get a code by email — type it in 🎟️ I HAVE A CODE. Bought gold is saved to your account, so it can never get lost. Or visit our shop: App Stream Prints.';
+const GOLD_NOTE = 'Pay by card with Paystack using the SAME email you sign in with. Your gold is added to your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
 const PAY = { enabled:true,
   buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
     const url = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
     try { w = window.open(url, '_blank', 'noopener'); } catch(e){}
     if(!w){ try { const a=document.createElement('a'); a.href=url; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); } catch(e){} }
-    toast('🛒 OPENING WHATSAPP…'); SFX.click(); } };
+    toast('💳 PAY WITH YOUR GAME EMAIL'); SFX.click(); } };
 function goldPackRows(){
   return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
     + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
@@ -2147,7 +2147,7 @@ function codeModal(email, why, next, back){
   });
 }
 function buyReady(pack, back){
-  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Now WhatsApp Jayden to buy gold. You get a code by email — come back and tap 🎟️ I HAVE A CODE. The gold goes into your account.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack with this SAME email. Your gold is added to your account automatically — reopen the game to see it.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
   $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
 }
 function restoreDone(back, ok){
