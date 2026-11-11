@@ -1,12 +1,17 @@
-/* REMIX LOBBY-5 · FRIEND-1 · STATS-1 — "play with a friend" (invite link / code), optional who's online, privacy-safe visit counter.
+/* REMIX LOBBY-5 · FRIEND-1 · STATS-2 — "play with a friend" (invite link / code), optional who's online, privacy-safe visit counter.
    Shared by the games page and every game (loaded from the site root). No personal data: nicknames only, no ids/IPs/emails stored. */
 (function(){ /* STATS-1: +1 visit per page per browser tab (reloads in the same tab don't count again). Only day + page + number are stored. */
   try{
     var page=window.GAME? String(window.GAME.id||'') : 'home';
     if(!/^[a-z0-9-]{1,40}$/.test(page) || !/^https?:$/.test(location.protocol)) return;
+    /* STATS-2: a random number kept on this phone, only used to count different people per day (never linked to a name) */
+    function vid(){ var v=''; try{ v=localStorage.getItem('rmxVid')||''; }catch(e){}
+      if(!/^[a-z0-9]{16,40}$/.test(v)){ var a=new Uint8Array(12); (window.crypto||{}).getRandomValues? crypto.getRandomValues(a) : a.forEach(function(_,i){ a[i]=Math.random()*256; });
+        v=Array.prototype.map.call(a,function(x){ return ('0'+x.toString(16)).slice(-2); }).join(''); try{ localStorage.setItem('rmxVid',v); }catch(e){} }
+      return v; }
     var k='rmxV_'+page; if(sessionStorage.getItem(k)) return; sessionStorage.setItem(k,'1');
     fetch('https://uuyaoffzgjxxwxlzhwur.supabase.co/rest/v1/rpc/bump_visit',{method:'POST',keepalive:true,
-      headers:{'apikey':'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9','Content-Type':'application/json'},body:JSON.stringify({p_page:page})}).catch(function(){});
+      headers:{'apikey':'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9','Content-Type':'application/json'},body:JSON.stringify({p_page:page,p_vid:vid()})}).catch(function(){});
   }catch(e){}
 })();
 

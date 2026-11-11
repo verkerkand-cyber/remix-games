@@ -1,13 +1,13 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Remix Arcade — visits</title>
-<!-- STATS-1 · visit counts only (day + page + number). No personal data. Not linked from anywhere. -->
+<!-- STATS-2 · visit counts + people per day (day + page + number). No personal data. Not linked from anywhere. -->
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#0b0718;color:#f2eefa;font:15px system-ui,sans-serif;padding:16px;display:flex;justify-content:center}
 main{width:min(760px,100%)}
 h1{font-size:22px;margin:4px 0 2px}
 .sub{color:#b8b0cc;font-size:13px;margin:0 0 14px}
-.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
 .tile{background:#17112a;border:1px solid #2c2347;border-radius:14px;padding:12px}
 .tile span{display:block;color:#b8b0cc;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
 .tile b{display:block;font-size:30px;margin-top:4px;font-variant-numeric:tabular-nums}
@@ -23,21 +23,22 @@ h2{font-size:15px;margin:18px 0 8px;color:#f2eefa}
 button{font:700 14px system-ui,sans-serif;border:1px solid #4fb3ff;background:#4fb3ff1a;color:#f2eefa;border-radius:10px;padding:8px 14px;cursor:pointer}
 .msg{color:#ffb4a8;margin:12px 0}
 .foot{color:#7d7494;font-size:12px;margin-top:22px}
-@media (max-width:600px){ .cols{grid-template-columns:1fr} .tile b{font-size:24px} }
+@media (max-width:600px){ .cols{grid-template-columns:1fr} .tiles{grid-template-columns:repeat(2,1fr)} .tile b{font-size:24px} }
 </style></head><body><main>
 <h1>Remix Arcade — visits</h1>
-<p class="sub">Page opens per day (South African time). One per page per browser tab — reloads don't count twice. <button id="rf">↻ Refresh</button></p>
+<p class="sub"><b>People</b> = different phones/computers that day. <b>Opens</b> = games/pages opened (one per page per tab). South African time. People counting started 11 Nov. <button id="rf">↻ Refresh</button></p>
 <div class="tiles">
-  <div class="tile"><span>Today</span><b id="tToday">–</b></div>
-  <div class="tile"><span>Last 7 days</span><b id="t7">–</b></div>
-  <div class="tile"><span>Last 30 days</span><b id="t30">–</b></div>
+  <div class="tile"><span>People today</span><b id="pToday">–</b></div>
+  <div class="tile"><span>Opens today</span><b id="tToday">–</b></div>
+  <div class="tile"><span>Opens 7 days</span><b id="t7">–</b></div>
+  <div class="tile"><span>Opens 30 days</span><b id="t30">–</b></div>
 </div>
 <div id="msg" class="msg" hidden></div>
 <div class="cols">
-  <section><h2>Visits per day (last 30 days)</h2><div class="bl" id="days"></div></section>
-  <section><h2>Top pages (last 30 days)</h2><div class="bl" id="top"></div></section>
+  <section><h2>People per day (last 30 days)</h2><div class="bl" id="ppl"></div><h2>Opens per day</h2><div class="bl" id="days"></div></section>
+  <section><h2>Top games (opens, last 30 days)</h2><div class="bl" id="top"></div></section>
 </div>
-<p class="foot">STATS-1 · counts only — no names, IPs, emails or device ids are stored.</p>
+<p class="foot">STATS-2 · counts only — no names, IPs or emails. A random number on each phone is used only to count people per day; it is scrambled with the date so days can't be linked.</p>
 </main>
 <script>
 (function(){
@@ -53,7 +54,8 @@ button{font:700 14px system-ui,sans-serif;border:1px solid #4fb3ff;background:#4
     $('msg').hidden=true;
     fetch(SB+'/rest/v1/rpc/get_visit_stats',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({p_days:30})})
       .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-      .then(draw).catch(function(e){ $('msg').hidden=false; $('msg').textContent='Could not load the numbers ('+e.message+'). Check your internet, or the visit counter SQL may not be set up yet.'; });
+      .then(function(rows){ draw(rows); return fetch(SB+'/rest/v1/rpc/get_unique_stats',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({p_days:30})}); })
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(drawPeople).catch(function(e){ $('msg').hidden=false; $('msg').textContent='Could not load the numbers ('+e.message+'). Check your internet, or the visit counter SQL may not be set up yet.'; });
   }
   function draw(rows){
     var now=new Date(), today=sast(now), byDay={}, byPage={}, t7=0, t30=0, cut7=sast(new Date(now.getTime()-6*864e5));
@@ -65,6 +67,11 @@ button{font:700 14px system-ui,sans-serif;border:1px solid #4fb3ff;background:#4
     var top=Object.keys(byPage).map(function(p){ return {k:p,l:nice(p),v:byPage[p]}; }).sort(function(a,b){ return b.v-a.v; }).slice(0,15);
     if(top.length) bars($('top'),top); else $('top').innerHTML='<div class="l">No visits yet</div>';
   }
+  function drawPeople(rows){ var now=new Date(), today=sast(now), by={}; rows.forEach(function(r){ by[r.day]=+r.people||0; });
+    $('pToday').textContent=fmt(by[today]||0);
+    var days=[]; for(var i=0;i<30;i++){ var d=sast(new Date(now.getTime()-i*864e5)), dt=new Date(d+'T12:00:00Z');
+      days.push({k:d,l:(i===0?'Today':dt.toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'})),tip:d,v:by[d]||0}); }
+    bars($('ppl'),days,today); }
   $('rf').onclick=load; load();
 })();
 </script></body></html>
