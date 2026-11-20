@@ -21,7 +21,7 @@
   var SB='https://uuyaoffzgjxxwxlzhwur.supabase.co', KEY='sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9';
   var ROOT=(location.pathname.match(/^(.*\/remix-games\/)/)||[0,'/'])[1];
   var HOME=!window.GAME;
-  var SOLO={'flag-rally':1,'maze-bots':1,'moon-buggy':1,'road-agent':1,'temple-kick':1,'lava-leap':1,'orbit-hop':1,'dice-tower':1,'mirror-maze':1,'tank-duel':1,'kite-flyer':1,'fish-frenzy':1,'bomb-squad':1,'drift-king':1}; // games with no friend mode (hidden from the home picker)
+  var SOLO={'flag-rally':1,'maze-bots':1,'moon-buggy':1,'road-agent':1,'temple-kick':1,'lava-leap':1,'orbit-hop':1,'dice-tower':1,'mirror-maze':1,'tank-duel':1,'kite-flyer':1,'fish-frenzy':1,'bomb-squad':1,'drift-king':1,'swing-ninja':1,'space-miner':1,'pinball-blast':1,'sudoku-sprint':1,'archer-hill':1,'ghost-hunt':1,'hex-link':1,'traffic-boss':1,'pogo-panic':1}; // games with no friend mode (hidden from the home picker)
   function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
   function clean(s){ var d=0; return String(s||'').replace(/[^A-Za-z0-9 _-]/g,'').replace(/[0-9]/g,function(c){ return ++d<=2?c:''; }).slice(0,10).toUpperCase(); }
   var me=ls('rmxId'); if(!me){ me=Math.random().toString(36).slice(2,10); ls('rmxId',me); }
