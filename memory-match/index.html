@@ -1,0 +1,2094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05030f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="build" content="BUILD-MM-1.0 · 2026-11-20">
+<title>Memory Match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:#fff;font-family:'Orbitron','Segoe UI',system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#app{position:fixed;inset:0;overflow:hidden}
+#game{position:absolute;left:0;top:0;display:block}
+.hidden{display:none!important}
+button{font-family:inherit;cursor:pointer;border:none;color:#fff}
+/* ---------- screens ---------- */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;z-index:20;overflow-y:auto}
+.screen.dim{background:rgba(3,2,10,.55)}
+#screen-loading{background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 22%,transparent),var(--bg) 70%);z-index:60}
+.logo{font-size:clamp(34px,9vw,68px);font-weight:900;letter-spacing:.06em;text-align:center;line-height:1.05;
+  background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 14px color-mix(in srgb,var(--a) 70%,transparent))}
+.tag{opacity:.8;margin-top:8px;letter-spacing:.2em;font-size:12px;text-align:center;text-transform:uppercase}
+.loadbar{width:min(320px,80vw);height:10px;border-radius:6px;background:rgba(255,255,255,.08);margin-top:34px;overflow:hidden;border:1px solid rgba(255,255,255,.15)}
+.loadbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--a),var(--b));box-shadow:0 0 16px var(--b);transition:width .12s}
+.tapstart{margin-top:26px;font-size:16px;letter-spacing:.25em;animation:blink 1.1s infinite;opacity:0}
+@keyframes blink{50%{opacity:.25}}
+.menu-card{width:min(440px,94vw);display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:18px;border-radius:20px;
+  background:rgba(8,6,22,.72);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(6px);box-shadow:0 0 40px color-mix(in srgb,var(--a) 25%,transparent)}
+.menu-card .logo{font-size:clamp(30px,8vw,46px);margin-bottom:2px}
+.diff{display:flex;gap:6px;background:rgba(255,255,255,.06);padding:5px;border-radius:14px}
+.diff button{flex:1;padding:10px 4px;border-radius:10px;background:transparent;font-size:13px;font-weight:700;letter-spacing:.08em;opacity:.65}
+.diff button.on{background:linear-gradient(90deg,var(--a),var(--b));opacity:1;box-shadow:0 0 14px color-mix(in srgb,var(--b) 60%,transparent);color:#050510}
+.big{padding:15px;border-radius:14px;font-size:17px;font-weight:800;letter-spacing:.12em;background:linear-gradient(90deg,var(--a),var(--b));color:#060612;box-shadow:0 0 18px color-mix(in srgb,var(--a) 50%,transparent)}
+.big:disabled{opacity:.35;box-shadow:none}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mid{padding:13px 8px;border-radius:12px;font-size:13px;font-weight:700;letter-spacing:.08em;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14)}
+.mid:hover,.big:hover{filter:brightness(1.15)}
+.meta{display:flex;justify-content:space-between;font-size:12px;opacity:.8;padding:0 4px}
+.ver{font-size:10px;text-align:center;letter-spacing:.1em;display:flex;flex-direction:column;align-items:center;gap:2px}
+.ver .bld{opacity:.45}
+/* ---------- support / contact ---------- */
+.suplink{background:rgba(255,255,255,.06);border:1px solid color-mix(in srgb,var(--b) 50%,transparent);color:var(--b);font-size:11px;letter-spacing:.04em;padding:9px 12px;border-radius:10px;margin-top:4px}
+.supaddr{font-family:'Segoe UI',system-ui,sans-serif;font-size:17px;font-weight:700;padding:12px;border-radius:10px;background:rgba(255,255,255,.08);color:var(--b);word-break:break-all;user-select:text;-webkit-user-select:text}
+a.suplnk{display:block;text-decoration:none;color:#fff;text-align:center}
+.supnote{font-size:12px!important;opacity:.6!important}
+/* ---------- panels ---------- */
+.panel{width:min(560px,96vw);max-height:92vh;display:flex;flex-direction:column;border-radius:20px;background:rgba(8,6,22,.92);border:1px solid rgba(255,255,255,.14);overflow:hidden}
+.panel-h{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.1)}
+.panel-h h2{flex:1;font-size:18px;letter-spacing:.12em;color:var(--b)}
+.back{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.1);font-size:13px}
+.panel-b{padding:16px;overflow-y:auto;font-family:'Segoe UI',system-ui,sans-serif;line-height:1.55;font-size:15px}
+.panel-b h3{font-family:'Orbitron',sans-serif;color:var(--a);font-size:14px;letter-spacing:.1em;margin:14px 0 6px}
+.panel-b h3:first-child{margin-top:0}
+.panel-b ul{padding-left:20px}.panel-b li{margin:3px 0}
+.panel-b p{margin:6px 0}
+.key{display:inline-block;padding:1px 7px;border-radius:5px;background:rgba(255,255,255,.14);font-family:monospace;font-size:13px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;padding:8px;border-radius:9px;background:rgba(255,255,255,.07);font-size:12px;font-weight:700}
+.tabs button.on{background:var(--b);color:#050510}
+table.sc{width:100%;border-collapse:collapse;font-size:14px}
+table.sc td,table.sc th{padding:7px 6px;text-align:left;border-bottom:1px solid rgba(255,255,255,.07)}
+table.sc th{font-size:11px;opacity:.6;letter-spacing:.1em}
+table.sc tr:first-child td{color:var(--a);font-weight:700}
+.slot{display:flex;align-items:center;gap:12px;width:100%;padding:14px;border-radius:14px;margin-bottom:10px;text-align:left;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);font-family:'Segoe UI',system-ui,sans-serif}
+.slot b{font-family:'Orbitron',sans-serif;font-size:14px;color:var(--b)}
+.slot .n{font-family:'Orbitron',sans-serif;font-size:22px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:9px;background:rgba(255,255,255,.1);flex:none}
+.slot small{opacity:.7;display:block;font-size:13px}
+.slot:disabled{opacity:.35}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.item{padding:12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;gap:6px}
+.item .sw{height:46px;border-radius:10px}
+.item b{font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:.05em}
+.item small{opacity:.7;font-size:12px;line-height:1.3;min-height:30px}
+.item button{padding:8px;border-radius:9px;font-size:12px;font-weight:700;background:rgba(255,255,255,.12)}
+.item button.buy{background:linear-gradient(90deg,var(--a),var(--b));color:#050510}
+.item button.eq{background:#1c3;color:#031}
+.item.prem{border-color:#ffd24a55;background:rgba(255,210,74,.06)}
+.cat{font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:.14em;opacity:.8;margin:16px 0 8px;color:var(--a)}
+.cat:first-child{margin-top:0}
+.coins{color:#ffd24a;font-weight:800}
+/* ---------- HUD: top strip + ability bar. The game canvas is fitted into the space left over, so nothing covers play ---------- */
+#hud{position:absolute;inset:0;z-index:10;pointer-events:none}
+#hudTop{position:absolute;left:0;right:0;top:0;height:46px;display:flex;gap:14px;align-items:center;justify-content:center;padding:0 90px 0 12px;background:rgba(5,4,16,.92);border-bottom:1px solid rgba(255,255,255,.12);font-size:13px;font-weight:700;white-space:nowrap;letter-spacing:.05em;pointer-events:auto}
+#hudTop span{opacity:.6;font-weight:400;font-size:10px;margin-right:4px}
+#hudLives{color:var(--a)}
+#hudCoinBox{transition:transform .15s}
+#hudCoinBox.bump{transform:scale(1.3)}
+.hbtn{pointer-events:auto;background:rgba(5,4,16,.65);border:1px solid rgba(255,255,255,.25);border-radius:12px;font-weight:800;letter-spacing:.08em}
+#btnEnd{position:absolute;top:7px;right:8px;padding:8px 11px;font-size:11px;color:#ff6b8a;border-color:#ff6b8a88}
+@media (max-width:480px){#hudTop{gap:9px;font-size:12px;padding:0 74px 0 8px;justify-content:flex-start}#hudTop span{display:none}#btnEnd{padding:8px 9px}}
+#bar{position:absolute;display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(5,4,16,.92);pointer-events:auto;touch-action:none}
+#bar{left:0;right:0;top:46px;height:84px;padding:0 12px;flex-direction:row;border-bottom:2px solid color-mix(in srgb,var(--b) 55%,transparent);box-shadow:0 6px 18px rgba(0,0,0,.5)}
+#abilities{display:flex;gap:12px}
+.barbtns{display:flex;gap:10px}
+.bbtn{width:54px;height:54px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22);font-size:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.bbtn small{font-size:8px;letter-spacing:.08em;margin-top:4px;opacity:.75}
+#btnShopIn{border-color:#ffd24a99;background:rgba(255,210,74,.12)}
+#btnShopIn.flash{animation:shopflash .5s 4}
+@keyframes shopflash{50%{background:#ffd24a;color:#000;box-shadow:0 0 20px #ffd24a}}
+.ab{position:relative;width:60px;height:60px;border-radius:50%;background:rgba(5,4,16,.7);border:2px solid var(--b);font-size:26px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px color-mix(in srgb,var(--b) 45%,transparent);touch-action:none;flex:none}
+.ab .cnt{position:absolute;right:-5px;top:-5px;min-width:22px;height:22px;padding:0 5px;border-radius:11px;background:var(--b);color:#050510;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 0 8px var(--b)}
+.ab .kb{position:absolute;right:-7px;bottom:4px;font-size:10px;padding:1px 5px;border-radius:6px;background:#fff;color:#000;font-weight:800;font-family:monospace}
+.ab .nm{position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);font-size:7px;letter-spacing:.06em;opacity:.7;white-space:nowrap;font-weight:700;pointer-events:none}
+.ab.active{background:color-mix(in srgb,var(--b) 45%,#000);box-shadow:0 0 22px var(--b)}
+.ab.empty{border-color:rgba(120,110,150,.5);box-shadow:none}
+.ab.empty .ic{opacity:.3}
+.ab.empty .cnt{background:#e8503a;color:#fff;box-shadow:none}
+.ab.empty::after{content:'';position:absolute;left:8px;right:8px;top:50%;height:3px;border-radius:2px;background:#e8503a;transform:rotate(-45deg)}
+.ab.lock .ic{opacity:.5}
+@media (hover:none){.ab .kb{display:none}}
+@media (max-width:420px){.ab{width:54px;height:54px;font-size:23px}#abilities{gap:9px}.bbtn{width:48px;height:48px}.barbtns{gap:7px}}
+/* gold coins flying to the counter */
+#tut{position:absolute;left:50%;transform:translateX(-50%);width:min(520px,calc(100vw - 24px));padding:12px 14px;border-radius:14px;background:rgba(5,4,16,.9);border:2px solid var(--a);box-shadow:0 0 22px color-mix(in srgb,var(--a) 50%,transparent);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.4;pointer-events:auto}
+#tut{top:calc(52px + env(safe-area-inset-top));bottom:auto;z-index:6}
+.lay-side #tut{transform:none;max-width:none;right:auto}
+#tut .tt span{color:#ffd23f}
+#tut button#tutSkip{font-size:12px;padding:7px 10px;background:var(--a);color:#000;font-weight:800}
+#tut .tt{font-family:'Orbitron',sans-serif;font-size:11px;color:var(--a);letter-spacing:.14em;margin-bottom:4px;display:flex;justify-content:space-between}
+#tut button{font-size:10px;padding:4px 8px;border-radius:7px;background:rgba(255,255,255,.14)}
+#toast{position:absolute;top:calc(130px + 8%);left:50%;transform:translateX(-50%);font-size:clamp(20px,5vw,34px);font-weight:900;letter-spacing:.1em;text-shadow:0 0 18px var(--a);opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none}
+#joy{position:absolute;width:120px;height:120px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.04);transform:translate(-50%,-50%);pointer-events:none;z-index:9}
+#joy i{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:color-mix(in srgb,var(--b) 50%,transparent);box-shadow:0 0 14px var(--b)}
+/* ---------- modal ---------- */
+#modal{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(3,2,10,.7);padding:16px}
+.mbox{width:min(400px,94vw);padding:22px;border-radius:20px;background:rgba(10,8,26,.96);border:1px solid rgba(255,255,255,.16);text-align:center;display:flex;flex-direction:column;gap:10px;box-shadow:0 0 40px color-mix(in srgb,var(--a) 30%,transparent)}
+.mbox h2{font-size:24px;letter-spacing:.1em;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+.mbox p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45}
+.mbox .stat{font-size:28px;font-weight:900}
+.mbox input{padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.06);color:#fff;font-family:inherit;font-size:18px;text-align:center;letter-spacing:.1em;text-transform:uppercase}
+.choice{padding:12px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);text-align:left;font-family:'Segoe UI',system-ui,sans-serif}
+.choice b{font-family:'Orbitron',sans-serif;color:var(--b);font-size:13px;display:block}
+.sndbtn{position:absolute;top:12px;right:12px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.1);font-size:20px;z-index:25}
+/* ---------- slots ---------- */
+.slot-wrap{display:flex;flex-direction:column;gap:12px;align-items:center;font-family:'Orbitron',sans-serif}
+.slot-coins{font-size:18px}
+.reels{display:flex;gap:8px;padding:14px;border-radius:18px;background:linear-gradient(180deg,#1a0f33,#0b0718);border:2px solid var(--a);box-shadow:0 0 24px color-mix(in srgb,var(--a) 45%,transparent),inset 0 0 30px rgba(0,0,0,.8)}
+.reel{width:64px;height:80px;border-radius:10px;background:linear-gradient(180deg,#fff 0%,#e8e8f4 50%,#c8c8dc 100%);display:flex;align-items:center;justify-content:center;font-size:42px;box-shadow:inset 0 6px 10px rgba(0,0,0,.35),inset 0 -6px 10px rgba(0,0,0,.35)}
+.reels.five .reel{width:50px;height:66px;font-size:32px}
+.reel.spin{animation:rblur .09s linear infinite}
+.reel.win{box-shadow:0 0 18px #ffd23f,inset 0 0 12px #ffd23f}
+@keyframes rblur{50%{transform:translateY(3px);filter:blur(1.5px)}}
+.bets{display:flex;gap:6px}
+.bets button{padding:8px 12px;border-radius:9px;background:rgba(255,255,255,.08);font-size:12px;font-weight:700}
+.bets button.on{background:var(--b);color:#050510}
+.slot-msg{min-height:26px;font-size:16px;font-weight:800;text-align:center;letter-spacing:.06em}
+.slot-msg.win{color:#ffd23f;text-shadow:0 0 12px #ffd23f}
+.slot-msg.lose{color:#ff6b8a}
+.wheel-box{position:relative;width:240px;height:240px}
+.wheel{width:240px;height:240px;border-radius:50%;border:4px solid #fff;box-shadow:0 0 26px var(--a);transition:transform 3.6s cubic-bezier(.12,.8,.18,1)}
+.wheel-lbl{position:absolute;left:50%;top:50%;width:0;height:0}
+.wheel-lbl span{position:absolute;left:-18px;top:-104px;width:36px;text-align:center;font-size:13px;font-weight:900;color:#fff;text-shadow:0 1px 3px #000}
+.wheel-ptr{position:absolute;left:50%;top:-12px;margin-left:-12px;width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:24px solid #fff;filter:drop-shadow(0 0 6px var(--a));z-index:2}
+.coin{width:90px;height:90px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff6c8,#ffd23f 45%,#b8860b);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;color:#6b4a00;box-shadow:0 0 22px #ffd23f}
+.coin.flip{animation:cflip .9s ease-in-out}
+@keyframes cflip{0%{transform:rotateY(0) scale(1)}50%{transform:rotateY(900deg) scale(1.3)}100%{transform:rotateY(1800deg) scale(1)}}
+.dbl{display:flex;flex-direction:column;gap:8px;align-items:center;padding:12px;border-radius:14px;border:1px dashed #ffd23f88;width:100%}
+.paytable{font-family:'Segoe UI',sans-serif;font-size:12px;opacity:.75;text-align:center;line-height:1.5}
+.upg{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);margin-bottom:8px}
+.upg .ic{font-size:26px;width:40px;text-align:center}
+.upg .tx{flex:1;font-size:13px}
+.upg .tx b{font-family:'Orbitron',sans-serif;font-size:12px;display:block}
+.pips{display:flex;gap:4px;margin-top:4px}.pips i{width:16px;height:6px;border-radius:3px;background:rgba(255,255,255,.15)}.pips i.on{background:var(--b);box-shadow:0 0 6px var(--b)}
+.upg button{padding:8px 10px;border-radius:9px;font-size:12px;font-weight:700;background:linear-gradient(90deg,var(--a),var(--b));color:#050510}
+.upg button:disabled{opacity:.4}
+.casino{background:linear-gradient(90deg,#ffd23f,#ff7b1c,#ff2bd6)!important;color:#1a0610!important}
+
+/* ---------- ability shop ---------- */
+.mid.abil{background:linear-gradient(90deg,color-mix(in srgb,var(--b) 30%,transparent),color-mix(in srgb,var(--a) 30%,transparent));border-color:var(--b)}
+.mbox{max-height:92vh;overflow-y:auto}
+.mbox.wide{width:min(480px,96vw)}
+.abshop{display:flex;flex-direction:column;gap:8px;text-align:left;font-family:'Segoe UI',system-ui,sans-serif}
+.abshop .bal{text-align:center;font-family:'Orbitron',sans-serif;font-size:17px;padding:8px;border-radius:10px;background:rgba(255,210,74,.08);border:1px solid #ffd24a55}
+.abrow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid color-mix(in srgb,var(--b) 40%,transparent)}
+.abrow .ic{font-size:26px;width:38px;text-align:center;flex:none}
+.abrow .tx{flex:1;font-size:12px;line-height:1.3;opacity:.9}
+.abrow .tx b{display:block;font-family:'Orbitron',sans-serif;font-size:12px;color:var(--b);letter-spacing:.05em}
+.abrow .have{font-family:'Orbitron',sans-serif;font-size:11px;opacity:.8;display:block;margin-top:2px}
+.abrow button{flex:none;min-width:74px;padding:10px 8px;border-radius:10px;font-size:12px;font-weight:800;background:linear-gradient(90deg,var(--a),var(--b));color:#050510;font-family:'Orbitron',sans-serif}
+.abrow button:disabled{background:rgba(255,255,255,.1);color:#8d8aa8}
+.abrow.free{border-style:dashed;opacity:.8}
+.abrow.gold{border-color:#ffd24a66;background:rgba(255,210,74,.05)}
+.abshop .cat{margin:8px 0 0}
+.abshop .note{font-size:11px;opacity:.6;text-align:center}
+
+/* v1.4: abilities at the top, glow when ready */
+.ab.ready{animation:abpulse 1.4s infinite}
+@keyframes abpulse{50%{box-shadow:0 0 24px var(--b),0 0 6px #fff inset}}
+.ab .nm{bottom:-12px;font-size:8px;opacity:.9}
+/* big counter chip in the bar (Sky Shield ammo) */
+.ctr{flex:1;min-width:0;max-width:170px;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 8px;border-radius:14px;border:2px solid #36d6ff;background:rgba(54,214,255,.1);line-height:1}
+.ctr span{font-size:10px;letter-spacing:.14em;opacity:.8}
+.ctr b{font-size:24px;font-weight:900;margin-top:4px;color:#fff;white-space:nowrap}
+.ctr.low{border-color:#ffe14a;background:rgba(255,225,74,.12)}.ctr.low b{color:#ffe14a}
+.ctr.empty{border-color:#ff3b3b;background:rgba(255,59,59,.18);animation:ctrblink .5s infinite}.ctr.empty b{color:#ff3b3b;font-size:17px}
+@keyframes ctrblink{50%{opacity:.45}}
+@media (max-width:420px){.ctr b{font-size:19px}.ctr span{font-size:9px}.ctr{padding:5px 4px}}
+
+/* ---------- 1-minute story ending ---------- */
+#screen-ending{background:linear-gradient(180deg,rgba(3,2,10,.85),rgba(3,2,10,.35) 30%,rgba(3,2,10,.35) 70%,rgba(3,2,10,.9));z-index:50;justify-content:flex-start;padding:0;overflow:hidden}
+.crawl{position:absolute;inset:0;overflow:hidden;-webkit-mask-image:linear-gradient(transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(transparent,#000 18%,#000 82%,transparent)}
+.crawl-in{position:absolute;left:50%;width:min(560px,90vw);transform:translate(-50%,100vh);animation:crawl 58s linear forwards;text-align:center;font-family:'Segoe UI',system-ui,sans-serif;font-size:clamp(17px,4.4vw,22px);line-height:1.6}
+@keyframes crawl{to{transform:translate(-50%,-100%)}}
+.crawl-in p{margin:0 0 26px;text-shadow:0 2px 8px #000}
+.crawl-in h3{font-family:'Orbitron',sans-serif;color:var(--b);letter-spacing:.14em;margin:40px 0 18px;font-size:clamp(18px,5vw,26px)}
+.endlogo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(40px,11vw,76px);line-height:1.05;margin-bottom:50px;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+.endthe{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(36px,10vw,64px);margin:70px 0 20px;color:#fff;text-shadow:0 0 24px var(--a)}
+.endthanks{opacity:.8}
+.endskip{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:3;padding:10px 16px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);font-size:13px;font-weight:800;letter-spacing:.1em}
+.endbar{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.08)}
+.endbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--a),var(--b))}
+
+/* ---------- v1.6 finale ---------- */
+#fw{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+#screen-ending .crawl,#screen-ending .endbar,#screen-ending .endskip{z-index:2}
+#screen-ending .endskip{z-index:10;pointer-events:auto}#screen-ending .crawl,#screen-ending #fw,#screen-ending .finale{pointer-events:none}
+.finale{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px;transition:opacity 1.2s, transform 1.2s}
+.finale.out{opacity:0;transform:scale(1.15);pointer-events:none}
+.medal{width:170px;height:170px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:100px;background:radial-gradient(circle at 35% 30%,#fff8,transparent 45%),radial-gradient(circle,color-mix(in srgb,var(--mc) 60%,#000),#000 75%);border:5px solid var(--mc);box-shadow:0 0 40px var(--mc),0 0 120px color-mix(in srgb,var(--mc) 60%,transparent);animation:medalIn 1.4s cubic-bezier(.2,1.6,.4,1) both, medalGlow 1.6s 1.4s ease-in-out infinite}
+.medal span{filter:drop-shadow(0 4px 10px #000)}
+@keyframes medalIn{0%{transform:scale(0) rotate(-540deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+@keyframes medalGlow{50%{box-shadow:0 0 70px var(--mc),0 0 200px var(--mc)}}
+.fin-t1{font-family:'Orbitron',sans-serif;letter-spacing:.5em;font-size:14px;opacity:0;animation:fadeUp .8s 1.1s forwards}
+.fin-t2{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(40px,11vw,80px);line-height:1;background:linear-gradient(90deg,var(--a),#fff,var(--b));-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;animation:fadeUp .8s 1.4s forwards, shine 3s 2s linear infinite;background-size:200% 100%}
+.fin-t3{font-family:'Orbitron',sans-serif;font-weight:900;letter-spacing:.2em;font-size:clamp(15px,4.5vw,24px);opacity:0;animation:fadeUp .8s 1.9s forwards;text-shadow:0 0 20px currentColor}
+.fin-stats{display:flex;gap:22px;margin-top:10px;opacity:0;animation:fadeUp .8s 2.5s forwards}
+.fin-stats div{display:flex;flex-direction:column;align-items:center}.fin-stats b{font-family:'Orbitron',sans-serif;font-size:22px}.fin-stats span{font-size:10px;letter-spacing:.2em;opacity:.7}
+.fin-rare{font-family:'Segoe UI',sans-serif;font-style:italic;opacity:0;animation:fadeUp .8s 3.2s forwards;color:#ffd23f}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+@keyframes shine{to{background-position:-200% 0}}
+.end-d2 .medal{width:200px;height:200px;font-size:120px}
+.endsub{font-family:'Orbitron',sans-serif;letter-spacing:.3em;font-size:13px;margin:-30px 0 50px}
+.endmedal{font-size:80px;margin:10px 0 20px;filter:drop-shadow(0 0 20px #ffd23f)}
+#screen-ending{background:#03020a}
+#screen-ending .crawl{background:transparent}
+
+/* ---------- finish / claim form ---------- */
+.claimcode{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:.2em;padding:10px;border-radius:12px;border:2px dashed #ffd23f;background:rgba(255,210,74,.08)}
+.claimcode b{font-size:30px;letter-spacing:.25em;color:#ffd23f}
+.clok{display:flex;gap:8px;align-items:flex-start;text-align:left;font-family:'Segoe UI',sans-serif;font-size:13px;opacity:.85}
+.clok input{width:18px;height:18px;flex:none;margin-top:1px}
+
+/* 4-ability games: compact bar on phones */
+@media (max-width:480px){
+  .ab4 #bar{padding:0 8px;gap:6px}
+  .ab4 #abilities{gap:6px}
+  .ab4 .ab{width:46px;height:46px;font-size:20px}
+  .ab4 .ab .cnt{min-width:19px;height:19px;font-size:11px;right:-4px;top:-4px}
+  .ab4 .ab .nm{font-size:7px;bottom:-12px}
+  .ab4 .bbtn{width:42px;height:42px;font-size:15px}
+  .ab4 .bbtn small{display:none}
+  .ab4 .barbtns{gap:5px}
+  .ab4 .ctr{padding:4px 3px;max-width:86px}
+  .ab4 .ctr b{font-size:16px}
+  .ab4 .ctr span{font-size:8px;letter-spacing:.06em}
+}
+
+/* ===== v2 SIDE LAYOUT (Andrew, Oct 2026): abilities in a column on the RIGHT, game to the left =====
+   Bigger buttons, readable names, and a live countdown ring + seconds on any ability that is running. */
+.lay-side #bar{left:auto;right:0;top:46px;bottom:0;width:var(--side,88px);height:auto;padding:12px 0 calc(10px + env(safe-area-inset-bottom));flex-direction:column;justify-content:flex-start;gap:10px;border-bottom:0;border-left:2px solid color-mix(in srgb,var(--b) 55%,transparent);box-shadow:-6px 0 18px rgba(0,0,0,.5)}
+.lay-side #abilities{flex-direction:column;align-items:center;gap:22px}
+.lay-side .ab{width:66px;height:66px;font-size:30px}
+.lay-side .ab .nm{bottom:-16px;font-size:10px;opacity:1;letter-spacing:.04em}
+.lay-side .ab .cnt{min-width:24px;height:24px;font-size:13px}
+.lay-side #hudCounter{margin:6px 0 0;max-width:80px;width:80px;flex:none;padding:6px 2px}
+.lay-side .ctr b{font-size:17px}.lay-side .ctr span{font-size:8px;letter-spacing:.06em;text-align:center}
+.lay-side .barbtns{margin-top:auto;flex-direction:column;gap:8px}
+.lay-side .bbtn{width:62px;height:50px}
+.lay-side.ab4 #bar{padding:10px 0}
+.lay-side.ab4 .ab{width:62px;height:62px;font-size:27px}
+.lay-side.ab4 .bbtn small{display:block}
+@media (max-width:420px){ .lay-side{--side:80px} .lay-side .ab,.lay-side.ab4 .ab{width:58px;height:58px;font-size:25px} .lay-side #abilities{gap:20px} .lay-side #hudCounter{width:74px;max-width:74px} .lay-side .bbtn{width:58px;height:44px} }
+@media (max-height:640px){ .lay-side #abilities{gap:16px} .lay-side .ab,.lay-side.ab4 .ab{width:52px;height:52px;font-size:22px} }
+/* running ability: countdown ring + big seconds */
+.ab .tm{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff;text-shadow:0 0 6px #000,0 0 3px #000;pointer-events:none}
+.ab.timing{background:conic-gradient(var(--b) calc(var(--p,1)*360deg), rgba(5,4,16,.85) 0);box-shadow:0 0 26px var(--b);animation:none}
+.ab.timing .tm{display:flex}.ab.timing .ic{opacity:.35}
+.ab.timing.ending{animation:abend .35s infinite}
+@keyframes abend{50%{box-shadow:0 0 4px #ff3b3b;border-color:#ff3b3b}}
+
+/* ===== v3 LAYOUT (Andrew, 15 Oct 2026) =====
+   Abilities: a column on the LEFT, hugging the game's left edge (outside the play area).
+   Score, stage, lives, gold, the game counter and every running ability timer: a see-through strip
+   laid slightly over the TOP of the game, tinted with the game's own colour so it doesn't pull your eye. */
+.lay-side #bar{right:auto;width:var(--side,88px);bottom:auto;border-left:0;border-right:2px solid color-mix(in srgb,var(--b) 30%,transparent);
+  background:color-mix(in srgb,var(--bg) 78%,transparent);box-shadow:none;border-radius:0}
+.lay-side #hudTop{right:auto;height:auto;min-height:34px;padding:4px 66px 4px 8px;flex-wrap:wrap;justify-content:flex-start;gap:4px 12px;font-size:12px;
+  background:linear-gradient(color-mix(in srgb,var(--bg) 55%,transparent),color-mix(in srgb,var(--bg) 25%,transparent));border-bottom:0;opacity:.88}
+.lay-side #hudTop .hs b{font-weight:800}
+.lay-side #btnEnd{top:4px;right:6px;padding:5px 9px;font-size:10px;background:color-mix(in srgb,var(--bg) 50%,transparent)}
+#hudRow2{display:none}
+.lay-side #hudRow2{display:flex;flex-basis:100%;flex-wrap:wrap;gap:5px;align-items:center}
+.lay-side #hudRow2:not(:has(.fx)):not(:has(.ctr:not(.hidden))){display:none}
+.lay-side #hudCounter{flex:none;flex-direction:row;gap:6px;max-width:none;width:auto;margin:0;padding:2px 9px;border-radius:10px;border-width:1px;background:color-mix(in srgb,var(--bg) 40%,transparent)}
+.lay-side #hudCounter span{font-size:9px;letter-spacing:.06em;opacity:.8}.lay-side #hudCounter b{font-size:14px}
+#hudFx{display:flex;flex-wrap:wrap;gap:5px}
+.fx{font-style:normal;display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:9px;font-size:11px;font-weight:800;border:1px solid color-mix(in srgb,var(--b) 70%,transparent);background:color-mix(in srgb,var(--b) 22%,transparent)}
+.fx.end{animation:abend .35s infinite}
+.lay-side #toast{transform:translateX(-50%)}
+@media (max-width:480px){ .lay-side #hudTop{gap:3px 9px;padding:3px 58px 3px 6px;font-size:11px} .lay-side #hudTop span{display:none} .lay-side #hudCounter span{display:inline} }
+
+/* arcade navigation row on the main menu */
+.gnav{display:flex;gap:6px;margin-top:10px;width:100%}
+.gnav .gn{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:4px;padding:10px 6px;border-radius:12px;font-size:11px;font-weight:800;letter-spacing:.04em;text-decoration:none;color:#fff;background:rgba(255,255,255,.06);border:1px solid color-mix(in srgb,var(--a) 50%,transparent);white-space:nowrap;overflow:hidden}
+.gnav .gn span{overflow:hidden;text-overflow:ellipsis}
+.gnav .gn.all{flex:0 0 auto;padding:10px 10px;color:var(--a)}
+
+.fx.doom{background:#ff3b3b33;border-color:#ff3b3b;color:#ffd0d0}
+
+/* ===== SHELL-LAYOUT-2 (v1.5, Andrew 20 Oct 2026) =====
+   Action buttons (FIRE / JUMP / BOMB…) = big round buttons in #actbar at the bottom of the screen.
+   Consumable abilities + SHOP + PAUSE = compact see-through column (#bar) on the screen edge, middle height.
+   All sizes come from JS (geo()) as CSS variables, so the ⚙️ SETTINGS sliders resize them live. */
+#actbar{display:none}
+#app.lay2 #bar{left:0;top:0;right:auto;bottom:auto;width:var(--cw);height:auto;padding:var(--cp) 0;flex-direction:column;align-items:center;justify-content:flex-start;gap:0;
+  background:color-mix(in srgb,var(--bg) 50%,transparent);border:1px solid color-mix(in srgb,var(--b) 30%,transparent);border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.35)}
+#app.lay2 #abilities{flex-direction:column;align-items:center;gap:calc(var(--nmh) + var(--cg))}
+#app.lay2 #bar .ab{width:var(--cb);height:var(--cb);font-size:calc(var(--cb)*.46);border-width:2px}
+#app.lay2 #bar .ab .nm{bottom:auto;top:calc(100% + 1px);font-size:var(--nmf);line-height:var(--nmh);max-width:calc(var(--cw) + 4px);overflow:hidden;opacity:1;letter-spacing:.02em}
+#app.lay2 #bar .ab .cnt{min-width:calc(var(--cb)*.42);height:calc(var(--cb)*.42);font-size:calc(var(--cb)*.24);right:calc(var(--cb)*-.12);top:calc(var(--cb)*-.12);padding:0 3px}
+#app.lay2 #bar .ab .tm{font-size:calc(var(--cb)*.34)}
+#app.lay2 #bar .ab .kb{font-size:9px;right:-6px;bottom:0}
+#app.lay2 .barbtns{margin-top:calc(var(--nmh) + var(--cg));flex-direction:column;gap:var(--cg)}
+#app.lay2.nocons .barbtns{margin-top:0}
+#app.lay2 .bbtn{width:var(--cb);height:var(--sb);font-size:calc(var(--sb)*.4);border-radius:12px}
+#app.lay2 .bbtn small{display:block;font-size:var(--nmf);margin-top:1px;letter-spacing:.02em}
+#app.lay2 #actbar{display:flex;position:absolute;left:0;top:0;gap:var(--ag);pointer-events:auto;touch-action:none}
+#app.lay2 #actbar .ab{width:var(--as);height:var(--as);flex-direction:column;gap:1px;border-width:3px;font-size:calc(var(--as)*.38);
+  background:radial-gradient(circle at 50% 32%,color-mix(in srgb,var(--b) 38%,rgba(5,4,16,.8)),rgba(5,4,16,.82) 72%);
+  box-shadow:0 0 16px color-mix(in srgb,var(--b) 55%,transparent),inset 0 -5px 12px rgba(0,0,0,.45);transition:transform .06s}
+#app.lay2 #actbar .ab .ic{line-height:1}
+#app.lay2 #actbar .ab .nm{position:static;transform:none;font-size:max(8px,calc(var(--as)*.12));line-height:1.1;opacity:.95;letter-spacing:.03em;max-width:calc(var(--as) - 12px);overflow:hidden;white-space:nowrap}
+#app.lay2 #actbar .ab.ready{animation:none}
+#app.lay2 #actbar .ab.down{transform:scale(.92);background:color-mix(in srgb,var(--b) 60%,#000);box-shadow:0 0 26px var(--b)}
+#app.lay2 #actbar .ab .cnt:empty{display:none}
+#app.lay2 #actbar .ab .cnt{right:-2px;top:-2px}
+#app.lay2 #actbar .ab .kb{right:50%;transform:translateX(50%);bottom:-8px}
+#app.lay2 #actbar .ab .tm{font-size:calc(var(--as)*.3)}
+#mpBars{bottom:calc(var(--actH,0px) + 8px)!important}
+/* settings page */
+.setprevw{display:flex;flex-direction:column;align-items:center;gap:3px}
+.setprevw canvas{border-radius:10px;border:2px solid rgba(255,255,255,.25);background:#000}
+.setprevw small{font-size:9px;letter-spacing:.2em;opacity:.6}
+.setgrp{text-align:left;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid color-mix(in srgb,var(--b) 35%,transparent);display:flex;flex-direction:column;gap:6px}
+.seth{font-size:12px;letter-spacing:.12em;color:var(--b);font-weight:800}
+.seth small{display:block;font-size:10px;letter-spacing:.02em;color:#fff;opacity:.7;font-weight:400;font-family:'Segoe UI',system-ui,sans-serif;margin-top:2px}
+.setl{font-size:11px;letter-spacing:.1em;opacity:.85;display:flex;justify-content:space-between}
+.setl b{color:var(--a)}
+.sl{position:relative;height:36px;touch-action:none;cursor:pointer}
+.sl i{position:absolute;left:14px;right:14px;top:16px;height:5px;border-radius:3px;background:rgba(255,255,255,.15)}
+.sl b{position:absolute;left:14px;top:16px;height:5px;border-radius:3px;width:calc((100% - 28px)*var(--f,0));background:linear-gradient(90deg,var(--a),var(--b))}
+.sl em{position:absolute;top:5px;left:calc(14px + (100% - 28px)*var(--f,0) - 13px);width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 0 10px var(--b);pointer-events:none}
+.slr{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.1em;opacity:.55;margin-top:-4px;padding:0 4px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:10px 3px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);font-size:11px;font-weight:700;letter-spacing:.03em}
+.seg button.on{background:var(--b);color:#050510;border-color:var(--b)}
+.setnote{font-size:12px!important;opacity:.7!important}
+/* the column / action bar background never blocks the game: only the buttons themselves take taps */
+#app.lay2 #bar,#app.lay2 #actbar{pointer-events:none}
+#app.lay2 #bar button,#app.lay2 #actbar button{pointer-events:auto}
+.sethd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sethd .mid{padding:9px 12px;flex:none}
+.setr{display:flex;align-items:center;gap:6px}
+.setr .setl{flex:0 0 86px;flex-direction:column;gap:1px}
+.setr .sl{flex:1}
+.setgrp{gap:5px;padding:8px 10px}
+.mbox .row .mid{font-size:11px;padding:11px 4px}
+/* ===== SHELL-LANDSCAPE-1 (24 Oct 2026): only for games with landscape:true (#app.land) ===== */
+#app.land #hudTop{min-height:30px;padding:3px 64px 3px 8px;flex-wrap:wrap;gap:4px 12px}
+#app.land #hudRow2{flex-basis:auto;flex-wrap:nowrap}
+#app.land #hudTop span{display:inline}
+#app.land #tut{font-size:13px;padding:8px 12px}
+#app.land #screen-menu,#app.land #screen-panel{justify-content:flex-start}
+#app.land #screen-menu>.menu-card,#app.land #screen-panel>.panel{margin:auto 0}
+@media (orientation:landscape){
+#app.land .menu-card{width:min(760px,96vw);display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;padding:12px 16px}
+#app.land .menu-card>.logo,#app.land .menu-card>.meta,#app.land .menu-card>.diff,#app.land .menu-card>.gnav,#app.land .menu-card>.ver{grid-column:1/-1}
+#app.land .menu-card .logo{font-size:clamp(24px,7vh,40px)}
+#app.land .menu-card .big{padding-top:11px;padding-bottom:11px}
+#app.land .menu-card .gnav{margin-top:2px}
+}
+#app.land .panel{max-height:94vh}
+#app.land .mbox{max-height:94vh}
+#app.land .mbox.wide{width:min(560px,96vw)}
+#joyHome{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.035);pointer-events:none;z-index:4}
+#joyHome i{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);border-radius:50%;background:color-mix(in srgb,var(--b) 25%,transparent);border:1px solid rgba(255,255,255,.25)}
+#rotate{position:absolute;inset:0;z-index:95;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--a) 20%,var(--bg)),var(--bg) 75%)}
+#rotate h2{font-size:22px;letter-spacing:.1em;line-height:1.3;background:linear-gradient(90deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent}
+#rotate p{font-family:'Segoe UI',system-ui,sans-serif;opacity:.85;line-height:1.45;max-width:300px}
+#rotate .rotph{font-size:84px;animation:rotph 2.2s ease-in-out infinite;filter:drop-shadow(0 0 18px var(--b))}
+#rotate .rotar{font-size:30px;margin-top:-8px}
+@keyframes rotph{0%,25%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#app.land #toast{font-size:clamp(16px,5vh,26px)}
+#app.land .finale{gap:6px;padding:10px}
+#app.land .medal,#app.land .end-d2 .medal{width:min(100px,24vh);height:min(100px,24vh);font-size:min(58px,14vh);border-width:4px}
+#app.land .fin-t2{font-size:clamp(28px,11vh,64px)}
+#app.land .fin-t3{font-size:clamp(13px,4.5vh,22px)}
+#app.land .fin-stats{margin-top:4px}
+#app.land .endlogo{font-size:clamp(30px,12vh,64px);margin-bottom:28px}
+
+/* race bars in landscape: thin strip under the top HUD so they never cover the board */
+#app.land ~ #mpBars, body:has(#app.land) #mpBars{top:44px!important;bottom:auto!important;left:50%!important;transform:translateX(-50%) scale(.8)!important;transform-origin:top center;opacity:.85}
+
+/* SHELL-LANDSCAPE-2: upright hint is a small strip, never a blocking cover */
+#app #rotate{position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:auto!important;height:auto!important;inset:0 0 auto 0!important;padding:6px 10px!important;background:#000c!important;font:700 12px system-ui,sans-serif!important;color:#ffd23f!important;text-align:center!important;z-index:40!important;pointer-events:none!important;display:block}
+#app #rotate.hidden{display:none!important}
+
+/* SHELL-LANDSCAPE-3 hint strip: always visible upright, tappable */
+#app #rotate{pointer-events:auto!important;font-size:14px!important;padding:8px 10px!important;background:#14061fee!important;border-bottom:2px solid #ffd23f!important}
+#rotate #rotGo{display:block;margin:6px auto 0;font:800 14px system-ui,sans-serif;border:0;border-radius:10px;padding:10px 14px;background:linear-gradient(90deg,#ffd23f,#ff3bd4);color:#14061f}
+
+/* SHELL-LANDSCAPE-3b: 'now turn your phone' tip after the screen is turned */
+#turnTip{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10001;background:#14061fee;border:2px solid #ffd23f;border-radius:18px;padding:16px 22px;color:#fff;font:700 15px system-ui,sans-serif;text-align:center;pointer-events:none;box-shadow:0 0 30px #ffd23f66}
+#turnTip.hidden{display:none}
+#turnTip b{display:block;color:#ffd23f;font-size:18px;margin:6px 0}
+#turnTip span{font-size:13px;opacity:.85}
+#turnTip .tt-ph{font-size:44px;display:inline-block;animation:ttrot 1.2s ease-in-out infinite}
+@keyframes ttrot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+/* SHELL-GOLD-1: redeem code button + modal */
+.abshop .gcode{width:100%;padding:11px 8px;border-radius:12px;font-size:13px;font-weight:800;font-family:'Orbitron',sans-serif;background:rgba(255,210,74,.12);color:#ffd24a;border:1px dashed #ffd24a99}
+.mbox .gnote{font-size:12px;opacity:.75;font-family:'Segoe UI',system-ui,sans-serif;margin:0 0 10px;line-height:1.35}
+.mbox #gcIn{width:100%;box-sizing:border-box;margin-bottom:8px}
+.mbox .gmsg{min-height:1.3em;font-size:13px;font-family:'Segoe UI',system-ui,sans-serif;margin:8px 0 4px;color:#ffd24a}
+.mbox .gmsg.ok{color:#7dff9b}.mbox .gmsg.bad{color:#ff8a8a}
+/* SHELL-LOGIN-1: sign-in screens, account line, bought-gold note */
+.abshop .bal .bnote{display:block;font-family:'Segoe UI',system-ui,sans-serif;font-size:11px;color:#7dff9b;opacity:.9;margin-top:2px;letter-spacing:0}
+.mbox input.lgin{text-transform:none;letter-spacing:.02em;font-size:17px;width:100%;box-sizing:border-box}
+.mbox input.lgcode{letter-spacing:.45em;font-size:24px;font-weight:800;width:100%;box-sizing:border-box}
+.mbox .lgsafe{font-size:12px;color:#7dff9b;opacity:.9}
+.mbox .acctline{margin:-4px 0 8px}
+.abshop .acct{font-size:12px;text-align:center;padding:8px;border-radius:10px;background:rgba(125,255,155,.07);border:1px solid #7dff9b55;line-height:1.5}
+.abshop .acct .bn{color:#ffd24a;font-weight:800}
+.abshop .acctout{margin-left:6px;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#fff}
+.abshop .grest{background:rgba(125,255,155,.08);color:#7dff9b;border-color:#7dff9b99}
+/* SHELL-CONT-1: continue-after-death screen + always-visible menu CONTINUE */
+.mbox .big small,#btnCont small{display:block;font-size:11px;letter-spacing:.06em;font-weight:700;margin-top:3px;opacity:.85}
+.mbox .goldbtn{background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f;border:none}
+#btnCont.nosave:disabled{opacity:.55;filter:grayscale(.9);box-shadow:none}
+.mbox #ctMsg:empty{display:none}
+
+/* SLOTS-LAYOUT-1: machine left, choices right when the screen is wide */
+.slot2{flex-direction:column}
+.slot2 .sl-left,.slot2 .sl-right{display:flex;flex-direction:column;gap:10px;align-items:center;width:100%}
+@media (orientation:landscape){
+  .slot2{flex-direction:row;align-items:flex-start;gap:18px}
+  .slot2 .sl-left{flex:1 1 55%;position:sticky;top:0;justify-content:center;min-height:100%}
+  .slot2 .sl-right{flex:1 1 45%;max-width:420px}
+  .slot2 .tabs button{font-size:11px;padding:8px 6px}
+  .slot2 .bets{flex-wrap:wrap;justify-content:center}
+  .slot2 .paytable{font-size:11px}
+}
+@media (orientation:landscape) and (max-height:480px){
+  .slot2 .reel{width:54px;height:66px;font-size:34px}
+  .slot2 .reels.five .reel{width:42px;height:56px;font-size:26px}
+  .slot2 .wheel-box,.slot2 .wheel{width:190px;height:190px}
+  .slot2 .wheel-lbl span{top:-82px;transform-origin:18px 82px!important}
+  .slot2 .coin{width:64px;height:64px;font-size:22px}
+}
+
+</style>
+</head>
+<body>
+<!-- BUILD-MM-1.0 · 2026-11-20 · shell v1.5 SHELL-LAYOUT-2 -->
+<div id="app" class="lay-top">
+  <canvas id="game"></canvas>
+  <div id="joy" class="hidden"><i></i></div>
+  <div id="hud" class="hidden">
+    <div id="hudTop">
+      <div class="hs"><span>SCORE</span><b id="hudScore">0</b></div>
+      <div class="hs"><span>STAGE</span><b id="hudStage">1</b></div>
+      <div class="hs" id="hudLives"></div>
+      <div class="hs coins" id="hudCoinBox">🪙 <b id="hudCoins">0</b></div>
+      <button id="btnEnd" class="hbtn">END ✕</button>
+      <div id="hudRow2"><div id="hudCounter" class="ctr hidden"></div><div id="hudFx"></div></div>
+    </div>
+    <div id="bar">
+      <div id="abilities"></div>
+      <div class="barbtns">
+        <button id="btnShopIn" class="bbtn">🛒<small>SHOP</small></button>
+        <button id="btnPause" class="bbtn">❚❚<small>PAUSE</small></button>
+      </div>
+    </div>
+    <div id="actbar"></div>
+    <div id="toast"></div>
+    <div id="tut" class="hidden"></div>
+  </div>
+
+  <div id="screen-loading" class="screen">
+    <div class="logo" id="ldTitle"></div>
+    <div class="tag" id="ldTag"></div>
+    <div class="loadbar"><i id="loadFill"></i></div>
+    <div class="tapstart" id="tapStart">TAP / PRESS ANY KEY</div>
+  </div>
+
+  <div id="screen-menu" class="screen dim hidden">
+    <button class="sndbtn" id="sndBtn">🔊</button>
+    <div class="menu-card">
+      <div class="logo" id="mTitle"></div>
+      <div class="meta"><span>BEST <b id="mBest">—</b></span><span class="coins">🪙 <span id="mCoins">0</span></span></div>
+      <div class="diff"><button>EASY</button><button>HARD</button><button>EXPERT</button></div>
+      <button class="big" id="btnNew">NEW GAME</button>
+      <button class="big" id="btnCont" style="background:linear-gradient(90deg,var(--b),var(--a))">CONTINUE</button>
+      <button class="mid abil" id="btnAbil">⚡ ABILITIES <span id="mAbil"></span></button>
+      <button class="mid casino" id="btnSlots">🎰 DOUBLE UP OR LOSS</button>
+      <div class="row"><button class="mid" id="btnShop">🛒 SHOP</button><button class="mid" id="btnScores">🏆 TOP SCORES</button></div>
+      <div class="row"><button class="mid" id="btnHow">❔ HOW TO PLAY</button><button class="mid" id="btnStory">📖 STORY</button></div>
+      <button class="mid" id="btnSet">⚙️ SETTINGS</button>
+      <div class="gnav"><a id="gPrev" class="gn">◀ <span></span></a><a id="gAll" class="gn all" href="../">🏠 ALL GAMES</a><a id="gNext" class="gn"><span></span> ▶</a></div>
+      <div class="ver" id="ver"></div>
+    </div>
+  </div>
+
+  <div id="screen-panel" class="screen dim hidden">
+    <div class="panel"><div class="panel-h"><button class="back" id="pBack">◀ BACK</button><h2 id="pTitle"></h2></div><div class="panel-b" id="pBody"></div></div>
+  </div>
+
+  <div id="screen-ending" class="screen hidden"></div>
+
+  <div id="modal" class="hidden"></div>
+</div>
+<script>
+/* MEMORY MATCH — flip-and-pair card game (#95). 100 stages. LANDSCAPE (SHELL-LANDSCAPE-1): a table of face-down cards.
+   Tap two cards to flip them. Same picture = a pair, they stay open. Different = they flip back. Find every pair before you run
+   out of misses. Each stage has a theme (animals, fruit, space, sport, sea, weather …) and the tables get bigger. A quick
+   peek at the start shows all the cards. Later: a sneaky cat card swaps two cards. Every 10th stage: SHUFFLE — the unopened
+   cards swap places every few pairs. PC: arrow keys move, SPACE flips. Solo. */
+(function(){
+const W=1280,H=720;
+const THEMES=[['ANIMALS','🦁🐘🦒🐼🐸🐵🦊🐨🦓🐧🦉🐢🐙🦋🐝🦔'],['FRUIT','🍎🍌🍇🍉🍓🍍🥝🍒🍑🍋🥭🍐🥥🫐🍈🍊'],['SPACE','🚀🪐🌙⭐☄️🛸👽🌍☀️🔭🛰️🌌👩‍🚀🌠🌑💫'],['SPORT','⚽🏀🏈⚾🎾🏐🏉🎱🏓🏸🥊⛳🏒🛹🥏🏆'],['SEA','🐠🐟🐡🦈🐳🐬🦀🦞🐚🪸🦑🐙🦭🐢⚓🌊'],['WEATHER','☀️🌧️⛈️🌈❄️🌪️🌤️☁️⚡🌫️🌙💨☔🌡️🌬️🔥'],['FOOD','🍕🍔🌭🍟🌮🍩🍪🧁🍰🍫🍿🥨🧇🥞🍦🍭'],['MUSIC','🎸🎹🥁🎺🎻🎷🪗🎤🎧🎵🎼📯🪘🔔🪕📻']];
+let api,t=0,cards,cols,rows,first,second,flipT,misses,maxMiss,pairs,total,done,lost,peekT,cur,kbd,theme,shufN,combo,lockT,swapFx;
+const easy=()=>api.diff===0&&api.level<=5;
+function emo(s){ return Array.from(new Intl.Segmenter?new Intl.Segmenter().segment(s):s,x=>x.segment||x); }
+function layout(){ const cw=Math.min(118,(W-320)/cols-12), ch=Math.min(140,(H-170)/rows-12); const s=Math.min(cw,ch/1.2); return {w:s,h:s*1.2,ox:W/2-(cols*(s+12)-12)/2,oy:120+(H-150-(rows*(s*1.2+12)-12))/2}; }
+function pos(i){ const L=layout(), c=i%cols, r=Math.floor(i/cols); return {x:L.ox+c*(L.w+12),y:L.oy+r*(L.h+12),w:L.w,h:L.h}; }
+function flip(i){ if(done||lost||peekT>0||lockT>0||i<0||i>=cards.length) return; const k=cards[i]; if(k.open||k.gone||i===first) return;
+  k.open=true; k.f=0; api.sfx.click(); if(first<0){ first=i; return; } second=i; lockT=0.7;
+  if(cards[first].v===k.v){ cards[first].done=k.done=true; pairs++; combo++; const pts=Math.round(80*(1+api.dk*0.3)*(1+Math.min(4,combo-1)*0.5)); const p=pos(i); api.addScore(pts,p.x+p.w/2,p.y); api.sfx.pickup(); api.event('pair'); lockT=0.25;
+    if(combo>=3) api.fx.text(W/2,100,combo+' IN A ROW!','#ffd23f',24);
+    if(pairs>=total){ done=true; api.toast('ALL PAIRS FOUND!'); api.sfx.clear(); api.fx.flash('#fff',.3); setTimeout(()=>api.stageClear(),1200); }
+    else if(api.boss&&pairs%shufN===0) setTimeout(()=>shuffleClosed(),800);
+    first=-1; second=-1; }
+  else { misses++; combo=0; api.sfx.bump(); if(misses>=maxMiss){ lost=true; api.toast('TOO MANY MISSES!'); api.sfx.hurt(); setTimeout(()=>api.loseLife(),1300); } } }
+function shuffleClosed(){ if(done||lost) return; const idx=cards.map((k,i)=>i).filter(i=>!cards[i].done&&!cards[i].open); const vs=idx.map(i=>cards[i].v); for(let i=vs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [vs[i],vs[j]]=[vs[j],vs[i]]; } idx.forEach((i,n)=>{ cards[i].v=vs[n]; cards[i].wob=1; }); api.toast('SHUFFLE!'); api.sfx.power(); }
+function catSwap(){ const idx=cards.map((k,i)=>i).filter(i=>!cards[i].done&&!cards[i].open); if(idx.length<2) return; const a=idx[Math.floor(Math.random()*idx.length)]; let b=a; while(b===a) b=idx[Math.floor(Math.random()*idx.length)]; [cards[a].v,cards[b].v]=[cards[b].v,cards[a].v]; cards[a].wob=cards[b].wob=1; swapFx=[a,b,1]; api.toast('🐈 THE CAT SWAPPED TWO CARDS!'); }
+const GAME=window.GAME={
+  id:'memory-match',title:'Memory Match',titleHTML:'MEMORY<br>MATCH',tagline:'100 STAGES · BEGINNER · HARD · EXPERT',
+  build:'BUILD-MM-1.0 · 2026-11-20',theme:{a:'#ff7ac0',b:'#5ae0ff',bg:'#1a1030'},
+  landscape:true,w:W,h:H,stages:100,lives:3,livesIcon:'🃏',joystick:false,coinPts:50,
+  abilities:[
+    {id:'peek',icon:'👀',name:'PEEK',cd:18,key:'Digit1',keyLabel:'1',desc:'Shows every card for 1.5 seconds.'},
+    {id:'pair',icon:'✨',name:'MAGIC PAIR',cd:28,key:'Digit2',keyLabel:'2',desc:'Opens one pair for you.'},
+    {id:'miss',icon:'❤️',name:'+2 MISSES',cd:30,key:'Digit3',keyLabel:'3',desc:'You may make two more mistakes.'}],
+  shop:[{id:'c_p',cat:'Cards',name:'Party Cards',cost:0,colors:['#ff7ac0','#7a3aff'],desc:'Bright and fun.'},{id:'c_o',cat:'Cards',name:'Ocean Cards',cost:200,colors:['#2a8aff','#5ae0ff'],desc:'Cool blue backs.'},{id:'c_g',cat:'Cards',name:'Royal Cards',cost:350,colors:['#c8a020','#6a1a2a'],desc:'Fit for a king.'}],
+  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff7ac0,#5ae0ff)'}],
+  story:`<h3>MEMORY MATCH</h3><p>Grandpa Sipho's magic card table has a mind of its own. Every night it deals a new set of picture cards. Find all the pairs and the table rewards you with gold!</p>`,
+  howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>At the start you get a quick <b>peek</b> at every card. Remember them!</li><li>Tap <b>two cards</b> to flip them.</li><li>Same picture = a pair! Different = they flip back.</li><li>Find every pair before you run out of <b>misses</b>.</li><li>Pairs in a row score more.</li><li>🐈 Cat cards never match — they swap two cards!</li><li>PC: arrow keys move, SPACE flips.</li></ul>`,
+  tutorial:[{text:'Move with the arrows and press SPACE to flip two cards — or click them.',touch:'Tap two cards to flip them. Find a matching pair!',ev:'pair'},
+    {text:'Find all the pairs!',time:6}],
+  stageIntro:{1:'FIND THE MATCHING PAIRS'},bossName:'SHUFFLE TABLE!',ending:{"0":["#SHARP MIND","Grandpa Sipho is proud."],"1":["#CARD SHARK","Nothing slips past you."],"2":["#LEGEND","A memory like an elephant."]},
+  abTime(id){ return id==='peek'&&peekT>0?{left:peekT,total:1.5}:null; },
+  _dbg(){ return {get cards(){return cards;},flip,get done(){return done;},get misses(){return misses;},get maxMiss(){return maxMiss;},set peekT(v){peekT=v;},set lockT(v){lockT=v;}}; },
+  init(a){api=a;},
+  startStage(n,a){ api=a; t=0; done=false; lost=false; first=-1; second=-1; misses=0; pairs=0; combo=0; lockT=0; cur=0; kbd=false; swapFx=null;
+    let np=a.content===0?3:Math.round(a.dv([6,9,12],14,16)); if(a.boss) np=Math.max(np,8);
+    const opts=[[3,2],[4,2],[4,3],[5,2],[6,2],[4,4],[6,3],[7,2],[5,4],[6,4],[7,4],[8,4],[9,4],[8,5]]; let best=null; for(const [c,r] of opts){ const n2=c*r; if(n2>=np*2+(a.content>=2&&!a.boss?2:0)&&(!best||n2<best[0]*best[1])) best=[c,r]; } if(!best) best=[8,4];
+    [cols,rows]=best; const hasCat=a.content>=2&&!a.boss&&cols*rows>=np*2+2; total=Math.floor(cols*rows/2)-(hasCat?1:0);
+    theme=THEMES[(a.level-1)%THEMES.length]; const pics=emo(theme[1]).filter(x=>x.trim()).slice(0,16);
+    let vs=[]; for(let i=0;i<total;i++){ vs.push(pics[i%pics.length]+(i>=pics.length?'·':''),pics[i%pics.length]+(i>=pics.length?'·':'')); } if(hasCat) vs.push('CAT1','CAT2');
+    for(let i=vs.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [vs[i],vs[j]]=[vs[j],vs[i]]; }
+    cards=vs.map(v=>({v,open:false,done:false,f:1,wob:0}));
+    maxMiss=a.content===0?8:Math.round(total*a.dv([1.4,1.1,0.9],0.8,0.7)+(easy()?4:2)); shufN=Math.max(2,Math.round(a.dv([4,3,2],2)));
+    peekT=a.content===0?3:a.dv([2.6,2,1.5],1.2,1); },
+  respawn(){ lost=false; misses=0; maxMiss=Math.max(4,Math.round(maxMiss*0.6)); cards.forEach(k=>{ if(!k.done) k.open=false; }); first=-1; peekT=1.5; api.toast('ONE MORE TRY!'); },
+  stageBonus(){ return Math.max(0,maxMiss-misses)*30; },
+  useAbility(id){ if(done||lost) return false;
+    if(id==='peek'){ peekT=1.5; api.sfx.power(); return true; }
+    if(id==='pair'){ const rest=cards.map((k,i)=>i).filter(i=>!cards[i].done&&!cards[i].v.startsWith('CAT')); if(!rest.length) return false; if(first>=0){ cards[first].open=false; first=-1; } const a=rest[0], b=rest.find(i=>i!==a&&cards[i].v===cards[a].v); if(b===undefined) return false; lockT=0; flip(a); lockT=0; flip(b); api.sfx.power(); return true; }
+    if(id==='miss'){ maxMiss+=2; api.sfx.power(); api.fx.text(W/2,100,'+2 MISSES','#5ae0ff',26); return true; } return false; },
+  onKey(code,down){ if(!down) return; kbd=true; const c=cur%cols, r=Math.floor(cur/cols);
+    if(code==='ArrowLeft') cur=r*cols+(c+cols-1)%cols; else if(code==='ArrowRight') cur=r*cols+(c+1)%cols; else if(code==='ArrowUp') cur=((r+rows-1)%rows)*cols+c; else if(code==='ArrowDown') cur=((r+1)%rows)*cols+c;
+    else if(code==='Space'||code==='Enter') flip(cur); },
+  onPointer(type,x,y){ if(type!=='down') return; kbd=false; for(let i=0;i<cards.length;i++){ const p=pos(i); if(x>=p.x&&x<=p.x+p.w&&y>=p.y&&y<=p.y+p.h){ cur=i; flip(i); return; } } },
+  update(dt){ t+=dt; peekT-=dt; cards.forEach(k=>{ k.f=Math.min(1,k.f+dt*5); k.wob=Math.max(0,k.wob-dt*2); }); if(swapFx){ swapFx[2]-=dt; if(swapFx[2]<=0) swapFx=null; }
+    if(lockT>0){ lockT-=dt; if(lockT<=0&&second>=0&&!lost){ const a=cards[first], b=cards[second]; const cat=a.v.startsWith('CAT')||b.v.startsWith('CAT'); if(!a.done){ a.open=false; a.f=0; } if(!b.done){ b.open=false; b.f=0; } first=-1; second=-1; if(cat) catSwap(); } }
+    api.counter('❌ MISSES LEFT',Math.max(0,maxMiss-misses)+' · '+pairs+'/'+total+' pairs',maxMiss-misses<=2?'low':''); },
+  render(c){ const P=api.cos('Cards').colors; table(c); c.textAlign='center';
+    c.fillStyle='#ffd23f'; c.font='bold 20px Orbitron,sans-serif'; c.fillText(theme[0]+' TABLE',W/2,96);
+    cards.forEach((k,i)=>{ const p=pos(i), show=k.open||k.done||peekT>0; const sc=Math.abs(Math.cos((1-k.f)*Math.PI/2)); const wob=Math.sin(k.wob*20)*k.wob*6;
+      c.save(); c.translate(p.x+p.w/2+wob,p.y+p.h/2); c.scale(Math.max(0.05,sc),1); if(k.done) c.globalAlpha=0.55;
+      c.fillStyle='rgba(0,0,0,.3)'; c.fillRect(-p.w/2+4,-p.h/2+6,p.w,p.h);
+      if(show){ c.fillStyle='#fffaf0'; c.fillRect(-p.w/2,-p.h/2,p.w,p.h); c.strokeStyle=k.done?'#5ad88a':P[0]; c.lineWidth=4; c.strokeRect(-p.w/2+2,-p.h/2+2,p.w-4,p.h-4);
+        c.font=Math.round(p.w*0.55)+'px sans-serif'; c.textBaseline='middle'; const v=k.v.startsWith('CAT')?'🐈':k.v.replace('·',''); c.fillText(v,0,4); if(k.v.endsWith('·')){ c.fillStyle=P[0]; c.beginPath(); c.arc(p.w/2-12,-p.h/2+12,6,0,7); c.fill(); } c.textBaseline='alphabetic'; }
+      else { c.fillStyle=P[0]; c.fillRect(-p.w/2,-p.h/2,p.w,p.h); c.fillStyle=P[1]; c.fillRect(-p.w/2+8,-p.h/2+8,p.w-16,p.h-16); c.strokeStyle='rgba(255,255,255,.35)'; c.lineWidth=2; for(let d=-p.h;d<p.h;d+=16){ c.beginPath(); c.moveTo(Math.max(-p.w/2+8,d-p.h/2),0); c.stroke(); } c.fillStyle='rgba(255,255,255,.8)'; c.font='bold '+Math.round(p.w*0.4)+'px Orbitron,sans-serif'; c.fillText('?',0,p.w*0.14); }
+      c.restore(); if(kbd&&i===cur&&!done){ c.strokeStyle='rgba(255,210,63,'+(0.6+0.4*Math.sin(t*8))+')'; c.lineWidth=5; c.strokeRect(p.x-5,p.y-5,p.w+10,p.h+10); } });
+    c.font='bold 15px Orbitron,sans-serif'; c.fillStyle='#fff'; c.fillText('MISSES LEFT',1170,300); c.font='900 52px Orbitron,sans-serif'; c.fillStyle=maxMiss-misses<=2?'#ff5a7a':'#5ae0ff'; c.fillText(Math.max(0,maxMiss-misses),1170,360);
+    c.font='bold 15px Orbitron,sans-serif'; c.fillStyle='#fff'; c.fillText('PAIRS',1170,420); c.font='900 40px Orbitron,sans-serif'; c.fillStyle='#ffd23f'; c.fillText(pairs+'/'+total,1170,466);
+    if(peekT>0){ c.fillStyle='#ffd23f'; c.font='bold 22px Orbitron,sans-serif'; c.fillText('👀 REMEMBER THE CARDS!',W/2,H-18); }
+    c.textAlign='left'; if(lost){ c.fillStyle='rgba(0,0,0,.45)'; c.fillRect(0,0,W,H); } },
+  attract(c,tt){ table(c); const pics=['🦁','🍉','🚀','⚽','🐬','🌈']; c.textAlign='center'; c.textBaseline='middle'; for(let i=0;i<12;i++){ const x=310+(i%6)*115, y=220+Math.floor(i/6)*160, open=((i*7+Math.floor(tt*2))%5)<2;
+    c.fillStyle=open?'#fffaf0':'#ff7ac0'; c.fillRect(x,y,96,120); if(open){ c.font='54px sans-serif'; c.fillText(pics[i%6],x+48,y+62); } else { c.fillStyle='#7a3aff'; c.fillRect(x+8,y+8,80,104); } } c.textBaseline='alphabetic'; c.textAlign='left'; }
+};
+function table(c){ const g=c.createRadialGradient(W/2,H/2,100,W/2,H/2,800); g.addColorStop(0,'#2a6a4a'); g.addColorStop(1,'#0e2a1e'); c.fillStyle=g; c.fillRect(0,0,W,H); c.strokeStyle='rgba(255,255,255,.05)'; c.lineWidth=2; for(let i=0;i<W;i+=40){ c.beginPath(); c.moveTo(i,0); c.lineTo(i+200,H); c.stroke(); } }
+})();
+</script>
+<script>
+/* ===== REMIX ARCADE SHELL v1.6 · SHELL-LAYOUT-2 · SHELL-LANDSCAPE-1 · SHELL-GOLD-1 · SHELL-LOGIN-1 · SHELL-CONT-1 — shared menus, saves, ability shop, gold coins, HUD, tutorial, input, fx, settings, beginner assist ===== */
+(function(){
+'use strict';
+const G = window.GAME;
+const $ = s => document.querySelector(s);
+const DIFFS = ['EASY','HARD','EXPERT'];
+const KEY = 'rmx_' + G.id + '_v1';
+const SUPPORT = G.support || 'appstreamsupportav@gmail.com';
+/* ---------- finish alerts (only when a player clears ALL stages of a difficulty) ----------
+   FIN.sb / FIN.key = Supabase project URL + public "anon" key. The table only accepts new rows,
+   nobody can read it from the game, so cell numbers stay private. FIN.topic = ntfy.sh channel
+   for Andrew's phone alert (no personal data is ever sent there). Leave a value empty to switch that part off. */
+const FIN = {sb:'https://uuyaoffzgjxxwxlzhwur.supabase.co', key:'sb_publishable_1uPwY4lT8NDgiy2iCJAp9g_h_v2p2j9', topic:'remix-arcade-a059c55346e0'};  // NOTE: ntfy.sh refuses anonymous email sending (tested 2026-10-05: HTTP 400), so finish alerts stay phone-only
+const root = document.documentElement.style;
+root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.setProperty('--bg', G.theme.bg);
+
+/* ---------- abilities: count based (like Jayden Kong) ----------
+   Abilities with cd:0 are core gameplay (e.g. Blast Grid bombs) and are always free.
+   Every other ability is a stock you hold: you get 1 of each when you start a new game,
+   after that you buy more with gold coins in the Ability Shop. */
+const BUY = G.abilities.filter(a=>a.cd>0);
+function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
+const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
+
+/* ---------- storage (never trust it) ---------- */
+function blankProfile(){ return {coins:0, owned:[], equipped:{}, tutDone:false, sound:true, lastName:'', diff:0, scores:{0:[],1:[],2:[]}, slots:[null,null,null], abil:{}}; }
+let P;
+try { P = JSON.parse(localStorage.getItem(KEY)) || blankProfile(); } catch(e){ P = blankProfile(); }
+P = Object.assign(blankProfile(), P); if(!P.abil || typeof P.abil!=='object') P.abil={};
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(P)); } catch(e){} }
+/* ---------- SHELL-GOLD-1: ONE shared gold wallet for every game ----------
+   All games live on the same site, so gold sits in localStorage 'rmxGold' (a whole number).
+   P.coins is a getter/setter onto that pool, so every old 'P.coins += x' line keeps working.
+   A change is applied as a DIFFERENCE to the freshest stored value, so two open tabs never wipe each other's gold.
+   First load with this shell: the game's old per-game coins are added to the pool once (P.goldMig marks it done). */
+const GOLD_KEY = 'rmxGold';
+function goldRead(){ try { const v = parseInt(localStorage.getItem(GOLD_KEY), 10); return isFinite(v) && v > 0 ? v : 0; } catch(e){ return null; } }
+let GOLD = goldRead(); if(GOLD === null) GOLD = 0;
+function goldWrite(v){ GOLD = Math.max(0, Math.floor(v) || 0); try { localStorage.setItem(GOLD_KEY, String(GOLD)); } catch(e){} }
+(function(){ const old = Math.max(0, Math.floor(+P.coins) || 0); delete P.coins;
+  Object.defineProperty(P, 'coins', { enumerable:true, configurable:true,
+    get(){ return GOLD; },
+    set(v){ v = Math.floor(+v) || 0; const d = v - GOLD; const now = goldRead(); goldWrite((now === null ? GOLD : now) + d); } });
+  if(!P.goldMig){ if(old > 0){ const now = goldRead(); goldWrite((now === null ? GOLD : now) + old); } P.goldMig = 1; save(); }
+})();
+/* ===== SHELL-LOGIN-1 (Andrew, 1 Nov 2026): bought gold can never get lost =====
+   FREE gold (earned by playing) = local 'rmxGold' above, stays on this phone, no account needed.
+   BOUGHT gold = a server wallet (Supabase table player_wallets), tied to an email login (one-time 6-digit code).
+   The login is ONLY asked when the player taps BUY GOLD / I HAVE A CODE / RESTORE PURCHASES — never before playing.
+   The session lives in localStorage 'rmxAuth' (shared by every game on the site; own key so lobby.js's client never touches it).
+   'rmxBought' = last known bought balance, for DISPLAY only; the server always decides when spending.
+   Spending: free gold first, then bought gold via the spend_bought_gold RPC (needs internet + login). */
+const AUTH_KEY = 'rmxAuth', BOUGHT_KEY = 'rmxBought';
+let authMemo = [undefined, null];
+function authRaw(){ try { const s = localStorage.getItem(AUTH_KEY); if(s === authMemo[0]) return authMemo[1]; const j = s ? JSON.parse(s) : null; authMemo = [s, j && j.user && j.access_token ? j : null]; return authMemo[1]; } catch(e){ return null; } }
+function signedIn(){ return !!authRaw(); }
+function maskEmail(e){ e = String(e||''); const at = e.indexOf('@'); if(at < 1) return e ? e[0]+'***' : ''; return e[0] + '***' + e.slice(at); }
+function acctMasked(){ const a = authRaw(); return a ? maskEmail(a.user.email) : ''; }
+function boughtRead(){ const a = authRaw(); if(!a) return 0; try { const o = JSON.parse(localStorage.getItem(BOUGHT_KEY)); return o && o.u === a.user.id ? Math.max(0, Math.floor(+o.n) || 0) : 0; } catch(e){ return 0; } }
+function boughtWrite(n){ const a = authRaw(); if(!a) return; try { localStorage.setItem(BOUGHT_KEY, JSON.stringify({u:a.user.id, n:Math.max(0, Math.floor(+n) || 0), t:Date.now()})); } catch(e){} try { goldUI(); } catch(e){} }
+function totalGold(){ return P.coins + boughtRead(); }
+function boughtNote(){ const b = boughtRead(); return b > 0 ? `<small class="bnote">(incl. ${b.toLocaleString()} bought, safe in your account)</small>` : ''; }
+function goldSync(){ const v = goldRead(); if(v === null || v === GOLD) return; GOLD = v; try { goldUI(); } catch(e){} }
+function goldUI(){ const t = totalGold().toLocaleString(); ['#hudCoins','#mCoins'].forEach(id=>{ const e=$(id); if(e) e.textContent=t; }); const s=$('#slC'); if(s) s.textContent=P.coins.toLocaleString();
+  document.querySelectorAll('.abshop .bal .coins').forEach(e=>e.textContent=t); document.querySelectorAll('.abshop .bal').forEach(e=>{ const old=e.querySelector('.bnote'); if(old) old.remove(); const n=boughtNote(); if(n) e.insertAdjacentHTML('beforeend', n); }); }
+window.addEventListener('focus', goldSync); window.addEventListener('pageshow', goldSync);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) goldSync(); });
+window.addEventListener('storage', e=>{ if(!e.key || e.key === GOLD_KEY) goldSync(); if(e.key === BOUGHT_KEY || e.key === AUTH_KEY){ try { goldUI(); } catch(_){} } });
+G.shop.forEach(it => { if(it.cost === 0 && !P.owned.includes(it.id)) P.owned.push(it.id); if(it.cost===0 && !P.equipped[it.cat]) P.equipped[it.cat] = it.id; });
+function have(a){ return a.cd>0 ? (P.abil[a.id]||0) : Infinity; }
+function starterKit(){ BUY.forEach(a=>{ if(!(P.abil[a.id]>0)) P.abil[a.id]=1; }); save(); }
+
+/* ---------- audio (tiny synth) ---------- */
+let AC = null;
+function audioInit(){ if(AC) return; try { AC = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){} }
+function tone(f1, f2, dur, type, vol){
+  if(!AC || !P.sound) return;
+  const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(Math.max(20,f2), t+dur);
+  g.gain.setValueAtTime(vol||0.08, t); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+dur+0.02);
+}
+function noise(dur, vol){
+  if(!AC || !P.sound) return;
+  const n = AC.sampleRate*dur, b = AC.createBuffer(1, n, AC.sampleRate), d = b.getChannelData(0);
+  for(let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1-i/n);
+  const s = AC.createBufferSource(), g = AC.createGain(); s.buffer = b; g.gain.value = vol||0.15;
+  s.connect(g); g.connect(AC.destination); s.start();
+}
+const SFX = {
+  click(){ tone(600,900,.06,'square',.05); }, shoot(){ tone(900,300,.09,'square',.04); },
+  boom(){ noise(.35,.18); tone(160,40,.3,'sawtooth',.06); }, small(){ noise(.12,.08); },
+  pickup(){ tone(700,1400,.1,'triangle',.07); }, power(){ tone(300,1200,.25,'sawtooth',.06); },
+  hurt(){ tone(400,60,.45,'sawtooth',.09); }, clear(){ [0,.1,.2,.3].forEach((d,i)=>setTimeout(()=>tone(500+i*200,800+i*200,.15,'triangle',.07),d*1000)); },
+  bump(){ tone(220,440,.07,'triangle',.07); }, blip(){ tone(1200,1000,.03,'square',.03); },
+  coin(){ tone(1320,1760,.07,'square',.035); },
+  over(){ [0,.18,.36].forEach((d,i)=>setTimeout(()=>tone(400-i*90,120,.3,'sawtooth',.07),d*1000)); }
+};
+
+/* ---------- canvas + layout ----------
+   The screen is split: a 46px strip on top (score, stage, lives, gold, END) and an
+   84px ability bar (bottom on tall screens, left side on wide screens). The game is
+   scaled into whatever is left, so the buttons never sit on top of the play area. */
+const TOPH = 46, BARS = 84;
+const SIDE = (G.layout!=='top');   // v2: abilities in a column on the right (set G.layout='top' for the old top bar)
+const app = $('#app'), cv = $('#game'), ctx = cv.getContext('2d');
+if(SIDE){ app.classList.remove('lay-top'); app.classList.add('lay-side','lay2'); }
+let scale = 1, offX = 0, offY = 0, dpr = 1;
+/* ===== SHELL-LAYOUT-2 (Andrew, 20 Oct 2026) =====
+   ACTION buttons (free cd:0 abilities: FIRE, JUMP, BOMB…) = a big thumb-sized ACTION BAR at the BOTTOM of the screen
+   (bottom-right by default). Consumable abilities + 🛒 SHOP + ❚❚ PAUSE = a compact see-through column on the LEFT edge,
+   in the MIDDLE of the screen, laid over the game's edge, so the game gets the full width. On a tall phone the game sits
+   ABOVE the action bar (nothing covers it); on a wide screen the action bar sits beside the game.
+   Players change sizes / sides / position in ⚙️ SETTINGS. Saved for EVERY game on the site in localStorage 'rmxLayout'. */
+const ACT = SIDE ? G.abilities.map((a,i)=>i).filter(i=>G.abilities[i].cd===0) : [];
+const NCONS = G.abilities.length - ACT.length;
+const LDEF = {cs:1, side:'L', cy:0.5, as:1, ap:'R'};
+function clampN(v,a,b,d){ v=+v; return isFinite(v)? Math.max(a,Math.min(b,v)) : d; }
+function loadLayout(){ let o=null; try{ o=JSON.parse(localStorage.getItem('rmxLayout')); }catch(e){ o=null; } if(!o||typeof o!=='object') o={};
+  return {cs:clampN(o.cs,0.7,1.5,1), side:o.side==='R'?'R':'L', cy:clampN(o.cy,0,1,0.5), as:clampN(o.as,0.7,1.6,1), ap:(o.ap==='L'||o.ap==='C')?o.ap:'R'}; }
+function saveLayout(){ try{ localStorage.setItem('rmxLayout', JSON.stringify(LAY)); }catch(e){} }
+let LAY = loadLayout();
+let SAB = 0; // safe-area inset at the bottom (iPhone home bar)
+try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); SAB=pr.offsetHeight||0; }catch(e){ SAB=0; }
+/* ===== SHELL-LANDSCAPE-1 (Andrew, 24 Oct 2026) — opt-in per game with landscape:true in window.GAME =====
+   The game world is wide (the game's own w x h, e.g. 1280x720) and fills the screen of a phone held SIDEWAYS:
+   HUD strip across the top (one row), ability column left-middle, action buttons bottom-right, joystick bottom-left
+   (the side away from the action buttons). Sizes/sides still come from ⚙️ SETTINGS. On a touch phone held UPRIGHT a
+   "turn your phone sideways" cover shows and the game waits (menus still work upright). Games without landscape:true
+   never reach any of this code. */
+const LAND = !!G.landscape && SIDE;
+if(LAND) app.classList.add('land');
+let SAL = 0, SAR = 0;   // safe-area insets left/right (notch when held sideways)
+function landInsets(){ if(!LAND) return; try{ const pr=document.createElement('div'); pr.style.cssText='position:fixed;left:0;top:0;height:1px;width:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);pointer-events:none;visibility:hidden'; document.body.appendChild(pr); const cs=getComputedStyle(pr); SAL=parseFloat(cs.width)||0; SAR=parseFloat(cs.paddingRight)||0; pr.remove(); }catch(e){ SAL=SAR=0; } }
+landInsets();
+if(LAND){
+  if(G.joystick){ const jh=document.createElement('div'); jh.id='joyHome'; jh.innerHTML='<i></i>'; $('#hud').appendChild(jh); }
+  const rt=document.createElement('div'); rt.id='rotate'; rt.className='hidden';
+  rt.innerHTML='<b>🔄 TURN YOUR PHONE SIDEWAYS</b> <button id="rotGo" type="button">TAP HERE TO TURN THE SCREEN</button>'; rt.addEventListener('pointerdown',e=>{ e.stopPropagation(); }); rt.addEventListener('click',e=>{ e.preventDefault(); e.stopPropagation(); landForce(); });
+  app.appendChild(rt);
+}
+// pure geometry: where the game, the ability column and the action bar go for a W x H screen and settings L
+function geo(W,H,L){
+  if(LAND) return geoLand(W,H,L);
+  const nA=ACT.length, sab=SAB;
+  // action bar: n big round buttons side by side
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.2)));
+  let ag=Math.round(as*0.16); const maxAW=W-24;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0, ah=nA? as+14+sab : 0;
+  // game canvas: full width above the action bar, or (wide screens, bar on a side) beside it, whichever is bigger
+  let sc=Math.min(W/G.w, (H-ah)/G.h), mode='below';
+  if(nA && L.ap!=='C'){ const sc2=Math.min((W-2*(aw+16))/G.w, H/G.h); if(sc2>sc){ sc=sc2; mode='beside'; } }
+  if(!nA) mode='none';
+  const cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy= mode==='below'? Math.max(0,(H-ah-ch)/2) : (H-ch)/2;
+  const ax= L.ap==='L'? 12 : L.ap==='C'? (W-aw)/2 : W-12-aw, ay=H-8-sab-as;
+  // ability column: never over the top strip, never over the action bar
+  const T0=Math.max(8,cy)+62; let B0=H-8-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((W<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.78), cp=6, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-col.w : 4; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  return {sc,cw,ch,cx,cy,mode, act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col};
+}
+// SHELL-LANDSCAPE-1 geometry: the game fills the screen (fit, centred); every control floats over the edges
+function geoLand(W,H,L){
+  const nA=ACT.length, sab=SAB, sal=SAL, sar=SAR;
+  let as=Math.round((W<=480?74:82)*L.as); as=Math.min(as, Math.round(Math.max(56,H*0.23)));
+  let ag=Math.round(as*0.16); const maxAW=W*0.45;
+  if(nA && nA*as+(nA-1)*ag>maxAW){ as=Math.floor((maxAW-(nA-1)*ag)/nA); ag=Math.round(as*0.16); }
+  const aw=nA? nA*as+(nA-1)*ag : 0;
+  const sc=Math.min(W/G.w, H/G.h), cw=G.w*sc, ch=G.h*sc, cx=(W-cw)/2, cy=(H-ch)/2;
+  const ax= L.ap==='L'? 12+sal : L.ap==='C'? (W-aw)/2 : W-12-sar-aw, ay=H-8-sab-as;
+  const T0=Math.max(6,cy)+40; let B0=H-6-sab; if(nA && (L.ap==='C' || L.ap===L.side)) B0=Math.min(B0, ay-10);
+  let cs=L.cs, col=null;
+  for(let k=0;k<4;k++){
+    const cb=Math.round((H<=420?50:56)*cs), nmh=Math.max(8,Math.round(cb*0.2)), cg=Math.max(3,Math.round(6*cs)), sb=Math.round(cb*0.74), cp=5, w=cb+12;
+    const h=2*cp + NCONS*cb + NCONS*(nmh+cg) + 2*sb + cg;
+    col={cb,nmh,nmf:Math.max(7,nmh-1),cg,sb,cp,w,h};
+    if(h<=B0-T0 || cs<0.4) break; cs=cs*(B0-T0)/h*0.99;
+  }
+  col.x= L.side==='R'? W-4-sar-col.w : 4+sal; col.y= T0 + L.cy*Math.max(0,(B0-T0-col.h)); col.fit=cs/L.cs;
+  // joystick home: bottom corner on the side AWAY from the action buttons, just inside the ability column
+  const jr=Math.round(Math.min(60, H*0.15)), jLeft= L.ap!=='L';
+  const jx= jLeft? 4+sal+(L.side==='L'? col.w+10 : 6)+jr : W-4-sar-(L.side==='R'? col.w+10 : 6)-jr, jy=H-10-sab-jr;
+  return {sc,cw,ch,cx,cy,mode:'land', act:{x:ax,y:ay,w:aw,h:as,s:as,g:ag,n:nA}, col, joy:{x:jx,y:jy,r:jr,left:jLeft}};
+}
+let GEO=null;
+function applyLayout(W,H){
+  const g=GEO=geo(W,H,LAY);
+  scale=g.sc; offX=g.cx; offY=g.cy; const cw=g.cw, ch=g.ch;
+  cv.style.width = cw+'px'; cv.style.height = ch+'px'; cv.style.left = offX+'px'; cv.style.top = offY+'px';
+  cv.width = Math.round(cw*dpr); cv.height = Math.round(ch*dpr);
+  const bar=$('#bar'), ab=$('#actbar'), top=$('#hudTop'), tut=$('#tut'), tst=$('#toast'), c=g.col, a=g.act;
+  bar.style.left=c.x+'px'; bar.style.top=c.y+'px'; bar.style.height='';
+  [['--cb',c.cb],['--nmh',c.nmh],['--nmf',c.nmf],['--cg',c.cg],['--sb',c.sb],['--cp',c.cp],['--cw',c.w]].forEach(([k,v])=>bar.style.setProperty(k,v+'px'));
+  ab.style.left=a.x+'px'; ab.style.top=a.y+'px'; ab.style.setProperty('--as',a.s+'px'); ab.style.setProperty('--ag',a.g+'px');
+  app.classList.toggle('nocons', NCONS===0);
+  document.documentElement.style.setProperty('--actH', (a.n? H-a.y : 0)+'px');   // race bars (#mpBars) sit above the action bar
+  top.style.left=offX+'px'; top.style.top=offY+'px'; top.style.width=cw+'px';
+  // tutorial box: across the game, but beside the ability column so it never hides those buttons
+  let tl=offX+8, tr=offX+cw-8; if(LAY.side==='L') tl=Math.max(tl, c.x+c.w+6); else tr=Math.min(tr, c.x-6);
+  tut.style.left=tl+'px'; tut.style.width=Math.max(160,tr-tl)+'px'; tut.style.top=(offY+58)+'px';
+  tst.style.left=(offX+cw/2)+'px'; tst.style.top=(offY+ch*0.22)+'px';
+  if(LAND){ // SHELL-LANDSCAPE-1: tutorial box not too wide, joystick home ring
+    const tw=Math.min(tr-tl, 470); tut.style.left=tl+'px'; tut.style.width=Math.max(160,tw)+'px'; tut.style.top=(Math.max(0,offY)+44)+'px';
+    tst.style.top=(offY+ch*0.3)+'px';
+    const jh=$('#joyHome'); if(jh&&g.joy){ jh.style.left=g.joy.x+'px'; jh.style.top=g.joy.y+'px'; jh.style.width=jh.style.height=(g.joy.r*2)+'px'; } }
+}
+function resize(){
+  const W = window.innerWidth, H = window.innerHeight;
+  dpr = Math.min(window.devicePixelRatio||1, 2);
+  if(SIDE){ applyLayout(W,H); return; }
+  const ay = TOPH+BARS, aw = W, ah = H-ay-6;
+  scale = Math.min(aw/G.w, ah/G.h);
+  const cw = G.w*scale, ch = G.h*scale; offX = (aw-cw)/2; offY = ay+(ah-ch)/2;
+  cv.style.width = cw+'px'; cv.style.height = ch+'px'; cv.style.left = offX+'px'; cv.style.top = offY+'px';
+  cv.width = Math.round(cw*dpr); cv.height = Math.round(ch*dpr);
+}
+if(G.abilities.length>=4) app.classList.add('ab4');
+window.addEventListener('resize', resize); resize();
+function toGame(cx, cy){ return {x:(cx-offX)/scale, y:(cy-offY)/scale}; }
+
+/* ---------- FX ---------- */
+const parts = [], texts = []; let shakeT = 0, shakeA = 0, flashA = 0, flashC = '#fff';
+const FX = {
+  burst(x,y,color,n,spd,life,size){ n=n||16; for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, s=(spd||200)*(0.3+Math.random()*0.9); parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:(life||0.6)*(0.6+Math.random()*0.6),max:life||0.6,c:color,s:size||3}); } if(parts.length>900) parts.splice(0,parts.length-900); },
+  spark(x,y,vx,vy,color,life,size){ parts.push({x,y,vx,vy,life:life||.4,max:life||.4,c:color,s:size||2}); },
+  shake(a){ shakeA = Math.max(shakeA, a); shakeT = .3; },
+  flash(c,a){ flashC=c||'#fff'; flashA=a||.5; },
+  text(x,y,t,c,size){ texts.push({x,y,t,c:c||'#fff',life:1,size:size||18}); }
+};
+function fxUpdate(dt){
+  for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.life-=dt; if(p.life<=0){parts.splice(i,1);continue;} p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.97; p.vy*=0.97; }
+  for(let i=texts.length-1;i>=0;i--){ const t=texts[i]; t.life-=dt; t.y-=40*dt; if(t.life<=0) texts.splice(i,1); }
+  if(shakeT>0){ shakeT-=dt; if(shakeT<=0) shakeA=0; }
+  flashA = Math.max(0, flashA - dt*2);
+}
+function fxRender(c){
+  c.save(); c.globalCompositeOperation = 'lighter';
+  for(const p of parts){ c.globalAlpha = Math.max(0,p.life/p.max); c.fillStyle = p.c; c.fillRect(p.x-p.s/2, p.y-p.s/2, p.s, p.s); }
+  c.restore();
+  c.save(); c.textAlign='center';
+  for(const t of texts){ c.globalAlpha=Math.min(1,t.life*2); c.font='bold '+t.size+'px Orbitron, sans-serif'; c.fillStyle=t.c; c.shadowColor=t.c; c.shadowBlur=10; c.fillText(t.t,t.x,t.y); }
+  c.restore();
+  if(flashA>0){ c.save(); c.globalAlpha=flashA; c.fillStyle=flashC; c.fillRect(0,0,G.w,G.h); c.restore(); }
+}
+
+/* ---------- gold coins: pop out where you score, then fly up to the gold counter ---------- */
+const coinsFly = []; let lastX = G.w/2, lastY = G.h/2;
+function spawnCoin(x,y,v){
+  if(run.tutorial || state!=='play') return;
+  const a = -Math.PI/2 + (Math.random()-.5)*1.6, s = 120+Math.random()*120;
+  coinsFly.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,t:0,v:v||1,spin:Math.random()*6});
+}
+function coinTarget(){ const r=$('#hudCoinBox').getBoundingClientRect(); return toGame(r.left+r.width/2, r.top+r.height/2); }
+function creditCoin(v){
+  P.coins += v; run.coinsStage += v; updCoins();
+  const el=$('#hudCoinBox'); el.classList.add('bump'); setTimeout(()=>el.classList.remove('bump'),120);
+}
+function coinUpdate(dt){
+  if(!coinsFly.length) return;
+  const tg = coinTarget(); let got=0;
+  for(let i=coinsFly.length-1;i>=0;i--){ const c=coinsFly[i]; c.t+=dt; c.spin+=dt*9;
+    if(c.t<0.55){ c.vy+=380*dt; c.x+=c.vx*dt; c.y+=c.vy*dt; c.vx*=0.96; }
+    else { const dx=tg.x-c.x, dy=tg.y-c.y, d=Math.hypot(dx,dy), sp=900+ (c.t-0.55)*1800;
+      if(d<sp*dt || c.t>2.5 || c.y<-10){ coinsFly.splice(i,1); got+=c.v; continue; }
+      c.x+=dx/d*sp*dt; c.y+=dy/d*sp*dt; } }
+  if(got){ creditCoin(got); SFX.coin(); save(); }
+}
+function flushCoins(){ let v=0; coinsFly.forEach(c=>v+=c.v); coinsFly.length=0; if(v){ P.coins+=v; run.coinsStage+=v; save(); updCoins(); } }
+function coinRender(c){
+  for(const k of coinsFly){ const w=Math.abs(Math.cos(k.spin))*9+1.5;
+    c.save(); c.translate(k.x,k.y); c.shadowColor='#ffd24a'; c.shadowBlur=12;
+    const g=c.createRadialGradient(-2,-3,1,0,0,10); g.addColorStop(0,'#fff6c8'); g.addColorStop(.5,'#ffd23f'); g.addColorStop(1,'#b8860b');
+    c.fillStyle=g; c.beginPath(); c.ellipse(0,0,w,10,0,0,Math.PI*2); c.fill();
+    c.shadowBlur=0; c.strokeStyle='#8a5a00'; c.lineWidth=1.5; c.beginPath(); c.ellipse(0,0,w*0.62,6.2,0,0,Math.PI*2); c.stroke(); c.restore(); }
+}
+
+/* ---------- input ---------- */
+const keys = {}; const joy = {active:false, id:null, sx:0, sy:0, x:0, y:0};
+const joyEl = $('#joy');
+window.addEventListener('keydown', e => {
+  audioInit();
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  if(keys[e.code]) return; keys[e.code] = true;
+  if(state==='play'){
+    if(e.code==='Escape' || e.code==='KeyP'){ pauseGame(); return; }
+    if(e.code==='KeyB'){ inGameShop(); return; }
+    G.abilities.forEach((a,i)=>{ if(e.code===a.key) useAbility(i); });
+    G.onKey && G.onKey(e.code, true);
+  } else if(state==='paused' && (e.code==='Escape'||e.code==='KeyP')) resumeGame();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; if(state==='play') G.onKey && G.onKey(e.code,false); });
+window.addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; if(state==='play'&&!NET.on) pauseGame(); });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state==='play' && !NET.on) pauseGame(); });
+const Input = {
+  keys,
+  dir(){
+    let x=0,y=0;
+    if(keys.ArrowLeft||keys.KeyA) x-=1; if(keys.ArrowRight||keys.KeyD) x+=1;
+    if(keys.ArrowUp||keys.KeyW) y-=1; if(keys.ArrowDown||keys.KeyS) y+=1;
+    if(joy.active){ const dx=joy.x-joy.sx, dy=joy.y-joy.sy, m=Math.hypot(dx,dy); if(m>12){ x=dx/Math.max(m,50); y=dy/Math.max(m,50); } }
+    return {x,y};
+  },
+  dir4(){ const d=Input.dir(); if(Math.abs(d.x)<0.2 && Math.abs(d.y)<0.2) return null; if(Math.abs(d.x)>Math.abs(d.y)) return d.x>0?'R':'L'; return d.y>0?'D':'U'; },
+  touch: false
+};
+function onDown(e){
+  audioInit();
+  if(state!=='play') return;
+  if(e.target.closest && e.target.closest('button,#tut,#bar,#actbar,#hudTop')) return;
+  if(e.pointerType !== 'mouse') Input.touch = true;
+  const g = toGame(e.clientX, e.clientY);
+  if(G.joystick && e.pointerType!=='mouse' && !joy.active && (!LAND || landStickSide(e.clientX))){
+    joy.active=true; joy.id=e.pointerId; joy.sx=joy.x=e.clientX; joy.sy=joy.y=e.clientY;
+    joyEl.style.left=e.clientX+'px'; joyEl.style.top=e.clientY+'px'; joyEl.classList.remove('hidden'); joyEl.firstElementChild.style.transform='';
+  }
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.active&&joy.id===e.pointerId)) netSendRel({e:'ptr',t:'down',x:g.x,y:g.y}); return; }
+  G.onPointer && G.onPointer('down', g.x, g.y, e.pointerId, e.pointerType);
+}
+function onMove(e){
+  if(state!=='play') return;
+  if(joy.active && e.pointerId===joy.id){
+    joy.x=e.clientX; joy.y=e.clientY; let dx=joy.x-joy.sx, dy=joy.y-joy.sy; const m=Math.hypot(dx,dy);
+    if(m>50){dx=dx/m*50;dy=dy/m*50;} joyEl.firstElementChild.style.transform=`translate(${dx}px,${dy}px)`;
+  }
+  const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(G.joystick&&joy.active&&joy.id===e.pointerId) return; if(e.buttons||e.pointerType!=='mouse'){ NET.pmT=(NET.pmT||0); const now=performance.now(); if(now-NET.pmT>50){ NET.pmT=now; netSendFast({e:'ptr',t:'move',x:g.x,y:g.y}); } } return; }
+  G.onPointer && G.onPointer('move', g.x, g.y, e.pointerId, e.pointerType, e.buttons);
+}
+function onUp(e){
+  if(joy.active && e.pointerId===joy.id){ joy.active=false; joyEl.classList.add('hidden'); }
+  if(state!=='play') return;
+  const g = toGame(e.clientX, e.clientY);
+  if(NET.on&&NET.role==='guest'){ if(!(G.joystick&&joy.id===e.pointerId&&!e.__fwd)) netSendRel({e:'ptr',t:'up',x:g.x,y:g.y}); return; }
+  G.onPointer && G.onPointer('up', g.x, g.y, e.pointerId, e.pointerType);
+}
+// SHELL-LANDSCAPE-1: the joystick only starts on the half of the screen away from the action buttons
+function landStickSide(x){ const W=window.innerWidth; return (GEO&&GEO.joy&&!GEO.joy.left) ? x>W*0.5 : x<W*0.5; }
+window.addEventListener('pointerdown', onDown); window.addEventListener('pointermove', onMove);
+window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
+window.addEventListener('contextmenu', e=>e.preventDefault());
+
+/* ---------- run state ---------- */
+let state = 'loading'; // loading, menu, play, paused, modal
+const run = {slot:0, stage:1, score:0, lives:3, tutorial:false, practice:false, coinsStage:0, dropN:0, time:0, extra:{}};
+const abLock = G.abilities.map(()=>0); const abBadge = G.abilities.map(()=>null); const abActive = G.abilities.map(()=>false);
+
+const API = {
+  get diff(){ return P.diff; }, get diffName(){ return DIFFS[P.diff]; },
+  get stage(){ return run.stage; }, get score(){ return run.score; }, get lives(){ return run.lives; },
+  get tutorial(){ return run.tutorial; },
+  // ---- 100-stage difficulty ----
+  // level: EASY stage N = level N. HARD starts at level 50, EXPERT at level 100 (and climb to 199).
+  // BEGINNER stage N = level N (stage 50 = HARD level). HARD stage N = level N+49.
+  // EXPERT starts at HARD stage 80 (level 129), stays there for 3 stages, then jumps +14 levels EVERY stage.
+  get level(){ if(run.tutorial) return 1; const s=run.stage; return P.diff===0? s : P.diff===1? s+49 : 128+s+Math.max(0,s-3)*14; },
+  // dk: smooth difficulty 0..4 (level 1 = 0, level 50 = 1 = old HARD, level 100 = 2 = old EXPERT)
+  get dk(){ return (API.level-1)/49.5; },
+  // dv([easy,hard,expert], cap): value smoothly scaled by level; past old EXPERT it keeps rising at half speed
+  // dv([easy,hard,expert], cap, expertCap): keeps climbing past the 3rd value at full speed.
+  // On EXPERT the (much higher) expertCap applies, so Expert keeps getting harder until it's unbeatable.
+  dv(arr, cap, xcap){ const k=API.dk; let v;
+    if(k<=1) v=arr[0]+(arr[1]-arr[0])*k; else if(k<=2) v=arr[1]+(arr[2]-arr[1])*(k-1); else v=arr[2]+(arr[2]-arr[1])*(k-2);
+    if(P.diff===2 && xcap!==undefined) cap=xcap;
+    // cap = the limit it never passes (a max for rising values, a min for falling values)
+    if(cap!==undefined) v = arr[2]>=arr[0] ? Math.min(cap,v) : Math.max(cap,v); return v; },
+  get boss(){ return !run.tutorial && run.stage%(P.diff===2?5:10)===0; },
+  // content: which stage design to use. 0 = tutorial, 3 = boss design (every 10th stage),
+  // 1 = basic design, 2 = advanced design (mixed in from level 4, most stages from level 40)
+  get content(){ if(run.tutorial) return 0; if(API.boss) return 3; if(P.diff===2) return 2; const L=API.level; if(L<=3) return 1; if(L>=40) return run.stage%4===1?1:2; return run.stage%2?1:2; },
+  input: Input, fx: FX, sfx: SFX, W: G.w, H: G.h,
+  // addScore(points, x, y, quiet): with a position, gold coins can pop out there.
+  // quiet = no floating "+10" text (used for pellets / blocks).
+  addScore(n, x, y, quiet){
+    run.score += Math.round(n);
+    if(x!==undefined){ lastX=x; lastY=y; if(!quiet) FX.text(x,y,'+'+Math.round(n), G.theme.b, 15);
+      if(run.dropN<COIN_CAP && Math.random() < Math.min(1, n/(G.coinPts||100))){ run.dropN++; spawnCoin(x,y,1); } }
+    updHud();
+  },
+  // bonus gold for special moves: pops out at the last scoring spot
+  addCoins(n){ for(let i=0;i<n;i++) spawnCoin(lastX+(Math.random()-.5)*20, lastY, 1); },
+  setLives(n){ run.lives = n; updHud(); },
+  loseLife(){
+    if(run.tutorial){ toast('TRY AGAIN!'); G.respawn && G.respawn(); return; }
+    run.lives--; updHud(); SFX.hurt(); FX.shake(10); FX.flash('#f24',.35);
+    if(run.lives<=0) setTimeout(gameOver, 900); else { toast('LIFE LOST'); G.respawn && G.respawn(); }
+  },
+  stageClear(){ if(state!=='play' && state!=='rot') return; if(run.tutorial){ tutFinish(); return; } stageClear(); },
+  gameOver(){ if(state==='play'||state==='rot') setTimeout(gameOver, 600); },
+  event(name){ tutEvent(name); },
+  toast(t){ toast(t); },
+  cos(cat){ const id = P.equipped[cat]; return G.shop.find(s=>s.id===id) || G.shop.find(s=>s.cat===cat); },
+  badge(i, txt){ abBadge[i]=txt; },
+  setActive(i, on){ abActive[i]=on; },
+  resetCooldown(i){ abLock[i]=0; },
+  useAb(i){ useAbility(i); },
+  // big always-visible counter in the top bar (e.g. Sky Shield ammo). level: '', 'low' or 'empty'
+  counter(label, value, level){ setCounter(label, value, level); mpCounter(value); },
+  choice(title, opts, cb){ showChoice(title, opts, cb); },
+  get extra(){ return run.extra; },
+  saveNow(){ if(!run.tutorial) writeSlot(); },
+  rand: Math.random
+};
+G.api = API;
+
+/* ---------- HUD + ability bar ---------- */
+const hudEl=$('#hud'), abWrap=$('#abilities'), actWrap=$('#actbar');
+/* Action buttons (layout 2): holding one = holding its keyboard key (e.g. FIRE = Space), so hold-to-fire games keep
+   firing while your thumb stays on it. Many games also edge-detect that key and call useAbility() themselves; while the
+   button is held that 2nd call is ignored, so one press is still exactly ONE action (a tap works exactly as before). */
+const held={};   // ability id -> Set of pointer ids holding its action button
+let shellUse=false, blockedN=0;
+const gameUse=G.useAbility;
+G.useAbility=function(id){ if(!shellUse && held[id] && held[id].size){ blockedN++; return false; } return gameUse.apply(this, arguments); };
+function holdOn(a, pid){ const s=held[a.id]||(held[a.id]=new Set()); s.add(pid); if(a.key) keys[a.key]=true; }
+function holdOff(a, pid){ const s=held[a.id]; if(!s) return; if(pid===undefined) s.clear(); else s.delete(pid); if(!s.size && a.key) keys[a.key]=false; }
+function releaseHolds(){ ACT.forEach(i=>{ const a=G.abilities[i]; holdOff(a); abEls[i].classList.remove('down'); }); }
+const abEls=G.abilities.map((a,i)=>{
+  const isAct=ACT.includes(i);
+  const b=document.createElement('button'); b.className='ab'+(isAct?' act':''); b.title=a.name+(a.desc?' — '+a.desc:'');
+  b.innerHTML=`<span class="ic">${a.icon}</span><div class="cnt"></div><div class="kb">${a.keyLabel||''}</div><div class="nm">${a.name}</div><div class="tm"></div>`;
+  b.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); audioInit();
+    if(isAct){ try{ b.setPointerCapture(e.pointerId); }catch(_){} b.classList.add('down'); if(state==='play') holdOn(a, e.pointerId); }
+    useAbility(i); if(G.onAbilityDown) G.onAbilityDown(a.id); });
+  b.addEventListener('pointerup', e=>{ e.stopPropagation(); if(isAct){ holdOff(a, e.pointerId); b.classList.remove('down'); } if(G.onAbilityUp) G.onAbilityUp(a.id); });
+  if(isAct){ const off=e=>{ if(held[a.id]&&held[a.id].has(e.pointerId)){ holdOff(a, e.pointerId); b.classList.remove('down'); if(G.onAbilityUp) G.onAbilityUp(a.id); } };
+    b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off); }
+  (isAct?actWrap:abWrap).appendChild(b); return b;
+});
+// long ability names (e.g. THUNDER BUBBLE) shrink to fit their button instead of being cut off
+function fitNames(){ if(!SIDE || hudEl.classList.contains('hidden')) return;
+  abEls.forEach(b=>{ const n=b.querySelector('.nm'); n.style.fontSize=''; const mw=n.clientWidth, sw=n.scrollWidth;
+    if(mw>0 && sw>mw+1){ const fs=parseFloat(getComputedStyle(n).fontSize)||9; n.style.fontSize=Math.max(6, fs*mw/sw*0.97)+'px'; } }); }
+window.addEventListener('resize', fitNames);
+function useAbility(i){
+  if(state!=='play') return; const a=G.abilities[i];
+  if(abLock[i]>0) return;
+  const paid = a.cd>0 && !run.tutorial;
+  if(paid && have(a)<=0){ toast('NO '+a.name+' LEFT'); SFX.bump(); flashShop(); return; }
+  if(NET.on&&NET.role==='guest'){ if(paid){ P.abil[a.id]=have(a)-1; save(); } abLock[i]=a.cd>0?1:0; netSendRel({e:'ab',id:a.id}); return; }
+  let used; shellUse=true; try{ used=G.useAbility(a.id); } finally{ shellUse=false; }
+  if(used!==false){
+    if(paid){ P.abil[a.id]=have(a)-1; save(); if(P.abil[a.id]===0) setTimeout(()=>{ if(state==='play') toast('BUY MORE IN 🛒 SHOP'); },900); }
+    abLock[i] = a.cd>0 ? 1 : 0; tutEvent('ab_'+a.id);
+  }
+}
+function flashShop(){ const b=$('#btnShopIn'); b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); }
+function updAbilities(dt){
+  const fx=[];
+  G.abilities.forEach((a,i)=>{
+    if(abLock[i]>0) abLock[i]=Math.max(0,abLock[i]-dt);
+    const el=abEls[i], cnt=el.querySelector('.cnt');
+    let label, empty=false;
+    if(a.cd===0) label = abBadge[i]!==null ? abBadge[i] : (SIDE ? '' : '∞');   // big action buttons: no ∞ badge (shown only when the game sets one)
+    else if(run.tutorial) label='FREE';
+    else { const h=have(a); label=h; empty=h<=0; }
+    if(cnt.textContent!==String(label)) cnt.textContent=label;
+    el.classList.toggle('empty', empty);
+    el.classList.toggle('ready', !empty && abLock[i]<=0 && !abActive[i]);
+    el.classList.toggle('active', !!abActive[i]);
+    // live countdown for abilities that last a while (game reports {left,total[,unit]} via G.abTime)
+    let r=null; try{ r = G.abTime ? G.abTime(a.id) : null; }catch(e){ r=null; } const tm=el.querySelector('.tm');
+    if(r && r.left>0){ el.classList.add('timing'); el.classList.toggle('ending', r.left<=1.5 && r.unit===undefined && !r.label); el.style.setProperty('--p', Math.max(0,Math.min(1,r.left/r.total)));
+      const txt = r.label ? r.label : r.unit!==undefined ? Math.ceil(r.left)+r.unit : (r.left<9.95? r.left.toFixed(1) : Math.ceil(r.left))+'s'; if(tm.textContent!==txt) tm.textContent=txt; }
+    else if(el.classList.contains('timing')){ el.classList.remove('timing','ending'); tm.textContent=''; }
+    if(r && r.left>0) fx.push(`<em class="fx${r.left<=1.5&&r.unit===undefined&&!r.label?' end':''}">${a.icon} ${r.label ? r.label : r.unit!==undefined ? Math.ceil(r.left)+r.unit : (r.left<9.95? r.left.toFixed(1) : Math.ceil(r.left))+'s'}</em>`);
+  });
+  if(!run.tutorial&&run.doom!==undefined&&isFinite(run.doom)) fx.unshift(`<em class="fx doom${run.doom<5?' end':''}">⏳ EXPERT ${run.doom<9.95?Math.max(0,run.doom).toFixed(1):Math.ceil(run.doom)}s</em>`);
+  const fh=fx.join(''); if(fh!==fxKey){ fxKey=fh; $('#hudFx').innerHTML=fh; }
+}
+let fxKey='';
+let cntKey='';
+function setCounter(label, value, level){
+  const k=label+'|'+value+'|'+(level||''); if(k===cntKey) return; cntKey=k;
+  const el=$('#hudCounter'); el.classList.remove('hidden'); el.className='ctr '+(level||'');
+  el.innerHTML=`<span>${label}</span><b>${value}</b>`;
+}
+function updCoins(){ $('#hudCoins').textContent = totalGold().toLocaleString(); }
+function updHud(){
+  $('#hudScore').textContent = run.score.toLocaleString();
+  $('#hudStage').textContent = run.tutorial ? 'TUTORIAL' : run.stage + '/' + G.stages;
+  const lv = Math.max(0, run.lives);
+  $('#hudLives').textContent = G.livesIcon ? (lv>5? G.livesIcon+'×'+lv : G.livesIcon.repeat(lv)) : lv;
+  updCoins();
+}
+let toastT=null;
+function toast(t){ const el=$('#toast'); el.textContent=t; el.style.opacity=1; clearTimeout(toastT); toastT=setTimeout(()=>el.style.opacity=0,1300); }
+$('#btnPause').addEventListener('click', ()=>{ SFX.click(); pauseGame(); });
+$('#btnEnd').addEventListener('click', ()=>{ SFX.click(); endGamePrompt(); });
+$('#btnShopIn').addEventListener('click', ()=>{ SFX.click(); inGameShop(); });
+
+/* ---------- tutorial ---------- */
+let tutIdx=0, tutTimer=0; const tutSeen=new Set();
+function tutShow(){
+  const st = G.tutorial[tutIdx]; const el=$('#tut');
+  if(!st){ el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  const txt = (Input.touch || matchMedia('(hover:none)').matches) && st.touch ? st.touch : st.text;
+  el.innerHTML = `<div class="tt"><span>🎓 PRACTICE ONLY · TUTORIAL ${tutIdx+1}/${G.tutorial.length}</span><button id="tutSkip">SKIP TO REAL GAME ▶▶</button></div><div>${txt}</div>`;
+  $('#tutSkip').onclick = e=>{ e.stopPropagation(); SFX.click(); tutFinish(); };
+  tutTimer = 0;
+}
+function tutEvent(name){
+  if(!run.tutorial) return; tutSeen.add(name); const st=G.tutorial[tutIdx]; if(!st) return;
+  if(st.ev===name){ SFX.pickup(); tutIdx++; if(tutIdx>=G.tutorial.length) tutFinish(); else tutShow(); }
+}
+function tutUpdate(dt){
+  if(!run.tutorial) return; const st=G.tutorial[tutIdx]; if(!st) return;
+  tutTimer+=dt; if(st.ev && tutSeen.has(st.ev) && tutTimer>=1.8){ SFX.pickup(); tutIdx++; if(tutIdx>=G.tutorial.length) tutFinish(); else tutShow(); return; }
+  if(st.time && tutTimer>=st.time){ tutIdx++; if(tutIdx>=G.tutorial.length) tutFinish(); else tutShow(); }
+}
+function tutFinish(){
+  if(!run.tutorial) return;
+  run.tutorial=false; $('#tut').classList.add('hidden'); P.tutDone=true; save(); SFX.clear();
+  if(run.practice){ modal(`<h2>TUTORIAL DONE</h2><p>You're ready. Head back to the menu and start a new game.</p><button class="big" data-a="menu">MAIN MENU</button>`, {menu:toMenu}); return; }
+  modal(`<h2>TUTORIAL COMPLETE</h2><p>Nice work! Now the real game begins.</p><p>Abilities were free in the tutorial. From now on you have <b>1 of each</b>. Collect 🪙 gold while you play and buy more in the 🛒 SHOP.</p><p><b>Stage 1</b> — ${DIFFS[P.diff]}</p><button class="big" data-a="go">START STAGE 1</button>`, {go:()=>{ run.stage=1; run.score=0; run.lives=startLives(); run.extra={}; writeSlot(); beginStage(); }});
+}
+
+/* ---------- screens ---------- */
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden')); if(id) $(id).classList.remove('hidden'); }
+function modal(html, actions, wide){
+  const m=$('#modal'); m.innerHTML=`<div class="mbox${wide?' wide':''}">${html}</div>`; m.classList.remove('hidden');
+  m.querySelectorAll('[data-a]').forEach(b=>b.addEventListener('click', ()=>{ SFX.click(); const f=actions[b.dataset.a]; if(f!==undefined){ closeModal(); f(); } }));
+}
+function closeModal(){ $('#modal').classList.add('hidden'); $('#modal').innerHTML=''; }
+function fmtDate(t){ const d=new Date(t); return d.toLocaleDateString(undefined,{day:'numeric',month:'short'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- ability shop (menu tab, in-game 🛒 button, after each stage) ---------- */
+function abShopHTML(){
+  let h=`<div class="abshop"><div class="bal">🪙 <b class="coins">${totalGold().toLocaleString()}</b> GOLD${boughtNote()}</div>`;
+  BUY.forEach(a=>{ const p=abPrice(a), n=have(a);
+    h+=`<div class="abrow"><div class="ic">${a.icon}</div><div class="tx"><b>${a.name}</b>${a.desc||''}<span class="have">YOU HAVE: ${n}</span></div><button data-abbuy="${a.id}" ${totalGold()<p?'disabled':''}>BUY 🪙${p}</button></div>`; });
+  G.abilities.filter(a=>a.cd===0).forEach(a=>{
+    h+=`<div class="abrow free"><div class="ic">${a.icon}</div><div class="tx"><b>${a.name}</b>Part of the game — always free, never runs out.</div></div>`; });
+  h+=`<div class="cat">GOLD PACKS</div>`;
+  h+=goldPackRows();
+  h+=`<p class="note">${GOLD_NOTE}<br>Earn gold free by playing: coins pop out when you score, plus a bonus for every stage you clear. Your gold works in every game.</p></div>`;
+  return h;
+}
+function bindAbShop(refresh){
+  document.querySelectorAll('[data-abbuy]').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation();
+    const a=BUY.find(x=>x.id===b.dataset.abbuy), p=abPrice(a);
+    if(totalGold()<p){ SFX.bump(); return; }
+    b.disabled=true; spendGold(p, (ok,msg)=>{ if(ok){ P.abil[a.id]=have(a)+1; save(); SFX.power(); refresh(); } else { SFX.bump(); goldNotice(msg, refresh); } }); }));
+  bindGoldPacks(refresh);
+}
+function abilPanel(){ panel('ABILITIES', `<p style="margin-bottom:10px">You start every new game with <b>1 of each</b> ability. Buy more here with 🪙 gold. What you buy stays with you until you use it.</p>`+abShopHTML()); bindAbShop(abilPanel); }
+// in-stage shop: pauses the game; back returns to where you came from
+function shopModal(back, backLabel){
+  modal(`<h2>ABILITY SHOP</h2>${abShopHTML()}<button class="big" data-a="b">${backLabel||'▶ RESUME'}</button>`, {b:back}, true);
+  bindAbShop(()=>shopModal(back, backLabel));
+}
+function inGameShop(){
+  if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); flushCoins();
+  shopModal(()=>{ updAbilities(0); resumeGame(); });
+}
+
+/* ---------- support / contact popup ----------
+   mailto: links do nothing on PCs with no mail app set up, so the popup shows the
+   address, a COPY button, a Gmail web link, and the email-app link as a last option. */
+function copyText(txt){
+  if(navigator.clipboard && window.isSecureContext){ return navigator.clipboard.writeText(txt).then(()=>true, ()=>legacyCopy(txt)); }
+  return Promise.resolve(legacyCopy(txt));
+}
+function legacyCopy(txt){
+  try { const ta=document.createElement('textarea'); ta.value=txt; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0,txt.length); const ok=document.execCommand('copy'); ta.remove(); return ok; } catch(e){ return false; }
+}
+function contactModal(){
+  const subj = encodeURIComponent(G.title+' support ('+G.build.split(' ')[0]+')');
+  const gmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(SUPPORT)}&su=${subj}`;
+  const mailto = `mailto:${SUPPORT}?subject=${subj}`;
+  modal(`<h2>CONTACT US</h2><p>Found a bug or have an idea? Email us:</p>
+    <div class="supaddr" id="supAddr">${esc(SUPPORT)}</div>
+    <button class="big" id="supCopy">📋 COPY EMAIL</button>
+    <a class="mid suplnk" id="supGmail" href="${gmail}" target="_blank" rel="noopener">OPEN IN GMAIL</a>
+    <a class="mid suplnk" id="supApp" href="${mailto}">OPEN MY EMAIL APP</a>
+    <p class="supnote">Please tell us which game, your device, and what happened.</p>
+    <button class="mid" data-a="x">CLOSE</button>`, {x:()=>{}});
+  $('#supCopy').addEventListener('click', ()=>{ SFX.click(); copyText(SUPPORT).then(ok=>{ const b=$('#supCopy'); if(!b) return;
+    if(ok){ b.textContent='✓ COPIED!'; SFX.pickup(); } else { b.textContent='Hold the address above to copy'; const r=document.createRange(); r.selectNodeContents($('#supAddr')); const s=getSelection(); s.removeAllRanges(); s.addRange(r); }
+    setTimeout(()=>{ const bb=$('#supCopy'); if(bb) bb.textContent='📋 COPY EMAIL'; }, 2200); }); });
+  ['#supGmail','#supApp'].forEach(id=>$(id).addEventListener('click', ()=>SFX.click()));
+}
+
+function toMenu(){
+  flushCoins();
+  state='menu'; releaseHolds(); hudEl.classList.add('hidden'); $('#tut').classList.add('hidden'); closeModal(); show('#screen-menu');
+  run.tutorial=false; run.practice=false; joy.active=false; joyEl.classList.add('hidden');
+  renderMenu(); mpOnMenu();
+}
+function renderMenu(){
+  document.querySelectorAll('.diff button').forEach((b,i)=>b.classList.toggle('on', i===P.diff));
+  $('#mCoins').textContent = totalGold().toLocaleString();
+  const best = (P.scores[P.diff]||[])[0]; $('#mBest').textContent = best? best.score.toLocaleString() : '—';
+  // SHELL-CONT-1: CONTINUE is always visible — bright with the stage when a save exists, greyed "no saved game yet" when not
+  const si=savedIdx(), cb=$('#btnCont');
+  if(si>=0){ const s=P.slots[si]; cb.disabled=false; cb.classList.remove('nosave'); cb.innerHTML=`▶ CONTINUE <small>STAGE ${s.stage} · ${DIFFS[s.diff]}</small>`; }
+  else { cb.disabled=true; cb.classList.add('nosave'); cb.innerHTML='CONTINUE <small>no saved game yet</small>'; }
+  $('#sndBtn').textContent = P.sound ? '🔊' : '🔇';
+  $('#mAbil').textContent = BUY.map(a=>a.icon+have(a)).join(' ');
+}
+document.querySelectorAll('.diff button').forEach((b,i)=>b.addEventListener('click', ()=>{ P.diff=i; save(); SFX.click(); renderMenu(); }));
+$('#sndBtn').addEventListener('click', ()=>{ P.sound=!P.sound; save(); audioInit(); SFX.click(); renderMenu(); });
+
+function panel(title, html, onBack){
+  show('#screen-panel'); $('#pTitle').textContent=title; const st=$('#pBody').scrollTop; $('#pBody').innerHTML=html; $('#pBody').scrollTop=(title===$('#pTitle').dataset.last)?st:0; $('#pTitle').dataset.last=title;
+  $('#pBack').onclick = ()=>{ SFX.click(); (onBack||toMenu)(); };
+}
+const HOW_BUTTONS = ()=>`<h3>ABILITIES &amp; GOLD</h3><ul><li>You start every new game with <b>1 of each</b> ability. The number on each button is how many you have left.</li><li>Collect <b>🪙 gold</b> while you play: coins pop out when you score and fly to your gold counter. Clearing a stage gives bonus gold.</li><li>Spend gold in the <b>🛒 SHOP</b> button during a stage (it pauses the game), after each stage, or from <b>⚡ ABILITIES</b> on the main menu.</li>${G.abilities.some(a=>a.cd===0)?'<li>'+G.abilities.filter(a=>a.cd===0).map(a=>a.icon+' '+a.name).join(', ')+' is part of the game and never runs out.</li>':''}</ul><h3>IN-GAME BUTTONS</h3><ul><li><b>Top bar</b> — score, stage, lives, gold, and END (save &amp; exit)</li>${SIDE ? (ACT.length?'<li><b>Action buttons</b> (big, bottom of the screen) — '+ACT.map(i=>G.abilities[i].icon+' '+G.abilities[i].name).join(', ')+'. Hold one down to keep doing it.</li>':'')+'<li><b>Ability column</b> (side of the screen) — abilities, 🛒 SHOP and ❚❚ PAUSE</li><li><b>⚙️ SETTINGS</b> (main menu or pause) — make the buttons bigger or smaller and move them</li>' : '<li><b>Ability bar</b> (just under the top bar) — abilities, 🛒 SHOP and ❚❚ PAUSE</li>'}</ul>`;
+// ONE save only (no slot screen). NEW GAME starts straight away (asks first if it would wipe a saved game); CONTINUE goes straight back in.
+function savedIdx(){ let b=-1; P.slots.forEach((s,i)=>{ if(s&&(b<0||s.t>P.slots[b].t)) b=i; }); return b; }
+$('#btnNew').addEventListener('click', ()=>{ SFX.click(); const i=savedIdx();
+  if(i>=0){ const s=P.slots[i]; modal(`<h2>START OVER?</h2><p>You have a saved game at <b>Stage ${s.stage} · ${DIFFS[s.diff]}</b>. A new game replaces it.</p><button class="big" data-a="y">YES, NEW GAME</button><button class="mid" data-a="c">CONTINUE SAVED GAME</button><button class="mid" data-a="n">CANCEL</button>`, {y:()=>{ P.slots=[null,null,null]; newGame(0); }, c:()=>continueSlot(i), n:()=>{}}); }
+  else { P.slots=[null,null,null]; newGame(0); } });
+$('#btnCont').addEventListener('click', ()=>{ SFX.click(); const i=savedIdx(); if(i>=0) continueSlot(i); });
+$('#btnScores').addEventListener('click', ()=>{ SFX.click(); scoresPanel(P.diff); });
+$('#btnHow').addEventListener('click', ()=>{ SFX.click(); panel('HOW TO PLAY', G.howto + HOW_BUTTONS() + `<h3>NEED HELP?</h3><p>Email us at <b style="color:var(--b)">${esc(SUPPORT)}</b></p><p><button class="mid" id="howMail" style="width:100%">✉ CONTACT SUPPORT</button></p><p style="margin-top:16px"><button class="big" id="howTut" style="width:100%">▶ PLAY THE TUTORIAL</button></p>`); $('#howTut').onclick=()=>{ SFX.click(); startTutorial(true); }; $('#howMail').onclick=()=>{ SFX.click(); contactModal(); }; });
+$('#btnStory').addEventListener('click', ()=>{ SFX.click(); panel('STORY', G.story); });
+$('#btnShop').addEventListener('click', ()=>{ SFX.click(); shopPanel(); });
+$('#btnAbil').addEventListener('click', ()=>{ SFX.click(); abilPanel(); });
+$('#btnSlots').addEventListener('click', ()=>{ SFX.click(); slotsPanel(); });
+$('#btnSet').addEventListener('click', ()=>{ SFX.click(); settingsModal(null); });
+
+function slotPicker(mode){
+  let h = `<p style="margin-bottom:12px;opacity:.8">${mode==='new'?'Choose a save slot for your new game. Your progress saves at the start of every stage.':'Pick a saved game to continue from the start of the stage you reached.'}</p>`;
+  P.slots.forEach((s,i)=>{
+    const dis = mode==='cont' && !s;
+    h += `<button class="slot" data-i="${i}" ${dis?'disabled':''}><span class="n">${i+1}</span><span>${s ? `<b>STAGE ${s.stage} · ${DIFFS[s.diff]}</b><small>Score ${s.score.toLocaleString()} · Lives ${s.lives} · ${fmtDate(s.t)}</small>` : `<b>EMPTY SLOT</b><small>${mode==='new'?'Start a fresh game here':'Nothing saved yet'}</small>`}</span></button>`;
+  });
+  panel(mode==='new'?'NEW GAME':'CONTINUE', h);
+  document.querySelectorAll('.slot').forEach(b=>b.addEventListener('click', ()=>{
+    SFX.click(); const i=+b.dataset.i, s=P.slots[i];
+    if(mode==='cont'){ if(s) continueSlot(i); return; }
+    if(s){ modal(`<h2>OVERWRITE?</h2><p>Slot ${i+1} has a game at Stage ${s.stage}. Start over here?</p><button class="big" data-a="y">YES, NEW GAME</button><button class="mid" data-a="n">CANCEL</button>`, {y:()=>newGame(i), n:()=>{}}); }
+    else newGame(i);
+  }));
+}
+function scoresPanel(d){
+  const list = P.scores[d]||[];
+  let h = `<div class="tabs">${DIFFS.map((n,i)=>`<button data-d="${i}" class="${i===d?'on':''}">${n}</button>`).join('')}</div>`;
+  h += list.length ? `<table class="sc"><tr><th>#</th><th>NAME</th><th>SCORE</th><th>STAGE</th></tr>${list.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}</td><td>${s.score.toLocaleString()}</td><td>${s.stage}${s.win?' ★':''}</td></tr>`).join('')}</table>` : `<p style="opacity:.7;text-align:center;padding:30px 0">No scores yet on ${DIFFS[d]}.<br>Be the first!</p>`;
+  panel('TOP SCORES', h);
+  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click', ()=>{ SFX.click(); scoresPanel(+b.dataset.d); }));
+}
+function shopPanel(){
+  let h = `<p style="margin-bottom:10px">Your gold: <span class="coins">🪙 ${totalGold().toLocaleString()}</span> — collect gold while you play and clear stages. Nothing is ever locked: every level and mode is free. Abilities are in <b>⚡ ABILITIES</b> on the main menu.</p>`;
+  h += `<div class="cat">GOLD PACKS</div><div class="abshop">${goldPackRows()}<p class="note">${GOLD_NOTE}</p></div>`; // SHOP-GOLD-1
+  const cats = [...new Set(G.shop.map(s=>s.cat))];
+  cats.forEach(c=>{
+    h += `<div class="cat">${c.toUpperCase()}</div><div class="shop-grid">`;
+    G.shop.filter(s=>s.cat===c).forEach(it=>{
+      const own=P.owned.includes(it.id), eq=P.equipped[c]===it.id;
+      const sw = it.swatch || `linear-gradient(90deg,${(it.colors||['#fff']).join(',')})`;
+      h += `<div class="item"><div class="sw" style="background:${sw}"></div><b>${it.name}</b><small>${it.desc||''}</small>
+        ${eq?`<button class="eq" disabled>✓ EQUIPPED</button>`: own?`<button data-eq="${it.id}">EQUIP</button>`:`<button class="buy" data-buy="${it.id}" ${totalGold()<it.cost?'disabled style="opacity:.45"':''}>🪙 ${it.cost}</button>`}</div>`;
+    });
+    h += `</div>`;
+  });
+  h += `<div class="cat">PREMIUM PACKS</div><div class="shop-grid">`;
+  (G.premium||[]).forEach(p=>{ h += `<div class="item prem"><div class="sw" style="background:${p.swatch}"></div><b>${p.name}</b><small>${p.desc}</small><button disabled>${p.price} · COMING SOON</button></div>`; });
+  h += `</div><p style="opacity:.6;font-size:12px;margin-top:10px">Premium packs are coming soon.</p>`;
+  panel('SHOP', h);
+  bindGoldPacks(()=>shopPanel());
+  document.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click', ()=>{ const it=G.shop.find(s=>s.id===b.dataset.buy); if(totalGold()>=it.cost && !P.owned.includes(it.id)){ b.disabled=true; spendGold(it.cost, (ok,msg)=>{ if(ok){ if(!P.owned.includes(it.id)) P.owned.push(it.id); P.equipped[it.cat]=it.id; save(); SFX.pickup(); if(state==='menu') shopPanel(); } else { SFX.bump(); goldNotice(msg, ()=>{ if(state==='menu') shopPanel(); }); } }); } }));
+  document.querySelectorAll('[data-eq]').forEach(b=>b.addEventListener('click', ()=>{ const it=G.shop.find(s=>s.id===b.dataset.eq); P.equipped[it.cat]=it.id; save(); SFX.click(); shopPanel(); }));
+}
+
+/* ---------- DOUBLE UP OR LOSS (slots, earned coins only) ---------- */
+const SYM=['🍒','🍋','🔔','⭐','💎','7️⃣'], SW=[30,25,18,12,6,4], SWT=95;
+const PAY3=[6,10,18,35,100,300], PAYCC=2.5, PAYC=0.6;
+const PAYM={2:[0.4,0.4,0.4,0.4,0.4,0.4],3:[4,5,11,18,45,90],4:[14,23,40,75,180,450],5:[55,90,180,360,1100,3600]};
+const WHEEL=[0,0.5,2,0,1,2,0,0.5,1,0,1.5,3];
+const WCOL=['#2a1a4a','#3a6bff','#ff2bd6','#2a1a4a','#20c070','#ff7b1c','#2a1a4a','#3a6bff','#20c070','#2a1a4a','#a066ff','#ffd23f'];
+let sTab=0, sBet=10, sPend=0, sSpin=false, sDbl=0, wheelRot=0;
+function sPick(){ let r=Math.random()*SWT; for(let i=0;i<SYM.length;i++){ r-=SW[i]; if(r<0) return i; } return 0; }
+function slotsBack(){ if(sSpin) return; if(sPend>0){ P.coins+=sPend; sPend=0; save(); } toMenu(); }
+function slotsPanel(){
+  const names=['CLASSIC 3','MEGA 5','LUCKY WHEEL'];
+  let m='';
+  if(sTab===0) m=`<div class="reels">${[0,1,2].map(i=>`<div class="reel" id="r${i}">${SYM[[5,4,3][i]]}</div>`).join('')}</div>`;
+  if(sTab===1) m=`<div class="reels five">${[0,1,2,3,4].map(i=>`<div class="reel" id="r${i}">${SYM[i%6]}</div>`).join('')}</div>`;
+  if(sTab===2){ const grad=WHEEL.map((_,i)=>`${WCOL[i]} ${i*30}deg ${(i+1)*30}deg`).join(','); m=`<div class="wheel-box"><div class="wheel-ptr"></div><div class="wheel" id="wh" style="background:conic-gradient(${grad});transform:rotate(${wheelRot}deg)"><div class="wheel-lbl">${WHEEL.map((v,i)=>`<span style="transform:rotate(${i*30+15}deg);transform-origin:18px 104px">${v?'x'+v:'✕'}</span>`).join('')}</div></div></div>`; }
+  const pt = sTab===0? `3 in a row: 🍒x6 · 🍋x10 · 🔔x18 · ⭐x35 · 💎x100 · 7️⃣x300<br>🍒🍒 first two: x2.5 · 🍒 first: x0.6` :
+             sTab===1? `Match from the left — any 2: x0.4<br>3 / 4 / 5 in a row: 🍒 4/14/55 · 🍋 5/23/90 · 🔔 11/40/180<br>⭐ 18/75/360 · 💎 45/180/1100 · 7️⃣ 90/450/3600` :
+             `Spin the wheel: win x0.5 up to x3 your bet, or lose it (✕).`;
+  const h=`<div class="slot-wrap slot2"><div class="sl-left">
+    <div class="slot-coins coins">🪙 <span id="slC">${P.coins.toLocaleString()}</span></div>
+    ${m}
+    <div class="slot-msg" id="slMsg">${sPend>0?'':'Good luck!'}</div></div><div class="sl-right">
+    <div class="tabs" style="width:100%">${names.map((n,i)=>`<button data-st="${i}" class="${i===sTab?'on':''}">${n}</button>`).join('')}</div>
+    <div class="bets">${[10,25,50,100].map(b=>`<button data-bet="${b}" class="${b===sBet?'on':''}">BET ${b}</button>`).join('')}</div>
+    <button class="big casino" id="slSpin" style="width:100%">🎰 SPIN · 🪙${sBet}</button>
+    <div class="dbl hidden" id="dbl"><div>WIN <b class="coins" id="dAmt">0</b> — <b>DOUBLE UP OR LOSS?</b></div><div class="coin" id="coinEl">?</div>
+      <div class="row" style="width:100%"><button class="mid" id="dH">HEADS (x2)</button><button class="mid" id="dT">TAILS (x2)</button></div><button class="big" id="dC" style="width:100%">COLLECT</button></div>
+    <div class="paytable">${pt}</div>
+    <p style="font-size:11px;opacity:.55;text-align:center;font-family:Segoe UI,sans-serif">Uses coins you earned by playing only. Coins can't be bought for this. Just for fun: on average the machines keep about 8% of what's bet.</p>
+  </div></div>`; // SLOTS-LAYOUT-1
+  panel('DOUBLE UP OR LOSS', h, slotsBack);
+  document.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{ if(sSpin||sPend>0) return; SFX.click(); sTab=+b.dataset.st; slotsPanel(); });
+  document.querySelectorAll('[data-bet]').forEach(b=>b.onclick=()=>{ if(sSpin||sPend>0) return; SFX.click(); sBet=+b.dataset.bet; slotsPanel(); });
+  $('#slSpin').onclick=slotSpin;
+  $('#dH').onclick=()=>dblFlip(0); $('#dT').onclick=()=>dblFlip(1); $('#dC').onclick=dblCollect;
+  if(sPend>0) showDbl();
+}
+function sMsg(t,cls){ const e=$('#slMsg'); if(e){ e.textContent=t; e.className='slot-msg '+(cls||''); } }
+function sCoins(){ const e=$('#slC'); if(e) e.textContent=P.coins.toLocaleString(); }
+function slotSpin(){
+  if(sSpin||sPend>0) return;
+  if(P.coins<sBet){ sMsg('Not enough coins — play to earn more!','lose'); SFX.bump(); return; }
+  P.coins-=sBet; save(); sCoins(); sSpin=true; $('#pBack').disabled=true; $('#slSpin').disabled=true; sMsg('Spinning…'); SFX.click();
+  if(sTab===2){ const seg=Math.floor(Math.random()*WHEEL.length); const target=(360-(seg*30+15))%360; wheelRot += 360*5 + ((target-(wheelRot%360))+360)%360; $('#wh').style.transform=`rotate(${wheelRot}deg)`;
+    let k=0; const tick=setInterval(()=>{ SFX.blip(); if(++k>24) clearInterval(tick); },140);
+    setTimeout(()=>finishSpin(Math.floor(sBet*WHEEL[seg]), WHEEL[seg]? 'x'+WHEEL[seg]+'!' : ''),3800); return; }
+  const n=sTab===0?3:5, res=Array.from({length:n},sPick), els=[...Array(n)].map((_,i)=>$('#r'+i));
+  els.forEach(e=>{ e.classList.add('spin'); e.classList.remove('win'); });
+  const iv=setInterval(()=>els.forEach((e,i)=>{ if(e.classList.contains('spin')) e.textContent=SYM[Math.floor(Math.random()*6)]; }),70);
+  els.forEach((e,i)=>setTimeout(()=>{ e.classList.remove('spin'); e.textContent=SYM[res[i]]; SFX.bump(); if(i===n-1){ clearInterval(iv); evalReels(res,els); } }, 600+i*(n===3?350:250)));
+}
+function evalReels(r,els){
+  let mult=0, hl=0;
+  if(r.length===3){ if(r[0]===r[1]&&r[1]===r[2]){ mult=PAY3[r[0]]; hl=3; } else if(r[0]===0&&r[1]===0){ mult=PAYCC; hl=2; } else if(r[0]===0){ mult=PAYC; hl=1; } }
+  else { let k=1; while(k<5&&r[k]===r[0]) k++; if(k>=2){ mult=PAYM[k][r[0]]; hl=k; } }
+  for(let i=0;i<hl;i++) els[i].classList.add('win');
+  finishSpin(Math.floor(sBet*mult), mult>=20?'JACKPOT!':mult?'x'+mult:'');
+}
+function finishSpin(win,label){
+  sSpin=false; const pb=$('#pBack'); if(pb) pb.disabled=false; const sb=$('#slSpin'); if(sb) sb.disabled=false;
+  if(win>0){ sPend=win; sDbl=0; SFX.clear(); sMsg(`${label} YOU WIN ${win} 🪙`,'win'); showDbl(); }
+  else { SFX.over(); sMsg('No win this time','lose'); }
+}
+function showDbl(){ const d=$('#dbl'); if(!d) return; d.classList.remove('hidden'); $('#dAmt').textContent=sPend; $('#slSpin').disabled=true;
+  const can=sDbl<5; $('#dH').disabled=!can; $('#dT').disabled=!can; if(!can) sMsg('Max 5 double-ups — collect your coins!','win'); }
+function dblFlip(pickSide){
+  if(sPend<=0) return; const c=$('#coinEl'); c.classList.remove('flip'); void c.offsetWidth; c.classList.add('flip'); $('#dH').disabled=$('#dT').disabled=$('#dC').disabled=true; SFX.power();
+  const side=Math.random()<0.5?0:1;
+  setTimeout(()=>{ c.textContent=side?'T':'H'; $('#dC').disabled=false;
+    if(side===pickSide){ sPend*=2; sDbl++; SFX.clear(); sMsg(`DOUBLED! ${sPend} 🪙`,'win'); showDbl(); }
+    else { sMsg(`LOSS! The coin was ${side?'TAILS':'HEADS'}`,'lose'); SFX.hurt(); sPend=0; $('#dbl').classList.add('hidden'); $('#slSpin').disabled=false; } },900);
+}
+function dblCollect(){ if(sPend<=0) return; P.coins+=sPend; sMsg(`Collected ${sPend} 🪙`,'win'); sPend=0; save(); sCoins(); SFX.pickup(); $('#dbl').classList.add('hidden'); $('#slSpin').disabled=false; }
+
+/* ---------- game flow ---------- */
+function writeSlot(){ P.slots[run.slot] = {stage:run.stage, score:run.score, lives:run.lives, diff:P.diff, t:Date.now(), extra:run.extra}; save(); }
+function newGame(i){
+  run.slot=i; run.stage=1; run.score=0; run.lives=startLives(); run.extra={started:Date.now()}; writeSlot();
+  starterKit();
+  if(!P.tutDone) startTutorial(false); else beginStage();
+}
+function continueSlot(i){
+  const s=P.slots[i]; run.slot=i; run.stage=s.stage; run.score=s.score; run.lives=s.lives; run.extra=JSON.parse(JSON.stringify(s.extra||{})); P.diff=s.diff; save(); beginStage();
+}
+function resetAbilities(){ cntKey=''; $('#hudCounter').className='ctr hidden'; abLock.fill(0); abBadge.fill(null); abActive.fill(false); coinsFly.length=0; run.coinsStage=0; run.dropN=0; }
+function startTutorial(practice){
+  run.tutorial=true; run.practice=practice; run.score=0; run.lives=G.lives; tutIdx=0; tutSeen.clear(); resetAbilities();
+  enterPlay(); G.startStage(0, API); tutShow(); toast('TUTORIAL');
+}
+function beginStage(){
+  run.stageT0=performance.now();
+  run.tutorial=false; resetAbilities(); enterPlay(); $('#tut').classList.add('hidden');
+  G.startStage(run.stage, API); toast('STAGE '+run.stage);
+  run.doom=doomLimit(); run.doomPend=0;
+  const intro = (P.diff===2 && run.stage===4 ? 'NO MERCY — THE EXPERT CLOCK STARTS!' : null) || (G.stageIntro && G.stageIntro[run.stage]) || (API.boss ? (G.bossName||'BOSS STAGE!') : (G.contentIntro && G.contentIntro[API.content]) || null);
+  if(intro) setTimeout(()=>{ if(state==='play') toast(intro); }, 1500);
+}
+function enterPlay(){ closeModal(); show(null); hudEl.classList.remove('hidden'); state='play'; updHud(); updAbilities(0); fitNames(); last=performance.now(); if(LAND) landLock(); }
+function pauseGame(){
+  if(state!=='play') return; state='paused'; joy.active=false; joyEl.classList.add('hidden'); releaseHolds();
+  modal(`<h2>PAUSED</h2><p>${run.tutorial?'Tutorial':'Stage '+run.stage+' · '+DIFFS[P.diff]}</p><button class="big" data-a="r">▶ RESUME</button><button class="mid" data-a="shop">🛒 ABILITY SHOP</button><button class="mid" data-a="s">${P.sound?'🔊 SOUND ON':'🔇 SOUND OFF'}</button><button class="mid" data-a="set">⚙️ SETTINGS</button><button class="mid" data-a="h">HOW TO PLAY</button><button class="mid" data-a="e" style="color:#ff6b8a">END GAME</button>`,
+    {r:resumeGame, shop:()=>{ flushCoins(); shopModal(pauseAgain,'◀ BACK'); }, s:()=>{P.sound=!P.sound;save();pauseAgain();}, set:()=>settingsModal(pauseAgain), h:()=>{ modal(`<h2>HOW TO PLAY</h2><div style="text-align:left;max-height:50vh;overflow:auto;font-family:Segoe UI,sans-serif;font-size:14px">${G.howto}${HOW_BUTTONS()}</div><button class="big" data-a="b">BACK</button>`, {b:pauseAgain}); }, e:endGamePrompt});
+}
+function pauseAgain(){ state='play'; pauseGame(); }
+function resumeGame(){ closeModal(); state='play'; last=performance.now(); }
+function endGamePrompt(){
+  if(state==='play'){ state='paused'; }
+  if(NET.on){ modal(`<h2>LEAVE THE GAME?</h2><p>This ends the 2-player game for both of you.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>netQuit(), n:resumeGame}); return; }
+  if(MP.on){ modal(`<h2>LEAVE THE RACE?</h2><p>You'll drop out of this multiplayer race.</p><button class="big" data-a="y">LEAVE RACE</button><button class="mid" data-a="n">KEEP RACING</button>`, {y:()=>{ mpSend({e:'out'}); mpLeave(); toMenu(); }, n:resumeGame}); return; }
+  if(run.tutorial){ modal(`<h2>LEAVE TUTORIAL?</h2><p>You can replay it any time from How to Play.</p><button class="big" data-a="y">LEAVE</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:()=>{ if(!run.practice){ P.tutDone=true; save(); } toMenu(); }, n:resumeGame}); return; }
+  modal(`<h2>END GAME?</h2><p>Your game is saved at the start of <b>Stage ${run.stage}</b>. Continue it later from the menu. Gold and abilities you have are kept.</p><button class="big" data-a="y">SAVE &amp; EXIT</button><button class="mid" data-a="n">KEEP PLAYING</button>`, {y:toMenu, n:resumeGame});
+}
+function stageClear(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(true); return; }
+  if(MP.on){ if(run.tutorial) return; mpFinish(true); return; }
+  if(run.stageT0){ const sec=Math.round((performance.now()-run.stageT0)/100)/10; run.extra.times=(run.extra.times||[]); run.extra.times[run.stage-1]=sec; run.stageT0=0; }
+  state='modal'; SFX.clear(); flushCoins();
+  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)) + (API.boss? 50 : 0), got=run.coinsStage, wasBoss=API.boss;
+  P.coins += coins; save(); updCoins();
+  const bonus = G.stageBonus ? G.stageBonus(API) : 0; if(bonus) run.score += bonus;
+  if(run.stage >= G.stages){ victory(coins, bonus); return; }
+  run.stage++; writeSlot();
+  const showClear = ()=>{ state='modal'; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2>${wasBoss?'<p class="coins">🏆 BOSS BEATEN! +50 🪙</p>':''}${bonus?`<p>Stage bonus +${bonus.toLocaleString()}</p>`:''}<div class="stat">${run.score.toLocaleString()}</div><p class="coins">🪙 ${got} collected · +${coins} clear bonus</p><p style="font-size:13px">Gold: 🪙 ${totalGold().toLocaleString()} · Progress saved ✔</p><button class="big" data-a="n">STAGE ${run.stage} ▶</button><button class="mid abil" data-a="shop">⚡ TOP UP ABILITIES · ${BUY.map(a=>a.icon+have(a)).join(' ')}</button><button class="mid" data-a="m">SAVE &amp; MENU</button>`,
+    {n:()=>{ if(G.betweenStages) G.betweenStages(API, beginStage); else beginStage(); }, shop:()=>shopModal(showClear,'◀ BACK'), m:toMenu}); };
+  showClear();
+}
+function nameEntry(title, sub, win){
+  P.slots[run.slot]=null; save();
+  modal(`<h2>${title}</h2><p>${sub}</p><div class="stat">${run.score.toLocaleString()}</div><p>${DIFFS[P.diff]} · reached stage ${run.stage}</p><input id="nm" maxlength="10" placeholder="YOUR NAME" value="${esc(P.lastName)}"><button class="big" data-a="s">SAVE SCORE</button><button class="mid" data-a="k">SKIP</button>`,
+    {s:()=>{ submitScore(win); afterRun(); }, k:afterRun});
+  const inp=$('#nm'); let nameVal=P.lastName; inp.addEventListener('input',()=>nameVal=inp.value); setTimeout(()=>{ try{ inp.focus(); }catch(e){} },50);
+  inp.addEventListener('keydown', e=>{ e.stopPropagation(); if(e.key==='Enter'){ submitScore(win); closeModal(); afterRun(); } });
+  function submitScore(w){ const name=(nameVal||'PLAYER').trim().toUpperCase().slice(0,10)||'PLAYER'; P.lastName=name; const l=P.scores[P.diff]=P.scores[P.diff]||[]; l.push({name, score:run.score, stage:run.stage, win:!!w, t:Date.now()}); l.sort((a,b)=>b.score-a.score); l.length=Math.min(l.length,10); save(); }
+}
+function afterRun(){ modal(`<h2>WHAT NEXT?</h2><button class="big" data-a="p">PLAY AGAIN</button><button class="mid abil" data-a="a">⚡ ABILITIES</button><button class="mid" data-a="s">TOP SCORES</button><button class="mid" data-a="m">MAIN MENU</button>`, {p:()=>newGame(run.slot), a:()=>{ toMenu(); abilPanel(); }, s:()=>{ toMenu(); scoresPanel(P.diff); }, m:toMenu}); }
+function gameOver(){
+  if(NET.on){ if(NET.role==='host') netStageEnd(false); return; }
+  if(MP.on){ mpFinish(false); return; }
+  if(state==='modal' || state==='menu') return; state='modal'; SFX.over(); flushCoins();
+  if(run.tutorial){ finalOver(); return; }
+  contOffer();
+}
+function finalOver(){
+  state='modal'; const coins = Math.floor(run.score/500), got=run.coinsStage; P.coins += coins; save();
+  nameEntry('GAME OVER', `🪙 ${got} collected this stage · +${coins} score bonus`, false);
+}
+/* ===== SHELL-CONT-1 (Andrew, 1 Nov 2026): CONTINUE after losing your last life (single player only) =====
+   Before the game-over / name screen: 💰 CONTINUE (pay gold: full lives back — +2 on Beginner like a new game — and the
+   SAME stage restarts from its start, score kept), 🛒 BUY GOLD (gold store, then back here), GIVE UP (normal game over).
+   Price = the 2-player continue price (netContCost) x (continues already used this run + 1), so it grows with the stage
+   and with every continue. No timer. Never in a RACE (mpFinish) or PLAY TOGETHER (netContinue) — those keep their own rules. */
+function contCost(){ return netContCost() * (1 + (Math.floor(+run.extra.payCont)||0)); }
+function contOffer(msg){
+  state='modal'; releaseHolds(); joy.active=false; joyEl.classList.add('hidden');
+  const cost=contCost(), tot=totalGold(), can=tot>=cost, lv=startLives();
+  modal(`<h2>OUT OF LIVES!</h2><p>Stage ${run.stage} · ${DIFFS[P.diff]} · Score ${run.score.toLocaleString()}</p>
+    <button class="big" id="ctPay" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙${can?'':`<small>need ${(cost-tot).toLocaleString()} more</small>`}</button>
+    <p class="gnote">${can?`Get ${lv} lives and replay stage ${run.stage} from its start. Your score stays.`:`You have 🪙 ${tot.toLocaleString()}.`}${boughtRead()>0?' Bought gold is used after your free gold.':''}</p>
+    <p class="gmsg bad" id="ctMsg">${msg?esc(msg):''}</p>
+    <button class="mid goldbtn" data-a="s">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+    {p:()=>{ const c=contCost(); if(totalGold()<c){ contOffer(); return; }
+        state='modal'; modal(`<h2>💰 CONTINUE</h2><p>Paying ${c.toLocaleString()} 🪙…</p>`,{});
+        spendGold(c, (ok,m)=>{ if(state!=='modal') return; if(ok) contGo(); else contOffer(m); }); },
+     s:()=>goldStore(()=>contOffer(), '🛒 BUY GOLD TO CONTINUE'),
+     g:finalOver});
+}
+function contGo(){
+  run.extra.payCont=(Math.floor(+run.extra.payCont)||0)+1; run.lives=startLives(); writeSlot();
+  SFX.power(); beginStage(); setTimeout(()=>{ if(state==='play') toast('💰 CONTINUE! '+run.lives+' LIVES'); }, 300);
+}
+function victory(coins, bonus){
+  const code=claimCode(), fin=finishRecord(code);
+  sendFinish(fin);
+  const done=()=>claimForm(fin, ()=>nameEntry('YOU WIN!', `All ${G.stages} stages cleared on ${DIFFS[P.diff]}! +${coins} 🪙${bonus?' · bonus +'+bonus.toLocaleString():''}`, true));
+  playEnding(done);
+}
+function claimCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c=''; const r=new Uint32Array(6); (crypto.getRandomValues? crypto.getRandomValues(r) : r.forEach((_,i)=>r[i]=Math.random()*1e9)); r.forEach(v=>c+=A[v%A.length]); return c; }
+function finishRecord(code){
+  const times=(run.extra.times||[]).filter(x=>typeof x==='number'), total=Math.round(times.reduce((a,b)=>a+b,0));
+  const fastest=times.length? Math.min(...times) : null, missing=G.stages-times.length;
+  return {kind:'finish', game:G.id, difficulty:DIFFS[P.diff], code, score:run.score, lives:Math.max(0,run.lives), total_secs:total, fastest_stage_secs:fastest,
+    stages_timed:times.length, times, build:G.build.split(' ')[0], ua:navigator.userAgent.slice(0,200),
+    // quick cheat check: a real 100-stage run takes a long time; very short stages or missing timings are suspicious
+    suspicious: missing>5 || (fastest!==null && fastest<6) || total < G.stages*15};
+}
+function postRow(row){
+  if(G.proto) return Promise.resolve(true);
+  if(!FIN.sb || FIN.sb.startsWith('__') || !FIN.key || FIN.key.startsWith('__')) return Promise.resolve(false);
+  return fetch(FIN.sb.replace(/\/$/,'')+'/rest/v1/finishers',{method:'POST',headers:{'apikey':FIN.key,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(row)})
+    .then(r=>r.ok, ()=>false);
+}
+function queueRow(row){ P.pending=(P.pending||[]); P.pending.push(row); save(); }
+function flushPending(){ const q=(P.pending||[]).slice(); if(!q.length) return; P.pending=[]; save(); q.forEach(row=>postRow(row).then(ok=>{ if(!ok) queueRow(row); })); }
+function sendFinish(fin){
+  if(G.proto) return; // prototype builds (3 test stages) never send real finish alerts
+  postRow(fin).then(ok=>{ if(!ok) queueRow(fin); });
+  if(FIN.topic && !FIN.topic.startsWith('__')){
+    const pr=['3','4','5'][P.diff], tag=['bronze','silver','gold'][P.diff];
+    const hrs=Math.floor(fin.total_secs/3600), mins=Math.floor(fin.total_secs%3600/60);
+    fetch('https://ntfy.sh/'+FIN.topic,{method:'POST',headers:{'Title':`${DIFFS[P.diff]} FINISHED - ${G.title}`,'Priority':pr,'Tags':(P.diff===2?'rotating_light,crown':'tada')+','+tag},
+      body:`Someone beat all ${G.stages} stages of ${G.title} on ${DIFFS[P.diff]}!\nClaim code: ${fin.code}\nScore: ${fin.score.toLocaleString()} | Run time: ${hrs}h ${mins}m${fin.suspicious?'\nWARNING: run looks suspicious (very fast or missing stage times)':''}\nTheir name and cell number (if they left it) are in Supabase.`}).catch(()=>{});
+  }
+}
+function claimForm(fin, next){
+  state='modal';
+  const exp=P.diff===2;
+  modal(`<h2>${exp?'👑 LEGEND!':'🎉 YOU DID IT!'}</h2>
+    <p>You finished <b>all ${G.stages} stages</b> of ${esc(G.title)} on <b>${DIFFS[P.diff]}</b>.${exp?' Almost nobody will ever do this.':''}</p>
+    <div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div>
+    <p style="font-size:13px">Leave your name, cell number and/or email and we'll send you a congratulations message on WhatsApp or email.${exp?' Keep your claim code — for the Expert challenge we may ask you for a screen recording of your final stages.':''}</p>
+    <input id="clName" maxlength="40" placeholder="YOUR NAME" autocomplete="name" style="text-transform:none">
+    <input id="clPhone" type="tel" maxlength="20" placeholder="CELL NUMBER e.g. 082 123 4567" autocomplete="tel" style="text-transform:none">
+    <input id="clEmail" type="email" maxlength="120" placeholder="EMAIL e.g. you@gmail.com" autocomplete="email" style="text-transform:none">
+    <label class="clok"><input type="checkbox" id="clOk"> I agree to be contacted on WhatsApp or email about this.</label>
+    <div class="slot-msg" id="clMsg"></div>
+    <button class="big" id="clSend">SEND</button><button class="mid" data-a="skip">NO THANKS</button>`, {skip:next});
+  ['#clName','#clPhone','#clEmail'].forEach(id=>$(id).addEventListener('keydown',e=>e.stopPropagation()));
+  $('#clSend').onclick=()=>{
+    const name=$('#clName').value.trim(), phone=$('#clPhone').value.replace(/[^0-9+]/g,'');
+    const msg=t=>{ $('#clMsg').textContent=t; $('#clMsg').className='slot-msg lose'; };
+    if(name.length<2) return msg('Please enter your name');
+    const email=$('#clEmail').value.trim().toLowerCase(), okPhone=phone.replace(/\D/g,'').length>=9, okEmail=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if(!okPhone && !okEmail) return msg('Please enter a cell number or an email address');
+    if(phone && !okPhone) return msg('That cell number looks too short');
+    if(email && !okEmail) return msg('That email address doesn\'t look right');
+    if(!$('#clOk').checked) return msg('Please tick the box so we may contact you');
+    SFX.pickup(); const row={kind:'contact', game:G.id, difficulty:DIFFS[P.diff], code:fin.code, name, phone: okPhone? phone : null, email: okEmail? email : null, score:fin.score};
+    $('#clSend').disabled=true; $('#clSend').textContent='SENDING…';
+    postRow(row).then(ok=>{ if(!ok) queueRow(row);
+      modal(`<h2>THANK YOU!</h2><p>Got it, ${esc(name)}. Watch your ${okPhone&&okEmail?'WhatsApp and email':okPhone?'WhatsApp':'email'}.</p><div class="claimcode">CLAIM CODE<br><b>${fin.code}</b></div><p style="font-size:12px;opacity:.7">Screenshot this screen to keep your code.</p><button class="big" data-a="n">CONTINUE</button>`, {n:next}); });
+  };
+}
+/* ---------- the finale + story ending (after stage 100) ----------
+   Each difficulty has its own story. Harder = longer ending and a bigger show:
+   BEGINNER ~1 min (bronze medal), HARD ~1.5 min (silver), EXPERT ~2.5 min (gold crown, "LEGEND"). */
+let endT=null, fwRaf=null;
+const MEDAL=[{icon:'🥉',name:'BRONZE',title:'CHAMPION',col:'#e39a5b',dur:60,rockets:1.2},{icon:'🥈',name:'SILVER',title:'HERO',col:'#dfe6f2',dur:90,rockets:2},{icon:'👑',name:'GOLD',title:'LEGEND',col:'#ffd23f',dur:150,rockets:3.5}];
+function endingLines(){ const e=G.ending; if(!e) return ['THE END']; if(Array.isArray(e)) return e; return e[P.diff]||e[0]; }
+function playEnding(done){
+  state='ending'; closeModal(); hudEl.classList.add('hidden'); menuT=0;
+  const M=MEDAL[P.diff], DUR=M.dur, INTRO=8, lines=endingLines();
+  const mins=Math.floor(run.time/60), secs=Math.floor(run.time%60);
+  const el=$('#screen-ending');
+  el.className='screen end-d'+P.diff;
+  el.innerHTML=`<canvas id="fw"></canvas>
+    <button class="endskip" id="endSkip">SKIP ▶▶</button>
+    <div class="finale" id="finale">
+      <div class="medal" style="--mc:${M.col}"><span>${M.icon}</span></div>
+      <div class="fin-t1">YOU BEAT</div>
+      <div class="fin-t2">${G.titleHTML||G.title}</div>
+      <div class="fin-t3" style="color:${M.col}">${DIFFS[P.diff]} · ${M.name} ${M.title}</div>
+      <div class="fin-stats"><div><b>${run.score.toLocaleString()}</b><span>SCORE</span></div><div><b>${G.stages}</b><span>STAGES</span></div><div><b>${Math.max(0,run.lives)}</b><span>LIVES LEFT</span></div></div>
+      ${P.diff===2?'<div class="fin-rare">Almost nobody will ever see this screen.</div>':''}
+    </div>
+    <div class="crawl"><div class="crawl-in" id="crawl" style="animation-duration:${DUR-INTRO-2}s;animation-delay:${INTRO}s"><div class="endlogo">${G.titleHTML||G.title}</div><div class="endsub" style="color:${M.col}">${['THE BEGINNER ENDING','THE HARD ENDING','THE TRUE ENDING'][P.diff]}</div>${lines.map(l=>l.startsWith('#')?`<h3>${l.slice(1)}</h3>`:`<p>${l}</p>`).join('')}<div class="endthe">THE END</div><div class="endmedal">${M.icon}</div><p class="endthanks">${P.diff<2?`Think you can handle ${DIFFS[P.diff+1]}? A different story is waiting.`:'You are one of the very few. Thank you for playing '+esc(G.title)+'.'}</p></div></div>
+    <div class="endbar"><i id="endFill"></i></div>`;
+  show('#screen-ending');
+  // ---- fireworks ----
+  const fw=$('#fw'), fc=fw.getContext('2d'); const fr=()=>{ fw.width=innerWidth; fw.height=innerHeight; }; fr();
+  const rockets=[], sparks=[]; const cols=[G.theme.a,G.theme.b,M.col,'#ffffff','#ff5a8a','#5affc8'];
+  let lastT=performance.now(), spawn=0;
+  function boom(x,y,big){ const c=cols[Math.floor(Math.random()*cols.length)], c2=cols[Math.floor(Math.random()*cols.length)], n=big?160:90;
+    for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, sp=(big?380:240)*(0.25+Math.random()*0.75); sparks.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,l:1.4+Math.random()*0.8,m:2.2,c:i%3?c:c2}); }
+    if(big){ tone(90,40,.5,'sawtooth',.05); noise(.4,.08); } else tone(200+Math.random()*300,80,.25,'triangle',.03); }
+  function fwLoop(now){ const dt=Math.min(0.05,(now-lastT)/1000); lastT=now; const t=(now-t0)/1000;
+    const W=fw.width, H=fw.height; fc.globalCompositeOperation='source-over'; fc.fillStyle='rgba(3,2,10,0.22)'; fc.fillRect(0,0,W,H);
+    const rate = t<INTRO ? M.rockets*2.2 : M.rockets*(t>DUR-12?2:0.7);
+    spawn+=dt*rate; while(spawn>=1){ spawn--; rockets.push({x:W*(0.1+Math.random()*0.8),y:H+10,vy:-(H*0.9+Math.random()*H*0.4),tx:H*(0.12+Math.random()*0.35)}); }
+    fc.globalCompositeOperation='lighter';
+    for(let i=rockets.length-1;i>=0;i--){ const r=rockets[i]; r.y+=r.vy*dt; r.vy*=0.985; fc.fillStyle='#fff'; fc.fillRect(r.x-1.5,r.y,3,10);
+      if(r.y<=r.tx || r.vy>-60){ rockets.splice(i,1); boom(r.x,r.y, P.diff===2 && Math.random()<0.3); } }
+    for(let i=sparks.length-1;i>=0;i--){ const p=sparks[i]; p.l-=dt; if(p.l<=0){ sparks.splice(i,1); continue; } p.vy+=160*dt; p.vx*=0.985; p.vy*=0.985; p.x+=p.vx*dt; p.y+=p.vy*dt;
+      fc.globalAlpha=Math.min(1,p.l/p.m*1.6); fc.fillStyle=p.c; fc.fillRect(p.x-1.5,p.y-1.5,3,3); }
+    fc.globalAlpha=1; if(sparks.length>4000) sparks.splice(0,sparks.length-4000);
+    fwRaf=requestAnimationFrame(fwLoop); }
+  // ---- victory music: a little fanfare, then a looping arpeggio ----
+  const FAN=[[523,0],[659,.18],[784,.36],[1047,.6],[784,.9],[1047,1.05],[1319,1.3]];
+  FAN.forEach(([f,d])=>setTimeout(()=>{ tone(f,f*1.01,.35,'square',.05); tone(f/2,f/2,.35,'triangle',.05); },d*1000));
+  if(P.diff===2) setTimeout(()=>{ [1047,1319,1568,2093].forEach((f,i)=>setTimeout(()=>tone(f,f,.8,'triangle',.05),i*120)); FX.shake&&0; },1800);
+  const ARP=[[262,330,392,523],[220,277,330,440],[175,220,262,349],[196,247,294,392]];
+  let beat=0, lastBeat=0; const bpm=[0.34,0.3,0.26][P.diff];
+  let t0=performance.now(); fwRaf=requestAnimationFrame(fwLoop);
+  const finish=()=>{ if(state!=='ending') return; clearInterval(endT); cancelAnimationFrame(fwRaf); state='modal'; show(null); done(); };
+  $('#endSkip').onclick=()=>{ SFX.click(); finish(); };
+  setTimeout(()=>{ const f=$('#finale'); if(f) f.classList.add('out'); }, INTRO*1000);
+  endT=setInterval(()=>{ const t=(performance.now()-t0)/1000; $('#endFill').style.width=Math.min(100,t/DUR*100)+'%';
+    if(t>2.2 && t-lastBeat>=bpm){ lastBeat=t; const ch=ARP[Math.floor(beat/8)%4], f=ch[beat%4]*(beat%8>=4?2:1); tone(f,f,.22,'triangle',.022); if(beat%4===0) tone(ch[0]/2,ch[0]/2,.5,'sine',.03); beat++; }
+    if(t>=DUR) finish(); },40);
+}
+function showChoice(title, opts, cb){
+  state='modal';
+  modal(`<h2>${title}</h2>${opts.map((o,i)=>`<button class="choice" data-a="c${i}"><b>${o.name}</b>${o.desc}</button>`).join('')}`,
+    Object.fromEntries(opts.map((o,i)=>['c'+i, ()=>cb(i)])));
+}
+
+/* ---------- main loop ---------- */
+let last = performance.now(), menuT = 0;
+function frame(now){
+  let dt = (now-last)/1000; last = now; if(dt>0.05) dt=0.05; if(dt<0) dt=0;
+  if(LAND) landCheck();
+  ctx.setTransform(scale*dpr,0,0,scale*dpr,0,0);
+  if(state==='play'){
+    run.time += dt;
+    if(!(NET.on&&NET.role==='guest')) G.update(dt*assistScale(), API); updAbilities(dt); tutUpdate(dt); fxUpdate(dt); coinUpdate(dt); netTick(dt);
+    if(!(NET.on&&NET.role==='guest')) doomTick(dt); mpTick(dt);
+  } else if(state==='menu' || state==='loading' || state==='ending'){ menuT+=dt; fxUpdate(dt); }
+  ctx.save();
+  if(shakeA>0){ ctx.translate((Math.random()-.5)*shakeA, (Math.random()-.5)*shakeA); }
+  if(state==='menu'||state==='loading'||state==='ending') (G.attract||defaultAttract)(ctx, menuT, API); else G.render(ctx, API);
+  fxRender(ctx);
+  if(state==='play'||state==='paused'||state==='modal'||state==='rot') coinRender(ctx);
+  ctx.restore();
+  requestAnimationFrame(frame);
+}
+/* SHELL-LANDSCAPE-1: upright touch phone while playing -> "turn your phone sideways" cover, game waits (state 'rot').
+   In PLAY TOGETHER the game can't stop for one phone, so the cover shows but the game keeps running. */
+function landTouch(){ try{ return Input.touch || matchMedia('(pointer:coarse)').matches; }catch(e){ return Input.touch; } }
+function landCheck(){
+  const up = window.innerHeight > window.innerWidth*1.05 && landTouch();
+  // SHELL-LANDSCAPE-2 (25 Oct): NEVER block the game. Many phones have auto-rotate switched off, so the page never turns
+  // and the old "turn your phone" cover got stuck. Upright now just plays (smaller) with a small hint strip at the top.
+  const want = up && state!=='loading';  // SHELL-LANDSCAPE-3: hint shows on menu AND in play whenever the phone is upright
+  if(state==='rot'){ state='play'; last=performance.now(); }
+  const rt=$('#rotate'); if(rt && rt.classList.contains('hidden')===want) rt.classList.toggle('hidden', !want);
+  const jh=$('#joyHome'); if(jh){ const sh=state==='play' && landTouch() && !joy.active; if(jh.classList.contains('hidden')===sh) jh.classList.toggle('hidden', !sh); }
+}
+// lock to landscape when the player starts (works in the installed app / fullscreen; elsewhere the browser says no — ignored)
+/* SHELL-LANDSCAPE-3: force sideways. Phones only allow a screen lock in fullscreen or in the installed app, and only
+   right after a tap — so we ask for fullscreen + landscape on the hint button and on taps while upright. Works even when
+   the phone's auto-rotate is off. iPhones don't allow it: they keep the hint and play upright (smaller). */
+function landForce(){ try{ const d=document.documentElement, fs=document.fullscreenElement||document.webkitFullscreenElement;
+  const go=()=>{ landLock(); landTurnTip(); }; if(!fs && (d.requestFullscreen||d.webkitRequestFullscreen)){ const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'}); if(r&&r.then) r.then(go,go); else go(); } else go(); }catch(e){ landLock(); } }
+// pointerdown does NOT count as a user tap for touch screens (fullscreen would be refused) -> use click / touchend (SHELL-LANDSCAPE-4)
+if(LAND){ const lf=()=>{ if(window.innerHeight>window.innerWidth*1.05 && landTouch()) landForce(); }; window.addEventListener('click', lf, true); window.addEventListener('touchend', lf, true); }
+function landTurnTip(){ try{ if(landTurnTip.t && Date.now()-landTurnTip.t<8000) return; landTurnTip.t=Date.now(); let el=document.getElementById('turnTip'); if(!el){ el=document.createElement('div'); el.id='turnTip'; el.innerHTML='<div class="tt-ph">📱</div><b>NOW TURN YOUR PHONE SIDEWAYS</b><span>Hold it with both hands, thumbs on the buttons</span>'; document.body.appendChild(el); }
+  el.classList.remove('hidden'); clearTimeout(landTurnTip.h); landTurnTip.h=setTimeout(()=>el.classList.add('hidden'),3500); }catch(e){} }
+function landLock(){ try{ const o=screen.orientation; if(o && o.lock){ const r=o.lock('landscape'); if(r && r.catch) r.catch(()=>{}); } }catch(e){} }
+function defaultAttract(c, t){
+  c.fillStyle=G.theme.bg; c.fillRect(0,0,G.w,G.h);
+  c.strokeStyle=G.theme.a; c.globalAlpha=.25; c.lineWidth=1;
+  for(let i=0;i<20;i++){ const y=((i*60+t*40)%(G.h+60))-30; c.beginPath(); c.moveTo(0,y); c.lineTo(G.w,y); c.stroke(); }
+  c.globalAlpha=1;
+}
+
+/* ---------- loading ---------- */
+let loadP=0;
+const loadIv=setInterval(()=>{ loadP=Math.min(100, loadP+7+Math.random()*12); $('#loadFill').style.width=loadP+'%';
+  if(loadP>=100){ clearInterval(loadIv); $('#tapStart').style.opacity=1; $('#tapStart').style.animationPlayState='running'; $('#screen-loading').addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); audioInit(); SFX.power(); guardMenu(); toMenu(); }, {once:true}); } }, 110);
+// v2: the tap that closes the loading screen must NOT also press a menu button underneath it
+function guardMenu(){ const m=$('#screen-menu'); m.style.pointerEvents='none'; setTimeout(()=>{ m.style.pointerEvents=''; },500); }
+window.addEventListener('keydown', function k(e){ if(state==='loading' && loadP>=100){ audioInit(); SFX.power(); guardMenu(); toMenu(); window.removeEventListener('keydown',k); } });
+document.title = G.title;
+$('#ldTitle').innerHTML = G.titleHTML || G.title; $('#ldTag').textContent = G.tagline;
+$('#mTitle').innerHTML = G.titleHTML || G.title; if(LAND) $('#mTitle').innerHTML = (G.titleHTML || G.title).replace(/<br\s*\/?>/gi,' ');
+$('#ver').innerHTML = `<span class="bld">${esc(G.build)}</span><button class="suplink" id="supBtn">✉ ${esc(SUPPORT)}</button>`;
+$('#supBtn').addEventListener('click', ()=>{ SFX.click(); contactModal(); });
+if(G.init) G.init(API);
+setTimeout(flushPending, 3000);
+requestAnimationFrame(frame);
+/* ---------- EXPERT DOOM CLOCK (Andrew, 17 Oct 2026): Expert must be impossible to finish ----------
+   From Expert stage 4 every stage has a time limit that no ability can stop or pause:
+   stage 4 = 90 s, then 8 s less every stage (stage 10 = 42 s, stage 14 = 10 s) and from stage 15 on just 2 s.
+   Run out of time = lose a life (the stage restarts with the same tiny clock), so Expert can't be finished. */
+function doomLimit(){ if(P.diff!==2||run.tutorial||run.stage<4) return Infinity; return Math.max(2, 90-(run.stage-4)*8); }
+function doomTick(dt){ if(run.tutorial||run.doom===undefined||run.doom===Infinity||!isFinite(run.doom)) return;
+  if(run.doom>0){ run.doom-=dt; if(run.doom<=0){ run.doom=0; run.doomPend=1.2; } return; }
+  run.doomPend-=dt; if(run.doomPend<=0){ toast('⏳ EXPERT CLOCK RAN OUT!'); run.doom=doomLimit(); run.doomPend=0; API.loseLife(); } }
+/* ---------- BEGINNER ASSIST (Andrew, 20 Oct 2026) ----------
+   BEGINNER (difficulty 0) stages 1-10 run in gentle slow motion: the game's dt is x0.65 on stage 1, rising evenly to
+   x1.0 at stage 11. Beginner games also start with 2 extra lives. Never on HARD / EXPERT, never in the tutorial, never
+   in a multiplayer RACE. In PLAY TOGETHER only the host runs the game, so it is applied there once (the guest just draws).
+   The Expert clock, ability cooldowns, coins and effects keep real time. */
+function assistScale(){ if(P.diff!==0 || run.tutorial || MP.on || !(run.stage>=1) || run.stage>10) return 1; return 0.65 + (run.stage-1)*0.035; }
+function startLives(){ return G.lives + (P.diff===0 && !MP.on ? 2 : 0); }
+
+/* ---------- ⚙️ SETTINGS (main menu + pause): button sizes and positions, shared by every game (localStorage 'rmxLayout') ---------- */
+function settingsModal(back){
+  const AN=ACT.map(i=>G.abilities[i].icon+' '+G.abilities[i].name).join(', ');
+  const seg=(k,opts)=>`<div class="seg" data-k="${k}">${opts.map(([v,t])=>`<button data-v="${v}">${t}</button>`).join('')}</div>`;
+  const sl=(id,min,max)=>`<div class="sl" id="${id}" data-min="${min}" data-max="${max}"><i></i><b></b><em></em></div>`;
+  modal(`<div class="sethd"><h2>⚙️ SETTINGS</h2><button class="mid" data-a="b">✔ DONE</button></div>
+    <div class="setprevw"><canvas id="setPrev"></canvas><small>LIVE PREVIEW</small></div>
+    <div class="setgrp"><div class="seth">ABILITY BUTTONS <small>+ 🛒 SHOP + ❚❚ PAUSE</small></div>
+      <div class="setr"><div class="setl">SIZE <b id="vCs"></b></div>${sl('sCs',70,150)}</div>
+      ${seg('side',[['L','◀ LEFT'],['R','RIGHT ▶']])}
+      <div class="setr"><div class="setl">POSITION <b id="vCy"></b></div>${sl('sCy',0,100)}</div></div>
+    <div class="setgrp"><div class="seth">ACTION BUTTONS <small>${AN||'(this game has none — used in other games)'}</small></div>
+      <div class="setr"><div class="setl">SIZE <b id="vAs"></b></div>${sl('sAs',70,160)}</div>
+      ${seg('ap',[['L','BOTTOM-LEFT'],['C','BOTTOM-CENTRE'],['R','BOTTOM-RIGHT']])}
+      ${G.joystick?'<p class="setnote">🕹️ Joystick: put your thumb down anywhere on the side away from the action buttons — it appears under your thumb.'+(LAND?' Move the action buttons to BOTTOM-LEFT and the joystick swaps to the right.':'')+'</p>':''}</div>
+    <div class="row"><button class="mid" id="setSnd"></button><button class="mid" id="setReset">↺ RESET TO DEFAULT</button></div>
+    <p class="setnote">Used in every Remix Arcade game.</p>
+    <button class="big" data-a="b">✔ DONE</button>`, {b:()=>{ renderMenuSafe(); back&&back(); }}, true);
+  const m=$('#modal');
+  const SL={sCs:['cs',v=>v/100,v=>Math.round(v*100)], sCy:['cy',v=>v/100,v=>Math.round(v*100)], sAs:['as',v=>v/100,v=>Math.round(v*100)]};
+  function paint(){
+    $('#vCs').textContent=Math.round(LAY.cs*100)+'%'; $('#vAs').textContent=Math.round(LAY.as*100)+'%';
+    $('#vCy').textContent= LAY.cy<0.2?'TOP': LAY.cy>0.8?'BOTTOM': Math.abs(LAY.cy-0.5)<0.1?'MIDDLE': LAY.cy<0.5?'HIGHER':'LOWER';
+    Object.keys(SL).forEach(id=>{ const el=$('#'+id), mn=+el.dataset.min, mx=+el.dataset.max, v=SL[id][2](LAY[SL[id][0]]), f=(v-mn)/(mx-mn); el.style.setProperty('--f', Math.max(0,Math.min(1,f))); });
+    m.querySelectorAll('.seg').forEach(s=>s.querySelectorAll('button').forEach(b=>b.classList.toggle('on', LAY[s.dataset.k]===b.dataset.v)));
+    $('#setSnd').textContent=P.sound?'🔊 SOUND ON':'🔇 SOUND OFF';
+    drawPreview($('#setPrev'));
+  }
+  function changed(){ saveLayout(); resize(); fitNames(); paint(); }
+  Object.keys(SL).forEach(id=>{ const el=$('#'+id), mn=+el.dataset.min, mx=+el.dataset.max, step=id==='sCy'?5:5;
+    const at=e=>{ const r=el.getBoundingClientRect(), f=Math.max(0,Math.min(1,(e.clientX-r.left-14)/(r.width-28))); let v=Math.round((mn+f*(mx-mn))/step)*step; const k=SL[id][0], nv=SL[id][1](v); if(LAY[k]!==nv){ LAY[k]=nv; changed(); } };
+    el.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); try{ el.setPointerCapture(e.pointerId); }catch(_){} el._d=true; at(e); });
+    el.addEventListener('pointermove', e=>{ if(el._d){ e.stopPropagation(); at(e); } });
+    const up=e=>{ if(el._d){ el._d=false; SFX.click(); } }; el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); });
+  m.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click', e=>{ e.stopPropagation(); SFX.click(); LAY[b.parentNode.dataset.k]=b.dataset.v; changed(); }));
+  $('#setSnd').addEventListener('click', ()=>{ P.sound=!P.sound; save(); audioInit(); SFX.click(); paint(); });
+  $('#setReset').addEventListener('click', ()=>{ SFX.click(); LAY=Object.assign({},LDEF); changed(); });
+  paint();
+}
+function renderMenuSafe(){ if(state==='menu') renderMenu(); }
+// small picture of the phone screen with the real geometry: game, top strip, ability column, action buttons
+function drawPreview(c){
+  if(!c) return; const W=window.innerWidth, H=window.innerHeight, g=geo(W,H,LAY);
+  const pw=Math.round(Math.min(150, 150*W/H)), ph=Math.round(pw*H/W), k=pw/W, d=Math.min(window.devicePixelRatio||1,2);
+  c.width=pw*d; c.height=ph*d; c.style.width=pw+'px'; c.style.height=ph+'px';
+  const x=c.getContext('2d'); x.setTransform(d,0,0,d,0,0); x.fillStyle='#000'; x.fillRect(0,0,pw,ph);
+  x.fillStyle=G.theme.bg; x.fillRect(g.cx*k,g.cy*k,g.cw*k,g.ch*k); x.strokeStyle=G.theme.a; x.lineWidth=1; x.strokeRect(g.cx*k+.5,g.cy*k+.5,g.cw*k-1,g.ch*k-1);
+  x.fillStyle='rgba(255,255,255,.18)'; x.fillRect(g.cx*k,g.cy*k,g.cw*k,34*k);
+  x.fillStyle='rgba(255,255,255,.35)'; x.font='bold '+Math.max(7,Math.round(g.cw*k*0.08))+'px sans-serif'; x.textAlign='center'; x.fillText('GAME', (g.cx+g.cw/2)*k, (g.cy+g.ch/2)*k);
+  const C=g.col; x.fillStyle='rgba(20,16,40,.75)'; x.strokeStyle=G.theme.b; x.beginPath(); x.rect(C.x*k,C.y*k,C.w*k,C.h*k); x.fill(); x.stroke();
+  let y=C.y+C.cp; x.fillStyle=G.theme.b;
+  for(let i=0;i<NCONS;i++){ x.beginPath(); x.arc((C.x+C.w/2)*k,(y+C.cb/2)*k,C.cb/2*k,0,Math.PI*2); x.fill(); y+=C.cb+C.nmh+C.cg; }
+  x.fillStyle='#ffd24a'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k); y+=C.sb+C.cg; x.fillStyle='#bbb'; x.fillRect((C.x+6)*k,y*k,C.cb*k,C.sb*k);
+  if(g.joy && G.joystick){ x.strokeStyle='rgba(255,255,255,.6)'; x.setLineDash([2,2]); x.beginPath(); x.arc(g.joy.x*k,g.joy.y*k,g.joy.r*k,0,Math.PI*2); x.stroke(); x.setLineDash([]); }
+  const A=g.act; x.fillStyle=G.theme.a; for(let i=0;i<A.n;i++){ x.beginPath(); x.arc((A.x+i*(A.s+A.g)+A.s/2)*k,(A.y+A.s/2)*k,A.s/2*k,0,Math.PI*2); x.fill(); }
+}
+/* ===== MULTIPLAYER RACE (2–3 players) — MP-1 ===== */
+const MP = { on:false, ch:null, sb:null, me:null, name:'', room:'', host:false, players:{}, prog:{}, seed:0, stage:1, t0:0, n0:null, over:false, sendT:0, prevDiff:0, rnd:null };
+function mpEsc(s){ let d=0; return String(s).replace(/[^A-Za-z0-9 _-]/g,'').replace(/[0-9]/g,c=>(++d<=2?c:'')).slice(0,10); } /*SAFE-NAME*/
+function mpLoad(cb){ if(window.supabase) return cb(); const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js'; s.onload=cb; s.onerror=()=>modal(`<h2>NO CONNECTION</h2><p>Multiplayer needs internet. Check your connection and try again.</p><button class="big" data-a="m">OK</button>`,{m:toMenu}); document.head.appendChild(s); }
+function mpSeeded(seed){ let a=seed>>>0; return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const mpRealRandom = Math.random;
+function mpMenu(){
+  if(!navigator.onLine){ modal(`<h2>👥 MULTIPLAYER</h2><p>You need internet to play with friends.</p><button class="big" data-a="m">OK</button>`,{m:()=>{}}); return; }
+  let nm=''; try{ nm=mpEsc(localStorage.getItem('rmxName')||''); }catch(e){} nm=nm||mpEsc(P.lastName||'');
+  modal(`<h2>👥 MULTIPLAYER</h2><p>Race 1 or 2 friends (max 3 players). Everyone gets the SAME stage — first to clear it wins!</p><input id="mpName" maxlength="10" placeholder="YOUR NICKNAME" value="${nm}"><button class="big" data-a="q">⚡ QUICK MATCH</button><button class="mid" data-a="c">➕ CREATE ROOM (get a code)</button><input id="mpCode" maxlength="4" placeholder="ROOM CODE" style="text-transform:uppercase"><button class="mid" data-a="j">🔑 JOIN WITH CODE</button><button class="mid" data-a="x">◀ BACK</button>`,
+    {q:()=>mpJoin('QUICK',false), c:()=>mpJoin(Array.from({length:4},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(mpRealRandom()*31)]).join(''),true), j:()=>{ const c=(window.__mpCode||'').toUpperCase().replace(/[^A-Z0-9]/g,''); if(c.length!==4){ toast('ENTER THE 4-LETTER CODE'); setTimeout(mpMenu,600); return; } mpJoin(c,false); }, x:()=>{}});
+  const n=$('#mpName'), c=$('#mpCode'); window.__mpCode='';
+  [n,c].forEach(i=>i.addEventListener('keydown',e=>e.stopPropagation()));
+  n.addEventListener('input',()=>{ MP.name=mpEsc(n.value); }); MP.name=nm;
+  c.addEventListener('input',()=>{ window.__mpCode=c.value; });
+}
+function mpJoin(room, creator, onReady){
+  if(!MP.name){ try{ MP.name=mpEsc(localStorage.getItem('rmxName')||''); }catch(e){} }
+  MP.name=(mpEsc(MP.name)||('PLAYER'+Math.floor(mpRealRandom()*90+10))).toUpperCase(); P.lastName=MP.name; save(); try{ localStorage.setItem('rmxName',MP.name); if(window.RMXL) RMXL.retrack(); }catch(e){}
+  modal(`<h2>CONNECTING…</h2><p>Joining room <b>${room==='QUICK'?'QUICK MATCH':room}</b></p>`,{});
+  mpLoad(()=>{ try{
+    MP.sb = MP.sb || window.supabase.createClient(FIN.sb, FIN.key);
+    MP.me = Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); MP.room=room; MP.players={}; MP.prog={}; MP.over=false;
+    const ch = MP.sb.channel('rmx-'+G.id+'-'+room, {config:{broadcast:{self:false}, presence:{key:MP.me}}}); MP.ch=ch; MP.joinT=Date.now();
+    ch.on('presence',{event:'sync'},()=>{ const st=ch.presenceState(); MP.players={}; Object.keys(st).forEach(k=>{ const v=st[k][0]; if(v) MP.players[k]=v; }); mpRoom(); })
+      .on('broadcast',{event:'m'},({payload})=>mpMsg(payload||{}))
+      .subscribe(async (s)=>{ if(s==='SUBSCRIBED'){ await ch.track({name:MP.name, t:MP.joinT}); mpSend({e:'hi'}); if(onReady) onReady(room); setTimeout(()=>{ const ids=Object.keys(MP.players); if(ids.length>3){ const mine=ids.sort((a,b)=>MP.players[a].t-MP.players[b].t).indexOf(MP.me); if(mine>=3){ mpLeave(); modal(`<h2>ROOM FULL</h2><p>That room already has 3 players. Try another code or Quick Match.</p><button class="big" data-a="m">OK</button>`,{m:mpMenu}); } } },1500); }
+        else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'){ mpLeave(); modal(`<h2>COULDN'T CONNECT</h2><p>Please check your internet and try again.</p><button class="big" data-a="m">OK</button>`,{m:mpMenu}); } });
+  }catch(e){ modal(`<h2>COULDN'T CONNECT</h2><p>${esc(e.message||'Error')}</p><button class="big" data-a="m">OK</button>`,{m:toMenu}); } });
+}
+function mpHostId(){ const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t||a.localeCompare(b)); return ids[0]; }
+function mpRoom(){
+  if(MP.on) { mpBars(); return; }
+  if(!MP.ch) return; const ids=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t).slice(0,3); MP.host = mpHostId()===MP.me;
+  const list=ids.map((k,i)=>`<div style="padding:8px 12px;margin:6px 0;border-radius:10px;background:#ffffff14;text-align:left">${['🟦','🟥','🟩'][i]} <b>${esc(MP.players[k].name||'?')}</b>${k===MP.me?' (you)':''}${i===0?' · HOST':''}</div>`).join('');
+  modal(`<h2>👥 ROOM ${MP.room==='QUICK'?'· QUICK MATCH':'<span style="color:var(--b);letter-spacing:4px">'+MP.room+'</span>'}</h2>${MP.room!=='QUICK'?'<p>Send this code to your friends on WhatsApp.</p>':'<p>Waiting for other players…</p>'}${list}<p style="font-size:13px">${ids.length}/3 players${ids.length<2?' — need at least 2':''}</p>${MP.host&&G.net&&ids.length===2?`<button class="big" data-a="t" style="background:linear-gradient(90deg,#00e5ff,#ff3bd4)">🎮 PLAY TOGETHER (2P)</button>`:''}${!MP.host&&G.net&&ids.length===2?'<p>🎮 This game has <b>PLAY TOGETHER</b> — the host can start it.</p>':''}${MP.host?`<button class="big" data-a="s" ${ids.length<2?'disabled':''}>▶ START RACE</button>`:'<p><b>Waiting for the host to start…</b></p>'}${MP.room!=='QUICK'?'<button class="mid" data-a="w" style="background:#25D366;color:#06210f">📲 INVITE ON WHATSAPP</button>':''}<button class="mid" data-a="o">🟢 INVITE ONLINE PLAYERS</button><button class="mid" data-a="l">LEAVE</button>`,
+    {t:()=>netPick(),
+     s:()=>{ if(Object.keys(MP.players).length<2){ mpRoom(); return; } const seed=Math.floor(mpRealRandom()*1e9), stage=2+Math.floor(mpRealRandom()*24); mpSend({e:'start',seed,stage}); mpStart(seed,stage); }, l:()=>{ mpLeave(); toMenu(); }, w:()=>{ if(window.RMXL) RMXL.whatsapp(MP.room); mpRoom(); }, o:()=>{ mpRoom(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); }});
+}
+function mpSend(o){ try{ MP.ch && MP.ch.send({type:'broadcast', event:'m', payload:Object.assign({id:MP.me,name:MP.name},o)}); }catch(e){} }
+function mpMsg(m){
+  if(m.e==='net'){ if(m.n) netRecv(m.n); return; }
+  if(m.e==='rtc'){ if(m.id!==MP.me) netRtcMsg(m); return; }
+  if(m.e==='coop' && !NET.on){ netStart(m.seed,m.stage,m.hn,m.gn,m.diff,m.score); return; }
+  if(m.e==='start' && !MP.on){ mpStart(m.seed,m.stage); }
+  else if(m.e==='prog'){ MP.prog[m.id]={p:m.p,l:m.l,name:m.name,out:m.out}; mpBars(); }
+  else if(m.e==='win' && MP.on && !MP.over){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{p:1}); mpEnd(m.name,false); }
+  else if(m.e==='hi' && MP.wa && MP.host){ mpSend({e:'wa',url:MP.wa}); }
+  else if(m.e==='out'){ MP.prog[m.id]=Object.assign(MP.prog[m.id]||{},{out:true,name:m.name}); mpBars(); mpCheckAllOut(); }
+}
+function mpStart(seed,stage){
+  MP.seed=seed; MP.stage=stage; MP.over=false; MP.prog={}; MP.n0=null; MP.outMe=false;
+  let n=3; const tick=()=>{ modal(`<h2>GET READY!</h2><p>Stage ${stage} · first to clear it wins</p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); go(); } else setTimeout(tick,1000); }; tick();
+  function go(){ MP.on=true; MP.prevDiff=P.diff; P.diff=0; run.stage=stage; run.score=0; run.lives=G.lives; run.extra={}; Math.random=mpSeeded(seed); beginStage(); mpBars(); if(window.RMXL) RMXL.setBusy(true); }
+}
+function mpCounter(v){ if(!MP.on||typeof v!=='number') return; if(MP.n0===null||v>MP.n0) MP.n0=Math.max(v,1); MP.myP=Math.max(0,Math.min(1,1-v/MP.n0)); }
+function mpTick(dt){ if(!MP.on||MP.over) return; MP.sendT-=dt; if(MP.sendT<=0){ MP.sendT=0.5; mpSend({e:'prog',p:MP.myP||0,l:run.lives}); mpBars(); } }
+function mpBars(){
+  let el=$('#mpBars'); if(!el){ el=document.createElement('div'); el.id='mpBars'; el.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:8px;z-index:30;display:flex;gap:6px;pointer-events:none;font:700 11px system-ui,sans-serif;color:#fff'; document.body.appendChild(el); }
+  if(!MP.on){ el.style.display='none'; return; } el.style.display='flex';
+  const rows=[{name:MP.name+' (YOU)',p:MP.myP||0,l:run.lives,c:'#00e5ff'}].concat(Object.keys(MP.prog).filter(k=>k!==MP.me&&MP.players[k]).map((k,i)=>({name:MP.prog[k].name||MP.players[k].name,p:MP.prog[k].p||0,l:MP.prog[k].l,out:MP.prog[k].out,c:['#ff3b5c','#3bff7a'][i%2]})));
+  el.innerHTML=rows.map(r=>`<div style="background:#000a;border:1px solid ${r.c};border-radius:8px;padding:4px 6px;min-width:92px"><div style="white-space:nowrap;overflow:hidden;max-width:110px">${esc(r.name)}${r.out?' ❌':''}</div><div style="height:6px;background:#ffffff22;border-radius:3px;margin-top:3px"><div style="height:6px;width:${Math.round(r.p*100)}%;background:${r.c};border-radius:3px"></div></div></div>`).join('');
+}
+function mpFinish(win){ // called instead of stageClear / gameOver while racing
+  if(MP.over) return;
+  if(win){ MP.myP=1; mpSend({e:'win'}); mpEnd(MP.name,true); }
+  else { MP.outMe=true; state='modal'; mpSend({e:'out'}); mpBars(); modal(`<h2>YOU'RE OUT!</h2><p>Out of lives. Watch the race at the bottom…</p><button class="mid" data-a="l">LEAVE ROOM</button>`,{l:()=>{ mpLeave(); toMenu(); }}); mpCheckAllOut(); }
+}
+function mpCheckAllOut(){ if(!MP.on||MP.over) return; const others=Object.keys(MP.players).filter(k=>k!==MP.me); if(MP.outMe && others.every(k=>MP.prog[k]&&MP.prog[k].out)) mpEnd(null,false); }
+function mpEnd(winner,me){
+  MP.over=true; state='modal'; flushCoins(); Math.random=mpRealRandom; P.diff=MP.prevDiff; MP.on=false; mpBars(); if(window.RMXL) RMXL.setBusy(false);
+  if(me){ P.coins+=50; save(); }
+  const t= me?'🏆 YOU WIN!': winner? '🏁 '+esc(winner)+' WINS!' : 'NOBODY WON';
+  modal(`<h2>${t}</h2><p>${me?'+50 🪙 winner bonus':'Better luck next race!'}</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="l">LEAVE</button>`,{r:()=>{ mpRoom(); }, l:()=>{ mpLeave(); toMenu(); }});
+}
+function mpLeave(){ MP.wa=null; try{ const b=document.getElementById('mpWaBtn'); if(b) b.style.display='none'; }catch(e){} try{ if(MP.ch){ MP.ch.untrack(); MP.sb.removeChannel(MP.ch); } }catch(e){} MP.ch=null; if(MP.on){ Math.random=mpRealRandom; P.diff=MP.prevDiff; } MP.on=false; MP.over=true; MP.players={}; mpBars(); if(window.RMXL) RMXL.setBusy(false); }
+(function(){ const nb=$('#btnNew'); if(!nb) return; const b=document.createElement('button'); b.className='big'; b.id='btnMP'; b.textContent='👥 MULTIPLAYER (2–3)'; b.style.background='linear-gradient(90deg,#ff3bd4,#ffd23f)'; nb.textContent='▶ SINGLE PLAYER'; nb.parentNode.insertBefore(b, $('#btnCont').nextSibling); b.addEventListener('click',()=>{ SFX.click(); mpMenu(); }); })();
+
+// invite support for the shared lobby (lobby.js): create/get a room code
+window.rmxInvite=function(cb){ if(MP.ch&&MP.room&&MP.room!=='QUICK'){ cb(MP.room); return; } if(MP.ch) mpLeave(); const code=Array.from({length:4},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(mpRealRandom()*31)]).join(''); mpJoin(code,true,(r)=>{ cb(r); }); };
+// menu: WHO'S ONLINE button + live count; SOLO/MULTIPLAYER picker when a game opens; ?room=CODE joins straight away
+(function(){ const mb=$('#btnMP'); if(!mb) return; const b=document.createElement('button'); b.className='mid'; b.id='btnOnline'; b.textContent="🟢 WHO'S ONLINE"; mb.parentNode.insertBefore(b, mb.nextSibling); b.addEventListener('click',()=>{ SFX.click(); if(window.RMXL) RMXL.open(); else toast('NO CONNECTION'); });
+  const upd=()=>{ const L=window.RMXL; if(!L) return; const n=Object.keys(L.list||{}).filter(k=>k!==L.me).length; b.textContent=L.online? ("🟢 WHO'S ONLINE ("+n+")") : "⚫ HIDDEN — TAP TO GO ONLINE"; };
+  const hook=()=>{ if(window.RMXL){ RMXL.onList=upd; RMXL.onDecline=(n)=>toast(n+' SAID NO THANKS'); upd(); } else setTimeout(hook,500); }; hook();
+  try{ const sc=document.createElement('script'); sc.src='../lobby.js'; document.head.appendChild(sc); }catch(e){}
+})();
+let mpFirstMenu=true;
+function mpOnMenu(){ if(!mpFirstMenu) return; mpFirstMenu=false; const q=(location.search.match(/[?&]room=([A-Za-z0-9]{4})/)||[])[1];
+  if(q){ setTimeout(()=>mpJoin(q.toUpperCase(),false),300); return; }
+  setTimeout(()=>{ if(state!=='menu') return; modal(`<h2>${esc(G.title)}</h2><p>How do you want to play?</p><button class="big" data-a="s">▶ SOLO</button><button class="big" data-a="m" style="background:linear-gradient(90deg,#ff3bd4,#ffd23f)">👥 MULTIPLAYER (2–3)</button>`,{s:()=>{}, m:()=>mpMenu()}); },150); }
+
+function mpWaBtn(){}
+
+/* ===== REAL 2-PLAYER (NET-1): one phone hosts the game, the other sends its controls and draws the host's snapshots ===== */
+const NET = { on:false, role:null, peer:null, dc:null, rtcOk:false, sendT:0, lastSnap:null, names:['',''], keys2:{}, k2:{}, inbox:[] };
+const Input2 = { keys: NET.k2, dir(){ let x=0,y=0, k=NET.k2; if(k.ArrowLeft||k.KeyA) x-=1; if(k.ArrowRight||k.KeyD) x+=1; if(k.ArrowUp||k.KeyW) y-=1; if(k.ArrowDown||k.KeyS) y+=1; const j=NET.joy2; if(j&&(Math.abs(j.x)>0.05||Math.abs(j.y)>0.05)){ x=j.x; y=j.y; } return {x,y}; } };
+API.input2 = Input2;
+Object.defineProperty(API,'net',{get(){ return NET.on? {role:NET.role, names:NET.names, mode:(G.net&&G.net.mode)||'coop'} : null; }});
+API.netWin = function(idx){ if(!NET.on||NET.role!=='host') return; netSendRel({e:'nwin',idx}); netResult(idx); };
+function netSendRel(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); return; }catch(e){} } mpSend(Object.assign({e:'net'},{n:o})); }
+function netSendFast(o){ if(NET.dc&&NET.dc.readyState==='open'){ try{ NET.dc.send(JSON.stringify(o)); }catch(e){} return; } if(NET.fbT<=0){ NET.fbT=0.1; mpSend({e:'net',n:o}); } }
+function netRecv(o){
+  if(o.e==='snap' && NET.role==='guest'){ NET.lastSnap=o; }
+  else if(o.e==='in' && NET.role==='host'){ for(const k in NET.k2) delete NET.k2[k]; Object.assign(NET.k2,o.k||{}); NET.joy2=o.j||null; }
+  else if(o.e==='ptr' && NET.role==='host'){ G.onPointer2 && G.onPointer2(o.t,o.x,o.y); }
+  else if(o.e==='ab' && NET.role==='host'){ G.useAbility2 && G.useAbility2(o.id); }
+  else if(o.e==='nclear' && NET.role==='guest'){ netStageEnd(true); }
+  else if(o.e==='nover' && NET.role==='guest'){ NET.waitPay=false; netGameOver(); }
+  else if(o.e==='ncont' && NET.role==='guest'){ state='modal'; netContinue(); }
+  else if(o.e==='npay' && NET.role==='host'){ netResume(o.name||'P2'); }
+  else if(o.e==='nresume' && NET.role==='guest'){ NET.waitPay=false; closeModal(); state='play'; last=performance.now(); toast('💰 '+(o.payer||'')+' PAID — KEEP GOING!'); }
+  else if(o.e==='nshop' && NET.role==='host'){ netShopTime(); toast('PARTNER IS BUYING GOLD…'); }
+  else if(o.e==='ngive'){ toast('PARTNER GAVE UP — YOU CAN STILL PAY'); }
+  else if(o.e==='nnext' && NET.role==='guest'){ clearTimeout(NET.advT); closeModal(); run.stage=o.stage; Math.random=mpSeeded(o.seed); netBegin(); }
+  else if(o.e==='nwin' && NET.role==='guest'){ netResult(o.idx); }
+  else if(o.e==='nquit'){ netStop(); state='modal'; modal(`<h2>YOUR PARTNER LEFT</h2><p>The 2-player game has ended.</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="m">MENU</button>`,{r:()=>mpRoom(), m:()=>{ mpLeave(); toMenu(); }}); }
+}
+// --- direct phone-to-phone link (WebRTC). If it can't connect in 6 s we fall back to Supabase messages (slower).
+function netRtc(isHost){
+  try{
+    const pc=new RTCPeerConnection({iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]}); NET.peer=pc;
+    pc.onicecandidate=e=>{ if(e.candidate) mpSend({e:'rtc',c:e.candidate}); };
+    const setup=dc=>{ NET.dc=dc; dc.onopen=()=>{ NET.rtcOk=true; toast('⚡ DIRECT LINK'); }; dc.onmessage=m=>{ try{ netRecv(JSON.parse(m.data)); }catch(e){} }; };
+    if(isHost){ setup(pc.createDataChannel('g',{ordered:false,maxRetransmits:0})); pc.createOffer().then(o=>pc.setLocalDescription(o)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }
+    else pc.ondatachannel=e=>setup(e.channel);
+  }catch(e){}
+}
+function netRtcMsg(m){ const pc=NET.peer; if(!pc) return; try{
+  if(m.sdp){ pc.setRemoteDescription(m.sdp).then(()=>{ if(m.sdp.type==='offer') return pc.createAnswer().then(a=>pc.setLocalDescription(a)).then(()=>mpSend({e:'rtc',sdp:pc.localDescription})); }); }
+  else if(m.c){ pc.addIceCandidate(m.c).catch(()=>{}); } }catch(e){} }
+function netPick(){ const ids2=Object.keys(MP.players).sort((a,b)=>MP.players[a].t-MP.players[b].t); if(ids2.length!==2){ mpRoom(); return; }
+  const sv=(P.coop||{})[G.id]; const go=(stage,diff,score)=>{ const seed=Math.floor(mpRealRandom()*1e9); const hn=MP.players[ids2[0]].name, gn=MP.players[ids2[1]].name; mpSend({e:'coop',seed,stage,hn,gn,diff,score}); netStart(seed,stage,hn,gn,diff,score); };
+  modal(`<h2>🎮 PLAY TOGETHER</h2><p>Play the whole game together, stage 1 to ${G.stages}.</p><p>Difficulty:</p><button class="mid" data-a="e">🟢 BEGINNER — new game</button><button class="mid" data-a="h">🟠 HARD — new game</button><button class="mid" data-a="x">🔴 EXPERT — new game</button>${sv?`<button class="big" data-a="c">▶ CONTINUE TOGETHER · Stage ${sv.stage} · ${DIFFS[sv.diff]}</button>`:''}<button class="mid" data-a="b">◀ BACK</button>`,
+    {e:()=>go(1,0,0), h:()=>go(1,1,0), x:()=>go(1,2,0), c:()=>go(sv.stage,sv.diff,sv.score||0), b:()=>mpRoom()}); }
+function netSave(){ if(NET.role!=='host') return; P.coop=P.coop||{}; P.coop[G.id]={stage:run.stage,diff:P.diff,score:run.score,t:Date.now()}; save(); }
+function netStart(seed,stage,hostName,guestName,diff,score){
+  NET.on=true; NET.role=MP.host?'host':'guest'; NET.names=[hostName,guestName]; NET.fbT=0; NET.lastSnap=null; MP.on=false; MP.coop=true;
+  MP.prevDiff=P.diff; P.diff=diff||0; run.stage=stage; run.score=score||0; run.lives=startLives(); run.extra={}; Math.random=mpSeeded(seed);
+  netRtc(NET.role==='host'); if(window.RMXL) RMXL.setBusy(true);
+  let n=3; const tick=()=>{ modal(`<h2>🎮 PLAY TOGETHER</h2><p><b style="color:#00e5ff">P1 ${esc(hostName)}</b> + <b style="color:#ff3bd4">P2 ${esc(guestName)}</b></p><p>You are <b>${NET.role==='host'?'P1':'P2'}</b> · ${DIFFS[P.diff]} · Stage ${run.stage}</p><div class="stat">${n}</div>`,{}); if(n--<=0){ closeModal(); netBegin(); } else setTimeout(tick,1000); }; tick();
+}
+function netBegin(){ beginStage(); }
+function netTick(dt){ // runs every frame while playing together
+  if(!NET.on) return; NET.fbT-=dt; NET.sendT-=dt;
+  if(NET.role==='host'){ if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const s=G.netState?G.netState():{}; netSendFast({e:'snap',s,l:run.lives,sc:run.score}); } }
+  else { if(NET.sendT<=0){ NET.sendT=NET.rtcOk?0.05:0.1; const k={}; ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyA','KeyD','KeyW','KeyS','Space'].forEach(c=>{ if(keys[c]) k[c]=1; }); const d=joy.active?Input.dir():null; netSendFast({e:'in',k,j:d}); }
+    if(NET.lastSnap){ const sn=NET.lastSnap; NET.lastSnap=null; try{ G.netApply&&G.netApply(sn.s); }catch(e){} if(run.lives!==sn.l||run.score!==sn.sc){ run.lives=sn.l; run.score=sn.sc; updHud(); } }
+    G.netTick && G.netTick(dt); }
+}
+function netStageEnd(win){
+  state='modal'; flushCoins();
+  if(!win){ netContinue(); return; }
+  if(NET.role==='host') netSendRel({e:'nclear'});
+  run.stage++; if(NET.role==='host') netSave();
+  if(run.stage>G.stages){ if(NET.role==='host'){ P.coop[G.id]=null; save(); } netQuit('🏆 YOU BEAT ALL '+G.stages+' STAGES TOGETHER!'); return; }
+  const coins = Math.round((20 + Math.min(run.stage,60)*1.5) * (1 + P.diff*0.5)); P.coins+=coins; save(); updCoins();
+  let n=4; clearTimeout(NET.advT);
+  const tick=()=>{ if(!NET.on) return; modal(`<h2>STAGE ${run.stage-1} CLEAR!</h2><p>Great teamwork! +${coins} 🪙 each</p><div class="stat">${run.score.toLocaleString()}</div><p>Stage ${run.stage} starts in <b>${n}</b>…</p><button class="mid" data-a="q">LEAVE (progress saved)</button>`,{q:()=>netQuit()});
+    if(n--<=0){ closeModal(); if(NET.role==='host'){ const seed=Math.floor(mpRealRandom()*1e9); netSendRel({e:'nnext',stage:run.stage,seed}); Math.random=mpSeeded(seed); netBegin(); } }
+    else NET.advT=setTimeout(tick,1000); };
+  tick();
+}
+// out of lives: either player may pay gold to continue (cost grows with stage); nobody pays in 30 s = game over
+function netContCost(){ return Math.round((60 + run.stage*4) * (1 + P.diff*0.5)); }
+function netContinue(){
+  if(NET.role==='host'){ netSendRel({e:'ncont'}); clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },30000); }
+  NET.waitPay=true; netContinueShow();
+}
+function netShopTime(){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.contT=setTimeout(()=>{ if(NET.on&&NET.waitPay){ NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } },120000); }
+function netContinueShow(){ if(!NET.on||!NET.waitPay) return; const cost=netContCost(), can=totalGold()>=cost;
+  modal(`<h2>OUT OF LIVES!</h2><p>Either player can pay to keep going together.</p><button class="big" data-a="p" ${can?'':'disabled'}>💰 CONTINUE · ${cost.toLocaleString()} 🪙</button><p style="font-size:13px">You have ${totalGold().toLocaleString()} 🪙${can?'':' — not enough'}</p><button class="mid" data-a="s" style="background:linear-gradient(90deg,#ffd23f,#ff9f1c);color:#14061f">🛒 BUY GOLD</button><button class="mid" data-a="g">GIVE UP</button>`,
+    {s:()=>{ if(NET.role==='host') netShopTime(); else netSendRel({e:'nshop'}); goldStore(()=>netContinueShow(),'🛒 BUY GOLD TO CONTINUE'); },
+     p:()=>{ if(totalGold()<cost){ netContinueShow(); return; } modal(`<h2>💰 PAYING…</h2>`,{}); spendGold(cost,(ok,m)=>{ if(!NET.on||!NET.waitPay) return; if(!ok){ netContinueShow(); toast(m); return; } updCoins(); if(NET.role==='host') netResume(MP.name); else { netSendRel({e:'npay',name:MP.name}); modal(`<h2>PAID ✔</h2><p>Continuing…</p>`,{}); } }); }, g:()=>{ netSendRel({e:'ngive'}); if(NET.role==='host'){ clearTimeout(NET.contT); NET.waitPay=false; netSendRel({e:'nover'}); netGameOver(); } else modal(`<h2>WAITING…</h2><p>Your partner can still pay to continue.</p>`,{}); }});
+}
+function netResume(payer){ if(NET.role!=='host'||!NET.waitPay) return; clearTimeout(NET.contT); NET.waitPay=false; run.lives=G.lives; updHud(); if(G.netRevive) G.netRevive(); else if(G.respawn) G.respawn(); netSendRel({e:'nresume',payer}); closeModal(); state='play'; last=performance.now(); toast('💰 '+payer+' PAID — KEEP GOING!'); }
+function netGameOver(){ state='modal'; if(NET.role==='host'){ P.coop=P.coop||{}; P.coop[G.id]=null; save(); }
+  modal(`<h2>GAME OVER</h2><p>You reached stage ${run.stage} together.</p><div class="stat">${run.score.toLocaleString()}</div><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netResult(idx){ state='modal'; const meIdx=NET.role==='host'?0:1; const t= idx===meIdx?'🏆 YOU WIN!': idx===-1?'🤝 DRAW!':'🏁 '+esc(NET.names[idx]||'P'+(idx+1))+' WINS!';
+  if(idx===meIdx){ P.coins+=50; save(); }
+  modal(`<h2>${t}</h2><p>${idx===meIdx?'+50 🪙':''}</p><button class="big" data-a="r">🔁 BACK TO ROOM</button><button class="mid" data-a="q">LEAVE</button>`,{r:()=>{ netStop(); mpRoom(); }, q:()=>netQuit()}); }
+function netStop(){ NET.on=false; MP.coop=false; try{ NET.dc&&NET.dc.close(); NET.peer&&NET.peer.close(); }catch(e){} NET.dc=null; NET.peer=null; NET.rtcOk=false; Math.random=mpRealRandom; P.diff=MP.prevDiff; if(window.RMXL) RMXL.setBusy(false); }
+function netQuit(msg){ netSendRel({e:'nquit'}); netStop(); mpLeave(); if(msg) modal(`<h2>${msg}</h2><button class="big" data-a="m">MENU</button>`,{m:toMenu}); else toMenu(); }
+
+// ===== GOLD STORE (cash gold packs) — PAY-1 + SHELL-GOLD-1.
+// Gold is paid on Paystack (rand). The paystack-webhook edge function credits the signed-in email's wallet;
+// "🎟️ I HAVE A CODE"; the redeem-gold function checks it and the gold goes into the shared wallet.
+const SHOP_URL = 'https://verkerkand-cyber.github.io/app-stream-prints/';
+const WA_GOLD = (gold)=> 'https://wa.me/27662392340?text=' + encodeURIComponent('Hi Jayden, I want to buy Remix Arcade gold (' + gold + ').');
+const PAY_LINKS = {500: 'https://paystack.shop/pay/remix-gold-500', 1500: 'https://paystack.shop/pay/remix-gold-1500', 4000: 'https://paystack.shop/pay/remix-gold-4000'};  // SHELL-GOLD-3 Paystack (rand); paystack-webhook credits the wallet
+const REDEEM_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/redeem-gold';
+const GOLD_NOTE = 'Pay by card with Paystack while signed in. Your gold goes straight into your account automatically, so it can never get lost. Questions? WhatsApp Jayden on 066 239 2340.';
+const CHECKOUT_URL = 'https://uuyaoffzgjxxwxlzhwur.supabase.co/functions/v1/create-checkout'; // SHELL-GOLD-4: checkout tied to the signed-in account
+const PAY = { enabled:true,
+  buy(pack){ if(!PAY.enabled){ toast('💳 GOLD PURCHASES OPEN SOON'); SFX.bump(); return; }
+    const fallback = PAY_LINKS[pack.gold] || SHOP_URL; let w=null;
+    try { w = window.open('', '_blank'); if(w){ try{ w.opener=null; w.document.title='Opening checkout…'; w.document.body.innerHTML='<p style="font:16px sans-serif;padding:24px">Opening secure Paystack checkout…</p>'; }catch(e){} } } catch(e){}
+    const go=(url)=>{ if(w && !w.closed){ try { w.location.href=url; return; } catch(e){} } location.href=url; };
+    toast('💳 OPENING SECURE CHECKOUT…'); SFX.click();
+    const viaLink=()=>go(fallback);
+    sbAuth(sb=>{ tmo(sb.auth.getSession(),15000).then(({data})=>{ const tok=data&&data.session&&data.session.access_token; if(!tok) return viaLink();
+      fetch(CHECKOUT_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':FIN.key,'Authorization':'Bearer '+tok},body:JSON.stringify({gold:pack.gold, back:location.href.split('#')[0]})})
+        .then(r=>r.json()).then(j=>{ if(j&&j.ok&&j.url) go(j.url); else viaLink(); }, viaLink); }, viaLink); }, viaLink); } };
+// SHELL-GOLD-4: refresh the account's bought gold when the player comes back from the checkout tab
+let __walletAt=0; function walletOnReturn(){ if(!signedIn() || Date.now()-__walletAt<8000) return; __walletAt=Date.now(); walletRefresh(()=>{ try { goldUI(); } catch(e){} }); }
+window.addEventListener('focus', walletOnReturn); document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) walletOnReturn(); });
+function goldPackRows(){
+  return GOLD_PACKS.map((g,i)=>`<div class="abrow gold"><div class="ic">💰</div><div class="tx"><b>${g.gold.toLocaleString()} GOLD</b>${i===2?'Best value':'Top up your gold'}</div><button data-gp="${i}">${g.price}</button></div>`).join('')
+    + `<button class="gcode" data-gcode="1">🎟️ I HAVE A CODE</button>` + acctRow();
+}
+function bindGoldPacks(back){
+  document.querySelectorAll('[data-gp]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); const pack=GOLD_PACKS[+b.dataset.gp];
+    if(signedIn()){ PAY.buy(pack); return; } SFX.click();
+    loginModal('Sign in once before you buy, so the gold you buy is saved to your account and can never get lost.', ()=>buyReady(pack, back), back); }));
+  document.querySelectorAll('[data-gcode]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); SFX.click();
+    if(signedIn()) redeemModal(back); else loginModal('Sign in first, so the gold from your code is saved to your account and can never get lost.', ()=>redeemModal(back), back); }));
+  document.querySelectorAll('[data-grest]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); SFX.click();
+    loginModal('Sign in with the email you used when you bought gold. Your bought gold comes back on this phone.', ok=>restoreDone(back, ok), back); }));
+  document.querySelectorAll('[data-gout]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); SFX.click(); signOutModal(back); }));
+  if(signedIn()) walletRefresh();
+}
+function goldStore(back, title){
+  modal(`<h2>${title||'🛒 BUY GOLD'}</h2><div class="abshop"><div class="bal">🪙 <b class="coins">${totalGold().toLocaleString()}</b> GOLD${boughtNote()}</div>${goldPackRows()}<p class="note">${GOLD_NOTE}</p></div><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  bindGoldPacks(()=>goldStore(back,title));
+}
+function redeemModal(back){
+  modal(`<h2>🎟️ REDEEM CODE</h2><p class="gnote">${GOLD_NOTE}</p>${signedIn()?`<p class="gnote acctline">🔐 Signed in as <b>${esc(acctMasked())}</b></p>`:''}<input id="gcIn" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="YOUR CODE"><button class="big" id="gcGo">REDEEM</button><p class="gmsg" id="gcMsg"></p><button class="mid" data-a="b">◀ BACK</button>`,{b:back});
+  const inp=$('#gcIn'), go=$('#gcGo'), msg=$('#gcMsg'); let busy=false;
+  const say=(t,ok)=>{ msg.textContent=t; msg.className='gmsg'+(ok?' ok':t?' bad':''); };
+  inp.addEventListener('input',()=>{ const v=inp.value.toUpperCase().replace(/[^A-Z0-9-]/g,''); if(v!==inp.value) inp.value=v; });
+  inp.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') go.click(); });
+  setTimeout(()=>{ try{ inp.focus(); }catch(e){} },50);
+  go.addEventListener('click',e=>{ e.stopPropagation(); if(busy) return;
+    const code=inp.value.toUpperCase().replace(/[^A-Z0-9-]/g,'');
+    if(code.length<4){ say('Type the code from your email.'); SFX.bump(); return; }
+    if(!signedIn()){ loginModal('Sign in first, so the gold from your code is saved to your account and can never get lost.', ()=>redeemModal(back), back); return; }
+    let pid=''; try{ pid=localStorage.getItem('rmxId')||''; }catch(err){}
+    busy=true; go.disabled=true; say('Checking your code…');
+    let ac=null, tm=null; try{ ac=new AbortController(); tm=setTimeout(()=>ac.abort(),20000); }catch(err){}
+    const done=()=>{ busy=false; go.disabled=false; clearTimeout(tm); };
+    const offline=()=>{ done(); SFX.bump(); say('No connection — could not check your code. Check your internet and try again.'); };
+    sbAuth(sb=>{ tmo(sb.auth.getSession(),15000).then(({data})=>{ const tok=data&&data.session&&data.session.access_token;
+      if(!tok){ done(); say('Please sign in again.'); setTimeout(()=>loginModal('Your sign-in ran out. Sign in again to redeem your code.', ()=>redeemModal(back), back),900); return; }
+      fetch(REDEEM_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':FIN.key,'Authorization':'Bearer '+tok},body:JSON.stringify({code,pid}),signal:ac?ac.signal:undefined})
+      .then(r=>r.json().catch(()=>({ok:false,msg:r.ok?'':'Could not check the code right now. Please try again later.'})))
+      .then(j=>{ done(); const n=Math.floor(+(j&&j.gold))||0;
+        if(j&&j.ok&&n>0&&typeof j.bought==='number'){ boughtWrite(j.bought); SFX.coin(); toast('+'+n.toLocaleString()+' GOLD ADDED'); inp.value=''; say('+'+n.toLocaleString()+' GOLD ADDED ✔ · Saved to your account · You now have 🪙 '+totalGold().toLocaleString(),true); }
+        else if(j&&j.ok&&n>0){ P.coins+=n; save(); goldUI(); SFX.coin(); toast('+'+n.toLocaleString()+' GOLD ADDED'); inp.value=''; say('+'+n.toLocaleString()+' GOLD ADDED ✔ · You now have 🪙 '+totalGold().toLocaleString(),true); }  // old server (before the wallet update): gold stays on this phone
+        else if(j&&j.login){ SFX.bump(); say((j&&j.msg)||'Please sign in again.'); }
+        else { SFX.bump(); say((j&&j.msg)||'That code did not work. Check it and try again.'); } })
+      .catch(offline); }, offline); }, offline);
+  });
+}
+
+/* ---------- SHELL-LOGIN-1: email one-time-code login, bought-gold wallet ---------- */
+const SB_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
+const OFFLINE_MSG = 'No connection. Your bought gold is safe in your account, but using it needs internet. Try again when you are online.';
+let SBA = null, sbWait = null, spending = false;
+function tmo(p, ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms))]); }
+// supabase-js is loaded only when the player actually needs the login / wallet (never before playing)
+function sbAuth(ok, fail){
+  if(SBA) return ok(SBA);
+  const make=()=>{ if(SBA) return ok(SBA); try { SBA = window.supabase.createClient(FIN.sb, FIN.key, {auth:{storageKey:AUTH_KEY, persistSession:true, autoRefreshToken:true, detectSessionInUrl:false}});
+      SBA.auth.onAuthStateChange(()=>{ setTimeout(()=>{ try { goldUI(); } catch(e){} }, 0); }); } catch(e){ SBA = null; }
+    if(SBA) ok(SBA); else fail(); };
+  if(window.supabase && window.supabase.createClient) return make();
+  if(!sbWait){ sbWait = []; const sc = document.createElement('script'); sc.src = SB_JS;
+    sc.onload = ()=>{ const q = sbWait || []; sbWait = null; q.forEach(f=>f[0]()); };
+    sc.onerror = ()=>{ sc.remove(); const q = sbWait || []; sbWait = null; q.forEach(f=>f[1]()); };
+    document.head.appendChild(sc); }
+  sbWait.push([()=>{ if(window.supabase && window.supabase.createClient) make(); else fail(); }, fail]);
+}
+function walletRefresh(cb){ cb = cb || (()=>{}); if(!signedIn() || !navigator.onLine) return cb(false);
+  sbAuth(sb=>{ tmo(sb.from('player_wallets').select('bought_gold').maybeSingle(), 15000).then(({data, error})=>{
+      if(error){ cb(false); return; } boughtWrite(data ? data.bought_gold : 0); cb(true); }, ()=>cb(false)); }, ()=>cb(false)); }
+// spend: FREE gold first, then BOUGHT gold from the account (server checks and takes it atomically)
+function spendGold(cost, cb){
+  cost = Math.max(0, Math.floor(+cost) || 0); const free = P.coins;
+  if(free >= cost){ P.coins -= cost; save(); goldUI(); cb(true); return; }
+  const need = cost - free;
+  if(!signedIn() || boughtRead() < need){ cb(false, 'Not enough gold — you need '+(cost-totalGold()).toLocaleString()+' more.'); return; }
+  if(!navigator.onLine){ cb(false, OFFLINE_MSG); return; }
+  if(spending){ cb(false, 'Please wait — still paying…'); return; } spending = true;
+  const end=(ok,m)=>{ spending = false; cb(ok, m); };
+  sbAuth(sb=>{ tmo(sb.rpc('spend_bought_gold', {p_amount:need}), 15000).then(({data, error})=>{
+      if(error){ const m = String(error.message||'');
+        if(error.code === 'P0001' || /not enough/i.test(m)){ walletRefresh(()=>end(false, 'Not enough bought gold left in your account.')); return; }
+        if(error.code === '28000' || /signed in|jwt/i.test(m)){ end(false, 'Please sign in again: 🛒 BUY GOLD → 🔄 RESTORE PURCHASES.'); return; }
+        end(false, error.code ? 'Could not use your bought gold right now. Please try again.' : OFFLINE_MSG); return; }
+      boughtWrite(+data || 0); P.coins = Math.max(0, P.coins - free); save(); goldUI(); end(true);
+    }, ()=>{ walletRefresh(); end(false, OFFLINE_MSG); }); }, ()=>end(false, OFFLINE_MSG));
+}
+function goldNotice(msg, back){ modal(`<h2>🪙 GOLD</h2><p>${esc(msg)}</p><button class="big" data-a="b">OK</button>`, {b:back||(()=>{})}); }
+function acctRow(){
+  if(signedIn()) return `<div class="acct">🔐 Signed in as <b>${esc(acctMasked())}</b><br><span class="bn">${boughtRead().toLocaleString()}</span> bought gold safe in your account <button class="acctout" data-gout="1">SIGN OUT</button></div>`;
+  return `<button class="gcode grest" data-grest="1">🔄 RESTORE PURCHASES</button><p class="note">Bought gold before? Sign in with the same email to get it back on this phone.</p>`;
+}
+function authErr(e, verify){ const m = String((e && e.message) || e || '').toLowerCase(), st = e && e.status, c = String((e && e.code) || '');
+  if(/security purposes|only request this after/.test(m)) return 'Please wait a minute before asking for another code.';
+  if(st === 429 || /rate limit/.test(m) || c.indexOf('rate_limit') >= 0) return 'Too many sign-in emails were sent just now. Please wait a few minutes (up to an hour) and try again.';
+  if(verify && (/expired|invalid|token/.test(m) || st === 403 || st === 401)) return 'That code is wrong or has expired. Check the newest email, or tap SEND A NEW CODE.';
+  if(/not authorized/.test(m) || c.indexOf('not_authorized') >= 0) return 'Sign-in emails are not switched on yet. Please try again later, or contact support.';
+  if(/signups? not allowed|signup.*disabled/.test(m)) return 'New sign-ups are switched off right now. Please contact support.';
+  if(/email/.test(m) && /invalid/.test(m)) return 'That email address does not look right.';
+  if(!st || /fetch|network|timeout/.test(m)) return 'No connection — check your internet and try again.';
+  return 'Something went wrong. Please try again in a minute.';
+}
+function loginModal(why, next, back, pre){
+  modal(`<h2>🔐 SIGN IN</h2><p class="gnote">${why}</p><input id="lgEmail" class="lgin" type="email" inputmode="email" autocomplete="email" maxlength="120" placeholder="you@gmail.com" value="${esc(pre||'')}"><button class="big" id="lgSend">SEND CODE</button><p class="gmsg" id="lgMsg"></p><p class="gnote lgsafe">🔒 We only use your email to keep your bought gold safe. No password. Free gold you earned stays on this phone.</p><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  const inp=$('#lgEmail'), go=$('#lgSend'), msg=$('#lgMsg'); let busy=false;
+  const say=(t,ok)=>{ msg.textContent=t; msg.className='gmsg'+(ok?' ok':t?' bad':''); };
+  inp.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') go.click(); });
+  setTimeout(()=>{ try{ inp.focus(); }catch(e){} },50);
+  go.addEventListener('click',e=>{ e.stopPropagation(); if(busy) return; const email=inp.value.trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ SFX.bump(); say('Type your email address, e.g. you@gmail.com'); return; }
+    if(!navigator.onLine){ SFX.bump(); say('No connection — check your internet and try again.'); return; }
+    busy=true; go.disabled=true; say('Sending your code…');
+    const fail=t=>{ busy=false; go.disabled=false; SFX.bump(); say(t); };
+    sbAuth(sb=>{ tmo(sb.auth.signInWithOtp({email, options:{shouldCreateUser:true}}), 20000).then(({error})=>{
+        if(error) fail(authErr(error)); else { SFX.pickup(); codeModal(email, why, next, back); } }, er=>fail(authErr(er))); },
+      ()=>fail('No connection — check your internet and try again.'));
+  });
+}
+function codeModal(email, why, next, back){
+  modal(`<h2>📧 CHECK YOUR EMAIL</h2><p class="gnote">We sent a 6-digit code to <b>${esc(maskEmail(email))}</b>. It can take a minute — check spam too.</p><input id="lgCode" class="lgcode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456"><button class="big" id="lgGo">DONE</button><p class="gmsg" id="lgMsg"></p><button class="mid" id="lgNew">SEND A NEW CODE</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  const inp=$('#lgCode'), go=$('#lgGo'), msg=$('#lgMsg'), nw=$('#lgNew'); let busy=false;
+  const say=(t,ok)=>{ msg.textContent=t; msg.className='gmsg'+(ok?' ok':t?' bad':''); };
+  inp.addEventListener('input',()=>{ const v=inp.value.replace(/\D/g,''); if(v!==inp.value) inp.value=v; });
+  inp.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') go.click(); });
+  setTimeout(()=>{ try{ inp.focus(); }catch(e){} },50);
+  go.addEventListener('click',e=>{ e.stopPropagation(); if(busy) return; const token=inp.value.replace(/\D/g,'');
+    if(token.length<6){ SFX.bump(); say('Type the 6-digit code from the email.'); return; }
+    busy=true; go.disabled=true; say('Checking…');
+    const fail=t=>{ busy=false; go.disabled=false; SFX.bump(); say(t); };
+    sbAuth(sb=>{ tmo(sb.auth.verifyOtp({email, token, type:'email'}), 20000).then(({data, error})=>{
+        if(error || !data || !data.session){ fail(authErr(error||'invalid', true)); return; }
+        say('Signed in ✔', true); try { localStorage.removeItem(BOUGHT_KEY); } catch(_){}
+        walletRefresh(ok=>{ SFX.pickup(); toast('SIGNED IN ✔'); goldUI(); next(ok); }); }, er=>fail(authErr(er, true))); },
+      ()=>fail('No connection — check your internet and try again.'));
+  });
+  nw.addEventListener('click',e=>{ e.stopPropagation(); if(busy) return; busy=true; nw.disabled=true; say('Sending a new code…');
+    const end=(t,ok)=>{ busy=false; nw.disabled=false; if(!ok) SFX.bump(); say(t, ok); };
+    sbAuth(sb=>{ tmo(sb.auth.signInWithOtp({email, options:{shouldCreateUser:true}}), 20000).then(({error})=>{ if(error) end(authErr(error)); else end('New code sent ✔ — use the NEWEST email.', true); }, er=>end(authErr(er))); },
+      ()=>end('No connection — check your internet and try again.'));
+  });
+}
+function buyReady(pack, back){
+  modal(`<h2>✔ SIGNED IN</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><p class="gnote">Pay by card on Paystack. The gold goes straight into THIS account, and shows as soon as you come back to the game.</p><button class="big" id="byGo">BUY ${pack.gold.toLocaleString()} GOLD · ${pack.price}</button><button class="mid" data-a="b">◀ BACK</button>`, {b:back});
+  $('#byGo').addEventListener('click', e=>{ e.stopPropagation(); PAY.buy(pack); closeModal(); back(); });
+}
+function restoreDone(back, ok){
+  const b=boughtRead();
+  modal(`<h2>🔄 PURCHASES RESTORED</h2><p class="gnote">Signed in as <b>${esc(acctMasked())}</b>.</p><div class="stat">🪙 ${b.toLocaleString()}</div><p>bought gold in your account${ok===false?' (last known — could not reach the server just now)':''}</p><p class="gnote">Total gold on this phone: 🪙 ${totalGold().toLocaleString()}</p><button class="big" data-a="b">OK</button>`, {b:back});
+}
+function signOutModal(back){
+  modal(`<h2>SIGN OUT?</h2><p class="gnote">Your bought gold stays safe in your account. Sign in again with the same email any time (🔄 RESTORE PURCHASES) to use it. Free gold you earned stays on this phone.</p><button class="big" data-a="y">SIGN OUT</button><button class="mid" data-a="n">CANCEL</button>`,
+    {y:()=>{ let done=false; const fin=()=>{ if(done) return; done=true; try { localStorage.removeItem(AUTH_KEY); localStorage.removeItem(BOUGHT_KEY); } catch(e){} goldUI(); back(); };
+        sbAuth(sb=>{ tmo(sb.auth.signOut({scope:'local'}), 8000).then(fin, fin); }, fin); }, n:back});
+}
+if(signedIn()) setTimeout(()=>walletRefresh(), 2500);   // show the latest bought balance (e.g. after buying on another phone)
+
+
+})();
+
+/* ---------- Arcade navigation (15 Oct 2026): ◀ previous game · 🏠 all games · next game ▶ on the main menu ---------- */
+(function(){ const ORDER=[['chomp-circuit','Chomp Circuit'],['sky-shield','Sky Shield'],['star-hijack','Star Hijack'],['blast-grid','Blast Grid'],['prism-cut','Prism Cut'],['neon-flip','Neon Flip'],['snack-stack','Snack Stack'],['colour-pour','Colour Pour'],['brick-blitz','Brick Blitz'],['bubble-burst','Bubble Burst'],['taxi-rank-jam','Taxi Rank Jam'],['rock-storm','Rock Storm'],['gem-swap','Gem Swap'],['bug-blaster','Bug Blaster'],['block-blast','Block Blast'],['neon-serpent','Neon Serpent'],['bolt-jam','Bolt Jam'],['deep-dig','Deep Dig'],['road-hopper','Road Hopper'],['sky-raider','Sky Raider'],['cube-hop','Cube Hop'],['sky-joust','Sky Joust'],['robo-riot','Robo Riot'],['tube-blaster','Tube Blaster'],['dungeon-dash','Dungeon Dash'],['street-brawl','Street Brawl'],['fist-clash','Fist Clash'],['coast-racer','Coast Racer'],['moon-drop','Moon Drop'],['sky-ace','Sky Ace'],['moon-buggy','Moon Buggy'],['ice-push','Ice Push'],['burger-drop','Burger Drop'],['cherry-dig','Cherry Dig'],['flag-rally','Flag Rally'],['sky-strike','Sky Strike'],['maze-bots','Maze Bots'],['cave-run','Cave Run'],['shake-bar','Shake Bar'],['light-trail','Light Trail'],['road-agent','Road Agent'],['temple-kick','Temple Kick'],['pop-dino','Pop Dino'],['mega-smash','Mega Smash'],['paper-route','Paper Route'],['marble-rush','Marble Rush'],['ring-king','Ring King'],['gold-runner','Gold Runner'],['wing-dash','Wing Dash'],['fruit-slash','Fruit Slash'],['cloud-jumper','Cloud Jumper'],['tower-stack','Tower Stack'],['rail-rush','Rail Rush'],['pixel-crossing','Pixel Crossing'],['sling-smash','Sling Smash'],['helix-drop','Helix Drop'],['color-gate','Color Gate'],['merge-mania','Merge Mania'],['royal-solitaire','Royal Solitaire'],['mine-field','Mine Field'],['number-grid','Number Grid'],['word-hunt','Word Hunt'],['spider-deck','Spider Deck'],['pixel-logic','Pixel Logic'],['slide-puzzle','Slide Puzzle'],['crate-push','Crate Push'],['rock-digger','Rock Digger'],['pipe-flow','Pipe Flow'],['marble-chain','Marble Chain'],['garden-guard','Garden Guard'],['candy-rope','Candy Rope'],['hill-rider','Hill Rider'],['jayden-kong','Jayden Kong']];
+  const nav=document.querySelector('.gnav'); if(!nav) return;
+  function show(L){ const i=L.findIndex(g=>g[0]===window.GAME.id); if(i<0){ return false; }
+    const p=L[(i-1+L.length)%L.length], n=L[(i+1)%L.length];
+    const gp=document.getElementById('gPrev'), gn=document.getElementById('gNext');
+    gp.href='../'+p[0]+'/'; gp.querySelector('span').textContent=p[1]; gn.href='../'+n[0]+'/'; gn.querySelector('span').textContent=n[1];
+    nav.style.display=''; try{ localStorage.setItem('rmxHomeIdx', i); }catch(e){} return true; }
+  if(!show(ORDER)) nav.style.display='none';
+  /*LIVE-ORDER*/ try{ fetch('../games.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(L=>{ if(L&&L.length) show(L); }).catch(()=>{}); }catch(e){}
+})();
+
+
+</script>
+</body>
+</html>
