@@ -555,7 +555,7 @@ const GAME=window.GAME={
     {id:'wide',icon:'🔦',name:'BIG BEAM',cd:18,key:'Digit1',keyLabel:'1',desc:'Your torch shines wider and further for 7 seconds.'},
     {id:'fast',icon:'👟',name:'SNEAKERS',cd:15,key:'Digit2',keyLabel:'2',desc:'Walk much faster for 6 seconds.'}],
   shop:[{id:'h_y',cat:'Torch',name:'Warm Torch',cost:0,colors:['#ffe37a','#c05a2a'],desc:'Cosy yellow light.'},{id:'h_b',cat:'Torch',name:'Ice Torch',cost:200,colors:['#9af0ff','#2a5ac0'],desc:'Cold blue light.'},{id:'h_p',cat:'Torch',name:'Party Torch',cost:350,colors:['#ff9af0','#8a2ac0'],desc:'Ghosts hate disco.'}],
-  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#9af0ff,#ffe37a)'}],
+  premium:[{name:'Ultimate Pack',price:'R50 (~$3.0 USD)',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#9af0ff,#ffe37a)'}],
   story:`<h3>GHOST HUNT</h3><p>Grandpa's old house is full of naughty ghosts again! They hide in the dark and only show up in torchlight. Grab your torch and your trusty jar, and catch every last one.</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>Walk with the <b>joystick</b> (PC: arrow keys / WASD). Your torch points where you walk (PC: or at the mouse).</li><li>Ghosts are <b>invisible in the dark</b>. Shine the torch on one until its glow is gone — it goes into your jar!</li><li>Ghosts in the dark creep towards you. If one touches you, you lose a life.</li><li>Walls block the light. 📸 FLASH stuns every ghost around you.</li></ul>`,
   tutorial:[{text:'Walk with the arrow keys and shine your torch on the ghost until you catch it.',touch:'Walk with the joystick and shine your torch on the ghost until you catch it.',ev:'catch'},
@@ -648,7 +648,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const GOLD_PACKS = [{gold:500, price:'R15 (~$0.9 USD)'},{gold:1500, price:'R30 (~$1.8 USD)'},{gold:4000, price:'R50 (~$3.0 USD)'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */

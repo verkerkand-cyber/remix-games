@@ -557,7 +557,7 @@ const GAME=window.GAME={
     {id:'undo',icon:'↩️',name:'UNDO',cd:4,key:'Backspace',keyLabel:'⌫',desc:'Climb back down one rung and get the step back.'},
     {id:'more',icon:'➕',name:'+2 STEPS',cd:35,key:'Digit2',keyLabel:'2',desc:'Two extra steps (and extra time on clock stages).'}],
   shop:[{id:'w_w',cat:'Tiles',name:'Wood Tiles',cost:0,colors:['#e8c890','#5a3a1a'],desc:'Warm and classic.'},{id:'w_n',cat:'Tiles',name:'Neon Tiles',cost:200,colors:['#1a2a4a','#5ad8ff'],desc:'Glowing letters.'},{id:'w_c',cat:'Tiles',name:'Candy Tiles',cost:350,colors:['#ff9ac8','#7a1a5a'],desc:'Sweet as sugar.'}],
-  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#5ad8a6)'}],
+  premium:[{name:'Ultimate Pack',price:'R50 (~$3.0 USD)',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#5ad8a6)'}],
   story:`<h3>WORD LADDER</h3><p>Professor Owl has lost her glasses at the top of the Word Tower. The only way up is a magic ladder: every rung is a new word, and each word may change just <b>one letter</b>. Help her climb!</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>Turn your word into the <b>GOAL</b> word.</li><li>Tap a tile, then tap a new letter. You may change <b>one letter</b> at a time.</li><li>Every new word must be a <b>real word</b>.</li><li>Reach the goal before your steps run out.</li><li>PC: ← / → pick a tile, ↑ / ↓ change the letter, ENTER to try it. BACKSPACE undoes.</li></ul>`,
   tutorial:[{text:'Pick a tile with ←/→, change it with ↑/↓ and press ENTER — or click a tile, then a letter.',touch:'Tap a tile, then tap a new letter to make a new word.',ev:'rung'},
@@ -631,7 +631,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const GOLD_PACKS = [{gold:500, price:'R15 (~$0.9 USD)'},{gold:1500, price:'R30 (~$1.8 USD)'},{gold:4000, price:'R50 (~$3.0 USD)'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */

@@ -555,7 +555,7 @@ const GAME=window.GAME={
     {id:'pair',icon:'✨',name:'MAGIC PAIR',cd:28,key:'Digit2',keyLabel:'2',desc:'Opens one pair for you.'},
     {id:'miss',icon:'❤️',name:'+2 MISSES',cd:30,key:'Digit3',keyLabel:'3',desc:'You may make two more mistakes.'}],
   shop:[{id:'c_p',cat:'Cards',name:'Party Cards',cost:0,colors:['#ff7ac0','#7a3aff'],desc:'Bright and fun.'},{id:'c_o',cat:'Cards',name:'Ocean Cards',cost:200,colors:['#2a8aff','#5ae0ff'],desc:'Cool blue backs.'},{id:'c_g',cat:'Cards',name:'Royal Cards',cost:350,colors:['#c8a020','#6a1a2a'],desc:'Fit for a king.'}],
-  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff7ac0,#5ae0ff)'}],
+  premium:[{name:'Ultimate Pack',price:'R50 (~$3.0 USD)',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff7ac0,#5ae0ff)'}],
   story:`<h3>MEMORY MATCH</h3><p>Grandpa Sipho's magic card table has a mind of its own. Every night it deals a new set of picture cards. Find all the pairs and the table rewards you with gold!</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>At the start you get a quick <b>peek</b> at every card. Remember them!</li><li>Tap <b>two cards</b> to flip them.</li><li>Same picture = a pair! Different = they flip back.</li><li>Find every pair before you run out of <b>misses</b>.</li><li>Pairs in a row score more.</li><li>🐈 Cat cards never match — they swap two cards!</li><li>PC: arrow keys move, SPACE flips.</li></ul>`,
   tutorial:[{text:'Move with the arrows and press SPACE to flip two cards — or click them.',touch:'Tap two cards to flip them. Find a matching pair!',ev:'pair'},
@@ -629,7 +629,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const GOLD_PACKS = [{gold:500, price:'R15 (~$0.9 USD)'},{gold:1500, price:'R30 (~$1.8 USD)'},{gold:4000, price:'R50 (~$3.0 USD)'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */

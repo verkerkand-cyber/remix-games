@@ -564,7 +564,7 @@ const GAME=window.GAME={
     {id:'hint',icon:'💡',name:'HINT',cd:10,key:'Digit1',keyLabel:'1',desc:'Shows a good line to draw.'},
     {id:'bonus',icon:'⏩',name:'BONUS TURN',cd:30,key:'Digit2',keyLabel:'2',desc:'After your next line you go again, even without a box.'}],
   shop:[{id:'d_b',cat:'Pen',name:'Blue Pen',cost:0,colors:['#5ab8ff','#ff6a5a'],desc:'School classic.'},{id:'d_g',cat:'Pen',name:'Green Marker',cost:200,colors:['#5aff9a','#d08aff'],desc:'Bold and bright.'},{id:'d_k',cat:'Pen',name:'Gold Ink',cost:350,colors:['#ffd23f','#ff8ad0'],desc:'Fancy writing.'}],
-  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3ad0ff,#ff6a5a)'}],
+  premium:[{name:'Ultimate Pack',price:'R50 (~$3.0 USD)',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#3ad0ff,#ff6a5a)'}],
   story:`<h3>DOT BOXES</h3><p>It's a rainy day at Lindiwe's house and her robot friend Bolt wants to play the old paper game with dots and boxes. Bolt is clever — but you're cleverer. Beat him on every page of the notebook!</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>Tap between two dots to draw a line.</li><li>Draw the <b>4th side</b> of a box and it's yours — then go again!</li><li>Try not to draw the <b>3rd side</b> of a box: the computer will take it.</li><li>When all lines are drawn, most boxes wins.</li><li>PC: arrow keys move, SPACE draws.</li></ul>`,
   tutorial:[{text:'Move with the arrows and press SPACE to draw a line — or click between two dots.',touch:'Tap between two dots to draw a line.',time:7},
@@ -632,7 +632,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const GOLD_PACKS = [{gold:500, price:'R15 (~$0.9 USD)'},{gold:1500, price:'R30 (~$1.8 USD)'},{gold:4000, price:'R50 (~$3.0 USD)'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */

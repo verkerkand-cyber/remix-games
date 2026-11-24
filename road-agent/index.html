@@ -543,7 +543,7 @@ const GAME=window.GAME={
     {id:'armor',icon:'🛡️',name:'ARMOUR',cd:20,key:'Digit2',keyLabel:'2',desc:'Bump enemy cars off the road safely for 6 seconds.'},
     {id:'turbo',icon:'⚡',name:'TURBO',cd:15,key:'Digit3',keyLabel:'3',desc:'Race ahead for 5 seconds.'}],
   shop:[{id:'c_w',cat:'Car',name:'White Spy Car',cost:0,colors:['#e8e8f0'],desc:'Classic.'},{id:'c_k',cat:'Car',name:'Black Spy Car',cost:200,colors:['#3a3a4a'],desc:'Stealth.'}],
-  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#e8e8f0,#ff3b3b)'}],
+  premium:[{name:'Ultimate Pack',price:'R50 (~$3.0 USD)',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#e8e8f0,#ff3b3b)'}],
   story:`<h3>ROAD AGENT</h3><p>You're the agency's best driver. Enemy agents are on the highway — take them out, keep the public safe, and outrun the chopper.</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick steers — up/down to change lane, left/right to drive further ahead or drop back. PC: arrow keys or WASD.</li><li><b>Right thumb:</b> HOLD <b>🔫 FIRE</b> to shoot (PC: hold SPACE). Your guns only fire while you hold it.</li><li>🔴 RED and ⚫ BLACK cars are enemies — shoot them or dodge them.</li><li>🔵 BLUE cars are innocent drivers — let go of FIRE when one is in front of you! Hitting one costs points, crashing into one costs a life.</li><li>Drop a <b>🛢️ OIL SLICK</b> (X) to spin out cars chasing you from behind.</li><li>Every 10th stage: shoot down the attack chopper.</li></ul>`,
   tutorial:[{text:'Steer with the arrow keys. <b>HOLD SPACE</b> to fire — shoot the RED car. Let go when a BLUE car is in front!',touch:'Left thumb steers. <b>HOLD 🔫 FIRE</b> to shoot the RED car. Let go when a BLUE car is in front!',ev:'kill'},
@@ -646,7 +646,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const GOLD_PACKS = [{gold:500, price:'R15 (~$0.9 USD)'},{gold:1500, price:'R30 (~$1.8 USD)'},{gold:4000, price:'R50 (~$3.0 USD)'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */

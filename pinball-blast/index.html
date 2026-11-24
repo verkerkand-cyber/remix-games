@@ -551,7 +551,7 @@ const GAME=window.GAME={
     {id:'multi',icon:'⚪',name:'EXTRA BALL',cd:35,key:'Digit2',keyLabel:'2',desc:'Launch one more ball onto the table.'},
     {id:'slow',icon:'🐢',name:'SLOW-MO',cd:15,key:'Digit3',keyLabel:'3',desc:'Balls move at half speed for 5 seconds.'}],
   shop:[{id:'b_s',cat:'Ball',name:'Chrome Ball',cost:0,colors:['#e8eef8','#8090a8'],desc:'Shiny steel.'},{id:'b_g',cat:'Ball',name:'Gold Ball',cost:200,colors:['#ffe14a','#b08a10'],desc:'Feels lucky.'},{id:'b_n',cat:'Ball',name:'Neon Ball',cost:350,colors:['#3dffd8','#ff3bd4'],desc:'Glows in the dark.'}],
-  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff3bd4,#3dd6ff)'}],
+  premium:[{name:'Ultimate Pack',price:'R50 (~$3.0 USD)',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ff3bd4,#3dd6ff)'}],
   story:`<h3>PINBALL BLAST</h3><p>Welcome to the brightest table in the neon city! Every table has a new high-score goal. Keep the ball alive, light up the bumpers and go for MULTIBALL!</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li>Touch the <b>left half</b> of the screen for the left flipper, the <b>right half</b> for the right flipper (PC: ←/Z and →/M).</li><li>The ball launches by itself.</li><li>Hit <b>bumpers</b> for points. Shoot the <b>RAMP</b> on the left for a big bonus.</li><li>Knock down all 3 <b>targets</b> for MULTIBALL.</li><li>Reach the target score to win. Don't let your last ball fall between the flippers!</li></ul>`,
   tutorial:[{text:'Press <b>←</b> or <b>→</b> to flip and hit the ball.',touch:'Touch the left or right half of the screen to flip.',ev:'flip'},
@@ -652,7 +652,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const GOLD_PACKS = [{gold:500, price:'R15 (~$0.9 USD)'},{gold:1500, price:'R30 (~$1.8 USD)'},{gold:4000, price:'R50 (~$3.0 USD)'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */

@@ -552,7 +552,7 @@ const GAME=window.GAME={
     {id:'scope',icon:'🔭',name:'SCOPE',cd:15,key:'Digit2',keyLabel:'2',desc:'Shows the full flight path for 8 seconds.'},
     {id:'triple',icon:'🔱',name:'TRIPLE',cd:25,key:'Digit3',keyLabel:'3',desc:'Your next shot fires three arrows at once (uses one arrow).'}],
   shop:[{id:'a_g',cat:'Archer',name:'Forest Green',cost:0,colors:['#2f7a3a','#c8a060'],desc:'Classic hunter.'},{id:'a_r',cat:'Archer',name:'Royal Red',cost:200,colors:['#b02838','#ffcf3d'],desc:'Fit for a castle.'},{id:'a_b',cat:'Archer',name:'Midnight',cost:350,colors:['#283a8a','#cfe0ff'],desc:'Silent and sharp.'}],
-  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#8aff5a,#ffcf3d)'}],
+  premium:[{name:'Ultimate Pack',price:'R50 (~$3.0 USD)',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#8aff5a,#ffcf3d)'}],
   story:`<h3>ARCHER HILL</h3><p>Every year the valley holds the Great Hill Contest. Targets bob, balloons float and the wind never sits still. Can you win all hundred rounds?</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Drag back</b> anywhere and let go to shoot — pull further for more power.</li><li>PC: <b>↑/↓</b> to aim, <b>hold SPACE</b> to charge, let go to shoot.</li><li>Arrows <b>drop</b> and the <b>wind</b> pushes them (watch the flag).</li><li>Hit every 🎯 before your quiver runs out. The middle scores the most.</li></ul>`,
   tutorial:[{text:'Press <b>↑/↓</b> to aim, hold <b>SPACE</b> and let go to shoot.',touch:'<b>Drag back</b> from anywhere and let go to shoot.',ev:'shoot'},
@@ -642,7 +642,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const GOLD_PACKS = [{gold:500, price:'R15 (~$0.9 USD)'},{gold:1500, price:'R30 (~$1.8 USD)'},{gold:4000, price:'R50 (~$3.0 USD)'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */

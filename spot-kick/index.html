@@ -552,7 +552,7 @@ const GAME=window.GAME={
     {id:'super',icon:'🧤',name:'SUPER GLOVES',cd:18,key:'Digit2',keyLabel:'2',desc:'Your keeper reaches much further on the next save.'},
     {id:'focus',icon:'🔍',name:'READ THE KICKER',cd:22,key:'Digit3',keyLabel:'3',desc:'See exactly where the next penalty is going.'}],
   shop:[{id:'k_g',cat:'Kit',name:'Green Kit',cost:0,colors:['#2ac05a','#ffffff'],desc:'Home colours.'},{id:'k_y',cat:'Kit',name:'Gold Kit',cost:200,colors:['#ffc23a','#1a3a8a'],desc:'Shine on the pitch.'},{id:'k_r',cat:'Kit',name:'Red Kit',cost:350,colors:['#e83a3a','#1a1a1a'],desc:'Fierce and fast.'}],
-  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#5aff7a,#ffd23f)'}],
+  premium:[{name:'Ultimate Pack',price:'R50 (~$3.0 USD)',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#5aff7a,#ffd23f)'}],
   story:`<h3>SPOT KICK</h3><p>The Township Cup is decided by penalties this year! Zola is the team's striker <i>and</i> goalkeeper. Take your kicks, make your saves and lift the cup!</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Shooting:</b> the marker slides side to side — <b>tap</b> to fix it. Then it slides up and down — <b>tap</b> again to shoot.</li><li>Stay inside the posts and away from the keeper!</li><li><b>Saving:</b> watch the kicker's arrow, then <b>tap the goal</b> where you want to dive.</li><li>5 kicks each. Most goals wins. Level? Sudden death!</li><li>PC: SPACE to aim; arrows to dive (hold ↑ for high).</li></ul>`,
   tutorial:[{text:'Press SPACE (or click) to fix the marker — twice — and shoot!',touch:'Tap to fix the marker — twice — and shoot!',ev:'shot'},
@@ -636,7 +636,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const GOLD_PACKS = [{gold:500, price:'R15 (~$0.9 USD)'},{gold:1500, price:'R30 (~$1.8 USD)'},{gold:4000, price:'R50 (~$3.0 USD)'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */

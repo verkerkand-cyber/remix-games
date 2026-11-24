@@ -559,7 +559,7 @@ const GAME=window.GAME={
     {id:'shield',icon:'🛡️',name:'SHIELD',cd:20,key:'Digit2',keyLabel:'2',desc:'Shells can\'t hurt you for 6 seconds.'},
     {id:'mine',icon:'💣',name:'MINE',cd:10,key:'Digit3',keyLabel:'3',desc:'Drop a mine. It blows up any enemy tank that drives near it.'}],
   shop:[{id:'t_g',cat:'Tank',name:'Field Green',cost:0,colors:['#6ac83a'],desc:'Classic.'},{id:'t_s',cat:'Tank',name:'Desert Sand',cost:200,colors:['#e0c070'],desc:'Dusty.'},{id:'t_b',cat:'Tank',name:'Arctic Blue',cost:350,colors:['#6ac8ff'],desc:'Cool and calm.'}],
-  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#8aff5a,#ffb020)'}],
+  premium:[{name:'Ultimate Pack',price:'R50 (~$3.0 USD)',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#8aff5a,#ffb020)'}],
   story:`<h3>TANK DUEL</h3><p>Welcome to the Bounce Arena, where every wall is a mirror for shells. Out-think, out-bounce and out-drive every tank they send at you — and save your best shots for the Iron Boss.</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Left thumb:</b> the stick drives your tank. PC: arrows or WASD.</li><li><b>Right thumb:</b> HOLD <b>💥 FIRE</b> (PC: hold SPACE). Your turret aims at the nearest enemy by itself (a mouse aims it by hand).</li><li>Shells <b>bounce once</b> off walls — use it to hit tanks behind cover, but don't hit yourself!</li><li>Two shells that meet cancel each other out.</li><li>🟤 brown tanks stand still, 🟢 green tanks roam, 🔴 red tanks are fast and tough.</li><li>Every 10th stage: the giant <b>Iron Boss</b>.</li></ul>`,
   tutorial:[{text:'Drive with the arrows. <b>HOLD SPACE</b> to fire — your turret aims itself.',touch:'Drive with the left stick. <b>HOLD 💥 FIRE</b> — your turret aims itself.',ev:'kill'},{text:'Shells bounce off walls once. Destroy every tank!',time:6}],
@@ -640,7 +640,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const GOLD_PACKS = [{gold:500, price:'R15 (~$0.9 USD)'},{gold:1500, price:'R30 (~$1.8 USD)'},{gold:4000, price:'R50 (~$3.0 USD)'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */

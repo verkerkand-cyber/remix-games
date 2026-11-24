@@ -552,7 +552,7 @@ const GAME=window.GAME={
     {id:'shield',icon:'🛡️',name:'BUBBLE SHIELD',cd:24,key:'Digit2',keyLabel:'2',desc:'Bounce safely off one mine or wall (lasts 8 seconds).'},
     {id:'torpedo',icon:'🚀',name:'TORPEDO',cd:12,key:'Digit3',keyLabel:'3',desc:'Blows up the next mine straight ahead of you.'}],
   shop:[{id:'u_y',cat:'Sub',name:'Yellow Sub',cost:0,colors:['#ffd23f','#ff7a3a'],desc:'Sunny and brave.'},{id:'u_r',cat:'Sub',name:'Coral Sub',cost:200,colors:['#ff5a7a','#ffe0a0'],desc:'Reef explorer.'},{id:'u_s',cat:'Sub',name:'Shadow Sub',cost:350,colors:['#5a6a8a','#3dffb0'],desc:'Silent and sneaky.'}],
-  premium:[{name:'Ultimate Pack',price:'R50',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#3dffb0)'}],
+  premium:[{name:'Ultimate Pack',price:'R50 (~$3.0 USD)',desc:'Everything in the shop.',swatch:'linear-gradient(90deg,#ffd23f,#3dffb0)'}],
   story:`<h3>SUB DIVE</h3><p>Captain Lerato pilots the little sub <i>Pebble</i> through the Midnight Trench to deliver pearls to the harbour. The water is pitch black and full of old sea mines. Ping your sonar and steer carefully!</p>`,
   howto:`<h3>HOW TO PLAY</h3><p>Hold your phone <b>sideways</b>.</p><ul><li><b>Hold</b> the screen to rise, let go to sink (PC: hold ↑).</li><li>Your lamp only lights a little circle.</li><li>Press <b>📡 SONAR</b> (PC: SPACE) to see the mines ahead.</li><li>Don't touch 💣 mines, 🪼 jellyfish or the cave walls.</li><li>Grab ⚪ pearls and reach the buoy.</li></ul>`,
   tutorial:[{text:'Hold <b>↑</b> to rise, let go to sink.',touch:'<b>Hold</b> the screen to rise, let go to sink.',time:6},
@@ -632,7 +632,7 @@ root.setProperty('--a', G.theme.a); root.setProperty('--b', G.theme.b); root.set
    after that you buy more with gold coins in the Ability Shop. */
 const BUY = G.abilities.filter(a=>a.cd>0);
 function abPrice(a){ return a.price || Math.max(30, Math.round((20 + a.cd*2.2)/5)*5); }
-const GOLD_PACKS = [{gold:500, price:'R15'},{gold:1500, price:'R30'},{gold:4000, price:'R50'}];
+const GOLD_PACKS = [{gold:500, price:'R15 (~$0.9 USD)'},{gold:1500, price:'R30 (~$1.8 USD)'},{gold:4000, price:'R50 (~$3.0 USD)'}];
 const COIN_CAP = 60;      // max gold coins that can drop from play in one stage
 
 /* ---------- storage (never trust it) ---------- */
